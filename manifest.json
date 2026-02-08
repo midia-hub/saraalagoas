@@ -1,0 +1,16 @@
+{
+  "name": "Sara Sede Alagoas",
+  "short_name": "Sara AL",
+  "description": "Igreja Sara Nossa Terra - Sede Alagoas",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#c62737",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
