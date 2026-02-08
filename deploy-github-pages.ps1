@@ -22,7 +22,8 @@ try {
     git add -A
     git commit -m "Deploy: $(Get-Date -Format 'yyyy-MM-dd HH:mm')"
     git branch -M gh-pages
-    git remote remove origin 2>$null
+    $hasOrigin = (git remote 2>$null) -match "origin"
+    if ($hasOrigin) { git remote remove origin }
     git remote add origin $repoUrl
     git push -u origin gh-pages --force
     Write-Host "`nDeploy concluido! Site em: https://midia-hub.github.io/saraalagoas/" -ForegroundColor Green
