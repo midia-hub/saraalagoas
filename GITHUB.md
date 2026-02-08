@@ -54,10 +54,13 @@ git branch -M main
 git push -u origin main
 ```
 
-Se o `origin` já existir com outra URL:
+Se o `origin` já existir (erro: "remote origin already exists"), **troque a URL** em vez de adicionar:
 
 ```powershell
-git remote set-url origin https://github.com/SEU-USUARIO/sara-sede-alagoas.git
+# Trocar para a URL correta (HTTPS)
+git remote set-url origin https://github.com/SEU-USUARIO/NOME-DO-REPO.git
+
+# Depois fazer o push
 git push -u origin main
 ```
 
