@@ -1,9 +1,12 @@
+'use client'
+
 import React from 'react'
 import Link from 'next/link'
 import SocialIcons from './SocialIcons'
-import { siteConfig } from '@/config/site'
+import { useSiteConfig } from '@/lib/site-config-context'
 
 export default function Footer() {
+  const { config } = useSiteConfig()
   const currentYear = new Date().getFullYear()
   
   return (
@@ -22,7 +25,7 @@ export default function Footer() {
           <div>
             <h3 className="text-xl font-bold mb-4">Onde Estamos</h3>
             <p className="text-gray-400 leading-relaxed">
-              {siteConfig.address.full}
+              {config.address.full}
             </p>
           </div>
           
@@ -30,8 +33,8 @@ export default function Footer() {
           <div>
             <h3 className="text-xl font-bold mb-4">Redes Sociais</h3>
             <SocialIcons
-              instagram={siteConfig.social.instagram}
-              youtube={siteConfig.social.youtube}
+              instagram={config.social.instagram}
+              youtube={config.social.youtube}
               size="lg"
               className="justify-start"
             />
@@ -45,12 +48,20 @@ export default function Footer() {
               © {currentYear} Sara Sede Alagoas. Todos os direitos reservados.
             </p>
             
-            <Link
-              href="/privacidade"
-              className="text-gray-400 hover:text-white text-sm transition-colors duration-300"
-            >
-              Política de Privacidade
-            </Link>
+            <div className="flex items-center gap-4">
+              <Link
+                href="/admin"
+                className="text-gray-400 hover:text-white text-sm transition-colors duration-300"
+              >
+                Admin
+              </Link>
+              <Link
+                href="/privacidade"
+                className="text-gray-400 hover:text-white text-sm transition-colors duration-300"
+              >
+                Política de Privacidade
+              </Link>
+            </div>
           </div>
         </div>
       </div>

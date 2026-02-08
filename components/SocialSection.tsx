@@ -1,20 +1,23 @@
+'use client'
+
 import React from 'react'
 import { Instagram, Youtube } from 'lucide-react'
 import SectionWrapper from './SectionWrapper'
-import { siteConfig } from '@/config/site'
+import { useSiteConfig } from '@/lib/site-config-context'
 
 export default function SocialSection() {
+  const { config } = useSiteConfig()
   const socialLinks = [
     {
       name: 'Instagram',
       icon: Instagram,
-      url: siteConfig.social.instagram,
+      url: config.social.instagram,
       color: 'hover:bg-pink-600',
     },
     {
       name: 'YouTube',
       icon: Youtube,
-      url: siteConfig.social.youtube,
+      url: config.social.youtube,
       color: 'hover:bg-red-600',
     },
   ]

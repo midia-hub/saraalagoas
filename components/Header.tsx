@@ -1,11 +1,11 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import Image from 'next/image'
 import { Menu, X } from 'lucide-react'
-import { siteConfig } from '@/config/site'
+import { useSiteConfig } from '@/lib/site-config-context'
 
 export default function Header() {
+  const { config } = useSiteConfig()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isScrolled, setIsScrolled] = useState(false)
   
@@ -54,7 +54,7 @@ export default function Header() {
           
           {/* Menu Desktop */}
           <nav className="hidden lg:flex items-center gap-6">
-            {siteConfig.menuItems.map((item) => (
+            {config.menuItems.map((item) => (
               <button
                 key={item.id}
                 onClick={() => scrollToSection(item.id)}
@@ -83,7 +83,7 @@ export default function Header() {
         }`}
       >
         <nav className="flex flex-col p-6 gap-4">
-          {siteConfig.menuItems.map((item) => (
+          {config.menuItems.map((item) => (
             <button
               key={item.id}
               onClick={() => scrollToSection(item.id)}

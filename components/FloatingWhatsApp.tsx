@@ -2,32 +2,33 @@
 
 import React, { useState } from 'react'
 import { MessageCircle, X, Phone, Heart, Users } from 'lucide-react'
-import { siteConfig } from '@/config/site'
+import { useSiteConfig } from '@/lib/site-config-context'
 import { getWhatsAppUrl } from '@/lib/whatsapp'
 
 export default function FloatingWhatsApp() {
+  const { config } = useSiteConfig()
   const [isOpen, setIsOpen] = useState(false)
   
   const options = [
     {
       icon: Phone,
       label: 'Falar Conosco',
-      message: siteConfig.whatsappMessages.general,
+      message: config.whatsappMessages.general,
     },
     {
       icon: Heart,
       label: 'Pedido de Oração',
-      message: siteConfig.whatsappMessages.prayer,
+      message: config.whatsappMessages.prayer,
     },
     {
       icon: Users,
       label: 'Participar de uma Célula',
-      message: siteConfig.whatsappMessages.cell,
+      message: config.whatsappMessages.cell,
     },
   ]
   
   const handleOptionClick = (message: string) => {
-    const url = getWhatsAppUrl(siteConfig.whatsappNumber, message)
+    const url = getWhatsAppUrl(config.whatsappNumber, message)
     window.open(url, '_blank', 'noopener,noreferrer')
     setIsOpen(false)
   }

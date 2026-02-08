@@ -1,11 +1,14 @@
+'use client'
+
 import React from 'react'
 import { Heart } from 'lucide-react'
 import Button from './Button'
 import SectionWrapper from './SectionWrapper'
-import { siteConfig } from '@/config/site'
+import { useSiteConfig } from '@/lib/site-config-context'
 import { getWhatsAppUrl } from '@/lib/whatsapp'
 
 export default function PrayerSection() {
+  const { config } = useSiteConfig()
   return (
     <SectionWrapper id="oracao" bgColor="gray">
       <div className="max-w-3xl mx-auto text-center">
@@ -26,7 +29,7 @@ export default function PrayerSection() {
           variant="primary"
           size="lg"
           asLink
-          href={getWhatsAppUrl(siteConfig.whatsappNumber, siteConfig.whatsappMessages.prayer)}
+          href={getWhatsAppUrl(config.whatsappNumber, config.whatsappMessages.prayer)}
         >
           QUERO FAZER MEU PEDIDO DE ORAÇÃO
         </Button>

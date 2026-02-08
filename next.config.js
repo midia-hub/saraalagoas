@@ -24,12 +24,6 @@ const nextConfig = {
   reactStrictMode: true,
   trailingSlash: true,
   webpack: (config) => {
-    // Fallback para Vercel/build: se src/ for compilado, @supabase/supabase-js usa stub
-    config.resolve = config.resolve || {}
-    config.resolve.alias = {
-      ...config.resolve.alias,
-      '@supabase/supabase-js': path.resolve(__dirname, 'empty-module.js'),
-    }
     // Excluir pasta src de TODAS as regras que processam ts/tsx/js
     const addExclude = (rule) => {
       if (!rule) return

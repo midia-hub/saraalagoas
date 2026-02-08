@@ -1,10 +1,13 @@
+'use client'
+
 import React from 'react'
 import Image from 'next/image'
 import { Baby, Shield, BookOpen, Smile } from 'lucide-react'
 import SectionWrapper from './SectionWrapper'
-import { siteConfig } from '@/config/site'
+import { useSiteConfig } from '@/lib/site-config-context'
 
 export default function KidsSection() {
+  const { config } = useSiteConfig()
   const icons = [Shield, BookOpen, Smile]
   
   return (
@@ -18,15 +21,15 @@ export default function KidsSection() {
             </div>
             
             <h2 className="text-4xl md:text-5xl font-bold text-sara-gray-dark mb-6">
-              {siteConfig.kids.title}
+              {config.kids.title}
             </h2>
             
             <p className="text-lg text-gray-600 mb-8">
-              {siteConfig.kids.description}
+              {config.kids.description}
             </p>
             
             <div className="space-y-4">
-              {siteConfig.kids.features.map((feature, index) => {
+              {config.kids.features.map((feature, index) => {
                 const Icon = icons[index] || Shield
                 return (
                   <div key={index} className="flex items-start gap-3">
@@ -40,7 +43,7 @@ export default function KidsSection() {
           
           {/* Imagens */}
           <div className="grid grid-cols-2 gap-4">
-            {siteConfig.kids.images.map((image, index) => (
+            {config.kids.images.map((image, index) => (
               <div
                 key={index}
                 className="relative aspect-square rounded-lg overflow-hidden"

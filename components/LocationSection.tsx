@@ -1,10 +1,13 @@
+'use client'
+
 import React from 'react'
 import { MapPin, Navigation } from 'lucide-react'
 import Button from './Button'
 import SectionWrapper from './SectionWrapper'
-import { siteConfig } from '@/config/site'
+import { useSiteConfig } from '@/lib/site-config-context'
 
 export default function LocationSection() {
+  const { config } = useSiteConfig()
   return (
     <SectionWrapper id="localizacao" bgColor="gray">
       <div className="max-w-6xl mx-auto">
@@ -18,14 +21,14 @@ export default function LocationSection() {
           </h2>
           
           <p className="text-lg text-gray-600 mb-4">
-            {siteConfig.address.full}
+            {config.address.full}
           </p>
         </div>
         
         {/* Mapa */}
         <div className="mb-8 rounded-lg overflow-hidden shadow-xl">
           <iframe
-            src={siteConfig.address.embedUrl}
+            src={config.address.embedUrl}
             width="100%"
             height="450"
             style={{ border: 0 }}
@@ -41,7 +44,7 @@ export default function LocationSection() {
             variant="primary"
             size="lg"
             asLink
-            href={siteConfig.address.mapUrl}
+            href={config.address.mapUrl}
           >
             <Navigation size={20} />
             COMO CHEGAR

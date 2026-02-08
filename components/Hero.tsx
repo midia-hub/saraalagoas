@@ -3,10 +3,11 @@
 import React from 'react'
 import { ChevronDown, Instagram, Youtube } from 'lucide-react'
 import Button from './Button'
-import { siteConfig } from '@/config/site'
+import { useSiteConfig } from '@/lib/site-config-context'
 import { getWhatsAppUrl } from '@/lib/whatsapp'
 
 export default function Hero() {
+  const { config } = useSiteConfig()
   const scrollToContent = () => {
     const element = document.getElementById('cultos')
     if (element) {
@@ -47,7 +48,7 @@ export default function Hero() {
             variant="primary"
             size="lg"
             asLink
-            href={getWhatsAppUrl(siteConfig.whatsappNumber, siteConfig.whatsappMessages.general)}
+            href={getWhatsAppUrl(config.whatsappNumber, config.whatsappMessages.general)}
           >
             FALE CONOSCO
           </Button>
@@ -56,7 +57,7 @@ export default function Hero() {
         {/* Botões Sociais */}
         <div className="flex items-center justify-center gap-4">
           <a
-            href={siteConfig.social.instagram}
+            href={config.social.instagram}
             target="_blank"
             rel="noopener noreferrer"
             className="text-white hover:text-sara-red transition-colors duration-300 flex items-center gap-2"
@@ -66,7 +67,7 @@ export default function Hero() {
             <span className="text-sm">Instagram</span>
           </a>
           <a
-            href={siteConfig.social.youtube}
+            href={config.social.youtube}
             target="_blank"
             rel="noopener noreferrer"
             className="text-white hover:text-sara-red transition-colors duration-300 flex items-center gap-2"

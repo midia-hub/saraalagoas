@@ -44,6 +44,7 @@
   "exclude": [
     "node_modules",
     "src",
-    "vite.config.ts"
+    "vite.config.ts",
+    "supabase"
   ]
 }

@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import { Poppins } from 'next/font/google'
 import './globals.css'
 import { siteConfig } from '@/config/site'
+import { SiteConfigProvider } from '@/lib/site-config-context'
 
 const poppins = Poppins({
   weight: ['300', '400', '500', '600', '700'],
@@ -55,7 +56,9 @@ export default function RootLayout({
   return (
     <html lang="pt-BR" className="scroll-smooth">
       <body className={poppins.className}>
-        {children}
+        <SiteConfigProvider>
+          {children}
+        </SiteConfigProvider>
       </body>
     </html>
   )

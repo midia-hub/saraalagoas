@@ -1,11 +1,14 @@
+'use client'
+
 import React from 'react'
 import Image from 'next/image'
 import { Instagram } from 'lucide-react'
 import Card from './Card'
 import SectionWrapper from './SectionWrapper'
-import { siteConfig } from '@/config/site'
+import { useSiteConfig } from '@/lib/site-config-context'
 
 export default function LeadershipSection() {
+  const { config } = useSiteConfig()
   return (
     <SectionWrapper id="lideranca" bgColor="gray">
       <div className="text-center mb-12">
@@ -18,7 +21,7 @@ export default function LeadershipSection() {
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-        {siteConfig.leadership.map((leader) => (
+        {config.leadership.map((leader) => (
           <Card key={leader.name}>
             <div className="text-center">
               <div className="relative w-48 h-48 mx-auto mb-6 rounded-full overflow-hidden">

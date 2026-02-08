@@ -1,12 +1,15 @@
+'use client'
+
 import React from 'react'
 import Image from 'next/image'
 import { Sparkles } from 'lucide-react'
 import Button from './Button'
 import SectionWrapper from './SectionWrapper'
-import { siteConfig } from '@/config/site'
+import { useSiteConfig } from '@/lib/site-config-context'
 import { getWhatsAppUrl } from '@/lib/whatsapp'
 
 export default function ImmersionSection() {
+  const { config } = useSiteConfig()
   return (
     <SectionWrapper id="revisao" bgColor="white">
       <div className="max-w-6xl mx-auto">
@@ -16,17 +19,17 @@ export default function ImmersionSection() {
           </div>
           
           <h2 className="text-4xl md:text-5xl font-bold text-sara-gray-dark mb-6">
-            {siteConfig.immersion.title}
+            {config.immersion.title}
           </h2>
           
           <p className="text-lg text-gray-600 mb-8 max-w-3xl mx-auto">
-            {siteConfig.immersion.description}
+            {config.immersion.description}
           </p>
         </div>
         
         {/* Features Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-12">
-          {siteConfig.immersion.features.map((feature, index) => (
+          {config.immersion.features.map((feature, index) => (
             <div
               key={index}
               className="flex items-center gap-3 bg-gray-50 px-4 py-3 rounded-lg"
@@ -39,7 +42,7 @@ export default function ImmersionSection() {
         
         {/* Galeria de Fotos */}
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-12">
-          {siteConfig.immersion.images.map((image, index) => (
+          {config.immersion.images.map((image, index) => (
             <div
               key={index}
               className="relative aspect-square rounded-lg overflow-hidden group"
@@ -60,7 +63,7 @@ export default function ImmersionSection() {
             variant="primary"
             size="lg"
             asLink
-            href={getWhatsAppUrl(siteConfig.whatsappNumber, siteConfig.whatsappMessages.immersion)}
+            href={getWhatsAppUrl(config.whatsappNumber, config.whatsappMessages.immersion)}
           >
             QUERO SABER MAIS
           </Button>

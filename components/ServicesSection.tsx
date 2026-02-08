@@ -1,10 +1,13 @@
+'use client'
+
 import React from 'react'
 import { Calendar, Clock } from 'lucide-react'
 import Card from './Card'
 import SectionWrapper from './SectionWrapper'
-import { siteConfig } from '@/config/site'
+import { useSiteConfig } from '@/lib/site-config-context'
 
 export default function ServicesSection() {
+  const { config } = useSiteConfig()
   return (
     <SectionWrapper id="cultos" bgColor="gray">
       <div className="text-center mb-12">
@@ -17,7 +20,7 @@ export default function ServicesSection() {
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {siteConfig.services.map((service) => (
+        {config.services.map((service) => (
           <Card key={service.id}>
             <div className="text-center">
               <div className="inline-flex items-center justify-center w-16 h-16 bg-sara-red/10 rounded-full mb-4">

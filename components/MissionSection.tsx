@@ -3,9 +3,10 @@
 import React, { useState } from 'react'
 import { Target, ChevronDown, ChevronUp } from 'lucide-react'
 import SectionWrapper from './SectionWrapper'
-import { siteConfig } from '@/config/site'
+import { useSiteConfig } from '@/lib/site-config-context'
 
 export default function MissionSection() {
+  const { config } = useSiteConfig()
   const [isExpanded, setIsExpanded] = useState(false)
   
   return (
@@ -23,12 +24,12 @@ export default function MissionSection() {
         
         <div className="bg-gray-50 rounded-lg p-8">
           <p className="text-lg text-gray-700 leading-relaxed mb-6">
-            {siteConfig.mission.short}
+            {config.mission.short}
           </p>
           
           {isExpanded && (
             <div className="text-lg text-gray-700 leading-relaxed whitespace-pre-line animate-fade-in">
-              {siteConfig.mission.full}
+              {config.mission.full}
             </div>
           )}
           
