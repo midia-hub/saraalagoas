@@ -13,8 +13,9 @@ function getFormValue(form: HTMLFormElement | null, name: string): string {
     return ''
   }
   const el = form.elements.namedItem(name)
-  const value = (el && 'value' in el ? (el as HTMLInputElement).value : '').trim()
-  console.log('[Login] getFormValue resultado', { name, el: !!el, valueRaw: el && 'value' in el ? (el as HTMLInputElement).value : '(sem value)', value })
+  // namedItem pode retornar HTMLInputElement ou RadioNodeList; acessar .value com cast via unknown
+  const value = (el && 'value' in el ? (el as unknown as HTMLInputElement).value : '').trim()
+  console.log('[Login] getFormValue resultado', { name, el: !!el, valueRaw: el && 'value' in el ? (el as unknown as HTMLInputElement).value : '(sem value)', value })
   return value
 }
 
