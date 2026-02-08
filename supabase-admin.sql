@@ -1,5 +1,5 @@
 -- ============================================================
--- Migração: Admin e Configuração do Site
+-- Migração: Admin e Configuração do Site 
 -- Execute no SQL Editor do Supabase (Dashboard > SQL Editor)
 -- ============================================================
 
