@@ -1,0 +1,21 @@
+---
+description: Nunca commitar .env nem arquivos de chave; lembrar ao subir versão ou fazer deploy
+alwaysApply: true
+---
+
+# Segurança: .env e chaves
+
+## Ao subir a versão (commit, push, deploy)
+
+- **Nunca commitar o `.env`** – contém chaves (Supabase, Google Drive, etc.). O `.env` já está no `.gitignore`; conferir que não foi adicionado por engano (`git status`).
+- **Nunca commitar arquivos de chave do Google Cloud** – ex.: `midia-api-*.json`, `*credentials*.json`, `*service*account*.json`. Esses padrões estão no `.gitignore`; não colocar esses arquivos na raiz do projeto nem em pastas versionadas.
+- **Na Vercel (ou outro host)** – configurar variáveis de ambiente apenas no painel do serviço (Environment Variables), nunca no repositório.
+
+## Resumo
+
+| Item | Ação |
+|------|------|
+| `.env`, `.env.local` | Não commitar; já no .gitignore |
+| Arquivos JSON de chave (ex. `midia-api-f36f1a19a4dc.json`) | Não commitar; guardar em local seguro ou apagar após configurar o .env |
+
+Antes de dar push ou fazer deploy, verificar: `git status` não deve listar `.env` nem arquivos de chave.

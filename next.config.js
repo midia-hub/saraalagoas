@@ -11,8 +11,9 @@ const assetPrefix = process.env.NODE_ENV === 'production' ? '/saraalagoas/' : ''
 // Excluir pasta src (projeto Vite antigo) do build do Next.js
 const excludeSrc = /[\\/]src[\\/]/
 
+// Não usar output: 'export' – a galeria usa rotas dinâmicas (/galeria/[tipo]/[slug]/[date])
+// que precisam de servidor (SSR ou Node). Para GitHub Pages estático, use outro host (ex.: Vercel) para o Next.
 const nextConfig = {
-  output: 'export',
   basePath,
   assetPrefix,
   images: {
@@ -23,6 +24,8 @@ const nextConfig = {
   },
   reactStrictMode: true,
   trailingSlash: true,
+  // Next.js 16: Turbopack é o padrão; config vazia evita erro quando há webpack customizado
+  turbopack: {},
   webpack: (config) => {
     // Excluir pasta src de TODAS as regras que processam ts/tsx/js
     const addExclude = (rule) => {

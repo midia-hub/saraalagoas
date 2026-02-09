@@ -3,6 +3,8 @@ import { Poppins } from 'next/font/google'
 import './globals.css'
 import { siteConfig } from '@/config/site'
 import { SiteConfigProvider } from '@/lib/site-config-context'
+import { GlobalErrorHandler } from './GlobalErrorHandler'
+import { AppFallback } from './AppFallback'
 
 const poppins = Poppins({
   weight: ['300', '400', '500', '600', '700'],
@@ -53,10 +55,27 @@ export default function RootLayout({
 }: {
   children: React.ReactNode
 }) {
+  const fallbackMessage = 'Se o site não carregou em alguns segundos, tente abrir em janela anônima ou desative extensões do navegador.'
+
   return (
-    <html lang="pt-BR" className="scroll-smooth">
+    <html lang="pt-BR" className="scroll-smooth" data-scroll-behavior="smooth">
       <body className={poppins.className}>
+        <noscript>
+          <div
+            style={{
+              padding: '2rem',
+              textAlign: 'center',
+              maxWidth: '480px',
+              margin: '2rem auto',
+              fontFamily: 'system-ui, sans-serif',
+            }}
+          >
+            Para usar o site, ative o JavaScript. {fallbackMessage}
+          </div>
+        </noscript>
+        <AppFallback />
         <SiteConfigProvider>
+          <GlobalErrorHandler />
           {children}
         </SiteConfigProvider>
       </body>

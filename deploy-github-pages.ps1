@@ -17,6 +17,11 @@ Write-Host "`n=== Deploy para branch gh-pages ===" -ForegroundColor Cyan
 Push-Location out
 
 try {
+    # GitHub Pages usa Jekyll por padrao; Jekyll ignora pastas que comecam com _
+    # (ex.: _next), causando 404. .nojekyll desativa o Jekyll e serve tudo.
+    "" | Out-File -FilePath ".nojekyll" -Encoding utf8
+    # CNAME na raiz do branch gh-pages para o dominio customizado (saraalagoas.com)
+    if (Test-Path "..\CNAME") { Copy-Item "..\CNAME" -Destination "." -Force }
     Remove-Item -Recurse -Force .git -ErrorAction SilentlyContinue
     git init
     git add -A

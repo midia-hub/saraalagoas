@@ -61,7 +61,7 @@ Deno.serve(async (req) => {
 
     const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
       email,
-      { redirectTo: `${req.headers.get("origin") || supabaseUrl}/admin` }
+      { redirectTo: `${req.headers.get("origin") || supabaseUrl}/auth/confirmar` }
     );
     if (inviteError) {
       return new Response(

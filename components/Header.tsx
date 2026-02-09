@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { Menu, X } from 'lucide-react'
 import { useSiteConfig } from '@/lib/site-config-context'
 

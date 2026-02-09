@@ -4,18 +4,13 @@ import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
+import { getAuthConfirmarUrl } from '@/lib/auth-redirect'
 
 /** Lê valor do campo pelo nome no formulário (valor real do DOM, inclusive autocomplete) */
 function getFormValue(form: HTMLFormElement | null, name: string): string {
-  console.log('[Login] getFormValue', { form: !!form, name, formElements: form ? Array.from(form.elements).map((e) => ({ tag: e.tagName, name: (e as HTMLInputElement).name, type: (e as HTMLInputElement).type })) : [] })
-  if (!form) {
-    console.log('[Login] getFormValue: form é null')
-    return ''
-  }
+  if (!form) return ''
   const el = form.elements.namedItem(name)
-  // namedItem pode retornar HTMLInputElement ou RadioNodeList; acessar .value com cast via unknown
   const value = (el && 'value' in el ? (el as unknown as HTMLInputElement).value : '').trim()
-  console.log('[Login] getFormValue resultado', { name, el: !!el, valueRaw: el && 'value' in el ? (el as unknown as HTMLInputElement).value : '(sem value)', value })
   return value
 }
 
@@ -28,16 +23,12 @@ export default function AdminLoginPage() {
 
   async function handleLogin(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    console.log('[Login] handleLogin chamado')
     setError(null)
     setMessage(null)
     const form = e.currentTarget
-    console.log('[Login] handleLogin form', { formId: form.id, formName: form.getAttribute('name'), numElements: form.elements.length })
     const emailValue = getFormValue(form, 'email')
     const passwordValue = getFormValue(form, 'password')
-    console.log('[Login] handleLogin valores lidos', { emailValue, passwordLength: passwordValue.length })
     if (!emailValue) {
-      console.log('[Login] handleLogin: email vazio, mostrando erro')
       setError('Informe o e-mail.')
       return
     }
@@ -57,7 +48,7 @@ export default function AdminLoginPage() {
         setLoading(false)
         return
       }
-      if (data.user) router.replace('/admin')
+      if (data.user) router.replace('/admin/')
     } catch (e) {
       setError('Erro ao entrar. Tente novamente.')
     } finally {
@@ -67,15 +58,12 @@ export default function AdminLoginPage() {
 
   async function handleMagicLink(e: React.MouseEvent<HTMLButtonElement>) {
     e.preventDefault()
-    console.log('[Login] handleMagicLink chamado')
     setError(null)
     setMessage(null)
     const btn = e.target as HTMLButtonElement
     const formFromBtn = btn.form
     const form = formFromBtn ?? formRef.current
-    console.log('[Login] handleMagicLink form', { formFromBtn: !!formFromBtn, formRef: !!formRef.current, form: !!form })
     const emailValue = getFormValue(form, 'email')
-    console.log('[Login] handleMagicLink emailValue', { emailValue })
     if (!supabase) {
       setError('Supabase não configurado. Configure NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY no .env.local')
       return
@@ -86,7 +74,11 @@ export default function AdminLoginPage() {
     }
     setLoading(true)
     try {
-      const { error: err } = await supabase.auth.signInWithOtp({ email: emailValue })
+      const redirectTo = getAuthConfirmarUrl()
+      const { error: err } = await supabase.auth.signInWithOtp({
+        email: emailValue,
+        options: redirectTo ? { emailRedirectTo: redirectTo } : undefined,
+      })
       if (err) {
         setError(err.message)
         setLoading(false)
@@ -101,11 +93,11 @@ export default function AdminLoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-lg p-8">
-        <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">Admin</h1>
-          <p className="text-gray-600 mt-1">Sara Sede Alagoas</p>
+    <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4 py-6">
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-lg p-6 sm:p-8">
+        <div className="text-center mb-6 sm:mb-8">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Admin</h1>
+          <p className="text-gray-600 mt-1 text-sm sm:text-base">Sara Sede Alagoas</p>
         </div>
         <form ref={formRef} onSubmit={handleLogin} className="space-y-4">
           <div>
@@ -148,7 +140,7 @@ export default function AdminLoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-2.5 bg-[#c62737] text-white font-medium rounded-lg hover:bg-[#a01f2d] disabled:opacity-50"
+              className="w-full py-3 sm:py-2.5 bg-[#c62737] text-white font-medium rounded-lg hover:bg-[#a01f2d] disabled:opacity-50 min-h-[44px]"
             >
               {loading ? 'Entrando...' : 'Entrar'}
             </button>
@@ -156,7 +148,7 @@ export default function AdminLoginPage() {
               type="button"
               onClick={handleMagicLink}
               disabled={loading}
-              className="w-full py-2.5 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 disabled:opacity-50"
+              className="w-full py-3 sm:py-2.5 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 disabled:opacity-50 min-h-[44px]"
             >
               Enviar link de acesso por e-mail
             </button>

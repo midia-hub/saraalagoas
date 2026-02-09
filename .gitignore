@@ -19,13 +19,19 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-# Environment (nunca commitar)
+# Environment (nunca commitar – contém chaves e segredos)
 .env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
 *.local
+
+# Chaves Google Cloud / Service Account (nunca commitar)
+*midia-api*.json
+*credentials*.json
+*service*account*.json
+*-????????.json
 
 # Debug
 npm-debug.log*
@@ -42,6 +48,9 @@ yarn-error.log*
 *.njsproj
 *.sln
 *.sw?
+
+# Pasta docs (removida do projeto; evita commitar por engano)
+/docs
 
 # Backup do projeto anterior (Vite)
 package.json.vite-backup

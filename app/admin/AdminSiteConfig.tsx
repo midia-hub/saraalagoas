@@ -51,16 +51,23 @@ export function AdminSiteConfig() {
 
   if (loading) return <p className="text-gray-600">Carregando configurações...</p>
 
+  const SectionTitle = ({ children }: { children: React.ReactNode }) => (
+    <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+      <span className="w-2 h-2 rounded-full bg-[#c62737] shrink-0" aria-hidden />
+      {children}
+    </h3>
+  )
+
   return (
-    <div className="max-w-3xl">
-      <h2 className="text-xl font-bold text-gray-900 mb-4">Configurações do site</h2>
-      <p className="text-gray-600 mb-6">
+    <div className="w-full max-w-5xl min-w-0">
+      <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-2 sm:mb-4">Configurações do site</h2>
+      <p className="text-gray-600 text-sm sm:text-base mb-4 sm:mb-6">
         Altere as informações exibidas na página inicial e no menu. Salve ao final.
       </p>
-      <form onSubmit={handleSave} className="space-y-8">
+      <form onSubmit={handleSave} className="space-y-6 sm:space-y-8">
         {/* Geral */}
-        <section className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-          <h3 className="font-semibold text-gray-900 mb-4">Geral</h3>
+        <section className="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-gray-200">
+          <SectionTitle>Geral</SectionTitle>
           <div className="grid gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Nome do site</label>
@@ -91,8 +98,8 @@ export function AdminSiteConfig() {
         </section>
 
         {/* WhatsApp e redes */}
-        <section className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-          <h3 className="font-semibold text-gray-900 mb-4">WhatsApp e redes sociais</h3>
+        <section className="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-gray-200">
+          <SectionTitle>WhatsApp e redes sociais</SectionTitle>
           <div className="grid gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Número WhatsApp (com DDI, sem +)</label>
@@ -114,13 +121,13 @@ export function AdminSiteConfig() {
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg"
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Instagram (URL)</label>
                 <input
                   value={config.social.instagram}
                   onChange={(e) => setConfig((c) => ({ ...c, social: { ...c.social, instagram: e.target.value } }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg min-w-0"
                 />
               </div>
               <div>
@@ -128,7 +135,7 @@ export function AdminSiteConfig() {
                 <input
                   value={config.social.youtube}
                   onChange={(e) => setConfig((c) => ({ ...c, social: { ...c.social, youtube: e.target.value } }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg min-w-0"
                 />
               </div>
             </div>
@@ -136,14 +143,14 @@ export function AdminSiteConfig() {
         </section>
 
         {/* Menu */}
-        <section className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-          <h3 className="font-semibold text-gray-900 mb-4">Menu do site</h3>
+        <section className="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-gray-200">
+          <SectionTitle>Menu do site</SectionTitle>
           <p className="text-sm text-gray-600 mb-4">
             Cada item tem um <strong>id</strong> (âncora na página, ex: cultos, celula) e um <strong>label</strong> (texto no menu).
           </p>
           <div className="space-y-3">
             {config.menuItems.map((item, i) => (
-              <div key={item.id} className="flex gap-3 items-center">
+              <div key={item.id} className="flex flex-col sm:flex-row gap-2 sm:gap-3 sm:items-center">
                 <input
                   value={item.id}
                   onChange={(e) => {
@@ -152,7 +159,7 @@ export function AdminSiteConfig() {
                     setConfig((c) => ({ ...c, menuItems: next }))
                   }}
                   placeholder="id"
-                  className="w-32 px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  className="w-full sm:w-32 px-3 py-2 border border-gray-300 rounded-lg text-sm min-w-0"
                 />
                 <input
                   value={item.label}
@@ -162,7 +169,7 @@ export function AdminSiteConfig() {
                     setConfig((c) => ({ ...c, menuItems: next }))
                   }}
                   placeholder="Label"
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg"
+                  className="flex-1 w-full min-w-0 px-3 py-2 border border-gray-300 rounded-lg"
                 />
               </div>
             ))}
@@ -188,8 +195,8 @@ export function AdminSiteConfig() {
         </section>
 
         {/* Endereço */}
-        <section className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-          <h3 className="font-semibold text-gray-900 mb-4">Endereço</h3>
+        <section className="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-gray-200">
+          <SectionTitle>Endereço</SectionTitle>
           <div className="grid gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Endereço completo</label>
@@ -219,12 +226,12 @@ export function AdminSiteConfig() {
         </section>
 
         {/* Cultos */}
-        <section className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-          <h3 className="font-semibold text-gray-900 mb-4">Cultos</h3>
+        <section className="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-gray-200">
+          <SectionTitle>Cultos</SectionTitle>
           <div className="space-y-4">
             {config.services.map((svc, i) => (
-              <div key={svc.id} className="p-4 border border-gray-200 rounded-lg space-y-2">
-                <div className="grid grid-cols-2 gap-2">
+              <div key={svc.id} className="p-3 sm:p-4 border border-gray-200 rounded-lg space-y-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <input
                     value={svc.name}
                     onChange={(e) => {
@@ -233,7 +240,7 @@ export function AdminSiteConfig() {
                       setConfig((c) => ({ ...c, services: next }))
                     }}
                     placeholder="Nome do culto"
-                    className="px-3 py-2 border border-gray-300 rounded-lg"
+                    className="w-full min-w-0 px-3 py-2 border border-gray-300 rounded-lg"
                   />
                   <input
                     value={svc.day}
@@ -243,10 +250,10 @@ export function AdminSiteConfig() {
                       setConfig((c) => ({ ...c, services: next }))
                     }}
                     placeholder="Dia"
-                    className="px-3 py-2 border border-gray-300 rounded-lg"
+                    className="w-full min-w-0 px-3 py-2 border border-gray-300 rounded-lg"
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <input
                     value={svc.time}
                     onChange={(e) => {
@@ -255,7 +262,7 @@ export function AdminSiteConfig() {
                       setConfig((c) => ({ ...c, services: next }))
                     }}
                     placeholder="Horário"
-                    className="px-3 py-2 border border-gray-300 rounded-lg"
+                    className="w-full min-w-0 px-3 py-2 border border-gray-300 rounded-lg"
                   />
                   <input
                     value={svc.type}
@@ -265,7 +272,7 @@ export function AdminSiteConfig() {
                       setConfig((c) => ({ ...c, services: next }))
                     }}
                     placeholder="Tipo (ex: Presencial)"
-                    className="px-3 py-2 border border-gray-300 rounded-lg"
+                    className="w-full min-w-0 px-3 py-2 border border-gray-300 rounded-lg"
                   />
                 </div>
                 <input
@@ -284,8 +291,8 @@ export function AdminSiteConfig() {
         </section>
 
         {/* Mensagens WhatsApp extras */}
-        <section className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-          <h3 className="font-semibold text-gray-900 mb-4">Mensagens WhatsApp (oração, célula, imersão)</h3>
+        <section className="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-gray-200">
+          <SectionTitle>Mensagens WhatsApp (oração, célula, imersão)</SectionTitle>
           <div className="grid gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Pedido de oração</label>
@@ -324,8 +331,8 @@ export function AdminSiteConfig() {
         </section>
 
         {/* Missão, Célula, Kids, Ofertas, Imersão - resumidos */}
-        <section className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-          <h3 className="font-semibold text-gray-900 mb-4">Textos das seções</h3>
+        <section className="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-gray-200">
+          <SectionTitle>Textos das seções</SectionTitle>
           <div className="grid gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Missão (resumo)</label>
@@ -415,7 +422,7 @@ export function AdminSiteConfig() {
         <button
           type="submit"
           disabled={saving}
-          className="px-6 py-2.5 bg-[#c62737] text-white font-medium rounded-lg hover:bg-[#a01f2d] disabled:opacity-50"
+          className="w-full sm:w-auto px-6 py-2.5 bg-[#c62737] text-white font-medium rounded-lg hover:bg-[#a01f2d] disabled:opacity-50 min-h-[44px]"
         >
           {saving ? 'Salvando...' : 'Salvar configurações'}
         </button>

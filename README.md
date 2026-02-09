@@ -47,14 +47,12 @@ Acesse: **http://localhost:3000** (ou a porta indicada no terminal)
 
 ## Deploy
 
-O projeto está pronto para deploy na **Vercel**. Veja o guia em `DEPLOY.md`.
+O projeto está pronto para deploy na **Vercel** ou em qualquer host que suporte Next.js (Node).
 
-## Documentação
+## Antes de subir no Git
 
-- `INICIO-RAPIDO.md` - Guia rápido
-- `DEPLOY.md` - Deploy na Vercel
-- `IMAGENS.md` - Guia de imagens
-- `FAQ.md` - Perguntas frequentes
+- **Nunca** commite o arquivo `.env` (já está no `.gitignore`).
+- Copie `.env.example` para `.env` e preencha com suas chaves apenas no seu ambiente.
 
 ## Licença
 
