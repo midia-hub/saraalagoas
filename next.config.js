@@ -4,9 +4,10 @@ import { fileURLToPath } from 'url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
-// Para GitHub Pages: https://midia-hub.github.io/saraalagoas/
-const basePath = process.env.NODE_ENV === 'production' ? '/saraalagoas' : ''
-const assetPrefix = process.env.NODE_ENV === 'production' ? '/saraalagoas/' : ''
+// BasePath: padrão é raiz (/) para deploy em domínio próprio (ex.: saraalagoas.com na Vercel).
+// Só use NEXT_PUBLIC_BASE_PATH=/saraalagoas se publicar em subpasta (ex.: GitHub Pages).
+const basePath = (process.env.NEXT_PUBLIC_BASE_PATH || '').replace(/\/$/, '') // remove barra final se houver
+const assetPrefix = basePath ? `${basePath}/` : ''
 
 // Excluir pasta src (projeto Vite antigo) do build do Next.js
 const excludeSrc = /[\\/]src[\\/]/
