@@ -7,7 +7,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "upload:imagens": "node scripts/upload-imagens-bucket.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",

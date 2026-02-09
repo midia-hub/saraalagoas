@@ -6,6 +6,7 @@ import { Instagram } from 'lucide-react'
 import Card from './Card'
 import SectionWrapper from './SectionWrapper'
 import { useSiteConfig } from '@/lib/site-config-context'
+import { getStorageUrl } from '@/lib/storage-url'
 
 export default function LeadershipSection() {
   const { config } = useSiteConfig()
@@ -26,7 +27,7 @@ export default function LeadershipSection() {
             <div className="text-center">
               <div className="relative w-48 h-48 mx-auto mb-6 rounded-full overflow-hidden">
                 <Image
-                  src={leader.image}
+                  src={getStorageUrl(leader.image)}
                   alt={leader.name}
                   fill
                   sizes="192px"

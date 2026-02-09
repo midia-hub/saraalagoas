@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { Baby, Shield, BookOpen, Smile } from 'lucide-react'
 import SectionWrapper from './SectionWrapper'
 import { useSiteConfig } from '@/lib/site-config-context'
+import { getStorageUrl } from '@/lib/storage-url'
 
 export default function KidsSection() {
   const { config } = useSiteConfig()
@@ -49,7 +50,7 @@ export default function KidsSection() {
                 className="relative aspect-square rounded-lg overflow-hidden"
               >
                 <Image
-                  src={image}
+                  src={getStorageUrl(image)}
                   alt={`Sara Kids foto ${index + 1}`}
                   fill
                   sizes="(max-width: 768px) 50vw, 33vw"

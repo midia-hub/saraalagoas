@@ -3,6 +3,9 @@
 import React, { useState, useEffect } from 'react'
 import { Menu, X } from 'lucide-react'
 import { useSiteConfig } from '@/lib/site-config-context'
+import { getStorageUrl } from '@/lib/storage-url'
+
+const LOGO_PATH = 'brand/logo.png'
 
 export default function Header() {
   const { config } = useSiteConfig()
@@ -45,7 +48,7 @@ export default function Header() {
           {/* Logo */}
           <div className="flex-shrink-0">
             <img
-              src="/brand/logo.png"
+              src={getStorageUrl(LOGO_PATH)}
               alt="Sara Sede Alagoas"
               className="h-16"
               style={{ width: 'auto' }}
