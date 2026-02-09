@@ -5,8 +5,12 @@ import { fileURLToPath } from 'url'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 // Para GitHub Pages: https://midia-hub.github.io/saraalagoas/
-const basePath = process.env.NODE_ENV === 'production' ? '/saraalagoas' : ''
-const assetPrefix = process.env.NODE_ENV === 'production' ? '/saraalagoas/' : ''
+// Em Vercel/domínio próprio, mantenha vazio para evitar 404 em /_next/static.
+const useGithubPagesBasePath =
+  process.env.NEXT_PUBLIC_USE_BASEPATH === 'true'
+
+const basePath = useGithubPagesBasePath ? '/saraalagoas' : ''
+const assetPrefix = useGithubPagesBasePath ? '/saraalagoas/' : ''
 
 // Excluir pasta src (projeto Vite antigo) do build do Next.js
 const excludeSrc = /[\\/]src[\\/]/

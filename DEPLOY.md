@@ -236,7 +236,11 @@ Se precisar adicionar variáveis de ambiente:
 **Exemplo:**
 ```
 NEXT_PUBLIC_WHATSAPP=5582999999999
+NEXT_PUBLIC_USE_BASEPATH=false
 ```
+
+> `NEXT_PUBLIC_USE_BASEPATH` deve ficar `false` na Vercel/domínio próprio.  
+> Use `true` apenas quando publicar em subpasta (ex.: GitHub Pages em `/saraalagoas`).
 
 **No código:**
 ```typescript
