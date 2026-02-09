@@ -7,6 +7,7 @@ import Button from './Button'
 import SectionWrapper from './SectionWrapper'
 import { useSiteConfig } from '@/lib/site-config-context'
 import { getWhatsAppUrl } from '@/lib/whatsapp'
+import { getStorageUrl } from '@/lib/storage-url'
 
 export default function ImmersionSection() {
   const { config } = useSiteConfig()
@@ -42,14 +43,14 @@ export default function ImmersionSection() {
         
         {/* Galeria de Fotos */}
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-12">
-          {config.immersion.images.map((image, index) => (
-            <div
-              key={index}
-              className="relative aspect-square rounded-lg overflow-hidden group"
-            >
-              <Image
-                src={image}
-                alt={`Revisão/Imersão foto ${index + 1}`}
+            {config.immersion.images.map((image, index) => (
+              <div
+                key={index}
+                className="relative aspect-square rounded-lg overflow-hidden group"
+              >
+                <Image
+                  src={getStorageUrl(image)}
+                  alt={`Revisão/Imersão foto ${index + 1}`}
                 fill
                 sizes="(max-width: 768px) 50vw, 33vw"
                 className="object-cover group-hover:scale-110 transition-transform duration-300"

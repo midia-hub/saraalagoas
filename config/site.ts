@@ -26,18 +26,19 @@ export const siteConfig = {
     embedUrl: "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3933.0604442686976!2d-35.73489492425796!3d-9.666379990485847!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x7014503f7c3a8d5%3A0x8b0a9c2d0e8f5c0a!2sR.%20Costa%20Leite%2C%20115%20-%20Centro%2C%20Macei%C3%B3%20-%20AL!5e0!3m2!1spt-BR!2sbr!4v1234567890123!5m2!1spt-BR!2sbr",
   },
   
+  /** Paths no bucket Storage "imagens" (ex: leadership/frank.jpg) */
   leadership: [
     {
       name: "Bispo Frank Guimarães",
       role: "Bispo Presidente",
       instagram: "https://www.instagram.com/bpfrankguimaraes/",
-      image: "/leadership/frank.jpg",
+      image: "leadership/frank.jpg",
     },
     {
       name: "Bispa Betânia Guimarães",
       role: "Bispa",
       instagram: "https://www.instagram.com/bispabetaniaguimaraes/",
-      image: "/leadership/betania.jpg",
+      image: "leadership/betania.jpg",
     },
   ],
   
@@ -92,13 +93,14 @@ export const siteConfig = {
       "Comunhão profunda com Deus",
       "Relacionamentos restaurados",
     ],
+    /** Paths no bucket Storage "imagens" */
     images: [
-      "/revisao/photo-1.JPG",
-      "/revisao/photo-2.JPG",
-      "/revisao/photo-3.JPG",
-      "/revisao/photo-4.JPG",
-      "/revisao/photo-5.JPG",
-      "/revisao/photo-6.JPG",
+      "revisao/photo-1.JPG",
+      "revisao/photo-2.JPG",
+      "revisao/photo-3.JPG",
+      "revisao/photo-4.JPG",
+      "revisao/photo-5.JPG",
+      "revisao/photo-6.JPG",
     ],
   },
   
@@ -130,9 +132,10 @@ export const siteConfig = {
       "Ensino bíblico apropriado para cada idade",
       "Atividades criativas e dinâmicas",
     ],
+    /** Paths no bucket Storage "imagens" */
     images: [
-      "/kids/photo-1.jpg",
-      "/kids/photo-2.jpg",
+      "kids/photo-1.jpg",
+      "kids/photo-2.jpg",
     ],
   },
   

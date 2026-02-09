@@ -5,6 +5,9 @@ import { ChevronDown, Instagram, Youtube } from 'lucide-react'
 import Button from './Button'
 import { useSiteConfig } from '@/lib/site-config-context'
 import { getWhatsAppUrl } from '@/lib/whatsapp'
+import { getStorageUrl } from '@/lib/storage-url'
+
+const HERO_VIDEO_PATH = 'hero-video.mp4'
 
 export default function Hero() {
   const { config } = useSiteConfig()
@@ -26,9 +29,9 @@ export default function Hero() {
           playsInline
           className="absolute inset-0 w-full h-full object-cover"
           aria-label="Vídeo de boas-vindas Sara Sede Alagoas"
-          src="/hero-video.mp4"
+          src={getStorageUrl(HERO_VIDEO_PATH)}
         >
-          <source src="/hero-video.mp4" type="video/mp4" />
+          <source src={getStorageUrl(HERO_VIDEO_PATH)} type="video/mp4" />
         </video>
         {/* Overlay */}
         <div className="absolute inset-0 bg-sara-gray-dark/60" />
