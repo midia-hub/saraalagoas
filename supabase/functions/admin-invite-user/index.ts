@@ -61,7 +61,7 @@ Deno.serve(async (req) => {
 
     // URL do app para o link de convite (evita redirecionar para localhost em produção)
     const appUrl = Deno.env.get("APP_URL") || req.headers.get("origin") || supabaseUrl;
-    const redirectTo = `${appUrl.replace(/\/$/, "")}/admin`;
+    const redirectTo = `${appUrl.replace(/\/$/, "")}/admin/completar-cadastro`;
     const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
       email,
       { redirectTo }

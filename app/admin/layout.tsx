@@ -23,6 +23,8 @@ export default function AdminLayout({
   const router = useRouter()
   const pathname = usePathname()
   const isLoginPage = pathname?.includes('/admin/login')
+  const isCompletarCadastroPage = pathname?.includes('/admin/completar-cadastro')
+  const isPublicAdminPage = isLoginPage || isCompletarCadastroPage
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const [canAccessAdmin, setCanAccessAdmin] = useState(false)
@@ -31,7 +33,7 @@ export default function AdminLayout({
   const [permissions, setPermissions] = useState<PermissionMap>({})
 
   useEffect(() => {
-    if (isLoginPage) {
+    if (isPublicAdminPage) {
       setLoading(false)
       return
     }
@@ -111,14 +113,14 @@ export default function AdminLayout({
       cancelled = true
       subscription.unsubscribe()
     }
-  }, [isLoginPage])
+  }, [isPublicAdminPage])
 
   useEffect(() => {
-    if (loading || isLoginPage) return
+    if (loading || isPublicAdminPage) return
     if (!user || !hasAdminCookie() || !canAccessAdmin) router.replace('/admin/login')
-  }, [loading, isLoginPage, user, canAccessAdmin, router])
+  }, [loading, isPublicAdminPage, user, canAccessAdmin, router])
 
-  if (isLoginPage) return <>{children}</>
+  if (isPublicAdminPage) return <>{children}</>
 
   if (loading) {
     return (
