@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
+import { GaleriaLoading } from '@/components/GaleriaLoading'
 
 type GalleryItem = {
   id: string
@@ -64,7 +65,13 @@ function GaleriaContent() {
         </div>
 
         {loading ? (
-          <p className="text-center text-sara-gray-light">Carregando álbuns...</p>
+          <GaleriaLoading
+            title="Carregando álbuns"
+            subtitle="Buscando álbuns..."
+            showGrid
+            gridCount={8}
+            className="min-h-[50vh]"
+          />
         ) : filtered.length === 0 ? (
           <p className="text-center text-sara-gray-light">
             Nenhum álbum disponível no momento.
@@ -143,7 +150,20 @@ function GaleriaContent() {
 
 export default function GaleriaPublicaPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center"><p className="text-sara-gray-light">Carregando...</p></div>}>
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gray-50">
+          <div className="container mx-auto px-4 md:px-6 lg:px-8 py-12">
+            <GaleriaLoading
+              title="Carregando álbuns"
+              subtitle="Aguarde..."
+              showGrid
+              gridCount={8}
+            />
+          </div>
+        </div>
+      }
+    >
       <GaleriaContent />
     </Suspense>
   )

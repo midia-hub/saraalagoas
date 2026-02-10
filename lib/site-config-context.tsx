@@ -1,6 +1,7 @@
 'use client'
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react'
+import { usePathname } from 'next/navigation'
 import { supabase } from './supabase'
 import { siteConfig as defaultConfig } from '@/config/site'
 import type { SiteConfig } from './types'
@@ -17,16 +18,70 @@ const SiteConfigContext = createContext<SiteConfigContextValue>({
   refetch: async () => {},
 })
 
+const SITE_CONFIG_CACHE_KEY = 'site_config_main_cache_v1'
+const SITE_CONFIG_CACHE_TTL_MS = 5 * 60 * 1000
+let memoryCache: { config: SiteConfig; updatedAt: number } | null = null
+
 export function SiteConfigProvider({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname()
   const [config, setConfig] = useState<SiteConfig>(defaultConfig as SiteConfig)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
+
+  const applyCachedConfig = useCallback((): boolean => {
+    const now = Date.now()
+
+    if (memoryCache && now - memoryCache.updatedAt <= SITE_CONFIG_CACHE_TTL_MS) {
+      setConfig(memoryCache.config)
+      return true
+    }
+
+    if (typeof window === 'undefined') return false
+
+    try {
+      const raw = window.localStorage.getItem(SITE_CONFIG_CACHE_KEY)
+      if (!raw) return false
+
+      const parsed = JSON.parse(raw) as { config?: SiteConfig; updatedAt?: number }
+      if (!parsed?.config || typeof parsed.updatedAt !== 'number') return false
+      if (now - parsed.updatedAt > SITE_CONFIG_CACHE_TTL_MS) return false
+
+      setConfig(parsed.config)
+      memoryCache = { config: parsed.config, updatedAt: parsed.updatedAt }
+      return true
+    } catch {
+      return false
+    }
+  }, [])
+
+  const persistCache = useCallback((nextConfig: SiteConfig) => {
+    const payload = { config: nextConfig, updatedAt: Date.now() }
+    memoryCache = payload
+
+    if (typeof window === 'undefined') return
+    try {
+      window.localStorage.setItem(SITE_CONFIG_CACHE_KEY, JSON.stringify(payload))
+    } catch {
+      // Ignora falhas de storage para não impactar render.
+    }
+  }, [])
 
   const refetch = useCallback(async () => {
+    const shouldFetch = pathname === '/'
+    if (!shouldFetch) {
+      setLoading(false)
+      return
+    }
+
     if (!supabase) {
       setLoading(false)
       return
     }
-    setLoading(true)
+
+    const hasFreshCache = applyCachedConfig()
+    if (!hasFreshCache) {
+      setLoading(true)
+    }
+
     try {
       const { data, error } = await supabase
         .from('site_config')
@@ -34,7 +89,9 @@ export function SiteConfigProvider({ children }: { children: React.ReactNode }) 
         .eq('key', 'main')
         .single()
       if (!error && data?.value && typeof data.value === 'object') {
-        setConfig({ ...defaultConfig, ...data.value } as SiteConfig)
+        const merged = { ...defaultConfig, ...data.value } as SiteConfig
+        setConfig(merged)
+        persistCache(merged)
       }
       // Se 404: tabela site_config não existe — execute supabase-admin.sql no SQL Editor do Supabase
     } catch {
@@ -42,7 +99,7 @@ export function SiteConfigProvider({ children }: { children: React.ReactNode }) 
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [applyCachedConfig, pathname, persistCache])
 
   useEffect(() => {
     refetch()

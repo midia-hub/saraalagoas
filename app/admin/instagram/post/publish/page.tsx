@@ -197,7 +197,9 @@ export default function AdminInstagramPostPublishPage() {
           adminFetchJson<InstagramInstance[]>('/api/admin/instagram/instances'),
           adminFetchJson<DraftData>(`/api/admin/instagram/drafts/${activeDraftId}`),
         ])
-        const connectedFirst = (instancesData || []).slice().sort((a, b) => {
+        // Esta tela usa a fila legada (instagram_post_jobs), que aceita apenas IDs da tabela instagram_instances.
+        const legacyOnly = (instancesData || []).filter((item) => !item.id.startsWith('meta_'))
+        const connectedFirst = legacyOnly.slice().sort((a, b) => {
           if (a.status === b.status) return 0
           return a.status === 'connected' ? -1 : 1
         })

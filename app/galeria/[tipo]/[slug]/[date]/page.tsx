@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
+import { GaleriaLoading } from '@/components/GaleriaLoading'
 
 type Gallery = {
   id: string
@@ -94,7 +95,13 @@ export default function GalleryDetailPage() {
     router.push(`/admin/instagram/post/publish?${query.toString()}`)
   }
 
-  if (loading) return <div className="p-6">Carregando galeria...</div>
+  if (loading) {
+    return (
+      <div className="min-h-[50vh] p-6 md:p-8">
+        <GaleriaLoading title="Carregando galeria" subtitle="Buscando fotos..." />
+      </div>
+    )
+  }
   if (!gallery) return <div className="p-6">Galeria não encontrada.</div>
 
   return (

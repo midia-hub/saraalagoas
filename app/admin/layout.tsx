@@ -8,6 +8,7 @@ import { AdminSidebar } from '@/app/admin/AdminSidebar'
 import { AdminAccessProvider } from '@/lib/admin-access-context'
 import { adminFetchJson } from '@/lib/admin-client'
 import type { PermissionMap } from '@/lib/rbac'
+import { clearSupabaseLocalSession, getSessionWithRecovery } from '@/lib/auth-recovery'
 
 function hasAdminCookie(): boolean {
   if (typeof document === 'undefined') return false
@@ -30,60 +31,87 @@ export default function AdminLayout({
   const [permissions, setPermissions] = useState<PermissionMap>({})
 
   useEffect(() => {
+    if (isLoginPage) {
+      setLoading(false)
+      return
+    }
+
+    setLoading(true)
+
+    function clearAccessState() {
+      document.cookie = 'admin_access=; path=/; max-age=0'
+      setCanAccessAdmin(false)
+      setIsAdmin(false)
+      setProfileName('')
+      setPermissions({})
+    }
+
     if (!supabase) {
       setLoading(false)
       return
     }
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      const currentUser = session?.user ?? null
-      setUser(currentUser)
-      if (!currentUser) {
-        document.cookie = 'admin_access=; path=/; max-age=0'
-        setCanAccessAdmin(false)
-        setIsAdmin(false)
-        setProfileName('')
-        setPermissions({})
-        setLoading(false)
-        return
-      }
 
-      try {
-        const access = await adminFetchJson<{
-          canAccessAdmin: boolean
-          isAdmin: boolean
-          profile?: { name?: string }
-          permissions?: PermissionMap
-        }>('/api/auth/admin-check', {
-          method: 'POST',
-          body: JSON.stringify({ accessToken: session?.access_token }),
-        })
-        setCanAccessAdmin(!!access.canAccessAdmin)
-        setIsAdmin(!!access.isAdmin)
-        setProfileName(access.profile?.name || '')
-        setPermissions(access.permissions || {})
-        if (access.canAccessAdmin) {
-          document.cookie = 'admin_access=1; path=/; max-age=86400'
-        } else {
-          document.cookie = 'admin_access=; path=/; max-age=0'
+    let cancelled = false
+
+    getSessionWithRecovery(supabase)
+      .then(async (session) => {
+        if (cancelled) return
+        const currentUser = session?.user ?? null
+        setUser(currentUser)
+        if (!currentUser) {
+          clearAccessState()
+          setLoading(false)
+          return
         }
-      } catch {
-        document.cookie = 'admin_access=; path=/; max-age=0'
-        setCanAccessAdmin(false)
-        setIsAdmin(false)
-        setProfileName('')
-        setPermissions({})
-      } finally {
+
+        try {
+          const access = await adminFetchJson<{
+            canAccessAdmin: boolean
+            isAdmin: boolean
+            profile?: { name?: string }
+            permissions?: PermissionMap
+          }>('/api/auth/admin-check', {
+            method: 'POST',
+            body: JSON.stringify({ accessToken: session?.access_token }),
+          })
+          setCanAccessAdmin(!!access.canAccessAdmin)
+          setIsAdmin(!!access.isAdmin)
+          setProfileName(access.profile?.name || '')
+          setPermissions(access.permissions || {})
+          if (access.canAccessAdmin) {
+            document.cookie = 'admin_access=1; path=/; max-age=86400'
+          } else {
+            clearAccessState()
+          }
+        } catch {
+          await clearSupabaseLocalSession(supabase)
+          if (cancelled) return
+          clearAccessState()
+        } finally {
+          if (cancelled) return
+          setLoading(false)
+        }
+      })
+      .catch(async () => {
+        await clearSupabaseLocalSession(supabase)
+        if (cancelled) return
+        clearAccessState()
         setLoading(false)
-      }
-    })
+      })
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (cancelled) return
       setUser(session?.user ?? null)
       if (!session?.user) {
-        document.cookie = 'admin_access=; path=/; max-age=0'
+        clearAccessState()
       }
     })
-    return () => subscription.unsubscribe()
-  }, [])
+
+    return () => {
+      cancelled = true
+      subscription.unsubscribe()
+    }
+  }, [isLoginPage])
 
   useEffect(() => {
     if (loading || isLoginPage) return
@@ -112,7 +140,7 @@ export default function AdminLayout({
     <AdminAccessProvider value={{ loading: false, canAccessAdmin, isAdmin, profileName, permissions }}>
       <div className="min-h-screen flex bg-slate-100">
         <AdminSidebar />
-        <main className="flex-1 overflow-auto">
+        <main className="flex-1 overflow-auto pt-14 md:pt-0">
           {children}
         </main>
       </div>

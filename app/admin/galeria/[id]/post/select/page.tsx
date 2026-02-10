@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
+import { GaleriaLoading } from '@/components/GaleriaLoading'
 import { PageAccessGuard } from '@/app/admin/PageAccessGuard'
 import { adminFetchJson } from '@/lib/admin-client'
 import { PhotoPickerGrid } from '../_components/PhotoPickerGrid'
@@ -129,7 +130,10 @@ export default function AlbumPostSelectPage() {
         </div>
 
         {loading ? (
-          <p className="mt-4 text-slate-600">Carregando fotos...</p>
+          <GaleriaLoading
+            title="Carregando fotos"
+            subtitle="Buscando imagens do álbum..."
+          />
         ) : (
           <div className="mt-4">
             <PhotoPickerGrid files={files} selectedIds={selectedIds} onToggle={toggle} />

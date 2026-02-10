@@ -15,21 +15,29 @@ export async function PATCH(
   if (!access.ok) return access.response
 
   try {
-    const body = await request.json()
-    const { is_active } = body
-
-    if (typeof is_active !== 'boolean') {
-      return NextResponse.json({ error: 'is_active deve ser boolean' }, { status: 400 })
-    }
+    const body = await request.json().catch(() => ({}))
+    const { is_active, show_in_list } = body
 
     const db = supabaseServer
 
+    const updates: { is_active?: boolean; metadata?: Record<string, unknown>; updated_at: string } = {
+      updated_at: new Date().toISOString(),
+    }
+    if (typeof is_active === 'boolean') updates.is_active = is_active
+
+    if (typeof show_in_list === 'boolean') {
+      const { data: current } = await db.from('meta_integrations').select('metadata').eq('id', params.id).single()
+      const metadata = { ...((current?.metadata as Record<string, unknown>) || {}), show_in_list }
+      updates.metadata = metadata
+    }
+
+    if (Object.keys(updates).length <= 1) {
+      return NextResponse.json({ error: 'Envie is_active e/ou show_in_list' }, { status: 400 })
+    }
+
     const { data, error } = await db
       .from('meta_integrations')
-      .update({
-        is_active,
-        updated_at: new Date().toISOString(),
-      })
+      .update(updates)
       .eq('id', params.id)
       .select()
       .single()

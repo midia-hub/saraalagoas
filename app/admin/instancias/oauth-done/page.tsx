@@ -19,6 +19,7 @@ export default function OAuthDonePage() {
     const error = searchParams?.get('error')
     const errorDescription = searchParams?.get('error_description')
     const instagram = searchParams?.get('instagram') ?? ''
+    const count = searchParams?.get('count') ?? ''
     const selectPage = searchParams?.get('select_page') === '1'
 
     const payload = {
@@ -28,6 +29,7 @@ export default function OAuthDonePage() {
       error: error || null,
       errorDescription: errorDescription || null,
       instagram: instagram || null,
+      count: count || null,
     }
 
     if (typeof window === 'undefined') return

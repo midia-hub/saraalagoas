@@ -95,26 +95,38 @@ export async function GET(request: NextRequest) {
     // O usuário já foi validado pelo state assinado (stateData.userId).
     const db = createSupabaseServiceClient()
 
-    // Se houver apenas uma página, conectar automaticamente
-    if (pages.length === 1) {
-      const page = pages[0]
-      
-      // Buscar Instagram Business Account (se houver)
+    // Conectar todas as páginas: uma integração por página (todas aparecem na plataforma)
+    const { getInstagramBusinessAccount } = await import('@/lib/meta')
+    let savedCount = 0
+    const instagramNames: string[] = []
+
+    for (const page of pages) {
+      // Não cadastrar página que já está ativa na plataforma
+      const { data: existing } = await db
+        .from('meta_integrations')
+        .select('id')
+        .eq('page_id', page.id)
+        .eq('is_active', true)
+        .limit(1)
+        .maybeSingle()
+      if (existing) {
+        console.log(LOG_PREFIX, 'Página já conectada, ignorando:', page.id, page.name)
+        continue
+      }
+
       let instagramAccountId: string | null = null
       let instagramUsername: string | null = null
-
       try {
-        const { getInstagramBusinessAccount } = await import('@/lib/meta')
         const igAccount = await getInstagramBusinessAccount(page.id, page.access_token)
         if (igAccount) {
           instagramAccountId = igAccount.id
           instagramUsername = igAccount.username
+          if (instagramUsername) instagramNames.push(instagramUsername)
         }
       } catch {
-        // Instagram não vinculado ou erro ao buscar
+        // Página sem Instagram vinculado
       }
 
-      console.log(LOG_PREFIX, '6/6 Salvando integração (1 página)...')
       const { error: insertError } = await db
         .from('meta_integrations')
         .insert({
@@ -133,42 +145,17 @@ export async function GET(request: NextRequest) {
         })
 
       if (insertError) {
-        console.error(LOG_PREFIX, 'Insert falhou:', insertError.message, insertError.code, insertError.details)
-        throw new Error(`Erro ao salvar integração: ${insertError.message}`)
+        console.error(LOG_PREFIX, 'Insert falhou para página', page.id, insertError.message)
+        continue
       }
-      console.log(LOG_PREFIX, 'Sucesso: integração salva, redirecionando.')
-
-      const successParams: Record<string, string> = { connected: '1' }
-      if (instagramUsername) successParams.instagram = instagramUsername
-      return redirectTo(donePath, successParams)
+      savedCount++
     }
 
-    console.log(LOG_PREFIX, '6/6 Salvando integração pendente (múltiplas páginas)...')
-    const { data: integration, error: insertError } = await db
-      .from('meta_integrations')
-      .insert({
-        created_by: stateData.userId,
-        provider: 'meta',
-        facebook_user_id: userProfile.id,
-        facebook_user_name: userProfile.name,
-        access_token: accessToken,
-        token_expires_at: tokenExpiresAt,
-        is_active: false, // Ainda não está ativa até selecionar página
-        metadata: { pending_page_selection: true, pages_count: pages.length },
-      })
-      .select('id')
-      .single()
+    console.log(LOG_PREFIX, '6/6 Integrações salvas:', savedCount, 'de', pages.length)
 
-    if (insertError) {
-      console.error(LOG_PREFIX, 'Insert pendente falhou:', insertError.message, insertError.code, insertError.details)
-      throw new Error(`Erro ao salvar integração: ${insertError.message}`)
-    }
-    console.log(LOG_PREFIX, 'Sucesso: integração pendente salva, redirecionando para seleção.')
-
-    const selectUrl = new URL('/admin/instancias/select', request.url)
-    selectUrl.searchParams.set('integration_id', integration.id)
-    if (isPopup) selectUrl.searchParams.set('popup', '1')
-    return NextResponse.redirect(selectUrl)
+    const successParams: Record<string, string> = { connected: '1', count: String(savedCount) }
+    if (instagramNames.length > 0) successParams.instagram = instagramNames.join(',')
+    return redirectTo(donePath, successParams)
 
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Erro ao processar OAuth'

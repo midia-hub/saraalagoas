@@ -15,17 +15,23 @@ export async function GET(request: NextRequest) {
 
   try {
     const db = supabaseServer
+    const all = request.nextUrl.searchParams.get('all') === '1'
 
-    const { data, error } = await db
+    const { data: raw, error } = await db
       .from('meta_integrations')
-      .select('id, created_at, updated_at, facebook_user_name, page_name, instagram_username, is_active, token_expires_at, metadata')
+      .select('id, created_at, updated_at, facebook_user_name, page_name, page_id, instagram_username, is_active, token_expires_at, metadata')
       .order('created_at', { ascending: false })
 
     if (error) {
       throw new Error(`Erro ao listar integrações: ${error.message}`)
     }
 
-    return NextResponse.json({ integrations: data || [] })
+    const rows = raw || []
+    const integrations = all
+      ? rows
+      : rows.filter((row) => (row.metadata as Record<string, unknown>)?.show_in_list !== false)
+
+    return NextResponse.json({ integrations })
   } catch (error) {
     console.error('Error listing integrations:', error)
     const message = error instanceof Error ? error.message : 'Erro ao listar integrações'

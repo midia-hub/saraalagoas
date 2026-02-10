@@ -14,7 +14,7 @@ const FALLBACK_PAGES = [
   { key: 'dashboard', label: 'Dashboard', description: 'Visão geral do painel', sort_order: 10 },
   { key: 'configuracoes', label: 'Configurações', description: 'Configurações do site', sort_order: 20 },
   { key: 'upload', label: 'Upload', description: 'Upload de mídia', sort_order: 30 },
-  { key: 'galeria', label: 'Galeria', description: 'Listagem de galerias', sort_order: 40 },
+  { key: 'galeria', label: 'Galeria', description: 'Listagem de galerias e exclusão de fotos dos álbuns', sort_order: 40 },
   { key: 'usuarios', label: 'Usuários', description: 'Gestão de usuários', sort_order: 50 },
   { key: 'perfis', label: 'Perfis', description: 'Gestão de perfis e permissões', sort_order: 60 },
   { key: 'instagram', label: 'Instagram', description: 'Postagens no Instagram', sort_order: 70 },

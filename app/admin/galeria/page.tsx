@@ -12,7 +12,7 @@ import {
   type PeriodFilter,
   type SortOption,
 } from './_components/AlbumFilters'
-import { AlbumGridSkeleton } from './_components/AlbumGridSkeleton'
+import { GaleriaLoading } from '@/components/GaleriaLoading'
 
 /** Resposta bruta da API /api/gallery/list */
 type GalleryRow = {
@@ -86,6 +86,8 @@ function albumMatchesPeriod(album: Album, period: PeriodFilter): boolean {
 
 const MAX_CONCURRENT_ENRICH = 3
 const ENRICH_CACHE = new Map<string, { coverUrl?: string; photosCount: number }>()
+/** Quantos álbuns enriquecer (capas + contagem) antes de exibir a grade. */
+const INITIAL_ENRICH_COUNT = 12
 
 export default function AdminGaleriaPage() {
   const [albums, setAlbums] = useState<Album[]>([])
@@ -106,7 +108,55 @@ export default function AdminGaleriaPage() {
     adminFetchJson<GalleryRow[]>('/api/gallery/list')
       .then((data) => {
         const rows = Array.isArray(data) ? data : []
-        setAlbums(rows.map(rowToAlbum))
+        const initialAlbums = rows.map(rowToAlbum)
+        initialAlbums.sort(
+          (a, b) =>
+            new Date(b.date).getTime() - new Date(a.date).getTime() ||
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        )
+        if (initialAlbums.length === 0) {
+          setAlbums([])
+          return
+        }
+        const toEnrich = initialAlbums.slice(0, INITIAL_ENRICH_COUNT)
+        const enrichPromises = toEnrich.map((album) =>
+          adminFetchJson<GalleryFile[]>(`/api/gallery/${album.id}/files`)
+            .then((files) => ({
+              albumId: album.id,
+              files: Array.isArray(files) ? files : [],
+            }))
+            .catch(() => ({ albumId: album.id, files: [] as GalleryFile[] }))
+        )
+        return Promise.all(enrichPromises).then((results) => {
+          const filesByAlbum = new Map(
+            results.map((r) => [r.albumId, r.files])
+          )
+          results.forEach((r) => {
+            const list = r.files
+            const firstId = list[0]?.id
+            const coverUrl = firstId
+              ? `/api/gallery/image?fileId=${encodeURIComponent(firstId)}&mode=thumb`
+              : undefined
+            ENRICH_CACHE.set(r.albumId, {
+              coverUrl,
+              photosCount: list.length,
+            })
+          })
+          setAlbums(
+            initialAlbums.map((a) => {
+              const files = filesByAlbum.get(a.id) ?? []
+              const firstId = files[0]?.id
+              const coverUrl = firstId
+                ? `/api/gallery/image?fileId=${encodeURIComponent(firstId)}&mode=thumb`
+                : undefined
+              return {
+                ...a,
+                coverUrl,
+                photosCount: files.length,
+              }
+            })
+          )
+        })
       })
       .catch((e) => {
         setError(e instanceof Error ? e.message : 'Erro ao carregar álbuns.')
@@ -212,11 +262,13 @@ export default function AdminGaleriaPage() {
   if (loading) {
     return (
       <PageAccessGuard pageKey="galeria">
-        <div className="p-6 md:p-8 min-h-[60vh] flex flex-col items-center justify-center">
-          <p className="text-slate-600 text-lg font-medium">Carregando álbuns...</p>
-          <div className="mt-6 w-full max-w-4xl">
-            <AlbumGridSkeleton count={8} />
-          </div>
+        <div className="p-6 md:p-8">
+          <GaleriaLoading
+            title="Carregando álbuns"
+            subtitle="Buscando capas e fotos..."
+            showGrid
+            gridCount={8}
+          />
         </div>
       </PageAccessGuard>
     )

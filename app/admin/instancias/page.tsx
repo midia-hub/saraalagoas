@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { PageAccessGuard } from '@/app/admin/PageAccessGuard'
 import { adminFetchJson } from '@/lib/admin-client'
-import { Facebook, Instagram, CheckCircle, XCircle, AlertCircle, Loader2 } from 'lucide-react'
+import { Facebook, Instagram, CheckCircle, XCircle, AlertCircle, Loader2, Unlink } from 'lucide-react'
 
 type MetaIntegration = {
   id: string
@@ -12,12 +12,14 @@ type MetaIntegration = {
   updated_at: string
   facebook_user_name: string | null
   page_name: string | null
+  page_id: string | null
   instagram_username: string | null
   is_active: boolean
   token_expires_at: string | null
   metadata: {
     pending_page_selection?: boolean
     pages_count?: number
+    show_in_list?: boolean
   }
 }
 
@@ -29,12 +31,15 @@ export default function AdminInstanciasPage() {
   const [connecting, setConnecting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  const [unlinkModalId, setUnlinkModalId] = useState<string | null>(null)
+  const [unlinking, setUnlinking] = useState(false)
+  const [revinkingId, setRevinkingId] = useState<string | null>(null)
 
   async function loadIntegrations() {
     setLoading(true)
     setError(null)
     try {
-      const data = await adminFetchJson<{ integrations: MetaIntegration[] }>('/api/meta/integrations')
+      const data = await adminFetchJson<{ integrations: MetaIntegration[] }>('/api/meta/integrations?all=1')
       setIntegrations(data.integrations || [])
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro ao carregar integrações.')
@@ -64,10 +69,16 @@ export default function AdminInstanciasPage() {
     }
 
     if (connected === '1') {
-      setSuccess(instagram 
-        ? `Conectado com sucesso! Instagram: @${instagram}` 
-        : 'Conectado com sucesso!'
-      )
+      const count = searchParams?.get('count')
+      const instagramParam = searchParams?.get('instagram')
+      let msg = 'Conectado com sucesso!'
+      if (count && Number(count) > 1) {
+        msg = `${count} contas conectadas. Todas aparecem na lista abaixo.`
+      } else if (instagramParam) {
+        const handles = instagramParam.split(',').map((s) => `@${s.trim()}`).filter(Boolean)
+        msg = handles.length > 0 ? `Conectado! Instagram: ${handles.join(', ')}` : msg
+      }
+      setSuccess(msg)
       setTimeout(() => loadIntegrations(), 800)
       router.replace('/admin/instancias')
     } else if (errorParam) {
@@ -112,7 +123,15 @@ export default function AdminInstanciasPage() {
             (msg.error === 'oauth_failed' ? 'Falha ao conectar. Veja os logs no Vercel (Deployments → Logs) filtrando por "Meta OAuth".' : 'Erro ao conectar conta Meta')
           )
         } else if (msg.connected) {
-          setSuccess(msg.instagram ? `Conectado com sucesso! Instagram: @${msg.instagram}` : 'Conectado com sucesso!')
+          const n = msg.count ? Number(msg.count) : 0
+          if (n > 1) {
+            setSuccess(`${n} contas conectadas. Todas aparecem na lista abaixo.`)
+          } else if (msg.instagram) {
+            const handles = String(msg.instagram).split(',').map((s) => `@${s.trim()}`).filter(Boolean)
+            setSuccess(handles.length ? `Conectado! Instagram: ${handles.join(', ')}` : 'Conectado com sucesso!')
+          } else {
+            setSuccess('Conectado com sucesso!')
+          }
           loadIntegrations()
         } else if (msg.selectPage) {
           setSuccess('Selecione a página e o Instagram na janela que abriu.')
@@ -148,23 +167,48 @@ export default function AdminInstanciasPage() {
     }
   }
 
-  async function handleUnlink(id: string) {
-    if (
-      !window.confirm(
-        'Desvincular esta conta? A conexão será removida da nossa plataforma. Para revogar também no Facebook, use Configurações do Facebook → Apps e sites.'
-      )
-    ) {
-      return
-    }
+  function openUnlinkModal(id: string) {
+    setUnlinkModalId(id)
+  }
+
+  async function confirmUnlink() {
+    const id = unlinkModalId
+    if (!id) return
+    setUnlinking(true)
     setError(null)
+    setUnlinkModalId(null)
     try {
       await adminFetchJson(`/api/meta/integrations/${id}`, {
-        method: 'DELETE',
+        method: 'PATCH',
+        body: JSON.stringify({ show_in_list: false }),
       })
-      setSuccess('Conta desvinculada com sucesso.')
+      setSuccess('Conta desvinculada da lista. Ela continua disponível ao escolher onde postar.')
       await loadIntegrations()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro ao desvincular conta.')
+    } finally {
+      setUnlinking(false)
+    }
+  }
+
+  function isLinked(integration: MetaIntegration) {
+    return (integration.metadata as { show_in_list?: boolean })?.show_in_list !== false
+  }
+
+  async function handleRevincular(id: string) {
+    setRevinkingId(id)
+    setError(null)
+    try {
+      await adminFetchJson(`/api/meta/integrations/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ show_in_list: true }),
+      })
+      setSuccess('Conta revinculada. Ela voltou à lista de integrações.')
+      await loadIntegrations()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Erro ao revincular.')
+    } finally {
+      setRevinkingId(null)
     }
   }
 
@@ -235,7 +279,7 @@ export default function AdminInstanciasPage() {
         <div className="mb-6 rounded-xl border border-slate-200 bg-white p-5">
           <h2 className="text-lg font-semibold text-slate-900 mb-3">Nova conexão</h2>
           <p className="text-slate-600 text-sm mb-4">
-            Clique no botão abaixo para conectar uma conta Meta (Facebook) e selecionar uma página com Instagram Business.
+            Conecte uma conta Meta (Facebook) e selecione uma página. Para usar <strong>outras páginas da mesma conta</strong>, use &quot;Adicionar outra página&quot; em cada integração abaixo.
           </p>
           <button
             onClick={handleConnect}
@@ -256,87 +300,338 @@ export default function AdminInstanciasPage() {
           </button>
         </div>
 
-        {/* Lista de integrações */}
-        <div className="rounded-xl border border-slate-200 bg-white">
-          <div className="border-b border-slate-200 p-4">
-            <h2 className="font-semibold text-slate-900">Integrações conectadas</h2>
-            <p className="text-xs text-slate-500 mt-1">
-              Use &quot;Desvincular conta&quot; para remover a conexão da nossa plataforma. Para revogar o app no Facebook: Configurações → Apps e sites.
-            </p>
+        {/* Resumo: contas disponíveis para postagem */}
+        {!loading && integrations.length > 0 && (
+          <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="rounded-xl border border-slate-200 bg-white p-4">
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Total integrações</p>
+              <p className="mt-1 text-2xl font-semibold text-slate-900">{integrations.length}</p>
+            </div>
+            <div className="rounded-xl border border-slate-200 bg-white p-4">
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Instagram (ativas)</p>
+              <p className="mt-1 text-2xl font-semibold text-pink-600">
+                {integrations.filter((i) => i.instagram_username && i.is_active).length}
+              </p>
+              <p className="text-xs text-slate-500 mt-0.5">disponíveis para postar</p>
+            </div>
+            <div className="rounded-xl border border-slate-200 bg-white p-4">
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Facebook (ativas)</p>
+              <p className="mt-1 text-2xl font-semibold text-[#1877f2]">
+                {integrations.filter((i) => i.page_id && i.is_active).length}
+              </p>
+              <p className="text-xs text-slate-500 mt-0.5">disponíveis para postar</p>
+            </div>
+            <div className="rounded-xl border border-slate-200 bg-white p-4">
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Na lista / Desvinculadas</p>
+              <p className="mt-1 text-2xl font-semibold text-slate-900">
+                {integrations.filter(isLinked).length} / {integrations.filter((i) => !isLinked(i)).length}
+              </p>
+            </div>
           </div>
-          {loading ? (
-            <div className="p-8 flex items-center justify-center">
-              <Loader2 size={24} className="animate-spin text-slate-400" />
-            </div>
-          ) : integrations.length === 0 ? (
-            <p className="p-8 text-center text-slate-600">
-              Nenhuma integração conectada. Clique em "Conectar conta Meta" para começar.
-            </p>
-          ) : (
-            <div className="divide-y divide-slate-200">
-              {integrations.map((integration) => (
-                <div key={integration.id} className="p-5 hover:bg-slate-50 transition-colors">
-                  <div className="flex flex-wrap items-start justify-between gap-4">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-2">
-                        {getStatusBadge(integration)}
-                        {integration.instagram_username && (
-                          <span className="inline-flex items-center gap-1 text-sm px-2 py-1 rounded-full bg-pink-50 text-pink-700">
-                            <Instagram size={14} />
-                            @{integration.instagram_username}
-                          </span>
-                        )}
-                      </div>
-                      <p className="font-medium text-slate-900 mb-1">
-                        {integration.page_name || integration.facebook_user_name || 'Sem nome'}
-                      </p>
-                      <div className="text-sm text-slate-600 space-y-0.5">
-                        {integration.facebook_user_name && (
-                          <p>Usuário: {integration.facebook_user_name}</p>
-                        )}
-                        {integration.page_name && (
-                          <p>Página: {integration.page_name}</p>
-                        )}
-                        {integration.token_expires_at && (
-                          <p>
-                            Token expira em: {new Date(integration.token_expires_at).toLocaleDateString('pt-BR')}
-                          </p>
-                        )}
-                        <p className="text-xs text-slate-500">
-                          Atualizado em: {new Date(integration.updated_at).toLocaleString('pt-BR')}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {integration.metadata?.pending_page_selection ? (
-                        <button
-                          onClick={() => router.push(`/admin/instancias/select?integration_id=${integration.id}`)}
-                          className="rounded-lg bg-[#c62737] px-4 py-2 text-sm text-white hover:bg-[#a01f2c] transition-colors"
-                        >
-                          Selecionar página
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => handleToggleActive(integration.id, integration.is_active)}
-                          className="rounded-lg border border-slate-300 px-4 py-2 text-sm hover:bg-slate-100 transition-colors"
-                        >
-                          {integration.is_active ? 'Desativar' : 'Ativar'}
-                        </button>
-                      )}
-                      <button
-                        onClick={() => handleUnlink(integration.id)}
-                        className="rounded-lg border border-red-300 px-4 py-2 text-sm text-red-700 hover:bg-red-50 transition-colors"
-                        title="Remove a conexão desta conta Meta/Instagram da nossa plataforma"
-                      >
-                        Desvincular conta
-                      </button>
-                    </div>
-                  </div>
+        )}
+
+        {/* Lista de integrações: separada em Instagram e Facebook */}
+        {loading ? (
+          <div className="rounded-xl border border-slate-200 bg-white p-8 flex items-center justify-center">
+            <Loader2 size={24} className="animate-spin text-slate-400" />
+          </div>
+        ) : integrations.length === 0 ? (
+          <div className="rounded-xl border border-slate-200 bg-white p-8 text-center text-slate-600">
+            Nenhuma integração conectada. Clique em &quot;Conectar conta Meta&quot; para começar.
+          </div>
+        ) : (
+          <div className="space-y-8">
+            {/* Pendentes (sem página escolhida) - só vinculadas */}
+            {integrations.filter((i) => isLinked(i) && i.metadata?.pending_page_selection).length > 0 && (
+              <div className="rounded-xl border border-slate-200 bg-white">
+                <div className="border-b border-slate-200 px-4 py-3 bg-slate-50">
+                  <h2 className="font-semibold text-slate-900">Pendentes</h2>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Conclua a seleção da página. Se as páginas que aparecerem não forem da conta que você quer conectar, use &quot;Desvincular&quot; para remover esta conexão e conectar de novo com a conta correta.
+                  </p>
                 </div>
-              ))}
+                <div className="divide-y divide-slate-200">
+                  {integrations
+                    .filter((i) => isLinked(i) && i.metadata?.pending_page_selection)
+                    .map((integration) => (
+                      <div key={integration.id} className="p-5 flex flex-wrap items-center justify-between gap-4">
+                        <div className="flex items-center gap-2">
+                          {getStatusBadge(integration)}
+                          <span className="text-slate-700">{integration.facebook_user_name || 'Conta Meta'}</span>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => router.push(`/admin/instancias/select?integration_id=${integration.id}`)}
+                            className="rounded-lg bg-[#c62737] px-4 py-2 text-sm text-white hover:bg-[#a01f2c]"
+                          >
+                            Selecionar página
+                          </button>
+                          <button
+                            onClick={() => openUnlinkModal(integration.id)}
+                            className="rounded-lg border border-red-300 px-4 py-2 text-sm text-red-700 hover:bg-red-50"
+                          >
+                            Desvincular
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
+
+            {/* Contas Instagram (vinculadas) */}
+            <div className="rounded-xl border border-slate-200 bg-white">
+              <div className="border-b border-slate-200 px-4 py-3 bg-pink-50/50">
+                <h2 className="font-semibold text-slate-900 flex items-center gap-2">
+                  <Instagram size={20} className="text-pink-600" />
+                  Contas Instagram
+                </h2>
+                <p className="text-xs text-slate-500 mt-0.5">Contas do Instagram na lista (vinculadas) para publicar.</p>
+              </div>
+              {integrations.filter((i) => i.instagram_username && isLinked(i)).length === 0 ? (
+                <p className="p-5 text-sm text-slate-500">Nenhuma conta Instagram vinculada.</p>
+              ) : (
+                <div className="divide-y divide-slate-200">
+                  {integrations
+                    .filter((i) => i.instagram_username && isLinked(i))
+                    .map((integration) => (
+                      <div key={integration.id} className="p-5 hover:bg-slate-50 flex flex-wrap items-start justify-between gap-4">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2 mb-1">
+                            {getStatusBadge(integration)}
+                            {integration.is_active && (
+                              <span className="text-xs px-2 py-0.5 rounded bg-green-100 text-green-700">Disponível para postagem</span>
+                            )}
+                            <span className="font-medium text-slate-900">@{integration.instagram_username}</span>
+                          </div>
+                          <div className="text-xs text-slate-500 space-y-0.5">
+                            {integration.page_name && <p>Página Facebook: {integration.page_name}</p>}
+                            {integration.facebook_user_name && <p>Usuário Meta: {integration.facebook_user_name}</p>}
+                            <p>Atualizado: {new Date(integration.updated_at).toLocaleString('pt-BR')}</p>
+                            {integration.token_expires_at && (
+                              <p>Token expira: {new Date(integration.token_expires_at).toLocaleDateString('pt-BR')}</p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap gap-2 shrink-0">
+                          <button
+                            onClick={() => router.push(`/admin/instancias/add-page?integration_id=${integration.id}`)}
+                            className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-100"
+                          >
+                            Adicionar outra página
+                          </button>
+                          <button
+                            onClick={() => handleToggleActive(integration.id, integration.is_active)}
+                            className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-100"
+                          >
+                            {integration.is_active ? 'Desativar' : 'Ativar'}
+                          </button>
+                          <button
+                            onClick={() => openUnlinkModal(integration.id)}
+                            className="rounded-lg border border-red-300 px-3 py-1.5 text-sm text-red-700 hover:bg-red-50"
+                          >
+                            Desvincular
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              )}
             </div>
-          )}
-        </div>
+
+            {/* Contas Facebook (vinculadas) */}
+            <div className="rounded-xl border border-slate-200 bg-white">
+              <div className="border-b border-slate-200 px-4 py-3 bg-[#1877f2]/5">
+                <h2 className="font-semibold text-slate-900 flex items-center gap-2">
+                  <Facebook size={20} className="text-[#1877f2]" />
+                  Contas Facebook (páginas)
+                </h2>
+                <p className="text-xs text-slate-500 mt-0.5">Páginas do Facebook na lista (vinculadas) para publicar.</p>
+              </div>
+              {integrations.filter((i) => i.page_id && isLinked(i)).length === 0 ? (
+                <p className="p-5 text-sm text-slate-500">Nenhuma página do Facebook vinculada.</p>
+              ) : (
+                <div className="divide-y divide-slate-200">
+                  {integrations
+                    .filter((i) => i.page_id && isLinked(i))
+                    .map((integration) => (
+                      <div key={integration.id} className="p-5 hover:bg-slate-50 flex flex-wrap items-start justify-between gap-4">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2 mb-1">
+                            {getStatusBadge(integration)}
+                            {integration.is_active && (
+                              <span className="text-xs px-2 py-0.5 rounded bg-green-100 text-green-700">Disponível para postagem</span>
+                            )}
+                            <span className="font-medium text-slate-900">
+                              {integration.page_name || 'Página do Facebook'}
+                            </span>
+                          </div>
+                          <div className="text-xs text-slate-500 space-y-0.5">
+                            {integration.instagram_username && <p>Instagram: @{integration.instagram_username}</p>}
+                            {integration.facebook_user_name && <p>Usuário Meta: {integration.facebook_user_name}</p>}
+                            <p>Atualizado: {new Date(integration.updated_at).toLocaleString('pt-BR')}</p>
+                            {integration.token_expires_at && (
+                              <p>Token expira: {new Date(integration.token_expires_at).toLocaleDateString('pt-BR')}</p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap gap-2 shrink-0">
+                          <button
+                            onClick={() => router.push(`/admin/instancias/add-page?integration_id=${integration.id}`)}
+                            className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-100"
+                          >
+                            Adicionar outra página
+                          </button>
+                          <button
+                            onClick={() => handleToggleActive(integration.id, integration.is_active)}
+                            className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-100"
+                          >
+                            {integration.is_active ? 'Desativar' : 'Ativar'}
+                          </button>
+                          <button
+                            onClick={() => openUnlinkModal(integration.id)}
+                            className="rounded-lg border border-red-300 px-3 py-1.5 text-sm text-red-700 hover:bg-red-50"
+                          >
+                            Desvincular
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              )}
+            </div>
+
+            {/* Contas desvinculadas (ainda disponíveis para postagem) */}
+            {integrations.filter((i) => !isLinked(i)).length > 0 && (
+              <div className="rounded-xl border border-amber-200 bg-amber-50/30">
+                <div className="border-b border-amber-200 px-4 py-3 bg-amber-100/50">
+                  <h2 className="font-semibold text-slate-900 flex items-center gap-2">
+                    <Unlink size={20} className="text-amber-700" />
+                    Contas desvinculadas da lista
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Não aparecem na lista principal, mas continuam disponíveis ao escolher onde postar. Use &quot;Revincular&quot; para trazer de volta.
+                  </p>
+                </div>
+                <div className="divide-y divide-amber-200/50 p-4">
+                  {integrations
+                    .filter((i) => !isLinked(i))
+                    .map((integration) => (
+                      <div key={integration.id} className="py-4 first:pt-0 flex flex-wrap items-start justify-between gap-4">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2 mb-1">
+                            {getStatusBadge(integration)}
+                            {integration.is_active && (
+                              <span className="text-xs px-2 py-0.5 rounded bg-green-100 text-green-700">Disponível para postagem</span>
+                            )}
+                            {integration.instagram_username && (
+                              <span className="font-medium text-slate-900">@{integration.instagram_username}</span>
+                            )}
+                            {integration.page_name && (
+                              <span className="font-medium text-slate-900">
+                                {integration.instagram_username ? ` · ${integration.page_name}` : integration.page_name}
+                              </span>
+                            )}
+                            {!integration.instagram_username && !integration.page_name && (
+                              <span className="text-slate-600">Integração #{integration.id.slice(0, 8)}</span>
+                            )}
+                          </div>
+                          <div className="text-xs text-slate-500 space-y-0.5">
+                            {integration.facebook_user_name && <p>Usuário Meta: {integration.facebook_user_name}</p>}
+                            <p>Atualizado: {new Date(integration.updated_at).toLocaleString('pt-BR')}</p>
+                            {integration.token_expires_at && (
+                              <p>Token expira: {new Date(integration.token_expires_at).toLocaleDateString('pt-BR')}</p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap gap-2 shrink-0">
+                          <button
+                            onClick={() => handleRevincular(integration.id)}
+                            disabled={revinkingId === integration.id}
+                            className="rounded-lg bg-[#1877f2] px-3 py-1.5 text-sm text-white hover:bg-[#166fe5] disabled:opacity-50 inline-flex items-center gap-1"
+                          >
+                            {revinkingId === integration.id ? <Loader2 size={14} className="animate-spin" /> : null}
+                            Revincular
+                          </button>
+                          <button
+                            onClick={() => handleToggleActive(integration.id, integration.is_active)}
+                            className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-100"
+                          >
+                            {integration.is_active ? 'Desativar' : 'Ativar'}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        <p className="mt-4 text-xs text-slate-500">
+          Para revogar o app no Facebook: Configurações → Apps e sites.
+        </p>
+
+        {/* Modal Desvincular */}
+        {unlinkModalId && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+            onClick={() => !unlinking && setUnlinkModalId(null)}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="unlink-modal-title"
+          >
+            <div
+              className="w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-100">
+                    <Unlink size={20} className="text-amber-700" />
+                  </div>
+                  <h2 id="unlink-modal-title" className="text-lg font-semibold text-slate-900">
+                    Desvincular conta
+                  </h2>
+                </div>
+                <p className="text-slate-600 text-sm mb-1">
+                  A conta sairá da lista de integrações aqui na plataforma.
+                </p>
+                <p className="text-slate-600 text-sm mb-4">
+                  Ela <strong>continuará disponível</strong> ao escolher onde postar (Instagram/Facebook).
+                </p>
+                <p className="text-xs text-slate-500">
+                  Para revogar o app no Facebook: Configurações → Apps e sites.
+                </p>
+              </div>
+              <div className="flex gap-3 justify-end px-6 pb-6">
+                <button
+                  type="button"
+                  onClick={() => !unlinking && setUnlinkModalId(null)}
+                  disabled={unlinking}
+                  className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmUnlink}
+                  disabled={unlinking}
+                  className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50 inline-flex items-center gap-2"
+                >
+                  {unlinking ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      Desvinculando...
+                    </>
+                  ) : (
+                    'Desvincular'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </PageAccessGuard>
   )

@@ -50,7 +50,7 @@ Para que a aba **Usuários** do Admin consiga **convidar por e-mail** (link para
 supabase functions deploy admin-invite-user
 ```
 
-A função usa a variável `SUPABASE_SERVICE_ROLE_KEY` (já disponível no projeto Supabase). Ela verifica se quem chama é um usuário com `profiles.role = 'admin'` e, em caso positivo, chama `auth.admin.inviteUserByEmail`.
+A função usa a variável `SUPABASE_SERVICE_ROLE_KEY` (já disponível no projeto Supabase). Ela verifica se quem chama é um usuário com `profiles.role = 'admin'` e, em caso positivo, chama `auth.admin.inviteUserByEmail`. Para que o link de convite no e-mail redirecione para o site em produção (e não para localhost), defina no Supabase (Dashboard → Project Settings → Edge Functions) a variável **APP_URL** (ex.: `https://saraalagoas.com`).
 
 Se não publicar a função, o restante do Admin (login e configurações do site) continua funcionando; apenas o botão “Enviar convite” não funcionará.
 
