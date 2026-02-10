@@ -79,8 +79,10 @@ export default function CompletarCadastroPage() {
         setSubmitting(false)
         return
       }
-      document.cookie = 'admin_access=1; path=/; max-age=86400; SameSite=Lax'
-      router.replace('/admin')
+      const basePath = typeof process.env.NEXT_PUBLIC_USE_BASEPATH === 'string' && process.env.NEXT_PUBLIC_USE_BASEPATH === 'true' ? '/saraalagoas' : ''
+      const isHttps = typeof window !== 'undefined' && window.location?.protocol === 'https:'
+      document.cookie = `admin_access=1; path=/; max-age=86400; SameSite=Lax${isHttps ? '; Secure' : ''}`
+      window.location.replace(`${basePath}/admin`)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro ao salvar.')
       setSubmitting(false)

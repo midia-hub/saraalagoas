@@ -55,9 +55,21 @@ Se **depois do login** o Console mostra muitos erros, na maioria das vezes **nã
 
 **Conclusão:** Se o login **funciona** (você é redirecionado para `/admin` e vê o painel), esses erros podem ser ignorados. Para ter certeza de que o site está ok, abra o site em **janela anônima/privada** (onde extensões costumam estar desativadas) e faça login de novo; se funcionar, o problema era só das extensões.
 
+O erro **`bootstrap-autofill-overlay.js` / `insertBefore` / NotFoundError** é de extensão de autopreenchimento. Pode coincidir com “volta para o login” – teste em janela anônima.
+
 ---
 
-## 4. Ver o erro real (não o da extensão)
+## 4. Login leva de volta à tela de login
+
+Se ao clicar em **Entrar** (com e-mail e senha corretos) a página volta para o login sem mostrar mensagem de erro:
+
+- **Teste em janela anônima/privada** (sem extensões): extensões de autopreenchimento ou de senha podem interferir.
+- Na aba **Rede (Network)**, confira a requisição para **`/api/auth/admin-check`**: deve retornar status **200** e no corpo `canAccessAdmin: true`. Se for **401** ou **500**, o backend não está aceitando o token (variáveis na Vercel ou perfil do usuário no Supabase).
+- O cookie `admin_access` é definido com **Secure** em HTTPS; o redirecionamento após login usa **navegação completa** (`window.location`) para o cookie ser enviado na próxima requisição.
+
+---
+
+## 5. Ver o erro real (não o da extensão)
 
 Para ver o que o **seu site** está fazendo:
 
@@ -76,7 +88,7 @@ Com isso você descobre se o problema é:
 
 ---
 
-## 5. Resumo rápido
+## 6. Resumo rápido
 
 | Sintoma | Provável causa | O que fazer |
 |--------|-----------------|-------------|
@@ -84,11 +96,11 @@ Com isso você descobre se o problema é:
 | “Não foi possível conectar ao servidor” / “Failed to fetch” | Rede ou URL errada; ou API não encontrada | Conferir Network (URL da API, status). Garantir env na Vercel e Redeploy |
 | “Erro ao verificar permissão (500)” | Backend sem `SUPABASE_SERVICE_ROLE_KEY` ou Supabase URL | Adicionar `SUPABASE_SERVICE_ROLE_KEY` (e `NEXT_PUBLIC_*`) na Vercel e Redeploy |
 | “Sessão inválida” / 401 | Token inválido ou expirado; ou Site URL/Redirect errados no Supabase | Ajustar **Site URL** e **Redirect URLs** no Supabase (ver item 2) |
-| Login ok mas redireciona de volta ao login | Cookie `admin_access` não gravado (domínio/path) | Verificar se está em HTTPS e se o domínio do cookie é o mesmo do site |
+| Login ok mas redireciona de volta ao login | Cookie não enviado ou extensão interferindo | Testar em janela anônima. Verificar Network: `/api/auth/admin-check` em 200 com `canAccessAdmin: true`. O código já usa cookie Secure (HTTPS) e redirecionamento completo. |
 
 ---
 
-## 6. Checklist antes de testar de novo
+## 7. Checklist antes de testar de novo
 
 - [ ] `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_ANON_KEY` configuradas na Vercel (Production/Preview).
 - [ ] `SUPABASE_SERVICE_ROLE_KEY` configurada na Vercel.
