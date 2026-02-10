@@ -17,6 +17,7 @@ Em **Vercel → Seu projeto → Settings → Environment Variables**, confira:
 | `NEXT_PUBLIC_SUPABASE_URL` | Production, Preview | Ex.: `https://xxxx.supabase.co` |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Production, Preview | Chave **anon** (pública) do Supabase |
 | `SUPABASE_SERVICE_ROLE_KEY` | Production, Preview | Chave **service_role** (Dashboard → Settings → API) |
+| `NEXT_PUBLIC_APP_URL` | Production (recomendado) | URL do site (ex.: `https://saraalagoas.com`). Garante que o link do e-mail (magic link/convite) redirecione para produção e não para localhost. |
 
 - Marque **Production** (e Preview se usar branch preview).
 - **Depois de adicionar ou alterar** qualquer variável, faça um **novo deploy** (Redeploy). Só assim o Next.js gera de novo o bundle com os valores corretos.
@@ -35,6 +36,8 @@ No **Supabase Dashboard** do projeto:
    - Se usar domínio próprio: `https://saraalagoas.com/**` e `https://www.saraalagoas.com/**`
 
 Isso é essencial para link mágico (e-mail) e para sessão em produção.
+
+**Se o link do e-mail (magic link ou convite) redirecionar para localhost:** defina na Vercel a variável `NEXT_PUBLIC_APP_URL` com a URL de produção (ex.: `https://saraalagoas.com`) e faça um novo deploy. O código usa essa URL explicitamente no link enviado por e-mail.
 
 ---
 

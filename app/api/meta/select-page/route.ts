@@ -59,6 +59,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Página não encontrada' }, { status: 404 })
     }
 
+    // Não permitir página que já está ativa em outra integração
+    const { data: existing } = await db
+      .from('meta_integrations')
+      .select('id')
+      .eq('page_id', page_id)
+      .eq('is_active', true)
+      .neq('id', integration_id)
+      .limit(1)
+      .maybeSingle()
+    if (existing) {
+      return NextResponse.json(
+        { error: 'Esta página já está conectada e ativa na plataforma.' },
+        { status: 409 }
+      )
+    }
+
     // Buscar conta Instagram Business vinculada
     let instagramAccountId: string | null = null
     let instagramUsername: string | null = null

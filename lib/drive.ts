@@ -125,6 +125,23 @@ export async function getOrCreateFolder(parentId: string, name: string): Promise
   return createFolder(parentId, name)
 }
 
+/** Remove um arquivo do Drive (por ID). Não lança se o arquivo já não existir. */
+export async function deleteFileFromDrive(fileId: string): Promise<void> {
+  const drive = await getDriveClient()
+  try {
+    await drive.files.delete({
+      fileId,
+      supportsAllDrives: true,
+    })
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e)
+    if (msg.includes('404') || msg.includes('not found') || msg.includes('File not found')) {
+      return
+    }
+    throw e
+  }
+}
+
 /** Verifica se a pasta existe e a service account tem acesso (pastas compartilhadas exigem supportsAllDrives). */
 async function checkFolderAccessible(folderId: string): Promise<void> {
   const drive = await getDriveClient()

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { Menu, X } from 'lucide-react'
+import Image from 'next/image'
 import { useSiteConfig } from '@/lib/site-config-context'
 import { getStorageUrl } from '@/lib/storage-url'
 
@@ -47,11 +48,13 @@ export default function Header() {
         <div className="flex items-center justify-between h-20">
           {/* Logo */}
           <div className="flex-shrink-0">
-            <img
+            <Image
               src={getStorageUrl(LOGO_PATH)}
               alt="Sara Sede Alagoas"
-              className="h-16"
-              style={{ width: 'auto' }}
+              width={220}
+              height={88}
+              priority
+              className="h-16 w-auto"
             />
           </div>
           

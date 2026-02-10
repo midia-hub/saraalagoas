@@ -7,13 +7,15 @@ import { adminFetchJson } from '@/lib/admin-client'
 type InstagramInstance = {
   id: string
   name: string
-  provider: 'instagram'
+  provider: 'instagram' | 'facebook'
   access_token: string
   ig_user_id: string
   token_expires_at: string | null
   status: 'connected' | 'disconnected'
   created_at: string
   updated_at: string
+  read_only?: boolean
+  source?: string
 }
 
 type FormState = {
@@ -106,6 +108,10 @@ export default function AdminInstagramInstancesPage() {
   }
 
   function startEdit(item: InstagramInstance) {
+    if (item.read_only) {
+      setError('Esta instância é gerenciada pela conexão Meta. Edite em Instâncias (Meta).')
+      return
+    }
     setEditingId(item.id)
     setForm({
       name: item.name,
@@ -232,20 +238,26 @@ export default function AdminInstagramInstancesPage() {
                       status: {item.status} | atualizado em: {new Date(item.updated_at).toLocaleString('pt-BR')}
                     </p>
                   </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => startEdit(item)}
-                      className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm"
-                    >
-                      Editar nome/dados
-                    </button>
-                    <button
-                      onClick={() => handleDelete(item.id)}
-                      className="rounded-lg border border-red-300 px-3 py-1.5 text-sm text-red-700"
-                    >
-                      Excluir
-                    </button>
-                  </div>
+                  {item.read_only ? (
+                    <p className="text-xs text-slate-500">
+                      Gerenciada via OAuth Meta (Instâncias Meta)
+                    </p>
+                  ) : (
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => startEdit(item)}
+                        className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm"
+                      >
+                        Editar nome/dados
+                      </button>
+                      <button
+                        onClick={() => handleDelete(item.id)}
+                        className="rounded-lg border border-red-300 px-3 py-1.5 text-sm text-red-700"
+                      >
+                        Excluir
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

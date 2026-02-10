@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { PageAccessGuard } from '@/app/admin/PageAccessGuard'
 import { adminFetchJson } from '@/lib/admin-client'
-import { Facebook, Instagram, Loader2, AlertCircle, ArrowLeft } from 'lucide-react'
+import { Facebook, Instagram, Loader2, AlertCircle, ArrowLeft, Unlink } from 'lucide-react'
 
 type MetaPage = {
   id: string
@@ -29,6 +29,8 @@ export default function AdminInstanciasSelectPage() {
   const [pages, setPages] = useState<PageWithInstagram[]>([])
   const [loading, setLoading] = useState(true)
   const [selecting, setSelecting] = useState(false)
+  const [unlinking, setUnlinking] = useState(false)
+  const [showUnlinkModal, setShowUnlinkModal] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -103,6 +105,28 @@ export default function AdminInstanciasSelectPage() {
     }
   }
 
+  async function confirmUnlink() {
+    if (!integrationId) return
+    setUnlinking(true)
+    setError(null)
+    setShowUnlinkModal(false)
+    try {
+      await adminFetchJson(`/api/meta/integrations/${integrationId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ show_in_list: false }),
+      })
+      const isPopup = searchParams?.get('popup') === '1'
+      if (isPopup && typeof window !== 'undefined' && window.opener) {
+        window.location.href = '/admin/instancias/oauth-done'
+      } else {
+        router.push('/admin/instancias')
+      }
+    } catch (e) {
+      setUnlinking(false)
+      setError(e instanceof Error ? e.message : 'Erro ao desvincular.')
+    }
+  }
+
   if (!integrationId) {
     return (
       <PageAccessGuard pageKey="instagram">
@@ -126,16 +150,29 @@ export default function AdminInstanciasSelectPage() {
     <PageAccessGuard pageKey="instagram">
       <div className="p-6 md:p-8">
         <div className="mb-6">
-          <button
-            onClick={() => router.push('/admin/instancias')}
-            className="inline-flex items-center gap-2 text-slate-600 hover:text-slate-900 mb-3 text-sm"
-          >
-            <ArrowLeft size={16} />
-            Voltar para instâncias
-          </button>
+          <div className="flex flex-wrap items-center gap-2 mb-3">
+            <button
+              onClick={() => router.push('/admin/instancias')}
+              className="inline-flex items-center gap-2 text-slate-600 hover:text-slate-900 text-sm"
+            >
+              <ArrowLeft size={16} />
+              Voltar para instâncias
+            </button>
+            <span className="text-slate-300">|</span>
+            <button
+              onClick={() => setShowUnlinkModal(true)}
+              disabled={unlinking}
+              className="inline-flex items-center gap-2 text-red-600 hover:text-red-700 text-sm disabled:opacity-60"
+            >
+              {unlinking ? 'Removendo...' : 'Desvincular esta conexão'}
+            </button>
+          </div>
           <h1 className="text-2xl font-bold text-slate-900">Selecionar página</h1>
           <p className="text-slate-600 mt-1">
             Escolha a página do Facebook que deseja conectar. Se houver uma conta Instagram Business vinculada, ela será detectada automaticamente.
+          </p>
+          <p className="text-sm text-slate-500 mt-2">
+            Se nenhuma dessas páginas for a que você quer conectar, volte para Instâncias e use &quot;Desvincular&quot; na integração pendente para remover esta conexão e conectar com a conta correta.
           </p>
         </div>
 
@@ -202,6 +239,64 @@ export default function AdminInstanciasSelectPage() {
                 </button>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Modal Desvincular */}
+        {showUnlinkModal && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+            onClick={() => !unlinking && setShowUnlinkModal(false)}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="unlink-modal-title"
+          >
+            <div
+              className="w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-100">
+                    <Unlink size={20} className="text-amber-700" />
+                  </div>
+                  <h2 id="unlink-modal-title" className="text-lg font-semibold text-slate-900">
+                    Desvincular esta conexão
+                  </h2>
+                </div>
+                <p className="text-slate-600 text-sm mb-1">
+                  A conta sairá da lista de integrações na plataforma.
+                </p>
+                <p className="text-slate-600 text-sm mb-4">
+                  Ela <strong>continuará disponível</strong> ao escolher onde postar (Instagram/Facebook).
+                </p>
+              </div>
+              <div className="flex gap-3 justify-end px-6 pb-6">
+                <button
+                  type="button"
+                  onClick={() => !unlinking && setShowUnlinkModal(false)}
+                  disabled={unlinking}
+                  className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmUnlink}
+                  disabled={unlinking}
+                  className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50 inline-flex items-center gap-2"
+                >
+                  {unlinking ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      Desvinculando...
+                    </>
+                  ) : (
+                    'Desvincular'
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>

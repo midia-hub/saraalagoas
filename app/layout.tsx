@@ -5,10 +5,20 @@ import { siteConfig } from '@/config/site'
 import { SiteConfigProvider } from '@/lib/site-config-context'
 
 const poppins = Poppins({
-  weight: ['300', '400', '500', '600', '700'],
+  weight: ['400', '500', '600', '700'],
   subsets: ['latin'],
   display: 'swap',
 })
+
+const supabaseOrigin = (() => {
+  const value = process.env.NEXT_PUBLIC_SUPABASE_URL
+  if (!value) return ''
+  try {
+    return new URL(value).origin
+  } catch {
+    return ''
+  }
+})()
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -55,6 +65,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="pt-BR" className="scroll-smooth">
+      <head>
+        {supabaseOrigin ? (
+          <link rel="preconnect" href={supabaseOrigin} crossOrigin="" />
+        ) : null}
+      </head>
       <body className={poppins.className}>
         <SiteConfigProvider>
           {children}

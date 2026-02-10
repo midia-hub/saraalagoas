@@ -14,6 +14,12 @@ export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  if (params.id.startsWith('meta_ig:') || params.id.startsWith('meta_fb:')) {
+    return NextResponse.json(
+      { error: 'Instância gerenciada via Meta OAuth. Consulte em /admin/instancias.' },
+      { status: 400 }
+    )
+  }
   const access = await requireAccess(request, { pageKey: 'instagram', action: 'view' })
   if (!access.ok) return access.response
   const db = createSupabaseServerClient(request)
@@ -32,6 +38,12 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  if (params.id.startsWith('meta_ig:') || params.id.startsWith('meta_fb:')) {
+    return NextResponse.json(
+      { error: 'Instância gerenciada via Meta OAuth. Edite em /admin/instancias.' },
+      { status: 400 }
+    )
+  }
   const access = await requireAccess(request, { pageKey: 'instagram', action: 'edit' })
   if (!access.ok) return access.response
   const db = createSupabaseServerClient(request)
@@ -78,6 +90,12 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  if (params.id.startsWith('meta_ig:') || params.id.startsWith('meta_fb:')) {
+    return NextResponse.json(
+      { error: 'Instância gerenciada via Meta OAuth. Desvincule em /admin/instancias.' },
+      { status: 400 }
+    )
+  }
   const access = await requireAccess(request, { pageKey: 'instagram', action: 'delete' })
   if (!access.ok) return access.response
   const db = createSupabaseServerClient(request)

@@ -1,33 +1,44 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 import { supabase } from '@/lib/supabase'
+import { clearSupabaseLocalSession } from '@/lib/auth-recovery'
 
-function getFormValue(form: HTMLFormElement | null, name: string): string {
-  if (!form) {
-    return ''
-  }
-  const el = form.elements.namedItem(name)
-  const value = (el && 'value' in el ? (el as unknown as HTMLInputElement).value : '').trim()
-  return value
+function getInputValue(input: HTMLInputElement | null): string {
+  return input?.value.trim() ?? ''
+}
+
+function getCredentialValues(form: HTMLFormElement, emailRef: HTMLInputElement | null, passwordRef: HTMLInputElement | null) {
+  const data = new FormData(form)
+  const emailValue = (data.get('email')?.toString() ?? getInputValue(emailRef)).trim()
+  const passwordValue = (data.get('password')?.toString() ?? getInputValue(passwordRef)).trim()
+  return { emailValue, passwordValue }
+}
+
+function isInvalidRefreshTokenMessage(message: string): boolean {
+  const normalized = message.toLowerCase()
+  return normalized.includes('invalid refresh token') || normalized.includes('refresh token not found')
 }
 
 export default function AdminLoginPage() {
   const router = useRouter()
   const formRef = useRef<HTMLFormElement>(null)
+  const emailRef = useRef<HTMLInputElement>(null)
+  const passwordRef = useRef<HTMLInputElement>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
+  const [showPassword, setShowPassword] = useState(false)
 
   async function handleLogin(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setError(null)
     setMessage(null)
     const form = e.currentTarget
-    const emailValue = getFormValue(form, 'email')
-    const passwordValue = getFormValue(form, 'password')
+    const { emailValue, passwordValue } = getCredentialValues(form, emailRef.current, passwordRef.current)
     if (!emailValue) {
       setError('Informe o e-mail.')
       return
@@ -47,7 +58,15 @@ export default function AdminLoginPage() {
     }
     setLoading(true)
     try {
-      const { data, error: err } = await supabase.auth.signInWithPassword({ email: emailValue, password: passwordValue })
+      let { data, error: err } = await supabase.auth.signInWithPassword({ email: emailValue, password: passwordValue })
+
+      if (err && isInvalidRefreshTokenMessage(err.message)) {
+        await clearSupabaseLocalSession(supabase)
+        const retry = await supabase.auth.signInWithPassword({ email: emailValue, password: passwordValue })
+        data = retry.data
+        err = retry.error
+      }
+
       if (err) {
         setError(err.message === 'Invalid login credentials' ? 'E-mail ou senha incorretos.' : err.message)
         setLoading(false)
@@ -119,7 +138,7 @@ export default function AdminLoginPage() {
     const btn = e.target as HTMLButtonElement
     const formFromBtn = btn.form
     const form = formFromBtn ?? formRef.current
-    const emailValue = getFormValue(form, 'email')
+    const emailValue = form ? getCredentialValues(form, emailRef.current, passwordRef.current).emailValue : getInputValue(emailRef.current)
     if (!supabase) {
       const isProd = typeof window !== 'undefined' && !/localhost|127\.0\.0\.1/.test(window.location.origin)
       setError(
@@ -135,7 +154,16 @@ export default function AdminLoginPage() {
     }
     setLoading(true)
     try {
-      const { error: err } = await supabase.auth.signInWithOtp({ email: emailValue })
+      // Usar URL do app para o link do e-mail não redirecionar para localhost (ex.: em produção)
+      const basePath = typeof process.env.NEXT_PUBLIC_USE_BASEPATH === 'string' && process.env.NEXT_PUBLIC_USE_BASEPATH === 'true' ? '/saraalagoas' : ''
+      const appOrigin = typeof process.env.NEXT_PUBLIC_APP_URL === 'string' && process.env.NEXT_PUBLIC_APP_URL
+        ? process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, '')
+        : (typeof window !== 'undefined' ? window.location.origin : '')
+      const emailRedirectTo = `${appOrigin}${basePath}/admin`
+      const { error: err } = await supabase.auth.signInWithOtp({
+        email: emailValue,
+        options: { emailRedirectTo },
+      })
       if (err) {
         setError(err.message)
         setLoading(false)
@@ -150,42 +178,73 @@ export default function AdminLoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-lg p-8">
-        <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">Admin</h1>
-          <p className="text-gray-600 mt-1">Sara Sede Alagoas</p>
+    <div className="min-h-screen flex items-center justify-center bg-slate-100 px-4 py-8">
+      <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-7 shadow-xl">
+        <div className="mb-7 text-center">
+          <Image
+            src="/logo-sara-oficial.png"
+            alt="Logo oficial Sara Alagoas"
+            width={220}
+            height={97}
+          loading="eager"
+          fetchPriority="high"
+            className="mx-auto mb-4 h-auto w-44 sm:w-52"
+          />
+          <h1 className="text-2xl font-semibold text-slate-900">Acesso administrativo</h1>
+          <p className="mt-1 text-sm text-slate-600">Sara Sede Alagoas</p>
         </div>
-        <form ref={formRef} onSubmit={handleLogin} className="space-y-4">
+        <form
+          ref={formRef}
+          onSubmit={handleLogin}
+          method="post"
+          autoComplete="on"
+          className="space-y-4"
+        >
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="email" className="mb-1 block text-sm font-medium text-slate-700">
               E-mail
             </label>
             <input
+              ref={emailRef}
               id="email"
               type="email"
               name="email"
-              autoComplete="email"
+              inputMode="email"
+              autoComplete="username"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
               required
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+              className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-[#c62737] focus:ring-2 focus:ring-[#c62737]/20"
               placeholder="seu@email.com"
             />
           </div>
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="password" className="mb-1 block text-sm font-medium text-slate-700">
               Senha
             </label>
-            <input
-              id="password"
-              type="password"
-              name="password"
-              autoComplete="current-password"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
-              placeholder="••••••••"
-            />
+            <div className="relative">
+              <input
+                ref={passwordRef}
+                id="password"
+                type={showPassword ? 'text' : 'password'}
+                name="password"
+                autoComplete="current-password"
+                required
+                className="w-full rounded-lg border border-slate-300 px-4 py-2.5 pr-24 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-[#c62737] focus:ring-2 focus:ring-[#c62737]/20"
+                placeholder="••••••••"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((prev) => !prev)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-800"
+              >
+                {showPassword ? 'Ocultar' : 'Mostrar'}
+              </button>
+            </div>
           </div>
           {error && (
-            <div className="text-sm text-red-600 bg-red-50 p-3 rounded space-y-1">
+            <div className="space-y-1 rounded-lg bg-red-50 p-3 text-sm text-red-700">
               <p>{error}</p>
               {error.includes('500') || error.includes('Supabase') ? (
                 <p className="text-xs text-red-700 mt-1">
@@ -195,33 +254,33 @@ export default function AdminLoginPage() {
             </div>
           )}
           {message && (
-            <div className="text-sm text-green-700 bg-green-50 p-3 rounded space-y-1">
+            <div className="space-y-1 rounded-lg bg-green-50 p-3 text-sm text-green-700">
               <p>{message}</p>
               <p className="text-gray-600 mt-2">Não recebeu? Verifique a pasta <strong>Spam</strong>. Configure as URLs em Supabase (Auth → URL Configuration) e, se precisar, use SMTP customizado (veja <code className="text-xs bg-gray-100 px-1">docs/EMAIL-NAO-RECEBIDO.md</code>).</p>
             </div>
           )}
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-2 pt-1">
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-2.5 bg-[#c62737] text-white font-medium rounded-lg hover:bg-[#a01f2d] disabled:opacity-50"
+              className="w-full rounded-lg bg-[#c62737] py-2.5 font-medium text-white transition hover:bg-[#a01f2d] disabled:opacity-60"
             >
-              {loading ? 'Entrando...' : 'Entrar'}
+              {loading ? 'Validando acesso...' : 'Entrar'}
             </button>
             <button
               type="button"
               onClick={handleMagicLink}
               disabled={loading}
-              className="w-full py-2.5 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 disabled:opacity-50"
+              className="w-full rounded-lg border border-slate-300 py-2.5 font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
             >
               Enviar link de acesso por e-mail
             </button>
           </div>
         </form>
-        <p className="mt-6 text-center text-sm text-gray-500">
+        <p className="mt-6 text-center text-sm text-slate-500">
           <Link href="/" className="text-[#c62737] hover:underline">Voltar ao site</Link>
         </p>
-        <p className="mt-3 text-center text-xs text-gray-400 max-w-xs mx-auto">
+        <p className="mx-auto mt-3 max-w-xs text-center text-xs text-slate-400">
           Não recebeu o e-mail de criação de conta? Verifique o Spam ou crie o usuário em Supabase (Authentication → Users) e defina a senha lá. Veja <code className="bg-gray-100 px-1">docs/EMAIL-NAO-RECEBIDO.md</code>.
         </p>
       </div>

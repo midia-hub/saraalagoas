@@ -90,6 +90,22 @@ Vercel → Projeto → Settings → Environment Variables
 - [ ] Marcado Preview em cada uma (exceto REDIRECT_URI)
 - [ ] Nenhuma variável com `NEXT_PUBLIC_`
 
+#### Google Drive (Galeria e Upload)
+
+Para a **Galeria** e o **Upload** de fotos dos álbuns funcionarem na Vercel, configure também:
+
+| Nome | Valor | Env |
+|------|-------|-----|
+| GOOGLE_DRIVE_ROOT_FOLDER_ID | ID da pasta raiz no Drive | Production, Preview |
+| GOOGLE_SERVICE_ACCOUNT_JSON | JSON da Service Account (uma linha, minificado) | Production, Preview |
+
+Ou, em vez do JSON: `GOOGLE_SERVICE_ACCOUNT_EMAIL` + `GOOGLE_PRIVATE_KEY`.  
+Detalhes: **docs/VERCEL-DRIVE-ENV.md**.
+
+- [ ] Pasta no Drive compartilhada com o e-mail da Service Account (Editor)
+- [ ] Variáveis do Drive adicionadas na Vercel (se quiser listar/upload em produção)
+- [ ] Redeploy após alterar variáveis
+
 #### Redeploy
 
 - [ ] Vercel → Deployments → ... → Redeploy
@@ -178,7 +194,9 @@ Se precisar de ajuda detalhada:
 
 | Documento | Quando usar |
 |-----------|-------------|
-| `VERCEL-DEPLOY-META.md` | Instruções completas de deploy |
+| `VERCEL-DEPLOY-META.md` | Instruções completas de deploy (Meta) |
+| `docs/VERCEL-DRIVE-ENV.md` | Variáveis do Google Drive na Vercel (Galeria/Upload) |
+| `docs/GOOGLE-DRIVE-ADMIN.md` | Configurar Drive (Service Account, pasta, env) |
 | `FACEBOOK-APP-SETUP.md` | Configurar Facebook App passo a passo |
 | `docs/META-TROUBLESHOOTING.md` | Resolver problemas e erros |
 | `docs/META-INTEGRATION.md` | Documentação técnica completa |
