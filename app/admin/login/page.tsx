@@ -112,8 +112,11 @@ export default function AdminLoginPage() {
           return
         }
 
-        document.cookie = 'admin_access=1; path=/; max-age=86400; SameSite=Lax'
-        router.replace('/admin')
+        // Cookie com Secure em HTTPS para produção; redirecionamento completo para o cookie ser enviado na próxima requisição
+        const isHttps = typeof window !== 'undefined' && window.location?.protocol === 'https:'
+        document.cookie = `admin_access=1; path=/; max-age=86400; SameSite=Lax${isHttps ? '; Secure' : ''}`
+        window.location.replace(`${basePath}/admin`)
+        return
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Erro ao entrar. Tente novamente.'
