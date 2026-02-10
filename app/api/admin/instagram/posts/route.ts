@@ -45,16 +45,16 @@ export async function GET(request: NextRequest) {
     const jobs = jobsData || []
 
     // Buscar galerias e assets em lotes se houver drafts
-    const galleryIds = [
-      ...new Set(
+    const galleryIds = Array.from(
+      new Set(
         jobs
           .map((j) => (j.instagram_post_drafts as { gallery_id?: string } | null)?.gallery_id)
           .filter(Boolean) as string[]
-      ),
-    ]
-    const draftIds = [
-      ...new Set(jobs.map((j) => (j.instagram_post_drafts as { id?: string } | null)?.id).filter(Boolean) as string[]),
-    ]
+      )
+    )
+    const draftIds = Array.from(
+      new Set(jobs.map((j) => (j.instagram_post_drafts as { id?: string } | null)?.id).filter(Boolean) as string[])
+    )
 
     let galleriesMap: Record<string, { id: string; title: string; type: string; date: string }> = {}
     let assetsByDraft: Record<string, Array<{ sort_order: number; final_url: string | null; source_url: string }>> = {}

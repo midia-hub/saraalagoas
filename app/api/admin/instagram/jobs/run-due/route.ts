@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  const jobs = (data || []) as JobRow[]
+  const jobs = (data || []) as unknown as JobRow[]
   const results: Array<{ id: string; status: string; error?: string }> = []
 
   for (const job of jobs) {

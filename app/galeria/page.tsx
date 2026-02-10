@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { Suspense, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 
@@ -25,7 +25,7 @@ function formatDatePtBr(iso: string): string {
   }
 }
 
-export default function GaleriaPublicaPage() {
+function GaleriaContent() {
   const searchParams = useSearchParams()
   const typeFilter = searchParams?.get('type') || ''
   const [items, setItems] = useState<GalleryItem[]>([])
@@ -138,5 +138,13 @@ export default function GaleriaPublicaPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function GaleriaPublicaPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center"><p className="text-sara-gray-light">Carregando...</p></div>}>
+      <GaleriaContent />
+    </Suspense>
   )
 }

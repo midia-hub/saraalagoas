@@ -48,10 +48,10 @@ export default function AdminInstanciasPage() {
     loadIntegrations()
 
     // Verificar mensagens de sucesso/erro da URL
-    const connected = searchParams.get('connected')
-    const instagram = searchParams.get('instagram')
-    const errorParam = searchParams.get('error')
-    const errorDesc = searchParams.get('error_description')
+    const connected = searchParams?.get('connected')
+    const instagram = searchParams?.get('instagram')
+    const errorParam = searchParams?.get('error')
+    const errorDesc = searchParams?.get('error_description')
 
     if (connected === '1') {
       setSuccess(instagram 
