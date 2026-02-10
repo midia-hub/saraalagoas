@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { createSupabaseServiceClient } from '@/lib/supabase-server'
 import {
   verifySignedState,
   exchangeCodeForToken,
@@ -91,7 +91,9 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    const db = createSupabaseServerClient(request)
+    // Service role: o callback é acessado por redirecionamento do Facebook (sem JWT do usuário).
+    // O usuário já foi validado pelo state assinado (stateData.userId).
+    const db = createSupabaseServiceClient()
 
     // Se houver apenas uma página, conectar automaticamente
     if (pages.length === 1) {

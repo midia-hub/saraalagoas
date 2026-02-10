@@ -23,6 +23,22 @@ function getAccessTokenFromRequest(request: NextRequest): string {
   return token || ''
 }
 
+/**
+ * Cliente com service role (ignora RLS).
+ * Usar apenas em rotas de backend onde o usuário já foi validado (ex.: callback OAuth).
+ * Exige SUPABASE_SERVICE_ROLE_KEY.
+ */
+export function createSupabaseServiceClient() {
+  if (!supabaseUrl || !serviceKey) {
+    throw new Error(
+      'Callback OAuth precisa de SUPABASE_SERVICE_ROLE_KEY. Defina em Vercel (Settings → Environment Variables).'
+    )
+  }
+  return createClient(supabaseUrl, serviceKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  })
+}
+
 export function createSupabaseServerClient(request?: NextRequest) {
   const token = request ? getAccessTokenFromRequest(request) : ''
   if (token && anonKey) {
