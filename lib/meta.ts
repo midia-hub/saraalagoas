@@ -78,7 +78,8 @@ export function getMetaConfig(): MetaOAuthConfig {
     )
   }
 
-  if (!redirectUri.startsWith('https://')) {
+  const isLocalhost = redirectUri.startsWith('http://localhost') || redirectUri.startsWith('http://127.0.0.1')
+  if (!isLocalhost && !redirectUri.startsWith('https://')) {
     throw new Error('META_REDIRECT_URI deve ser HTTPS em produção (ex.: https://saraalagoas.com/api/meta/oauth/callback)')
   }
 

@@ -91,6 +91,7 @@ Se você tem **mais de uma página** no Facebook, após autorizar você é envia
 
 No Supabase → **Table Editor** → **meta_integrations**: veja se existe alguma linha depois de conectar.  
 - Se **não** houver linhas: o insert falhou (tabela inexistente ou permissão/RLS). Aplique o **supabase-meta.sql** e tente de novo.  
+- Se o erro for **"new row violates row-level security policy"**: (1) O callback OAuth é chamado por redirecionamento do Facebook (sem JWT). A aplicação usa **`SUPABASE_SERVICE_ROLE_KEY`** no callback para gravar a integração — configure essa variável na Vercel e faça **redeploy**. (2) No Supabase, confira se a tabela e as políticas RLS estão aplicadas: execute o script **`supabase/migrations/20260210_meta_integrations_rls.sql`** no SQL Editor (Dashboard → SQL Editor → New query → colar → Run). Veja [META-RLS.md](META-RLS.md).  
 - Se **houver** linhas: a listagem usa service role após checagem de acesso (qualquer usuário que vê a página Instâncias consegue ver as integrações). Se ainda não aparecer, faça um redeploy e limpe o cache do navegador.
 
 ---
