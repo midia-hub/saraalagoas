@@ -30,9 +30,10 @@ No **Supabase Dashboard** do projeto:
 
 1. **Authentication → URL Configuration**
 2. **Site URL**: use a URL de produção (ex.: `https://seu-app.vercel.app` ou `https://saraalagoas.com`).
-3. **Redirect URLs**: inclua as URLs onde o usuário pode voltar após login/link mágico, por exemplo:
+3. **Redirect URLs**: inclua as URLs onde o usuário pode voltar após login/link mágico/convite, por exemplo:
    - `https://seu-app.vercel.app/**`
    - `https://seu-app.vercel.app/admin/**`
+   - `https://seu-app.vercel.app/admin/completar-cadastro` (página de completar cadastro após e-mail de validação)
    - Se usar domínio próprio: `https://saraalagoas.com/**` e `https://www.saraalagoas.com/**`
 
 Isso é essencial para link mágico (e-mail) e para sessão em produção.
@@ -91,8 +92,10 @@ Com isso você descobre se o problema é:
 
 - [ ] `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_ANON_KEY` configuradas na Vercel (Production/Preview).
 - [ ] `SUPABASE_SERVICE_ROLE_KEY` configurada na Vercel.
+- [ ] `NEXT_PUBLIC_APP_URL` na Vercel (ex.: `https://saraalagoas.com`) para o link do e-mail ir para produção.
 - [ ] **Redeploy** feito depois de alterar qualquer variável.
-- [ ] No Supabase: **Site URL** = URL de produção; **Redirect URLs** incluem a URL do app (ex.: `https://seu-app.vercel.app/**`).
+- [ ] No Supabase: **Site URL** = URL de produção; **Redirect URLs** incluem a URL do app (ex.: `https://seu-app.vercel.app/**` ou `https://saraalagoas.com/**`).
+- [ ] Se usar convite por e-mail: no Supabase (Project Settings → Edge Functions), variável **APP_URL** = `https://saraalagoas.com` (ou seu domínio).
 - [ ] Teste com Console/Network abertos no **seu domínio** para ver o erro exato.
 
 Depois disso, se ainda falhar, use a mensagem exata do Console e o status da requisição em **Network** (e, se possível, o corpo da resposta de `/api/auth/admin-check`) para afinar o diagnóstico.

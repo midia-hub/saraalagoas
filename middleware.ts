@@ -21,8 +21,10 @@ export function middleware(request: NextRequest) {
   const isAdminPage = normalizedPath.startsWith('/admin')
   const isAdminApi = normalizedPath.startsWith('/api/admin')
   const isLoginPage = normalizedPath === '/admin/login'
+  const isCompletarCadastroPage = normalizedPath === '/admin/completar-cadastro'
+  const isPublicAdminPage = isLoginPage || isCompletarCadastroPage
 
-  if ((isAdminPage || isAdminApi) && !isLoginPage) {
+  if ((isAdminPage || isAdminApi) && !isPublicAdminPage) {
     if (!hasAdminAccess(request)) {
       if (isAdminApi) {
         return NextResponse.json({ error: 'Acesso negado.' }, { status: 401 })

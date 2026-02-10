@@ -159,7 +159,7 @@ export default function AdminLoginPage() {
       const appOrigin = typeof process.env.NEXT_PUBLIC_APP_URL === 'string' && process.env.NEXT_PUBLIC_APP_URL
         ? process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, '')
         : (typeof window !== 'undefined' ? window.location.origin : '')
-      const emailRedirectTo = `${appOrigin}${basePath}/admin`
+      const emailRedirectTo = `${appOrigin}${basePath}/admin/completar-cadastro`
       const { error: err } = await supabase.auth.signInWithOtp({
         email: emailValue,
         options: { emailRedirectTo },
