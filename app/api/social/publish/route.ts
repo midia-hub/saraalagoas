@@ -167,7 +167,7 @@ export async function POST(request: NextRequest) {
 
     draftId = draft.id
 
-    const assetRows = mediaFileIds.map((fileId, index: number) => ({
+    const assetRows = mediaFileIds.map((fileId: string, index: number) => ({
       draft_id: draftId,
       source_url: `${DRIVE_PREFIX}${fileId}`,
       sort_order: index,
