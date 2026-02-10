@@ -8,12 +8,19 @@ import {
   listUserPages,
 } from '@/lib/meta'
 
+const LOG_PREFIX = '[Meta OAuth]'
+
+function safeErrorDescription(msg: string, maxLen = 180): string {
+  return msg.replace(/\s+/g, ' ').slice(0, maxLen)
+}
+
 /**
  * Callback do OAuth Meta (Facebook)
  * 
  * GET /api/meta/oauth/callback?code=xxx&state=xxx
  * 
- * Recebe o code, valida state, troca por token e redireciona
+ * Recebe o code, valida state, troca por token e redireciona.
+ * Logs: Vercel Dashboard → Logs (filtrar por "Meta OAuth").
  */
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams
@@ -22,61 +29,68 @@ export async function GET(request: NextRequest) {
   const error = searchParams.get('error')
   const errorDescription = searchParams.get('error_description')
 
-  // Tratar erro de autorização
-  if (error) {
-    const redirectUrl = new URL('/admin/instancias', request.url)
-    redirectUrl.searchParams.set('error', error)
-    redirectUrl.searchParams.set('error_description', errorDescription || 'Autorização negada')
+  function redirectTo(basePath: string, params: Record<string, string>): NextResponse {
+    const redirectUrl = new URL(basePath, request.url)
+    Object.entries(params).forEach(([k, v]) => v && redirectUrl.searchParams.set(k, v))
     return NextResponse.redirect(redirectUrl)
   }
 
-  // Validar parâmetros
+  if (error) {
+    console.warn(LOG_PREFIX, 'Facebook retornou erro:', error, errorDescription || '')
+    return redirectTo('/admin/instancias/oauth-done', {
+      error,
+      error_description: errorDescription || 'Autorização negada',
+    })
+  }
+
   if (!code || !state) {
-    const redirectUrl = new URL('/admin/instancias', request.url)
-    redirectUrl.searchParams.set('error', 'invalid_request')
-    redirectUrl.searchParams.set('error_description', 'Código ou state ausente')
-    return NextResponse.redirect(redirectUrl)
+    console.warn(LOG_PREFIX, 'Parâmetros ausentes:', { hasCode: !!code, hasState: !!state })
+    return redirectTo('/admin/instancias/oauth-done', {
+      error: 'invalid_request',
+      error_description: 'Código ou state ausente',
+    })
   }
 
   try {
-    // Validar state (CSRF protection)
+    console.log(LOG_PREFIX, '1/6 Validando state...')
     const stateData = await verifySignedState(state)
     if (!stateData) {
-      const redirectUrl = new URL('/admin/instancias', request.url)
-      redirectUrl.searchParams.set('error', 'invalid_state')
-      redirectUrl.searchParams.set('error_description', 'State inválido ou expirado')
-      return NextResponse.redirect(redirectUrl)
+      console.warn(LOG_PREFIX, 'State inválido ou expirado')
+      return redirectTo('/admin/instancias/oauth-done', {
+        error: 'invalid_state',
+        error_description: 'State inválido ou expirado',
+      })
     }
 
-    // Trocar code por token
+    const isPopup = !!stateData.popup
+    const donePath = isPopup ? '/admin/instancias/oauth-done' : '/admin/instancias'
+    console.log(LOG_PREFIX, '2/6 State OK, userId:', stateData.userId)
+
+    console.log(LOG_PREFIX, '3/6 Trocando code por token...')
     const tokenResponse = await exchangeCodeForToken(code)
     const shortToken = tokenResponse.access_token
 
-    // Trocar por long-lived token (60 dias)
+    console.log(LOG_PREFIX, '4/6 Obtendo long-lived token...')
     const longLivedResponse = await exchangeForLongLivedToken(shortToken)
     const accessToken = longLivedResponse.access_token
     const expiresIn = longLivedResponse.expires_in
 
-    // Calcular data de expiração
     const tokenExpiresAt = expiresIn
       ? new Date(Date.now() + expiresIn * 1000).toISOString()
       : null
 
-    // Buscar informações do usuário
+    console.log(LOG_PREFIX, '5/6 Buscando perfil e páginas...')
     const userProfile = await getUserProfile(accessToken)
-
-    // Buscar páginas do usuário
     const pages = await listUserPages(accessToken)
+    console.log(LOG_PREFIX, 'Páginas encontradas:', pages.length, '| Usuário:', userProfile.name)
 
-    // Verificar se há páginas
     if (pages.length === 0) {
-      const redirectUrl = new URL('/admin/instancias', request.url)
-      redirectUrl.searchParams.set('error', 'no_pages')
-      redirectUrl.searchParams.set('error_description', 'Nenhuma página encontrada. Você precisa ter uma Página do Facebook para conectar.')
-      return NextResponse.redirect(redirectUrl)
+      return redirectTo(donePath, {
+        error: 'no_pages',
+        error_description: 'Nenhuma página encontrada. Você precisa ter uma Página do Facebook para conectar.',
+      })
     }
 
-    // Criar cliente Supabase
     const db = createSupabaseServerClient(request)
 
     // Se houver apenas uma página, conectar automaticamente
@@ -98,7 +112,7 @@ export async function GET(request: NextRequest) {
         // Instagram não vinculado ou erro ao buscar
       }
 
-      // Salvar integração no banco
+      console.log(LOG_PREFIX, '6/6 Salvando integração (1 página)...')
       const { error: insertError } = await db
         .from('meta_integrations')
         .insert({
@@ -117,20 +131,17 @@ export async function GET(request: NextRequest) {
         })
 
       if (insertError) {
+        console.error(LOG_PREFIX, 'Insert falhou:', insertError.message, insertError.code, insertError.details)
         throw new Error(`Erro ao salvar integração: ${insertError.message}`)
       }
+      console.log(LOG_PREFIX, 'Sucesso: integração salva, redirecionando.')
 
-      // Redirecionar para página de sucesso
-      const redirectUrl = new URL(stateData.redirectTo || '/admin/instancias', request.url)
-      redirectUrl.searchParams.set('connected', '1')
-      if (instagramAccountId) {
-        redirectUrl.searchParams.set('instagram', instagramUsername || '')
-      }
-      return NextResponse.redirect(redirectUrl)
+      const successParams: Record<string, string> = { connected: '1' }
+      if (instagramUsername) successParams.instagram = instagramUsername
+      return redirectTo(donePath, successParams)
     }
 
-    // Se houver múltiplas páginas, salvar dados temporários e redirecionar para seleção
-    // Salvar uma integração "pendente" com apenas os dados do usuário
+    console.log(LOG_PREFIX, '6/6 Salvando integração pendente (múltiplas páginas)...')
     const { data: integration, error: insertError } = await db
       .from('meta_integrations')
       .insert({
@@ -147,19 +158,25 @@ export async function GET(request: NextRequest) {
       .single()
 
     if (insertError) {
+      console.error(LOG_PREFIX, 'Insert pendente falhou:', insertError.message, insertError.code, insertError.details)
       throw new Error(`Erro ao salvar integração: ${insertError.message}`)
     }
+    console.log(LOG_PREFIX, 'Sucesso: integração pendente salva, redirecionando para seleção.')
 
-    // Redirecionar para página de seleção de página
-    const redirectUrl = new URL('/admin/instancias/select', request.url)
-    redirectUrl.searchParams.set('integration_id', integration.id)
-    return NextResponse.redirect(redirectUrl)
+    const selectUrl = new URL('/admin/instancias/select', request.url)
+    selectUrl.searchParams.set('integration_id', integration.id)
+    if (isPopup) selectUrl.searchParams.set('popup', '1')
+    return NextResponse.redirect(selectUrl)
 
-  } catch (error) {
-    console.error('Meta OAuth callback error:', error)
-    const redirectUrl = new URL('/admin/instancias', request.url)
-    redirectUrl.searchParams.set('error', 'oauth_failed')
-    redirectUrl.searchParams.set('error_description', error instanceof Error ? error.message : 'Erro ao processar OAuth')
-    return NextResponse.redirect(redirectUrl)
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Erro ao processar OAuth'
+    const full = err instanceof Error ? (err.stack || err.message) : String(err)
+    console.error(LOG_PREFIX, 'Falha:', msg)
+    console.error(LOG_PREFIX, 'Detalhes:', full)
+    const donePath = '/admin/instancias/oauth-done'
+    return redirectTo(donePath, {
+      error: 'oauth_failed',
+      error_description: safeErrorDescription(msg),
+    })
   }
 }

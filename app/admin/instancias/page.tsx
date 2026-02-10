@@ -46,26 +46,32 @@ export default function AdminInstanciasPage() {
 
   useEffect(() => {
     loadIntegrations()
+  }, [])
 
-    // Verificar mensagens de sucesso/erro da URL
+  // Tratar retorno por query params (fluxo sem popup / fallback)
+  useEffect(() => {
     const connected = searchParams?.get('connected')
     const instagram = searchParams?.get('instagram')
     const errorParam = searchParams?.get('error')
-    const errorDesc = searchParams?.get('error_description')
+    const errorDescRaw = searchParams?.get('error_description')
+    let errorDesc: string | null = null
+    if (errorDescRaw) {
+      try {
+        errorDesc = decodeURIComponent(errorDescRaw)
+      } catch {
+        errorDesc = errorDescRaw
+      }
+    }
 
     if (connected === '1') {
       setSuccess(instagram 
         ? `Conectado com sucesso! Instagram: @${instagram}` 
         : 'Conectado com sucesso!'
       )
-      // Recarregar lista após conexão (evita painel vazio por timing)
-      const t = setTimeout(() => {
-        loadIntegrations()
-      }, 800)
+      setTimeout(() => loadIntegrations(), 800)
       router.replace('/admin/instancias')
-      return () => clearTimeout(t)
     } else if (errorParam) {
-      setError(errorDesc || 'Erro ao conectar conta Meta')
+      setError(errorDesc || (errorParam === 'oauth_failed' ? 'Falha ao conectar. Veja os logs no Vercel (Deployments → Logs) filtrando por "Meta OAuth".' : 'Erro ao conectar conta Meta'))
       router.replace('/admin/instancias')
     }
   }, [searchParams, router])
@@ -75,11 +81,54 @@ export default function AdminInstanciasPage() {
     setError(null)
     setSuccess(null)
     try {
-      const data = await adminFetchJson<{ url: string }>('/api/meta/oauth/start', {
+      const data = await adminFetchJson<{ url: string }>('/api/meta/oauth/start?popup=1', {
         method: 'GET',
       })
-      // Redirecionar para OAuth
-      window.location.href = data.url
+      const width = 560
+      const height = 640
+      const left = Math.round((window.screen.width - width) / 2)
+      const top = Math.round((window.screen.height - height) / 2)
+      const popup = window.open(
+        data.url,
+        'meta-oauth',
+        `width=${width},height=${height},left=${left},top=${top},scrollbars=yes,resizable=yes`
+      )
+      if (!popup) {
+        setError('O popup foi bloqueado. Permita popups para este site e tente novamente.')
+        setConnecting(false)
+        return
+      }
+
+      const handleMessage = (event: MessageEvent) => {
+        if (event.origin !== window.location.origin) return
+        const msg = event.data
+        if (msg?.type !== 'meta-oauth-done') return
+        window.removeEventListener('message', handleMessage)
+        clearInterval(intervalId)
+        setConnecting(false)
+        if (msg.error) {
+          setError(
+            msg.errorDescription ||
+            (msg.error === 'oauth_failed' ? 'Falha ao conectar. Veja os logs no Vercel (Deployments → Logs) filtrando por "Meta OAuth".' : 'Erro ao conectar conta Meta')
+          )
+        } else if (msg.connected) {
+          setSuccess(msg.instagram ? `Conectado com sucesso! Instagram: @${msg.instagram}` : 'Conectado com sucesso!')
+          loadIntegrations()
+        } else if (msg.selectPage) {
+          setSuccess('Selecione a página e o Instagram na janela que abriu.')
+          loadIntegrations()
+        }
+      }
+
+      const intervalId = setInterval(() => {
+        if (popup.closed) {
+          clearInterval(intervalId)
+          window.removeEventListener('message', handleMessage)
+          setConnecting(false)
+        }
+      }, 300)
+
+      window.addEventListener('message', handleMessage)
     } catch (e) {
       setConnecting(false)
       setError(e instanceof Error ? e.message : 'Erro ao iniciar conexão.')
