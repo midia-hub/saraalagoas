@@ -22,6 +22,8 @@ lerna-debug.log*
 # Environment (nunca commitar)
 .env
 .env.local
+# Chave da API Google (Service Account) – não commitar
+config/*-service-account.json
 .env.development.local
 .env.test.local
 .env.production.local

@@ -147,6 +147,7 @@ export const siteConfig = {
   
   menuItems: [
     { id: "cultos", label: "Cultos" },
+    { id: "galeria", label: "Galeria" },
     { id: "celula", label: "Célula" },
     { id: "lideranca", label: "Liderança" },
     { id: "redes", label: "Redes" },

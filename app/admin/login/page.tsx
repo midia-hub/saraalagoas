@@ -5,17 +5,12 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 
-/** Lê valor do campo pelo nome no formulário (valor real do DOM, inclusive autocomplete) */
 function getFormValue(form: HTMLFormElement | null, name: string): string {
-  console.log('[Login] getFormValue', { form: !!form, name, formElements: form ? Array.from(form.elements).map((e) => ({ tag: e.tagName, name: (e as HTMLInputElement).name, type: (e as HTMLInputElement).type })) : [] })
   if (!form) {
-    console.log('[Login] getFormValue: form é null')
     return ''
   }
   const el = form.elements.namedItem(name)
-  // namedItem pode retornar HTMLInputElement ou RadioNodeList; acessar .value com cast via unknown
   const value = (el && 'value' in el ? (el as unknown as HTMLInputElement).value : '').trim()
-  console.log('[Login] getFormValue resultado', { name, el: !!el, valueRaw: el && 'value' in el ? (el as unknown as HTMLInputElement).value : '(sem value)', value })
   return value
 }
 
@@ -28,16 +23,12 @@ export default function AdminLoginPage() {
 
   async function handleLogin(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    console.log('[Login] handleLogin chamado')
     setError(null)
     setMessage(null)
     const form = e.currentTarget
-    console.log('[Login] handleLogin form', { formId: form.id, formName: form.getAttribute('name'), numElements: form.elements.length })
     const emailValue = getFormValue(form, 'email')
     const passwordValue = getFormValue(form, 'password')
-    console.log('[Login] handleLogin valores lidos', { emailValue, passwordLength: passwordValue.length })
     if (!emailValue) {
-      console.log('[Login] handleLogin: email vazio, mostrando erro')
       setError('Informe o e-mail.')
       return
     }
@@ -57,9 +48,42 @@ export default function AdminLoginPage() {
         setLoading(false)
         return
       }
-      if (data.user) router.replace('/admin')
+      if (data.user) {
+        const accessToken = data.session?.access_token
+        if (!accessToken) {
+          await supabase.auth.signOut()
+          setError('Sessão inválida. Faça login novamente.')
+          return
+        }
+
+        const basePath = typeof process.env.NEXT_PUBLIC_USE_BASEPATH === 'string' && process.env.NEXT_PUBLIC_USE_BASEPATH === 'true' ? '/saraalagoas' : ''
+        const adminCheckRes = await fetch(`${basePath}/api/auth/admin-check`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ accessToken }),
+        })
+        const adminCheckJson = await adminCheckRes.json().catch(() => ({}))
+
+        if (!adminCheckRes.ok) {
+          await supabase.auth.signOut()
+          document.cookie = 'admin_access=; path=/; max-age=0'
+          const msg = adminCheckJson?.error || `Erro ao verificar permissão (${adminCheckRes.status}).`
+          setError(adminCheckRes.status === 401 ? `${msg} Faça login novamente.` : adminCheckRes.status === 500 ? `${msg} Verifique as variáveis de ambiente (Supabase).` : msg)
+          return
+        }
+        if (!adminCheckJson.canAccessAdmin) {
+          await supabase.auth.signOut()
+          document.cookie = 'admin_access=; path=/; max-age=0'
+          setError('Seu perfil não possui acesso ao painel administrativo.')
+          return
+        }
+
+        document.cookie = 'admin_access=1; path=/; max-age=86400; SameSite=Lax'
+        router.replace('/admin')
+      }
     } catch (e) {
-      setError('Erro ao entrar. Tente novamente.')
+      const msg = e instanceof Error ? e.message : 'Erro ao entrar. Tente novamente.'
+      setError(msg.includes('fetch') || msg.includes('Failed to fetch') ? 'Não foi possível conectar ao servidor. Verifique sua internet e se o servidor está rodando.' : msg)
     } finally {
       setLoading(false)
     }
@@ -67,15 +91,12 @@ export default function AdminLoginPage() {
 
   async function handleMagicLink(e: React.MouseEvent<HTMLButtonElement>) {
     e.preventDefault()
-    console.log('[Login] handleMagicLink chamado')
     setError(null)
     setMessage(null)
     const btn = e.target as HTMLButtonElement
     const formFromBtn = btn.form
     const form = formFromBtn ?? formRef.current
-    console.log('[Login] handleMagicLink form', { formFromBtn: !!formFromBtn, formRef: !!formRef.current, form: !!form })
     const emailValue = getFormValue(form, 'email')
-    console.log('[Login] handleMagicLink emailValue', { emailValue })
     if (!supabase) {
       setError('Supabase não configurado. Configure NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY no .env.local')
       return
@@ -136,7 +157,14 @@ export default function AdminLoginPage() {
             />
           </div>
           {error && (
-            <p className="text-sm text-red-600 bg-red-50 p-2 rounded">{error}</p>
+            <div className="text-sm text-red-600 bg-red-50 p-3 rounded space-y-1">
+              <p>{error}</p>
+              {error.includes('500') || error.includes('Supabase') ? (
+                <p className="text-xs text-red-700 mt-1">
+                  Se o erro persistir, confira no Supabase (Dashboard → Settings → API) se a chave <strong>service_role</strong> está em <code className="bg-red-100 px-1">SUPABASE_SERVICE_ROLE_KEY</code> no .env.
+                </p>
+              ) : null}
+            </div>
           )}
           {message && (
             <div className="text-sm text-green-700 bg-green-50 p-3 rounded space-y-1">
