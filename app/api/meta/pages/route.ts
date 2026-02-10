@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAccess } from '@/lib/admin-api'
-import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { supabaseServer } from '@/lib/supabase-server'
 import { listUserPages } from '@/lib/meta'
 
 /**
@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const db = createSupabaseServerClient(request)
+    const db = supabaseServer
 
     // Buscar integração
     const { data: integration, error } = await db

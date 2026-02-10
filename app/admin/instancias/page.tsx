@@ -58,8 +58,12 @@ export default function AdminInstanciasPage() {
         ? `Conectado com sucesso! Instagram: @${instagram}` 
         : 'Conectado com sucesso!'
       )
-      // Limpar URL
+      // Recarregar lista após conexão (evita painel vazio por timing)
+      const t = setTimeout(() => {
+        loadIntegrations()
+      }, 800)
       router.replace('/admin/instancias')
+      return () => clearTimeout(t)
     } else if (errorParam) {
       setError(errorDesc || 'Erro ao conectar conta Meta')
       router.replace('/admin/instancias')
@@ -95,8 +99,12 @@ export default function AdminInstanciasPage() {
     }
   }
 
-  async function handleDelete(id: string) {
-    if (!window.confirm('Deseja remover esta integração? Esta ação não pode ser desfeita.')) {
+  async function handleUnlink(id: string) {
+    if (
+      !window.confirm(
+        'Desvincular esta conta? A conexão será removida da nossa plataforma. Para revogar também no Facebook, use Configurações do Facebook → Apps e sites.'
+      )
+    ) {
       return
     }
     setError(null)
@@ -104,10 +112,10 @@ export default function AdminInstanciasPage() {
       await adminFetchJson(`/api/meta/integrations/${id}`, {
         method: 'DELETE',
       })
-      setSuccess('Integração removida com sucesso.')
+      setSuccess('Conta desvinculada com sucesso.')
       await loadIntegrations()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Erro ao remover integração.')
+      setError(e instanceof Error ? e.message : 'Erro ao desvincular conta.')
     }
   }
 
@@ -203,6 +211,9 @@ export default function AdminInstanciasPage() {
         <div className="rounded-xl border border-slate-200 bg-white">
           <div className="border-b border-slate-200 p-4">
             <h2 className="font-semibold text-slate-900">Integrações conectadas</h2>
+            <p className="text-xs text-slate-500 mt-1">
+              Use &quot;Desvincular conta&quot; para remover a conexão da nossa plataforma. Para revogar o app no Facebook: Configurações → Apps e sites.
+            </p>
           </div>
           {loading ? (
             <div className="p-8 flex items-center justify-center">
@@ -264,10 +275,11 @@ export default function AdminInstanciasPage() {
                         </button>
                       )}
                       <button
-                        onClick={() => handleDelete(integration.id)}
+                        onClick={() => handleUnlink(integration.id)}
                         className="rounded-lg border border-red-300 px-4 py-2 text-sm text-red-700 hover:bg-red-50 transition-colors"
+                        title="Remove a conexão desta conta Meta/Instagram da nossa plataforma"
                       >
-                        Excluir
+                        Desvincular conta
                       </button>
                     </div>
                   </div>

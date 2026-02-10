@@ -57,18 +57,33 @@ export type MetaLongLivedTokenResponse = {
 // ============================================================
 
 export function getMetaConfig(): MetaOAuthConfig {
-  const appId = process.env.META_APP_ID
-  const appSecret = process.env.META_APP_SECRET
-  const redirectUri = process.env.META_REDIRECT_URI
-  const scopes = process.env.META_SCOPES?.split(',') || []
-  const stateSecret = process.env.META_STATE_SECRET
+  const rawAppId = process.env.META_APP_ID?.trim() ?? ''
+  const appSecret = process.env.META_APP_SECRET?.trim() ?? ''
+  const redirectUri = process.env.META_REDIRECT_URI?.trim() ?? ''
+  const scopes =
+    process.env.META_SCOPES?.split(',')
+      .map((s) => s.trim())
+      .filter(Boolean) || ['pages_show_list', 'pages_read_engagement', 'instagram_basic']
+  const stateSecret = process.env.META_STATE_SECRET?.trim() ?? ''
 
-  if (!appId || !appSecret || !redirectUri || !stateSecret) {
+  if (!rawAppId || !appSecret || !redirectUri || !stateSecret) {
     throw new Error('Configuração Meta incompleta. Verifique META_APP_ID, META_APP_SECRET, META_REDIRECT_URI e META_STATE_SECRET')
   }
 
+  // App ID do Meta é sempre numérico (15–16 dígitos)
+  if (!/^\d{10,20}$/.test(rawAppId)) {
+    throw new Error(
+      'META_APP_ID inválido: deve conter apenas números (ex.: do Meta for Developers → Settings → Basic). ' +
+        'Não use "ID do app do Instagram" de outra tela.'
+    )
+  }
+
+  if (!redirectUri.startsWith('https://')) {
+    throw new Error('META_REDIRECT_URI deve ser HTTPS em produção (ex.: https://saraalagoas.com/api/meta/oauth/callback)')
+  }
+
   return {
-    appId,
+    appId: rawAppId,
     appSecret,
     redirectUri,
     scopes,
