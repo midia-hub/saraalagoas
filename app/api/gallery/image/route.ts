@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
       const cacheKey = `${fileId}:${thumbSize}`
       const cached = thumbCache.get(cacheKey)
       if (cached && cached.expiresAt > Date.now()) {
-        return new Response(cached.buffer, {
+        return new Response(new Uint8Array(cached.buffer), {
           headers: {
             'Content-Type': cached.contentType,
             'Cache-Control': 'public, max-age=86400, stale-while-revalidate=604800',
@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
           contentType: thumb.contentType,
           buffer: thumb.buffer,
         })
-        return new Response(thumb.buffer, {
+        return new Response(new Uint8Array(thumb.buffer), {
           headers: {
             'Content-Type': thumb.contentType,
             'Cache-Control': 'public, max-age=86400, stale-while-revalidate=604800',

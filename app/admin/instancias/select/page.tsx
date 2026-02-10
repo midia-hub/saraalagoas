@@ -24,7 +24,7 @@ type PageWithInstagram = MetaPage & {
 export default function AdminInstanciasSelectPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const integrationId = searchParams.get('integration_id')
+  const integrationId = searchParams?.get('integration_id')
 
   const [pages, setPages] = useState<PageWithInstagram[]>([])
   const [loading, setLoading] = useState(true)
