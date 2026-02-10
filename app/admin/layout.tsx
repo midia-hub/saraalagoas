@@ -48,14 +48,15 @@ export default function AdminLayout({
       setPermissions({})
     }
 
-    if (!supabase) {
+    const client = supabase
+    if (!client) {
       setLoading(false)
       return
     }
 
     let cancelled = false
 
-    getSessionWithRecovery(supabase)
+    getSessionWithRecovery(client)
       .then(async (session) => {
         if (cancelled) return
         const currentUser = session?.user ?? null
@@ -86,7 +87,7 @@ export default function AdminLayout({
             clearAccessState()
           }
         } catch {
-          await clearSupabaseLocalSession(supabase)
+          await clearSupabaseLocalSession(client)
           if (cancelled) return
           clearAccessState()
         } finally {
@@ -95,13 +96,13 @@ export default function AdminLayout({
         }
       })
       .catch(async () => {
-        await clearSupabaseLocalSession(supabase)
+        await clearSupabaseLocalSession(client)
         if (cancelled) return
         clearAccessState()
         setLoading(false)
       })
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = client.auth.onAuthStateChange((_event, session) => {
       if (cancelled) return
       setUser(session?.user ?? null)
       if (!session?.user) {
