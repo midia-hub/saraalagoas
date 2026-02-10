@@ -16,6 +16,10 @@ function hasAdminAccess(request: NextRequest): boolean {
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
+  // Nunca aplicar regras de admin a estáticos (favicon, _next, public)
+  if (pathname.startsWith('/_next') || pathname.startsWith('/favicon') || pathname === '/robots.txt' || pathname === '/manifest.json') {
+    return NextResponse.next()
+  }
   const normalizedPath =
     pathname.length > 1 && pathname.endsWith('/') ? pathname.slice(0, -1) : pathname
   const isAdminPage = normalizedPath.startsWith('/admin')

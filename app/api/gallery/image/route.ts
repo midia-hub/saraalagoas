@@ -63,7 +63,13 @@ export async function GET(request: NextRequest) {
         'Cache-Control': 'public, max-age=86400, stale-while-revalidate=604800',
       },
     })
-  } catch {
-    return NextResponse.json({ error: 'Imagem não encontrada' }, { status: 404 })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    console.error('[gallery/image]', fileId, mode, message)
+    const isConfig = /credenciais|token|GOOGLE|não foi possível/i.test(message)
+    return NextResponse.json(
+      { error: isConfig ? 'Configuração do Google Drive ausente ou inválida. Veja docs/VERCEL-DRIVE-ENV.md' : 'Imagem não encontrada' },
+      { status: isConfig ? 503 : 404 }
+    )
   }
 }

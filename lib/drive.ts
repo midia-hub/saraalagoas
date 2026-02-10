@@ -19,13 +19,19 @@ function getRootFolderId(): string {
   return rootId
 }
 
-function loadCredentialsFromJson(jsonRaw: string): { client_email: string; private_key: string } {
+const DRIVE_SCOPES = ['https://www.googleapis.com/auth/drive']
+
+function parseCredentialsJson(jsonRaw: string): unknown {
   const trimmed = jsonRaw.trim()
+  return trimmed.startsWith('{')
+    ? JSON.parse(trimmed)
+    : JSON.parse(Buffer.from(trimmed, 'base64').toString('utf8'))
+}
+
+function loadCredentialsFromJson(jsonRaw: string): { client_email: string; private_key: string } {
   try {
-    const parsed = trimmed.startsWith('{')
-      ? JSON.parse(trimmed)
-      : JSON.parse(Buffer.from(trimmed, 'base64').toString('utf8'))
-    if (parsed.client_email && parsed.private_key) {
+    const parsed = parseCredentialsJson(jsonRaw) as Record<string, unknown>
+    if (parsed && typeof parsed.client_email === 'string' && typeof parsed.private_key === 'string') {
       return { client_email: parsed.client_email, private_key: parsed.private_key }
     }
   } catch {
@@ -34,13 +40,26 @@ function loadCredentialsFromJson(jsonRaw: string): { client_email: string; priva
   throw new Error('GOOGLE_SERVICE_ACCOUNT_JSON inválido. Use o JSON da chave da API (Service Account).')
 }
 
-function getAuth() {
+function getAuth(): import('google-auth-library').GoogleAuth {
   let clientEmail: string | undefined
   let privateKey: string | undefined
 
+  // 1) GOOGLE_SERVICE_ACCOUNT_JSON (Vercel e produção) — JSON da Service Account minificado em uma linha
+  const jsonEnv = process.env.GOOGLE_SERVICE_ACCOUNT_JSON
+  if (jsonEnv && jsonEnv.trim()) {
+    try {
+      const creds = loadCredentialsFromJson(jsonEnv)
+      clientEmail = creds.client_email
+      privateKey = creds.private_key
+    } catch {
+      // JSON inválido; seguir para arquivo ou e-mail+chave
+    }
+  }
+
+  // 2) Arquivo no servidor (desenvolvimento local)
   const credentialsPath =
     process.env.GOOGLE_APPLICATION_CREDENTIALS || process.env.GOOGLE_SERVICE_ACCOUNT_JSON_FILE
-  if (credentialsPath) {
+  if ((!clientEmail || !privateKey) && credentialsPath) {
     try {
       const resolved = path.isAbsolute(credentialsPath)
         ? credentialsPath
@@ -49,23 +68,12 @@ function getAuth() {
       const creds = loadCredentialsFromJson(jsonRaw)
       clientEmail = creds.client_email
       privateKey = creds.private_key
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e)
-      throw new Error(`Não foi possível ler o arquivo de credenciais (GOOGLE_APPLICATION_CREDENTIALS): ${msg}`)
-    }
-  }
-
-  const jsonRaw = process.env.GOOGLE_SERVICE_ACCOUNT_JSON
-  if ((!clientEmail || !privateKey) && jsonRaw && jsonRaw.trim()) {
-    try {
-      const creds = loadCredentialsFromJson(jsonRaw)
-      clientEmail = creds.client_email
-      privateKey = creds.private_key
     } catch {
-      // fallback to email + key
+      // Arquivo não encontrado (ex.: Vercel) — seguir para e-mail + chave
     }
   }
 
+  // 3) E-mail e chave separados
   if (!clientEmail || !privateKey) {
     clientEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || process.env.GOOGLE_CLIENT_EMAIL
     privateKey = process.env.GOOGLE_PRIVATE_KEY
@@ -73,7 +81,7 @@ function getAuth() {
 
   if (!clientEmail || !privateKey) {
     throw new Error(
-      'Credenciais do Google Drive ausentes. Defina GOOGLE_APPLICATION_CREDENTIALS (caminho do JSON), GOOGLE_SERVICE_ACCOUNT_JSON ou GOOGLE_SERVICE_ACCOUNT_EMAIL + GOOGLE_PRIVATE_KEY.'
+      'Credenciais do Google Drive ausentes. Defina GOOGLE_SERVICE_ACCOUNT_JSON (JSON da Service Account minificado) na Vercel. Veja docs/VERCEL-DRIVE-ENV.md.'
     )
   }
 
@@ -82,7 +90,7 @@ function getAuth() {
       client_email: clientEmail,
       private_key: privateKey.replace(/\\n/g, '\n'),
     },
-    scopes: ['https://www.googleapis.com/auth/drive'],
+    scopes: DRIVE_SCOPES,
   })
 }
 
@@ -294,32 +302,36 @@ async function getDriveAccessToken(): Promise<string> {
 
 /**
  * Busca thumbnail via Drive (bem menor que o arquivo original), útil para grades.
- * Retorna null quando o Drive não fornece thumbnail para o arquivo.
+ * Retorna null quando o Drive não fornece thumbnail ou em qualquer erro (para permitir fallback para download completo).
  */
 export async function getFileThumbnailBuffer(
   fileId: string,
   size = 480
 ): Promise<{ buffer: Buffer; contentType: string } | null> {
-  const drive = await getDriveClient()
-  const meta = await drive.files.get({
-    fileId,
-    fields: 'thumbnailLink',
-    supportsAllDrives: true,
-  })
+  try {
+    const drive = await getDriveClient()
+    const meta = await drive.files.get({
+      fileId,
+      fields: 'thumbnailLink',
+      supportsAllDrives: true,
+    })
 
-  const thumbnailLink = meta.data.thumbnailLink
-  if (!thumbnailLink) return null
+    const thumbnailLink = meta.data.thumbnailLink
+    if (!thumbnailLink) return null
 
-  const accessToken = await getDriveAccessToken()
-  const response = await fetch(resizeThumbnailUrl(thumbnailLink, size), {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
-  })
-  if (!response.ok) return null
+    const accessToken = await getDriveAccessToken()
+    const response = await fetch(resizeThumbnailUrl(thumbnailLink, size), {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    })
+    if (!response.ok) return null
 
-  const contentType = response.headers.get('content-type') || 'image/jpeg'
-  const buffer = Buffer.from(await response.arrayBuffer())
-  return { buffer, contentType }
+    const contentType = response.headers.get('content-type') || 'image/jpeg'
+    const buffer = Buffer.from(await response.arrayBuffer())
+    return { buffer, contentType }
+  } catch {
+    return null
+  }
 }
 
