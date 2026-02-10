@@ -32,6 +32,20 @@ export default function AdminInstanciasSelectPage() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    const isPopup = searchParams?.get('popup') === '1'
+    if (isPopup && typeof window !== 'undefined' && window.opener) {
+      try {
+        window.opener.postMessage(
+          { type: 'meta-oauth-done', selectPage: true, connected: false },
+          window.location.origin
+        )
+      } catch {
+        // ignore
+      }
+    }
+  }, [searchParams])
+
+  useEffect(() => {
     if (!integrationId) {
       setError('integration_id ausente na URL')
       setLoading(false)
@@ -75,7 +89,13 @@ export default function AdminInstanciasSelectPage() {
       )
 
       if (result.success) {
-        router.push('/admin/instancias?connected=1')
+        const isPopup = searchParams?.get('popup') === '1'
+        if (isPopup && typeof window !== 'undefined' && window.opener) {
+          const instagram = (result as { integration?: { instagram_username?: string } }).integration?.instagram_username ?? ''
+          window.location.href = `/admin/instancias/oauth-done?connected=1${instagram ? `&instagram=${encodeURIComponent(instagram)}` : ''}`
+        } else {
+          router.push('/admin/instancias?connected=1')
+        }
       }
     } catch (e) {
       setSelecting(false)

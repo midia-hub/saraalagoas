@@ -95,6 +95,20 @@ No Supabase → **Table Editor** → **meta_integrations**: veja se existe algum
 
 ---
 
+## 7. Logs do OAuth (erro oauth_failed)
+
+Se a URL voltar com **`error=oauth_failed`**, a mensagem detalhada aparece na própria página (caixa vermelha). Para acompanhar passo a passo no servidor:
+
+1. Vercel Dashboard → seu projeto → aba **Logs** (ou **Deployments** → último deploy → **Functions** / **Logs**).
+2. Conecte de novo em "Conectar conta Meta" e, ao falhar, veja os logs em tempo real.
+3. Procure por **`[Meta OAuth]`** para encontrar cada etapa:
+   - `1/6 Validando state...` → `2/6 State OK` → `3/6 Trocando code por token...` → `4/6 Long-lived token` → `5/6 Perfil e páginas` → `6/6 Salvando integração`.
+   - Se falhar, aparece **`[Meta OAuth] Falha:`** com a mensagem e **`Detalhes:`** com o stack.
+
+Assim você descobre se o erro foi em: state, troca de code, token long-lived, perfil/páginas da API Meta ou insert no Supabase.
+
+---
+
 Quando tudo estiver estável, apague a rota de diagnóstico:
 
 - Remova o arquivo: `app/api/meta/check-config/route.ts`

@@ -25,12 +25,17 @@ const primaryLinks = [
 ] as const
 
 const instagramLinks = [
-  { href: '/admin/instagram/instances', label: 'Instâncias' },
   { href: '/admin/instagram/posts', label: 'Painel de publicações' },
 ] as const
 
+// Conexão via OAuth Meta (Facebook/Instagram) — fluxo principal
 const metaLinks = [
   { href: '/admin/instancias', label: 'Instâncias (Meta)' },
+] as const
+
+// Token manual (legado) — opcional, não destacado no menu
+const instagramLegacyLinks = [
+  { href: '/admin/instagram/instances', label: 'Token manual (avançado)' },
 ] as const
 
 export function AdminSidebar() {
@@ -97,6 +102,25 @@ export function AdminSidebar() {
             <p className="px-3 py-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">
               Instagram
             </p>
+            {/* Instâncias (Meta) primeiro — OAuth, fluxo principal */}
+            {metaLinks.map(({ href, label }) => {
+              const isActive = pathname?.startsWith(href)
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+                    isActive
+                      ? 'bg-[#c62737] text-white shadow-md'
+                      : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                  }`}
+                >
+                  <Instagram size={18} className="shrink-0" />
+                  <span className="flex-1">{label}</span>
+                  {isActive && <ChevronRight size={16} className="shrink-0 opacity-80" />}
+                </Link>
+              )
+            })}
             {instagramLinks.map(({ href, label }) => {
               const isActive = pathname?.startsWith(href)
               return (
@@ -115,7 +139,7 @@ export function AdminSidebar() {
                 </Link>
               )
             })}
-            {metaLinks.map(({ href, label }) => {
+            {instagramLegacyLinks.map(({ href, label }) => {
               const isActive = pathname?.startsWith(href)
               return (
                 <Link
@@ -124,10 +148,10 @@ export function AdminSidebar() {
                   className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
                     isActive
                       ? 'bg-[#c62737] text-white shadow-md'
-                      : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                      : 'text-slate-400 hover:bg-slate-800 hover:text-slate-300'
                   }`}
                 >
-                  <Instagram size={18} className="shrink-0" />
+                  <Instagram size={18} className="shrink-0 opacity-70" />
                   <span className="flex-1">{label}</span>
                   {isActive && <ChevronRight size={16} className="shrink-0 opacity-80" />}
                 </Link>

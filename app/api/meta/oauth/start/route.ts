@@ -23,10 +23,13 @@ export async function GET(request: NextRequest) {
     console.log('  META_STATE_SECRET:', process.env.META_STATE_SECRET ? '***SET***' : 'UNDEFINED')
     console.log('  META_SCOPES:', process.env.META_SCOPES || 'UNDEFINED')
 
+    const isPopup = request.nextUrl.searchParams.get('popup') === '1'
+
     // Criar state assinado com informações do usuário
     const state = await createSignedState({
       userId: access.snapshot.userId,
       redirectTo: request.nextUrl.searchParams.get('redirect_to') || '/admin/instancias',
+      popup: isPopup,
     })
 
     // Gerar URL de autorização
