@@ -1,6 +1,6 @@
 # Integração Meta (Facebook/Instagram)
 
-Este documento descreve a configuração e uso da integração Meta para OAuth e publicação no Instagram.
+Este documento descreve a configuração e uso da integração Meta para OAuth e publicação no Instagram..
 
 ## Visão Geral
 
