@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAccess } from '@/lib/admin-api'
-import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { supabaseServer } from '@/lib/supabase-server'
 
 /**
  * Atualiza uma integração Meta (ex: reativar/desativar)
@@ -22,7 +22,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'is_active deve ser boolean' }, { status: 400 })
     }
 
-    const db = createSupabaseServerClient(request)
+    const db = supabaseServer
 
     const { data, error } = await db
       .from('meta_integrations')
@@ -59,7 +59,7 @@ export async function DELETE(
   if (!access.ok) return access.response
 
   try {
-    const db = createSupabaseServerClient(request)
+    const db = supabaseServer
 
     const { error } = await db
       .from('meta_integrations')

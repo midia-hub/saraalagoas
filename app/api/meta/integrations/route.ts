@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAccess } from '@/lib/admin-api'
-import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { supabaseServer } from '@/lib/supabase-server'
 
 /**
- * Lista todas as integrações Meta
- * 
+ * Lista todas as integrações Meta.
+ * Usa service role após checagem de acesso para evitar que RLS oculte linhas
+ * para usuários cujo perfil não satisfaça can_manage_meta_integrations('view').
+ *
  * GET /api/meta/integrations
  */
 export async function GET(request: NextRequest) {
@@ -12,7 +14,7 @@ export async function GET(request: NextRequest) {
   if (!access.ok) return access.response
 
   try {
-    const db = createSupabaseServerClient(request)
+    const db = supabaseServer
 
     const { data, error } = await db
       .from('meta_integrations')

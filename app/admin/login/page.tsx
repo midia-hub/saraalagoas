@@ -37,7 +37,12 @@ export default function AdminLoginPage() {
       return
     }
     if (!supabase) {
-      setError('Supabase não configurado. Configure NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY no .env.local')
+      const isProd = typeof window !== 'undefined' && !/localhost|127\.0\.0\.1/.test(window.location.origin)
+      setError(
+        isProd
+          ? 'Supabase não configurado na Vercel. Em Vercel → Settings → Environment Variables, adicione NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY (Production) e faça um novo deploy (Redeploy). Veja docs/LOGIN-VERCEL.md.'
+          : 'Supabase não configurado. Configure NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY no .env.local'
+      )
       return
     }
     setLoading(true)
@@ -68,7 +73,17 @@ export default function AdminLoginPage() {
           await supabase.auth.signOut()
           document.cookie = 'admin_access=; path=/; max-age=0'
           const msg = adminCheckJson?.error || `Erro ao verificar permissão (${adminCheckRes.status}).`
-          setError(adminCheckRes.status === 401 ? `${msg} Faça login novamente.` : adminCheckRes.status === 500 ? `${msg} Verifique as variáveis de ambiente (Supabase).` : msg)
+          const isProd = typeof window !== 'undefined' && !/localhost|127\.0\.0\.1/.test(window.location.origin)
+          const hint500 = isProd
+            ? ' Na Vercel, confira SUPABASE_SERVICE_ROLE_KEY e NEXT_PUBLIC_SUPABASE_* e faça um Redeploy. Veja docs/LOGIN-VERCEL.md.'
+            : ' Verifique as variáveis de ambiente (Supabase).'
+          setError(
+            adminCheckRes.status === 401
+              ? `${msg} Faça login novamente.`
+              : adminCheckRes.status === 500
+                ? `${msg}${hint500}`
+                : msg
+          )
           return
         }
         if (!adminCheckJson.canAccessAdmin) {
@@ -83,7 +98,15 @@ export default function AdminLoginPage() {
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Erro ao entrar. Tente novamente.'
-      setError(msg.includes('fetch') || msg.includes('Failed to fetch') ? 'Não foi possível conectar ao servidor. Verifique sua internet e se o servidor está rodando.' : msg)
+      const isProd = typeof window !== 'undefined' && !/localhost|127\.0\.0\.1/.test(window.location.origin)
+      const isNetwork = msg.includes('fetch') || msg.includes('Failed to fetch')
+      setError(
+        isNetwork
+          ? isProd
+            ? 'Não foi possível conectar ao servidor. Na Vercel, confira as variáveis NEXT_PUBLIC_SUPABASE_* e SUPABASE_SERVICE_ROLE_KEY e faça um Redeploy. Veja docs/LOGIN-VERCEL.md.'
+            : 'Não foi possível conectar ao servidor. Verifique sua internet e se o servidor está rodando.'
+          : msg
+      )
     } finally {
       setLoading(false)
     }
@@ -98,7 +121,12 @@ export default function AdminLoginPage() {
     const form = formFromBtn ?? formRef.current
     const emailValue = getFormValue(form, 'email')
     if (!supabase) {
-      setError('Supabase não configurado. Configure NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY no .env.local')
+      const isProd = typeof window !== 'undefined' && !/localhost|127\.0\.0\.1/.test(window.location.origin)
+      setError(
+        isProd
+          ? 'Supabase não configurado na Vercel. Adicione NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY nas variáveis de ambiente e faça Redeploy.'
+          : 'Supabase não configurado. Configure NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY no .env.local'
+      )
       return
     }
     if (!emailValue) {

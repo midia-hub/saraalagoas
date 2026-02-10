@@ -104,6 +104,7 @@ Vercel → Projeto → Settings → Environment Variables
 ### 1. Acessar Admin
 - [ ] Abrir: https://saraalagoas.com/admin/instancias
 - [ ] Fazer login como admin
+- [ ] Se o login não funcionar na Vercel: veja **docs/LOGIN-VERCEL.md** (variáveis NEXT_PUBLIC_SUPABASE_*, SUPABASE_SERVICE_ROLE_KEY e Redeploy)
 
 ### 2. Conectar Meta
 - [ ] Clicar "Conectar conta Meta"

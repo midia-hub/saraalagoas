@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAccess } from '@/lib/admin-api'
-import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { supabaseServer } from '@/lib/supabase-server'
 import { getInstagramBusinessAccount, getPageAccessToken } from '@/lib/meta'
 
 type SelectPageBody = {
@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const db = createSupabaseServerClient(request)
+    const db = supabaseServer
 
     // Buscar integração
     const { data: integration, error: fetchError } = await db
