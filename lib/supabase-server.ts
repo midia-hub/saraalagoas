@@ -34,6 +34,22 @@ export function createSupabaseServiceClient() {
       'Callback OAuth precisa de SUPABASE_SERVICE_ROLE_KEY. Defina em Vercel (Settings → Environment Variables).'
     )
   }
+
+  // Evita configuração incorreta comum: colar anon key no lugar da service_role key.
+  try {
+    const payloadPart = serviceKey.split('.')[1]
+    const payloadJson = Buffer.from(payloadPart, 'base64url').toString('utf8')
+    const payload = JSON.parse(payloadJson) as { role?: string }
+    if (payload.role !== 'service_role') {
+      throw new Error(
+        `SUPABASE_SERVICE_ROLE_KEY inválida: role=${payload.role || 'desconhecida'}. Use a chave service_role do Supabase.`
+      )
+    }
+  } catch (err) {
+    if (err instanceof Error) throw err
+    throw new Error('SUPABASE_SERVICE_ROLE_KEY inválida: não foi possível validar o token JWT.')
+  }
+
   return createClient(supabaseUrl, serviceKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   })

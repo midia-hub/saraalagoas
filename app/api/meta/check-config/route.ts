@@ -12,6 +12,23 @@ export async function GET() {
   const redirectUri = process.env.META_REDIRECT_URI
   const hasStateSecret = !!process.env.META_STATE_SECRET
   const scopes = process.env.META_SCOPES
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+  function getJwtRole(token?: string): string | null {
+    if (!token) return null
+    try {
+      const payloadPart = token.split('.')[1]
+      const payloadJson = Buffer.from(payloadPart, 'base64url').toString('utf8')
+      const payload = JSON.parse(payloadJson) as { role?: string }
+      return payload.role || null
+    } catch {
+      return null
+    }
+  }
+
+  const serviceRole = getJwtRole(serviceRoleKey)
+  const isLocalhostRedirect =
+    !!redirectUri && (redirectUri.startsWith('http://localhost') || redirectUri.startsWith('http://127.0.0.1'))
 
   const ok =
     !!appId &&
@@ -19,8 +36,9 @@ export async function GET() {
     /^\d+$/.test(appId.trim()) && // App ID deve ser só números
     hasSecret &&
     !!redirectUri &&
-    redirectUri.startsWith('https://') &&
-    hasStateSecret
+    (redirectUri.startsWith('https://') || isLocalhostRedirect) &&
+    hasStateSecret &&
+    serviceRole === 'service_role'
 
   return NextResponse.json({
     ok,
@@ -38,10 +56,20 @@ export async function GET() {
         : { set: false },
       META_APP_SECRET: { set: hasSecret },
       META_REDIRECT_URI: redirectUri
-        ? { set: true, value: redirectUri, isHttps: redirectUri.startsWith('https://') }
+        ? {
+            set: true,
+            value: redirectUri,
+            isHttps: redirectUri.startsWith('https://'),
+            isLocalhost: isLocalhostRedirect,
+          }
         : { set: false },
       META_STATE_SECRET: { set: hasStateSecret },
       META_SCOPES: { set: !!scopes, length: (scopes || '').length },
+      SUPABASE_SERVICE_ROLE_KEY: {
+        set: !!serviceRoleKey,
+        role: serviceRole,
+        isServiceRole: serviceRole === 'service_role',
+      },
     },
   })
 }
