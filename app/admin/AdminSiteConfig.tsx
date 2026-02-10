@@ -1,9 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { supabase } from '@/lib/supabase'
 import { siteConfig as defaultConfig } from '@/config/site'
 import type { SiteConfig } from '@/lib/types'
+import { adminFetchJson } from '@/lib/admin-client'
 
 export function AdminSiteConfig() {
   const [config, setConfig] = useState<SiteConfig>(defaultConfig as SiteConfig)
@@ -12,38 +12,28 @@ export function AdminSiteConfig() {
   const [message, setMessage] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
 
   useEffect(() => {
-    if (!supabase) {
-      setLoading(false)
-      return
-    }
-    supabase
-      .from('site_config')
-      .select('value')
-      .eq('key', 'main')
-      .single()
-      .then(({ data, error }) => {
-        if (!error && data?.value && typeof data.value === 'object')
-          setConfig((c) => ({ ...c, ...defaultConfig, ...data.value } as SiteConfig))
-        setLoading(false)
+    adminFetchJson<{ value?: unknown }>('/api/admin/site-config')
+      .then((data) => {
+        if (data?.value && typeof data.value === 'object') {
+          setConfig((c) => ({ ...c, ...defaultConfig, ...(data.value as Record<string, unknown>) } as SiteConfig))
+        }
       })
+      .finally(() => setLoading(false))
   }, [])
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
     setMessage(null)
-    if (!supabase) {
-      setMessage({ type: 'err', text: 'Supabase não configurado.' })
-      return
-    }
     setSaving(true)
     try {
-      const { error } = await supabase
-        .from('site_config')
-        .upsert({ key: 'main', value: config, updated_at: new Date().toISOString() }, { onConflict: 'key' })
-      if (error) throw error
+      await adminFetchJson('/api/admin/site-config', {
+        method: 'PUT',
+        body: JSON.stringify({ value: config }),
+      })
       setMessage({ type: 'ok', text: 'Configurações salvas. A página inicial será atualizada ao recarregar.' })
     } catch (err) {
-      setMessage({ type: 'err', text: 'Erro ao salvar. Tente novamente.' })
+      const msg = err instanceof Error ? err.message : 'Erro ao salvar. Tente novamente.'
+      setMessage({ type: 'err', text: msg })
     } finally {
       setSaving(false)
     }

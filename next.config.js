@@ -8,6 +8,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 // Em Vercel/domínio próprio, mantenha vazio para evitar 404 em /_next/static.
 const useGithubPagesBasePath =
   process.env.NEXT_PUBLIC_USE_BASEPATH === 'true'
+const isStaticExport =
+  process.env.NODE_ENV === 'production' && useGithubPagesBasePath
 
 const basePath = useGithubPagesBasePath ? '/saraalagoas' : ''
 const assetPrefix = useGithubPagesBasePath ? '/saraalagoas/' : ''
@@ -16,7 +18,7 @@ const assetPrefix = useGithubPagesBasePath ? '/saraalagoas/' : ''
 const excludeSrc = /[\\/]src[\\/]/
 
 const nextConfig = {
-  output: 'export',
+  ...(isStaticExport ? { output: 'export' } : {}),
   basePath,
   assetPrefix,
   images: {

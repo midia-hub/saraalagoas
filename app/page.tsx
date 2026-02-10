@@ -10,10 +10,18 @@ import OfferingsSection from '@/components/OfferingsSection'
 import KidsSection from '@/components/KidsSection'
 import LocationSection from '@/components/LocationSection'
 import MissionSection from '@/components/MissionSection'
+import GallerySection from '@/components/GallerySection'
 import Footer from '@/components/Footer'
 import FloatingWhatsApp from '@/components/FloatingWhatsApp'
+import { redirect } from 'next/navigation'
+import { getConfiguredHomeRoute } from '@/lib/home-route'
 
-export default function Home() {
+export default async function Home() {
+  const homeRoute = await getConfiguredHomeRoute()
+  if (homeRoute && homeRoute !== '/') {
+    redirect(homeRoute)
+  }
+
   return (
     <>
       <Header />
@@ -29,6 +37,7 @@ export default function Home() {
         <KidsSection />
         <LocationSection />
         <MissionSection />
+        <GallerySection />
       </main>
       <Footer />
       <FloatingWhatsApp />
