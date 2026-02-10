@@ -18,14 +18,15 @@ export default function CompletarCadastroPage() {
   const [confirmarSenha, setConfirmarSenha] = useState('')
 
   useEffect(() => {
-    if (!supabase) {
+    const client = supabase
+    if (!client) {
       setLoading(false)
       setHasSession(false)
       return
     }
     // Deixar o Supabase processar o hash da URL (access_token após redirect do e-mail)
     const timer = setTimeout(() => {
-      supabase.auth.getSession().then(({ data: { session } }) => {
+      client.auth.getSession().then(({ data: { session } }) => {
         setHasSession(!!session?.user)
         if (session?.user?.user_metadata?.full_name) {
           setNome(session.user.user_metadata.full_name as string)
