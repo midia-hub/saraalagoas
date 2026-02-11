@@ -152,9 +152,6 @@ export const siteConfig = {
     { id: "lideranca", label: "Liderança" },
     { id: "redes", label: "Redes" },
     { id: "oracao", label: "Pedido de Oração" },
-    { id: "revisao", label: "Revisão/Imersão" },
-    { id: "dizimos", label: "Dízimos e Ofertas" },
-    { id: "kids", label: "Kids" },
     { id: "localizacao", label: "Onde Estamos" },
   ],
 }

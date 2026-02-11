@@ -17,3 +17,16 @@
     text-wrap: balance;
   }
 }
+
+@keyframes gallery-scroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-gallery-scroll {
+  animation: gallery-scroll linear infinite;
+}

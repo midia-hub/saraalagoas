@@ -2,8 +2,10 @@
 
 import { Suspense, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { useSearchParams } from 'next/navigation'
 import { GaleriaLoading } from '@/components/GaleriaLoading'
+import { Camera } from 'lucide-react'
 
 type GalleryItem = {
   id: string
@@ -12,6 +14,8 @@ type GalleryItem = {
   slug: string
   date: string
 }
+
+type GalleryFile = { id: string }
 
 function formatDatePtBr(iso: string): string {
   try {
@@ -26,10 +30,46 @@ function formatDatePtBr(iso: string): string {
   }
 }
 
+const THUMB_SIZE = 160
+
+function AlbumThumbnails({ fileIds }: { fileIds: string[] }) {
+  if (fileIds.length === 0) {
+    return (
+      <div className="h-[120px] bg-gray-100 flex items-center justify-center">
+        <Camera className="text-gray-300" size={40} />
+      </div>
+    )
+  }
+  const list = [...fileIds, ...fileIds]
+  const duration = Math.max(fileIds.length * 3, 15)
+  return (
+    <div className="h-[120px] overflow-hidden bg-gray-100">
+      <div
+        className="flex gap-1 h-full w-max items-stretch animate-gallery-scroll"
+        style={{ animationDuration: `${duration}s` }}
+      >
+        {list.map((id, i) => (
+          <div key={`${id}-${i}`} className="flex-shrink-0 w-24 h-full overflow-hidden">
+            <Image
+              src={`/api/gallery/image?fileId=${encodeURIComponent(id)}&mode=thumb&size=${THUMB_SIZE}`}
+              alt=""
+              width={THUMB_SIZE}
+              height={Math.round(THUMB_SIZE * 0.75)}
+              className="object-cover w-full h-full"
+              unoptimized
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function GaleriaContent() {
   const searchParams = useSearchParams()
   const typeFilter = searchParams?.get('type') || ''
   const [items, setItems] = useState<GalleryItem[]>([])
+  const [albumFiles, setAlbumFiles] = useState<Record<string, string[]>>({})
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -39,6 +79,21 @@ function GaleriaContent() {
       .catch(() => setItems([]))
       .finally(() => setLoading(false))
   }, [])
+
+  useEffect(() => {
+    if (items.length === 0) return
+    const abort = new AbortController()
+    items.forEach((item) => {
+      fetch(`/api/gallery/${item.id}/files`, { signal: abort.signal })
+        .then((res) => res.json())
+        .then((files: GalleryFile[]) => {
+          const ids = (Array.isArray(files) ? files : []).map((f) => f.id).slice(0, 10)
+          setAlbumFiles((prev) => ({ ...prev, [item.id]: ids }))
+        })
+        .catch(() => setAlbumFiles((prev) => ({ ...prev, [item.id]: [] })))
+    })
+    return () => abort.abort()
+  }, [items])
 
   const filtered = useMemo(() => {
     if (!typeFilter) return items
@@ -119,6 +174,7 @@ function GaleriaContent() {
                 href={`/galeria/${item.type}/${item.slug}/${item.date}`}
                 className="block bg-white rounded-xl border border-gray-200 overflow-hidden hover:border-sara-red/40 hover:shadow-md transition-all"
               >
+                <AlbumThumbnails fileIds={albumFiles[item.id] ?? []} />
                 <div className="p-4">
                   <span className="inline-block px-2 py-0.5 text-xs font-medium rounded bg-sara-red/10 text-sara-red mb-2">
                     {item.type === 'culto' ? 'Culto' : 'Evento'}
