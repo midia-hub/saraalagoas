@@ -355,7 +355,7 @@ export default function AdminUploadPage() {
       {step === 2 && (
         <div className="mt-6 bg-white border border-slate-200 rounded-xl p-5">
           <label className="block text-sm font-medium text-slate-700 mb-2">Imagens (sem limite de quantidade)</label>
-          <p className="text-xs text-slate-500 mb-2">Até {SIZE_THRESHOLD_DIRECT_MB} MB: envio direto. Até {MAX_SIZE_LARGE_MB} MB: envio via armazenamento temporário (Supabase). Formatos: PNG, JPEG, WebP ou GIF.</p>
+          <p className="text-xs text-slate-500 mb-2">Até {MAX_SIZE_LARGE_MB} MB por imagem. PNG, JPEG, WebP ou GIF.</p>
           <input type="file" multiple accept={ALLOWED_TYPES.join(',')} onChange={(e) => handleSelectFiles(e.target.files)} />
 
           {files.length > 0 && !isUploading && (

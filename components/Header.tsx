@@ -1,7 +1,8 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { Menu, X } from 'lucide-react'
+import Link from 'next/link'
+import { Menu, X, Shield } from 'lucide-react'
 import Image from 'next/image'
 import { useSiteConfig } from '@/lib/site-config-context'
 import { getStorageUrl } from '@/lib/storage-url'
@@ -69,6 +70,13 @@ export default function Header() {
                 {item.label}
               </button>
             ))}
+            <Link
+              href="/admin"
+              className="inline-flex items-center gap-1.5 text-sara-gray-dark hover:text-sara-red font-medium transition-colors duration-300"
+            >
+              <Shield size={18} aria-hidden />
+              Admin
+            </Link>
           </nav>
           
           {/* Botão Menu Mobile */}
@@ -98,6 +106,14 @@ export default function Header() {
               {item.label}
             </button>
           ))}
+          <Link
+            href="/admin"
+            onClick={() => setIsMenuOpen(false)}
+            className="inline-flex items-center gap-2 text-sara-gray-dark hover:text-sara-red font-medium text-lg py-3 text-left transition-colors duration-300"
+          >
+            <Shield size={20} aria-hidden />
+            Admin
+          </Link>
         </nav>
       </div>
     </header>
