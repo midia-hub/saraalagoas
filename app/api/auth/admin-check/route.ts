@@ -14,7 +14,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       isAdmin: snapshot.isAdmin,
       canAccessAdmin: snapshot.canAccessAdmin,
-      profile: snapshot.profile,
+      profile: snapshot.legacyProfile,
+      legacyProfile: snapshot.legacyProfile,
       permissions: snapshot.permissions,
       userId: snapshot.userId,
       email: snapshot.email,
