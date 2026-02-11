@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import { supabase } from '@/lib/supabase'
+import type { Session } from '@supabase/supabase-js'
 
 function getHashParams() {
   if (typeof window === 'undefined') return {}
@@ -39,7 +40,7 @@ export default function RedefinirSenhaPage() {
       return
     }
 
-    function trySetForm(session: { type?: string } | null) {
+    function trySetForm(session: Session | null) {
       if (session) setStatus('form')
     }
 
