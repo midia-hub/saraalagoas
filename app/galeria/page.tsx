@@ -49,13 +49,13 @@ function AlbumThumbnails({ fileIds }: { fileIds: string[] }) {
         style={{ animationDuration: `${duration}s` }}
       >
         {list.map((id, i) => (
-          <div key={`${id}-${i}`} className="flex-shrink-0 w-24 h-full overflow-hidden">
+          <div key={`${id}-${i}`} className="relative flex-shrink-0 w-24 h-full overflow-hidden">
             <Image
               src={`/api/gallery/image?fileId=${encodeURIComponent(id)}&mode=thumb&size=${THUMB_SIZE}`}
               alt=""
-              width={THUMB_SIZE}
-              height={Math.round(THUMB_SIZE * 0.75)}
-              className="object-cover w-full h-full"
+              fill
+              className="object-cover"
+              sizes="96px"
               unoptimized
             />
           </div>
@@ -77,20 +77,25 @@ function GaleriaContent() {
       .then((res) => res.json())
       .then((data) => setItems(Array.isArray(data) ? data : []))
       .catch(() => setItems([]))
-      .finally(() => setLoading(false))
   }, [])
 
   useEffect(() => {
-    if (items.length === 0) return
+    if (items.length === 0) {
+      setLoading(false)
+      return
+    }
     const abort = new AbortController()
-    items.forEach((item) => {
+    const all = items.map((item) =>
       fetch(`/api/gallery/${item.id}/files`, { signal: abort.signal })
         .then((res) => res.json())
-        .then((files: GalleryFile[]) => {
-          const ids = (Array.isArray(files) ? files : []).map((f) => f.id).slice(0, 10)
-          setAlbumFiles((prev) => ({ ...prev, [item.id]: ids }))
-        })
-        .catch(() => setAlbumFiles((prev) => ({ ...prev, [item.id]: [] })))
+        .then((files: GalleryFile[]) => ({ id: item.id, ids: (Array.isArray(files) ? files : []).map((f) => f.id).slice(0, 10) }))
+        .catch(() => ({ id: item.id, ids: [] as string[] }))
+    )
+    Promise.all(all).then((results) => {
+      const next: Record<string, string[]> = {}
+      results.forEach((r) => { next[r.id] = r.ids })
+      setAlbumFiles(next)
+      setLoading(false)
     })
     return () => abort.abort()
   }, [items])
@@ -122,7 +127,7 @@ function GaleriaContent() {
         {loading ? (
           <GaleriaLoading
             title="Carregando álbuns"
-            subtitle="Buscando álbuns..."
+            subtitle="Buscando álbuns e preparando fotos..."
             showGrid
             gridCount={8}
             className="min-h-[50vh]"

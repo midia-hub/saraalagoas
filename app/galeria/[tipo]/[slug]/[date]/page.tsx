@@ -1,7 +1,9 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import React, { useEffect, useMemo, useState, useCallback } from 'react'
+import Link from 'next/link'
+import { useParams } from 'next/navigation'
+import { Download, ChevronLeft, ChevronRight, ArrowLeft } from 'lucide-react'
 import { GaleriaLoading } from '@/components/GaleriaLoading'
 
 type Gallery = {
@@ -25,14 +27,11 @@ function imageUrl(fileId: string, mode: 'thumb' | 'full' = 'full'): string {
 }
 
 export default function GalleryDetailPage() {
-  const router = useRouter()
   const params = useParams<{ tipo: string; slug: string; date: string }>()
   const [gallery, setGallery] = useState<Gallery | null>(null)
   const [files, setFiles] = useState<DriveFile[]>([])
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<DriveFile | null>(null)
-  const [selectedForInstagram, setSelectedForInstagram] = useState<string[]>([])
-  const [selectionError, setSelectionError] = useState<string | null>(null)
 
   const routeQuery = useMemo(() => {
     if (!params?.tipo || !params?.slug || !params?.date) return ''
@@ -67,33 +66,34 @@ export default function GalleryDetailPage() {
     load()
   }, [routeQuery])
 
-  function toggleInstagramSelection(fileId: string) {
-    setSelectedForInstagram((prev) => {
-      if (prev.includes(fileId)) {
-        setSelectionError(null)
-        return prev.filter((id) => id !== fileId)
-      }
-      if (prev.length >= 10) {
-        setSelectionError('Você pode selecionar no máximo 10 imagens para o Instagram.')
-        return prev
-      }
-      setSelectionError(null)
-      return [...prev, fileId]
-    })
-  }
+  const selectedIndex = selected ? files.findIndex((f) => f.id === selected.id) : -1
+  const hasPrev = selectedIndex > 0
+  const hasNext = selectedIndex >= 0 && selectedIndex < files.length - 1
 
-  function handleCreateInstagramPost() {
-    if (!gallery?.id) return
-    if (selectedForInstagram.length < 1) {
-      setSelectionError('Selecione pelo menos 1 imagem para continuar.')
-      return
+  const goPrev = useCallback(() => {
+    if (!hasPrev || !selected) return
+    setSelected(files[selectedIndex - 1])
+  }, [files, hasPrev, selected, selectedIndex])
+
+  const goNext = useCallback(() => {
+    if (!hasNext || !selected) return
+    setSelected(files[selectedIndex + 1])
+  }, [files, hasNext, selected, selectedIndex])
+
+  useEffect(() => {
+    if (!selected) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft') {
+        goPrev()
+      } else if (e.key === 'ArrowRight') {
+        goNext()
+      } else if (e.key === 'Escape') {
+        setSelected(null)
+      }
     }
-    const query = new URLSearchParams({
-      galleryId: gallery.id,
-      selected: selectedForInstagram.join(','),
-    })
-    router.push(`/admin/instagram/post/publish?${query.toString()}`)
-  }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [selected, goPrev, goNext])
 
   if (loading) {
     return (
@@ -102,79 +102,91 @@ export default function GalleryDetailPage() {
       </div>
     )
   }
-  if (!gallery) return <div className="p-6">Galeria não encontrada.</div>
 
-  return (
+  if (!gallery) {
+    return (
+      <div className="p-6">Galeria não encontrada.</div>
+    )
+  }
+
+  const mainContent = (
     <div className="max-w-6xl mx-auto p-6 md:p-8">
+      <Link
+        href="/galeria"
+        className="inline-flex items-center gap-2 text-slate-600 hover:text-sara-red font-medium mb-4 transition-colors"
+      >
+        <ArrowLeft size={20} aria-hidden />
+        Voltar para a galeria
+      </Link>
       <h1 className="text-2xl font-bold text-slate-900">{gallery.title}</h1>
       <p className="text-slate-600 mt-1">{gallery.type} • {gallery.date}</p>
-      <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="text-sm font-medium text-slate-800">Postagem no Instagram</p>
-            <p className="text-sm text-slate-600">
-              Selecionadas: <strong>{selectedForInstagram.length}</strong> / 10
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={handleCreateInstagramPost}
-            disabled={selectedForInstagram.length === 0}
-            className="rounded-lg bg-[#c62737] px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
-          >
-            Criar post no Admin
-          </button>
-        </div>
-        {selectionError && (
-          <p className="mt-2 text-sm text-red-700">{selectionError}</p>
-        )}
-      </div>
 
       <div className="mt-6 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-        {files.map((file) => {
-          const isSelected = selectedForInstagram.includes(file.id)
-          return (
-            <div key={file.id} className={`rounded-lg overflow-hidden border bg-white ${isSelected ? 'border-[#c62737]' : 'border-slate-200'}`}>
-              <button
-                type="button"
-                onClick={() => setSelected(file)}
-                className="w-full"
-                title={file.name}
-              >
-                <img src={imageUrl(file.id, 'thumb')} alt={file.name} className="w-full h-32 object-cover" loading="lazy" decoding="async" />
-              </button>
-              <div className="p-2">
-                <button
-                  type="button"
-                  onClick={() => toggleInstagramSelection(file.id)}
-                  className={`w-full rounded-md px-2 py-1 text-xs font-medium ${
-                    isSelected
-                      ? 'bg-[#c62737] text-white'
-                      : 'border border-slate-300 text-slate-700'
-                  }`}
-                >
-                  {isSelected ? 'Selecionada para Instagram' : 'Selecionar para Instagram'}
-                </button>
-              </div>
-            </div>
-          )
-        })}
+        {files.map((file) => (
+          <div key={file.id} className="rounded-lg overflow-hidden border border-slate-200 bg-white">
+            <button
+              type="button"
+              onClick={() => setSelected(file)}
+              className="w-full block"
+              title={file.name}
+            >
+              <img src={imageUrl(file.id, 'thumb')} alt={file.name} className="w-full h-32 object-cover" loading="lazy" decoding="async" />
+            </button>
+          </div>
+        ))}
       </div>
 
-      {selected && (
+      {selected ? (
         <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4" onClick={() => setSelected(null)}>
-          <div className="max-w-4xl w-full" onClick={(e) => e.stopPropagation()}>
+          <div className="relative max-w-4xl w-full flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+            {hasPrev ? (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); goPrev() }}
+                className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-2 md:-translate-x-14 z-10 flex items-center justify-center w-12 h-12 rounded-full bg-white/20 text-white hover:bg-white/30 transition-colors"
+                aria-label="Imagem anterior"
+              >
+                <ChevronLeft size={28} />
+              </button>
+            ) : null}
             <img src={imageUrl(selected.id, 'full')} alt={selected.name} className="w-full max-h-[80vh] object-contain rounded-lg" />
-            <div className="mt-3 flex justify-between text-white">
-              <span>{selected.name}</span>
-              <a href={selected.webViewLink || selected.viewUrl} target="_blank" rel="noopener noreferrer" className="underline">
+            {hasNext ? (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); goNext() }}
+                className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-2 md:translate-x-14 z-10 flex items-center justify-center w-12 h-12 rounded-full bg-white/20 text-white hover:bg-white/30 transition-colors"
+                aria-label="Próxima imagem"
+              >
+                <ChevronRight size={28} />
+              </button>
+            ) : null}
+          </div>
+          <div className="absolute bottom-4 left-4 right-4 flex flex-wrap items-center justify-between gap-3 text-white">
+            <span className="truncate">{selected.name}</span>
+            <div className="flex items-center gap-3">
+              <a
+                href={imageUrl(selected.id, 'full')}
+                download={selected.name}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-white/20 px-3 py-2 text-sm font-medium hover:bg-white/30 transition-colors"
+              >
+                <Download size={18} aria-hidden />
+                Baixar imagem
+              </a>
+              <a
+                href={selected.webViewLink || selected.viewUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline text-sm hover:no-underline"
+              >
                 Abrir no Drive
               </a>
             </div>
           </div>
         </div>
-      )}
+      ) : null}
     </div>
   )
+
+  return mainContent
 }
 

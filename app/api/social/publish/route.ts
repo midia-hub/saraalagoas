@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAccess } from '@/lib/admin-api'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { getFileDownloadBuffer } from '@/lib/drive'
-import { createInstagramMediaContainer, publishInstagramMedia } from '@/lib/meta'
+import {
+  createInstagramMediaContainer,
+  publishInstagramMediaWithRetry,
+  waitForInstagramMediaContainerReady,
+} from '@/lib/meta'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 const DRIVE_PREFIX = 'drive:'
@@ -229,15 +233,34 @@ export async function POST(request: NextRequest) {
     const map = new Map<string, MetaIntegrationRow>()
     ;(integrations || []).forEach((row) => map.set(row.id, row as MetaIntegrationRow))
 
-    const batchKey = `${Date.now()}-${userId}`
+    const availableMetaSelections = metaSelections.filter((selection) => {
+      const hasIntegration = map.has(selection.integrationId)
+      if (hasIntegration) return true
+
+      const missingInstanceId = selection.type === 'instagram'
+        ? `meta_ig:${selection.integrationId}`
+        : `meta_fb:${selection.integrationId}`
+
+      metaResults.push({
+        instanceId: missingInstanceId,
+        provider: selection.type,
+        ok: false,
+        error: 'Integração Meta não encontrada. Reconecte a conta em Instâncias (Meta).',
+      })
+      return false
+    })
+
     const mediaUrls: string[] = []
-    for (let i = 0; i < mediaFileIds.length; i++) {
-      const url = await resolveDriveFileToPublicUrl(db, mediaFileIds[i], i, batchKey)
-      mediaUrls.push(url)
+    if (availableMetaSelections.length > 0) {
+      const batchKey = `${Date.now()}-${userId}`
+      for (let i = 0; i < mediaFileIds.length; i++) {
+        const url = await resolveDriveFileToPublicUrl(db, mediaFileIds[i], i, batchKey)
+        mediaUrls.push(url)
+      }
     }
 
     const firstImageUrl = mediaUrls[0]
-    for (const selection of metaSelections) {
+    for (const selection of availableMetaSelections) {
       const instanceId = selection.type === 'instagram'
         ? `meta_ig:${selection.integrationId}`
         : `meta_fb:${selection.integrationId}`
@@ -256,7 +279,14 @@ export async function POST(request: NextRequest) {
             caption: text || '',
             accessToken: integration.page_access_token,
           })
-          await publishInstagramMedia({
+          if (!container?.id) {
+            throw new Error('Meta create container failed: ID do container não retornado.')
+          }
+          await waitForInstagramMediaContainerReady({
+            containerId: container.id,
+            accessToken: integration.page_access_token,
+          })
+          await publishInstagramMediaWithRetry({
             igUserId: integration.instagram_business_account_id,
             creationId: container.id,
             accessToken: integration.page_access_token,

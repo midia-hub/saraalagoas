@@ -35,13 +35,13 @@ export default function GallerySection() {
           <div className="mb-10 overflow-hidden">
             <div className="flex gap-3 animate-gallery-scroll w-max" style={{ animationDuration: `${Math.max(photoIds.length * 4, 24)}s` }}>
               {[...photoIds, ...photoIds].map((id, i) => (
-                <div key={`${id}-${i}`} className="flex-shrink-0 rounded-lg overflow-hidden shadow-md">
+                <div key={`${id}-${i}`} className="relative flex-shrink-0 w-[180px] h-[135px] md:w-[220px] md:h-[165px] rounded-lg overflow-hidden shadow-md">
                   <Image
                     src={`/api/gallery/image?fileId=${encodeURIComponent(id)}&mode=thumb&size=${THUMB_SIZE}`}
                     alt=""
-                    width={THUMB_SIZE}
-                    height={Math.round(THUMB_SIZE * 0.75)}
-                    className="object-cover w-[180px] h-[135px] md:w-[220px] md:h-[165px]"
+                    fill
+                    className="object-cover"
+                    sizes="(max-width: 768px) 180px, 220px"
                     unoptimized
                   />
                 </div>

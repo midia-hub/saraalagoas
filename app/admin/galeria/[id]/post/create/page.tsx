@@ -44,6 +44,19 @@ export default function AlbumPostCreatePage() {
   }, [])
 
   useEffect(() => {
+    if (!ready || instances.length === 0 || draft.selectedInstanceIds.length === 0) return
+    const available = new Set(instances.map((instance) => instance.id))
+    const validIds = draft.selectedInstanceIds.filter((id) => available.has(id))
+    const unchanged =
+      validIds.length === draft.selectedInstanceIds.length &&
+      validIds.every((id, index) => id === draft.selectedInstanceIds[index])
+    if (unchanged) return
+
+    patchDraft({ selectedInstanceIds: validIds })
+    setNotice((prev) => prev ?? 'Algumas contas selecionadas não estão mais disponíveis e foram removidas.')
+  }, [ready, instances, draft.selectedInstanceIds, patchDraft])
+
+  useEffect(() => {
     if (!ready) return
     if (draft.media.length === 0) {
       router.replace(`/admin/galeria/${albumId}/post/select`)
@@ -112,7 +125,7 @@ export default function AlbumPostCreatePage() {
         setPublishFailureReasons(failed.map((r) => r.error!).filter(Boolean))
       }
     } catch (e) {
-      setError('Não foi possível publicar. Tente novamente.')
+      setError(e instanceof Error ? e.message : 'Não foi possível publicar. Tente novamente.')
     } finally {
       setPublishing(false)
     }

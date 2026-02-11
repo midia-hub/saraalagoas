@@ -16,10 +16,16 @@ export async function GET(request: NextRequest) {
   try {
     const db = supabaseServer
     const all = request.nextUrl.searchParams.get('all') === '1'
+    const requiredInstagramScopes = [
+      'pages_show_list',
+      'pages_read_engagement',
+      'instagram_basic',
+      'instagram_content_publish',
+    ]
 
     const { data: raw, error } = await db
       .from('meta_integrations')
-      .select('id, created_at, updated_at, facebook_user_name, page_name, page_id, instagram_username, is_active, token_expires_at, metadata')
+      .select('id, created_at, updated_at, facebook_user_name, page_name, page_id, instagram_username, is_active, token_expires_at, metadata, scopes, instagram_business_account_id, page_access_token')
       .order('created_at', { ascending: false })
 
     if (error) {
@@ -27,9 +33,45 @@ export async function GET(request: NextRequest) {
     }
 
     const rows = raw || []
-    const integrations = all
+    const integrations = (all
       ? rows
       : rows.filter((row) => (row.metadata as Record<string, unknown>)?.show_in_list !== false)
+    ).map((row) => {
+      const expiresAt = row.token_expires_at ? new Date(row.token_expires_at) : null
+      const tokenExpired = !!(expiresAt && expiresAt < new Date())
+      const grantedScopes = Array.isArray(row.scopes) ? row.scopes.filter((scope): scope is string => typeof scope === 'string') : []
+      const missingScopes = requiredInstagramScopes.filter((scope) => !grantedScopes.includes(scope))
+      const hasInstagramBusinessAccount = !!row.instagram_business_account_id
+      const hasPageAccessToken = !!row.page_access_token
+      const isInstagramReady =
+        !!row.is_active &&
+        hasInstagramBusinessAccount &&
+        hasPageAccessToken &&
+        !tokenExpired &&
+        missingScopes.length === 0
+
+      return {
+        id: row.id,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+        facebook_user_name: row.facebook_user_name,
+        page_name: row.page_name,
+        page_id: row.page_id,
+        instagram_username: row.instagram_username,
+        is_active: row.is_active,
+        token_expires_at: row.token_expires_at,
+        metadata: row.metadata,
+        readiness: {
+          instagram: {
+            ready: isInstagramReady,
+            hasInstagramBusinessAccount,
+            hasPageAccessToken,
+            tokenExpired,
+            missingScopes,
+          },
+        },
+      }
+    })
 
     return NextResponse.json({ integrations })
   } catch (error) {
