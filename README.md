@@ -44,9 +44,14 @@ Acesse **http://localhost:3000**
 └── supabase/      # Migrations e Edge Functions
 ```
 
-## Deploy
+## Deploy (Vercel)
 
-Deploy recomendado na **Vercel**. Configure as variáveis de ambiente no painel da Vercel (use `.env.example` como referência).
+Configure no painel da Vercel (Settings → Environment Variables) as mesmas variáveis do `.env.example`. Para a **galeria de imagens** (Google Drive) funcionar em produção:
+
+1. **GOOGLE_DRIVE_ROOT_FOLDER_ID** – ID da pasta raiz no Drive (ex.: `1abc...xyz`).
+2. **GOOGLE_SERVICE_ACCOUNT_JSON** – Conteúdo completo do JSON da Service Account em **uma linha** (o mesmo que está em `config/*-service-account.json` local). No Google Cloud: IAM → Service Accounts → criar chave JSON; copie o arquivo, minifique (uma linha) e cole no valor da variável.
+
+Sem essas duas variáveis, a rota `/api/gallery/image` retorna 503 (Service Unavailable).
 
 ## Licença
 

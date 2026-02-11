@@ -67,9 +67,16 @@ export async function GET(request: NextRequest) {
     const message = err instanceof Error ? err.message : String(err)
     console.error('[gallery/image]', fileId, mode, message)
     const isConfig = /credenciais|token|GOOGLE|não foi possível/i.test(message)
-    return NextResponse.json(
-      { error: isConfig ? 'Configuração do Google Drive ausente ou inválida. Veja docs/VERCEL-DRIVE-ENV.md' : 'Imagem não encontrada' },
-      { status: isConfig ? 503 : 404 }
-    )
+    const isPermission = /permissão|compartilh|forbidden|permission/i.test(message)
+    let status = 404
+    let errorMsg = 'Imagem não encontrada.'
+    if (isConfig) {
+      status = 503
+      errorMsg = 'Configuração do Google Drive ausente ou inválida. Configure GOOGLE_SERVICE_ACCOUNT_JSON e GOOGLE_DRIVE_ROOT_FOLDER_ID na Vercel.'
+    } else if (isPermission) {
+      status = 403
+      errorMsg = 'Sem permissão no Drive. Compartilhe a pasta do Drive com o e-mail da Service Account (Editor ou Visualizador).'
+    }
+    return NextResponse.json({ error: errorMsg }, { status })
   }
 }
