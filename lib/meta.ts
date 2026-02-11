@@ -626,7 +626,7 @@ export async function createInstagramCarouselContainer(params: {
 
   const body = {
     media_type: 'CAROUSEL',
-    children: childContainerIds,
+    children: childContainerIds.join(','),
     caption: caption || '',
     access_token: accessToken,
   }
