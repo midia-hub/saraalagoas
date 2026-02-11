@@ -36,7 +36,7 @@ export function MediaManager({ media, onAdd, onEdit, onRemove, onReorder }: Medi
         <div>
           <h2 className="text-lg font-semibold text-slate-900">Mídia</h2>
           <p className="mt-1 text-sm text-slate-600">
-            Compartilhe fotos e vídeos. Os posts do Instagram não podem ter mais de 20 fotos.
+            Compartilhe fotos e vídeos. Os posts do Instagram não podem ter mais de 10 fotos (carrossel).
           </p>
         </div>
         <motion.div

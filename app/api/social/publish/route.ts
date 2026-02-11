@@ -394,20 +394,22 @@ export async function POST(request: NextRequest) {
             throw new Error('Integração sem conta Instagram Business vinculada.')
           }
 
-          // Validar limite do Instagram (atualizado para 20 em 2026)
-          if (mediaUrls.length > 20) {
-            throw new Error('Instagram permite no máximo 20 imagens por post.')
+          // Limite da API Graph do Instagram: carrossel com no máximo 10 itens
+          const instagramMaxCarousel = 10
+          if (mediaUrls.length > instagramMaxCarousel) {
+            throw new Error('Instagram permite no máximo 10 imagens por post (carrossel).')
           }
+          const urlsForCarousel = mediaUrls
 
           let containerId: string
           let usedFallback = false
 
           if (isMultipleImages) {
             try {
-              // Criar carrossel com múltiplas imagens
+              // Criar carrossel com múltiplas imagens (máx 10 pela API)
               const childContainerIds: string[] = []
 
-              for (const imageUrl of mediaUrls) {
+              for (const imageUrl of urlsForCarousel) {
                 const childContainer = await createInstagramCarouselItemContainer({
                   igUserId: integration.instagram_business_account_id,
                   imageUrl,
