@@ -10,6 +10,7 @@ import {
   waitForInstagramMediaContainerReady,
 } from '@/lib/meta'
 import type { SupabaseClient } from '@supabase/supabase-js'
+import sharp from 'sharp'
 
 const DRIVE_PREFIX = 'drive:'
 const BUCKET = 'instagram_posts'
@@ -50,12 +51,18 @@ async function resolveDriveFileToPublicUrl(
   batchKey: string
 ): Promise<string> {
   const { buffer, contentType } = await getFileDownloadBuffer(fileId)
-  const ext = contentType.includes('png') ? 'png' : contentType.includes('webp') ? 'webp' : 'jpg'
-  const path = `meta-social/${batchKey}/${String(index + 1).padStart(2, '0')}.${ext}`
+  const safeContentType = (contentType || '').toLowerCase()
+  if (!safeContentType.startsWith('image/')) {
+    throw new Error(`Arquivo inválido para Instagram (apenas imagem): ${fileId}`)
+  }
 
-  const { error: uploadError } = await db.storage.from(BUCKET).upload(path, buffer, {
+  // Normaliza para JPEG para evitar rejeições do Instagram no container de carrossel.
+  const normalizedBuffer = await sharp(buffer).rotate().jpeg({ quality: 90, mozjpeg: true }).toBuffer()
+  const path = `meta-social/${batchKey}/${String(index + 1).padStart(2, '0')}.jpg`
+
+  const { error: uploadError } = await db.storage.from(BUCKET).upload(path, normalizedBuffer, {
     upsert: true,
-    contentType: contentType || 'image/jpeg',
+    contentType: 'image/jpeg',
   })
   if (uploadError) throw new Error(`Falha ao enviar mídia para storage: ${uploadError.message}`)
 

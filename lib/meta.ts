@@ -586,23 +586,73 @@ export async function createInstagramCarouselItemContainer(params: {
   accessToken: string
 }): Promise<{ id: string }> {
   const { igUserId, imageUrl, accessToken } = params
+  const endpoint = `${META_MEDIA_API_BASE}/${igUserId}/media`
+  let lastMessage = 'unknown error'
 
-  const query = new URLSearchParams({
-    image_url: imageUrl,
-    is_carousel_item: 'true',
-    access_token: accessToken,
-  })
-  const url = `${META_MEDIA_API_BASE}/${igUserId}/media?${query.toString()}`
+  const attempts: Array<{ name: string; run: () => Promise<Response> }> = [
+    {
+      name: 'query-with-media-type',
+      run: () => {
+        const query = new URLSearchParams({
+          image_url: imageUrl,
+          is_carousel_item: 'true',
+          media_type: 'IMAGE',
+          access_token: accessToken,
+        })
+        return fetch(`${endpoint}?${query.toString()}`, { method: 'POST' })
+      },
+    },
+    {
+      name: 'query-no-media-type',
+      run: () => {
+        const query = new URLSearchParams({
+          image_url: imageUrl,
+          is_carousel_item: 'true',
+          access_token: accessToken,
+        })
+        return fetch(`${endpoint}?${query.toString()}`, { method: 'POST' })
+      },
+    },
+    {
+      name: 'json-with-media-type',
+      run: () =>
+        fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            image_url: imageUrl,
+            is_carousel_item: true,
+            media_type: 'IMAGE',
+            access_token: accessToken,
+          }),
+        }),
+    },
+    {
+      name: 'json-no-media-type',
+      run: () =>
+        fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            image_url: imageUrl,
+            is_carousel_item: true,
+            access_token: accessToken,
+          }),
+        }),
+    },
+  ]
 
-  const response = await fetch(url, { method: 'POST' })
-
-  if (!response.ok) {
+  for (const attempt of attempts) {
+    const response = await attempt.run()
+    if (response.ok) {
+      return response.json()
+    }
     const err = await response.json().catch(() => ({ error: { message: response.statusText } }))
     const msg = err?.error?.message || response.statusText
-    throw new Error(`Meta create carousel item failed: ${msg}`)
+    lastMessage = `[${attempt.name}] ${msg}`
   }
 
-  return response.json()
+  throw new Error(`Meta create carousel item failed: ${lastMessage}`)
 }
 
 /**
@@ -624,28 +674,44 @@ export async function createInstagramCarouselContainer(params: {
     throw new Error('Instagram Graph API limita carrosséis a 10 itens')
   }
 
-  const body = {
-    media_type: 'CAROUSEL',
-    children: childContainerIds.join(','),
-    caption: caption || '',
-    access_token: accessToken,
-  }
-
-  const response = await fetch(
-    `${META_MEDIA_API_BASE}/${igUserId}/media`,
+  const endpoint = `${META_MEDIA_API_BASE}/${igUserId}/media`
+  let lastMessage = 'unknown error'
+  const attempts: Array<{ name: string; body: Record<string, unknown> }> = [
     {
+      name: 'children-csv',
+      body: {
+        media_type: 'CAROUSEL',
+        children: childContainerIds.join(','),
+        caption: caption || '',
+        access_token: accessToken,
+      },
+    },
+    {
+      name: 'children-array',
+      body: {
+        media_type: 'CAROUSEL',
+        children: childContainerIds,
+        caption: caption || '',
+        access_token: accessToken,
+      },
+    },
+  ]
+
+  for (const attempt of attempts) {
+    const response = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
+      body: JSON.stringify(attempt.body),
+    })
+    if (response.ok) {
+      return response.json()
     }
-  )
-
-  if (!response.ok) {
     const error = await response.json().catch(() => ({ error: { message: 'Failed to create carousel' } }))
-    throw new Error(`Meta create carousel failed: ${error.error?.message || response.statusText}`)
+    const msg = error?.error?.message || response.statusText
+    lastMessage = `[${attempt.name}] ${msg}`
   }
 
-  return response.json()
+  throw new Error(`Meta create carousel failed: ${lastMessage}`)
 }
 
 // ============================================================
