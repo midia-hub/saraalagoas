@@ -86,6 +86,10 @@ export default function AlbumPostCreatePage() {
     patchDraft({ media: draft.media.filter((item) => item.id !== mediaId) })
   }
 
+  function reorderMedia(newMedia: PostDraft['media']) {
+    patchDraft({ media: newMedia })
+  }
+
   async function handlePublish() {
     setNotice(null)
     setPublishFailureReasons([])
@@ -188,6 +192,7 @@ export default function AlbumPostCreatePage() {
               onAddMedia={() => router.push(`/admin/galeria/${albumId}/post/select`)}
               onEditMedia={(media) => setEditingMedia(media)}
               onRemoveMedia={removeMedia}
+              onReorderMedia={reorderMedia}
               onCancel={() => router.push(`/admin/galeria/${albumId}`)}
               onSaveForLater={() => setNotice('Rascunho salvo localmente.')}
               onPublish={handlePublish}

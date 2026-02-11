@@ -23,6 +23,7 @@ type PostComposerProps = {
   onAddMedia: () => void
   onEditMedia: (media: DraftMedia) => void
   onRemoveMedia: (mediaId: string) => void
+  onReorderMedia: (newMedia: DraftMedia[]) => void
   onCancel: () => void
   onSaveForLater: () => void
   onPublish: () => void
@@ -40,6 +41,7 @@ export function PostComposer({
   onAddMedia,
   onEditMedia,
   onRemoveMedia,
+  onReorderMedia,
   onCancel,
   onSaveForLater,
   onPublish,
@@ -92,7 +94,7 @@ export function PostComposer({
         )}
       </section>
 
-      <MediaManager media={media} onAdd={onAddMedia} onEdit={onEditMedia} onRemove={onRemoveMedia} />
+      <MediaManager media={media} onAdd={onAddMedia} onEdit={onEditMedia} onRemove={onRemoveMedia} onReorder={onReorderMedia} />
 
       <section className="rounded-xl border border-slate-200 bg-white p-4">
         <h2 className="text-lg font-semibold text-slate-900">Detalhes do post</h2>
