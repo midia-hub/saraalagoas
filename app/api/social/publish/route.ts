@@ -402,54 +402,33 @@ export async function POST(request: NextRequest) {
           const urlsForCarousel = mediaUrls
 
           let containerId: string
-          let usedFallback = false
 
           if (isMultipleImages) {
-            try {
-              // Criar carrossel com múltiplas imagens (máx 10 pela API)
-              const childContainerIds: string[] = []
+            // Criar carrossel com múltiplas imagens (máx 10 pela API)
+            const childContainerIds: string[] = []
 
-              for (const imageUrl of urlsForCarousel) {
-                const childContainer = await createInstagramCarouselItemContainer({
-                  igUserId: integration.instagram_business_account_id,
-                  imageUrl,
-                  accessToken: integration.page_access_token,
-                })
-                if (!childContainer?.id) {
-                  throw new Error('Falha ao criar container filho do carrossel.')
-                }
-                childContainerIds.push(childContainer.id)
-              }
-
-              const carouselContainer = await createInstagramCarouselContainer({
+            for (const imageUrl of urlsForCarousel) {
+              const childContainer = await createInstagramCarouselItemContainer({
                 igUserId: integration.instagram_business_account_id,
-                childContainerIds,
-                caption: text || '',
+                imageUrl,
                 accessToken: integration.page_access_token,
               })
-              if (!carouselContainer?.id) {
-                throw new Error('Falha ao criar container de carrossel.')
+              if (!childContainer?.id) {
+                throw new Error('Falha ao criar container filho do carrossel.')
               }
-              containerId = carouselContainer.id
-            } catch (carouselErr) {
-              const msg = carouselErr instanceof Error ? carouselErr.message : String(carouselErr)
-              const isMediaTypeError = /photo or video|media type/i.test(msg)
-              if (isMediaTypeError && mediaUrls.length >= 1) {
-                // Fallback: publicar só a primeira imagem no Instagram para garantir presença nos dois
-                console.log('[publish] Instagram carousel failed, falling back to single image:', msg)
-                const container = await createInstagramMediaContainer({
-                  igUserId: integration.instagram_business_account_id,
-                  imageUrl: firstImageUrl,
-                  caption: text || '',
-                  accessToken: integration.page_access_token,
-                })
-                if (!container?.id) throw carouselErr
-                containerId = container.id
-                usedFallback = true
-              } else {
-                throw carouselErr
-              }
+              childContainerIds.push(childContainer.id)
             }
+
+            const carouselContainer = await createInstagramCarouselContainer({
+              igUserId: integration.instagram_business_account_id,
+              childContainerIds,
+              caption: text || '',
+              accessToken: integration.page_access_token,
+            })
+            if (!carouselContainer?.id) {
+              throw new Error('Falha ao criar container de carrossel.')
+            }
+            containerId = carouselContainer.id
           } else {
             const container = await createInstagramMediaContainer({
               igUserId: integration.instagram_business_account_id,
@@ -472,9 +451,6 @@ export async function POST(request: NextRequest) {
             creationId: containerId,
             accessToken: integration.page_access_token,
           })
-          if (usedFallback) {
-            console.log('[publish] Instagram published as single image (carousel fallback)')
-          }
         } else {
           // Facebook
           console.log(`[publish] Publishing to Facebook page ${integration.page_id}`)
