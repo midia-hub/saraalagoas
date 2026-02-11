@@ -28,11 +28,21 @@ function parseCredentialsJson(jsonRaw: string): unknown {
     : JSON.parse(Buffer.from(trimmed, 'base64').toString('utf8'))
 }
 
+/** Corrige cabeçalhos PEM sem espaços (ex.: BEGINPRIVATEKEY → BEGIN PRIVATE KEY). */
+function normalizePemPrivateKey(key: string): string {
+  return key
+    .replace(/-----BEGINPRIVATEKEY-----/g, '-----BEGIN PRIVATE KEY-----')
+    .replace(/-----ENDPRIVATEKEY-----/g, '-----END PRIVATE KEY-----')
+}
+
 function loadCredentialsFromJson(jsonRaw: string): { client_email: string; private_key: string } {
   try {
     const parsed = parseCredentialsJson(jsonRaw) as Record<string, unknown>
     if (parsed && typeof parsed.client_email === 'string' && typeof parsed.private_key === 'string') {
-      return { client_email: parsed.client_email, private_key: parsed.private_key }
+      return {
+        client_email: parsed.client_email,
+        private_key: normalizePemPrivateKey(parsed.private_key),
+      }
     }
   } catch {
     // ignore
@@ -81,7 +91,7 @@ function getAuth(): import('google-auth-library').GoogleAuth {
 
   if (!clientEmail || !privateKey) {
     throw new Error(
-      'Credenciais do Google Drive ausentes. Defina GOOGLE_SERVICE_ACCOUNT_JSON (JSON da Service Account minificado) na Vercel. Veja docs/VERCEL-DRIVE-ENV.md.'
+      'Credenciais do Google Drive ausentes. Na Vercel, defina GOOGLE_SERVICE_ACCOUNT_JSON (JSON da Service Account) e GOOGLE_DRIVE_ROOT_FOLDER_ID.'
     )
   }
 
@@ -244,27 +254,48 @@ export async function listFolderImages(folderId: string): Promise<DriveImageFile
     }))
 }
 
+function isDriveNotFoundOrForbidden(err: unknown): { notFound: boolean; forbidden: boolean } {
+  const msg = err instanceof Error ? err.message : String(err)
+  const code = err && typeof err === 'object' && 'code' in err ? (err as { code: number }).code : 0
+  const notFound = code === 404 || /404|not found|not found/i.test(msg)
+  const forbidden = code === 403 || /403|forbidden|permission|insufficient/i.test(msg)
+  return { notFound, forbidden }
+}
+
 /** Baixa o conteúdo de um arquivo do Drive (para proxy de imagens). Retorna stream e contentType. */
 export async function getFileDownloadStream(fileId: string): Promise<{
   stream: import('stream').Readable
   contentType: string
 }> {
   const drive = await getDriveClient()
-  const meta = await drive.files.get({
-    fileId,
-    fields: 'mimeType',
-    supportsAllDrives: true,
-  })
-  const mimeType = meta.data.mimeType || 'application/octet-stream'
-  const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
-  const contentType = allowed.includes(mimeType) ? mimeType : 'image/jpeg'
+  try {
+    const meta = await drive.files.get({
+      fileId,
+      fields: 'mimeType',
+      supportsAllDrives: true,
+    })
+    const mimeType = meta.data.mimeType || 'application/octet-stream'
+    const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+    const contentType = allowed.includes(mimeType) ? mimeType : 'image/jpeg'
 
-  const res = await drive.files.get(
-    { fileId, alt: 'media', supportsAllDrives: true },
-    { responseType: 'stream' }
-  )
-  const stream = res.data as import('stream').Readable
-  return { stream, contentType }
+    const res = await drive.files.get(
+      { fileId, alt: 'media', supportsAllDrives: true },
+      { responseType: 'stream' }
+    )
+    const stream = res.data as import('stream').Readable
+    return { stream, contentType }
+  } catch (err) {
+    const { notFound, forbidden } = isDriveNotFoundOrForbidden(err)
+    if (forbidden) {
+      throw new Error(
+        'Sem permissão no Drive. Compartilhe a pasta (e subpastas) com o e-mail da Service Account como Editor ou Visualizador.'
+      )
+    }
+    if (notFound) {
+      throw new Error('Arquivo não encontrado no Drive ou ID inválido.')
+    }
+    throw err
+  }
 }
 
 /** Baixa o arquivo do Drive como buffer (útil para upload em outros serviços). */
