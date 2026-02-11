@@ -6,6 +6,12 @@
 
 const META_API_VERSION = 'v21.0'
 const META_API_BASE = `https://graph.facebook.com/${META_API_VERSION}`
+const REQUIRED_INSTAGRAM_PUBLISH_SCOPES = [
+  'pages_show_list',
+  'pages_read_engagement',
+  'instagram_basic',
+  'instagram_content_publish',
+]
 
 // ============================================================
 // Types
@@ -60,10 +66,16 @@ export function getMetaConfig(): MetaOAuthConfig {
   const rawAppId = process.env.META_APP_ID?.trim() ?? ''
   const appSecret = process.env.META_APP_SECRET?.trim() ?? ''
   const redirectUri = process.env.META_REDIRECT_URI?.trim() ?? ''
-  const scopes =
+  const envScopes =
     process.env.META_SCOPES?.split(',')
       .map((s) => s.trim())
-      .filter(Boolean) || ['pages_show_list', 'pages_read_engagement', 'instagram_basic']
+      .filter(Boolean) || []
+  const scopes = Array.from(
+    new Set([
+      ...(envScopes.length > 0 ? envScopes : REQUIRED_INSTAGRAM_PUBLISH_SCOPES),
+      ...REQUIRED_INSTAGRAM_PUBLISH_SCOPES,
+    ])
+  )
   const stateSecret = process.env.META_STATE_SECRET?.trim() ?? ''
 
   if (!rawAppId || !appSecret || !redirectUri || !stateSecret) {
@@ -108,6 +120,7 @@ export function getMetaOAuthUrl(state: string): string {
     state,
     scope: config.scopes.join(','),
     response_type: 'code',
+    auth_type: 'rerequest',
   })
 
   return `https://www.facebook.com/${META_API_VERSION}/dialog/oauth?${params.toString()}`
@@ -270,6 +283,40 @@ export async function listUserPages(accessToken: string): Promise<MetaPage[]> {
   return data.data || []
 }
 
+type MetaPermissionItem = {
+  permission?: string
+  status?: string
+}
+
+/**
+ * Lista permissões concedidas no OAuth atual.
+ */
+export async function listGrantedPermissions(accessToken: string): Promise<string[]> {
+  const response = await fetch(
+    `${META_API_BASE}/me/permissions?access_token=${accessToken}`,
+    { method: 'GET' }
+  )
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: { message: 'Failed to list permissions' } }))
+    throw new Error(`Meta list permissions failed: ${error.error?.message || response.statusText}`)
+  }
+
+  const data = await response.json() as { data?: MetaPermissionItem[] }
+  return (data.data || [])
+    .filter((item) => item?.permission && item?.status === 'granted')
+    .map((item) => String(item.permission).trim())
+    .filter(Boolean)
+}
+
+/**
+ * Escopos mínimos para publicar no Instagram via Meta Graph API.
+ */
+export function getMissingRequiredInstagramPublishScopes(grantedScopes: string[]): string[] {
+  const granted = new Set(grantedScopes.map((s) => s.trim()).filter(Boolean))
+  return REQUIRED_INSTAGRAM_PUBLISH_SCOPES.filter((scope) => !granted.has(scope))
+}
+
 /**
  * Busca o token de uma página específica
  */
@@ -411,4 +458,112 @@ export async function publishInstagramMedia(params: {
   }
 
   return response.json()
+}
+
+type InstagramMediaContainerStatus = {
+  status_code?: string
+  status?: string
+  status_message?: string
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+function isMediaNotReadyMessage(message: string): boolean {
+  const normalized = message.toLowerCase()
+  return (
+    normalized.includes('media id is not available') ||
+    normalized.includes('media is not ready') ||
+    normalized.includes('creation id is not valid')
+  )
+}
+
+/**
+ * Consulta o status de processamento de um container de mídia.
+ */
+export async function getInstagramMediaContainerStatus(params: {
+  containerId: string
+  accessToken: string
+}): Promise<InstagramMediaContainerStatus> {
+  const { containerId, accessToken } = params
+
+  const query = new URLSearchParams({
+    fields: 'status_code,status,status_message',
+    access_token: accessToken,
+  })
+
+  const response = await fetch(`${META_API_BASE}/${containerId}?${query.toString()}`, {
+    method: 'GET',
+  })
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: { message: 'Failed to read container status' } }))
+    throw new Error(`Meta read container status failed: ${error.error?.message || response.statusText}`)
+  }
+
+  return response.json()
+}
+
+/**
+ * Aguarda o container ficar pronto antes da publicação.
+ */
+export async function waitForInstagramMediaContainerReady(params: {
+  containerId: string
+  accessToken: string
+  timeoutMs?: number
+  pollIntervalMs?: number
+}): Promise<void> {
+  const { containerId, accessToken, timeoutMs = 45000, pollIntervalMs = 2000 } = params
+  const deadline = Date.now() + timeoutMs
+
+  while (Date.now() < deadline) {
+    const status = await getInstagramMediaContainerStatus({ containerId, accessToken })
+    const code = (status.status_code || '').toUpperCase()
+
+    if (code === 'FINISHED') {
+      return
+    }
+    if (code === 'ERROR' || code === 'EXPIRED') {
+      throw new Error(
+        `Meta media container failed: ${status.status_message || status.status || status.status_code || 'unknown status'}`
+      )
+    }
+
+    await sleep(pollIntervalMs)
+  }
+
+  throw new Error('Meta media container timed out before becoming ready.')
+}
+
+/**
+ * Publica com retries para erro transitório "Media ID is not available".
+ */
+export async function publishInstagramMediaWithRetry(params: {
+  igUserId: string
+  creationId: string
+  accessToken: string
+  maxAttempts?: number
+  retryDelayMs?: number
+}): Promise<{ id: string }> {
+  const { igUserId, creationId, accessToken, maxAttempts = 3, retryDelayMs = 1500 } = params
+  let lastError: Error | null = null
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await publishInstagramMedia({ igUserId, creationId, accessToken })
+    } catch (error) {
+      const normalizedError = error instanceof Error ? error : new Error('Falha ao publicar no Instagram.')
+      lastError = normalizedError
+      const isRetryable = isMediaNotReadyMessage(normalizedError.message)
+
+      if (!isRetryable || attempt === maxAttempts) {
+        throw normalizedError
+      }
+
+      await sleep(retryDelayMs * attempt)
+    }
+  }
+
+  throw lastError || new Error('Falha ao publicar no Instagram.')
 }

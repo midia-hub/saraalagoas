@@ -12,6 +12,12 @@ export async function GET() {
   const redirectUri = process.env.META_REDIRECT_URI
   const hasStateSecret = !!process.env.META_STATE_SECRET
   const scopes = process.env.META_SCOPES
+  const requiredScopes = ['pages_show_list', 'pages_read_engagement', 'instagram_basic', 'instagram_content_publish']
+  const configuredScopes = (scopes || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+  const missingScopes = requiredScopes.filter((scope) => !configuredScopes.includes(scope))
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
   function getJwtRole(token?: string): string | null {
@@ -38,7 +44,8 @@ export async function GET() {
     !!redirectUri &&
     (redirectUri.startsWith('https://') || isLocalhostRedirect) &&
     hasStateSecret &&
-    serviceRole === 'service_role'
+    serviceRole === 'service_role' &&
+    missingScopes.length === 0
 
   return NextResponse.json({
     ok,
@@ -64,6 +71,12 @@ export async function GET() {
         : { set: false },
       META_STATE_SECRET: { set: hasStateSecret },
       META_SCOPES: { set: !!scopes, length: (scopes || '').length },
+      META_REQUIRED_SCOPES: {
+        required: requiredScopes,
+        configured: configuredScopes,
+        missing: missingScopes,
+        ok: missingScopes.length === 0,
+      },
       SUPABASE_SERVICE_ROLE_KEY: {
         set: !!serviceRoleKey,
         role: serviceRole,

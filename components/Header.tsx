@@ -41,8 +41,8 @@ export default function Header() {
   
   return (
     <header
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        isScrolled ? 'bg-white shadow-lg' : 'bg-white/95 backdrop-blur-sm'
+      className={`fixed top-0 left-0 right-0 z-[100] bg-white shadow-sm transition-all duration-300 lg:z-50 ${
+        isScrolled ? 'lg:shadow-lg' : 'lg:bg-white/95 lg:backdrop-blur-sm lg:shadow-none'
       }`}
     >
       <div className="container mx-auto px-4 md:px-6 lg:px-8">
@@ -79,24 +79,27 @@ export default function Header() {
             </Link>
           </nav>
           
-          {/* Botão Menu Mobile */}
+          {/* Botão Menu Mobile - área de toque maior e bem visível */}
           <button
             onClick={() => setIsMenuOpen(!isMenuOpen)}
-            className="lg:hidden text-sara-gray-dark hover:text-sara-red transition-colors"
-            aria-label="Menu"
+            className="lg:hidden flex items-center justify-center w-12 h-12 -mr-2 text-slate-700 hover:text-sara-red hover:bg-slate-100 rounded-lg transition-colors"
+            aria-label={isMenuOpen ? 'Fechar menu' : 'Abrir menu'}
+            aria-expanded={isMenuOpen}
           >
             {isMenuOpen ? <X size={28} /> : <Menu size={28} />}
           </button>
         </div>
       </div>
       
-      {/* Menu Mobile */}
+      {/* Menu Mobile - fundo sólido, abaixo do header (z-[100]) para o X ficar visível */}
       <div
-        className={`lg:hidden fixed inset-0 top-20 bg-white z-40 transition-transform duration-300 ${
+        className={`lg:hidden fixed inset-0 top-20 z-[90] bg-white transition-transform duration-300 ${
           isMenuOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
+        aria-hidden={!isMenuOpen}
       >
-        <nav className="flex flex-col p-6 gap-4">
+        <div className="h-full w-full overflow-auto bg-white">
+        <nav className="flex flex-col p-6 gap-4" aria-label="Menu principal">
           {config.menuItems.map((item) => (
             <button
               key={item.id}
@@ -115,6 +118,7 @@ export default function Header() {
             Admin
           </Link>
         </nav>
+        </div>
       </div>
     </header>
   )

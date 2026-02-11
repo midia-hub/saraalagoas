@@ -21,6 +21,15 @@ type MetaIntegration = {
     pages_count?: number
     show_in_list?: boolean
   }
+  readiness?: {
+    instagram?: {
+      ready: boolean
+      hasInstagramBusinessAccount: boolean
+      hasPageAccessToken: boolean
+      tokenExpired: boolean
+      missingScopes: string[]
+    }
+  }
 }
 
 export default function AdminInstanciasPage() {
@@ -34,6 +43,13 @@ export default function AdminInstanciasPage() {
   const [unlinkModalId, setUnlinkModalId] = useState<string | null>(null)
   const [unlinking, setUnlinking] = useState(false)
   const [revinkingId, setRevinkingId] = useState<string | null>(null)
+
+  const instagramScopeLabels: Record<string, string> = {
+    pages_show_list: 'Listagem de páginas',
+    pages_read_engagement: 'Leitura de engajamento da página',
+    instagram_basic: 'Acesso básico ao Instagram',
+    instagram_content_publish: 'Publicação de conteúdo no Instagram',
+  }
 
   async function loadIntegrations() {
     setLoading(true)
@@ -251,6 +267,38 @@ export default function AdminInstanciasPage() {
     )
   }
 
+  function getInstagramChecklist(integration: MetaIntegration) {
+    const readiness = integration.readiness?.instagram
+    const missingScopes = readiness?.missingScopes || []
+    return [
+      {
+        ok: !!integration.is_active,
+        label: 'Integração ativa',
+      },
+      {
+        ok: readiness ? readiness.hasInstagramBusinessAccount : !!integration.instagram_username,
+        label: 'Conta Instagram Business vinculada',
+      },
+      {
+        ok: readiness ? readiness.hasPageAccessToken : true,
+        label: 'Token de página disponível',
+      },
+      {
+        ok: readiness ? !readiness.tokenExpired : true,
+        label: 'Token válido (não expirado)',
+      },
+      {
+        ok: missingScopes.length === 0,
+        label:
+          missingScopes.length === 0
+            ? 'Permissões de publicação no Instagram concedidas'
+            : `Permissões ausentes: ${missingScopes
+                .map((scope) => instagramScopeLabels[scope] || scope)
+                .join(', ')}`,
+      },
+    ]
+  }
+
   return (
     <PageAccessGuard pageKey="instagram">
       <div className="p-6 md:p-8">
@@ -279,7 +327,7 @@ export default function AdminInstanciasPage() {
         <div className="mb-6 rounded-xl border-2 border-[#c62737]/20 bg-white p-5">
           <h2 className="text-lg font-semibold text-slate-900 mb-2">Conectar Instagram e Facebook</h2>
           <p className="text-slate-600 text-sm mb-4">
-            Faça o login com a conta Meta (Facebook) que administra a página e o perfil do Instagram. Depois de conectar aqui, as contas aparecerão em &quot;Postar em&quot; ao criar um post na Galeria.
+            O login é validado para publicação no Instagram (escopos obrigatórios + conta Instagram Business). Faça login com a conta Meta que administra a página e o perfil do Instagram.
           </p>
           <button
             onClick={handleConnect}
@@ -305,7 +353,7 @@ export default function AdminInstanciasPage() {
 
         {/* Resumo: contas disponíveis para postagem */}
         {!loading && integrations.length > 0 && (
-          <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
             <div className="rounded-xl border border-slate-200 bg-white p-4">
               <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Total integrações</p>
               <p className="mt-1 text-2xl font-semibold text-slate-900">{integrations.length}</p>
@@ -316,6 +364,13 @@ export default function AdminInstanciasPage() {
                 {integrations.filter((i) => i.instagram_username && i.is_active).length}
               </p>
               <p className="text-xs text-slate-500 mt-0.5">disponíveis para postar</p>
+            </div>
+            <div className="rounded-xl border border-slate-200 bg-white p-4">
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Instagram prontas</p>
+              <p className="mt-1 text-2xl font-semibold text-emerald-600">
+                {integrations.filter((i) => i.instagram_username && i.readiness?.instagram?.ready).length}
+              </p>
+              <p className="text-xs text-slate-500 mt-0.5">com checklist completo</p>
             </div>
             <div className="rounded-xl border border-slate-200 bg-white p-4">
               <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Facebook (ativas)</p>
@@ -402,9 +457,11 @@ export default function AdminInstanciasPage() {
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2 mb-1">
                             {getStatusBadge(integration)}
-                            {integration.is_active && (
-                              <span className="text-xs px-2 py-0.5 rounded bg-green-100 text-green-700">Disponível para postagem</span>
-                            )}
+                            {integration.readiness?.instagram?.ready ? (
+                              <span className="text-xs px-2 py-0.5 rounded bg-emerald-100 text-emerald-700">Pronta para postar no Instagram</span>
+                            ) : integration.is_active ? (
+                              <span className="text-xs px-2 py-0.5 rounded bg-amber-100 text-amber-700">Pendências para Instagram</span>
+                            ) : null}
                             <span className="font-medium text-slate-900">@{integration.instagram_username}</span>
                           </div>
                           <div className="text-xs text-slate-500 space-y-0.5">
@@ -415,8 +472,33 @@ export default function AdminInstanciasPage() {
                               <p>Token expira: {new Date(integration.token_expires_at).toLocaleDateString('pt-BR')}</p>
                             )}
                           </div>
+                          <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">Checklist Instagram</p>
+                            <ul className="mt-2 space-y-1.5 text-xs text-slate-700">
+                              {getInstagramChecklist(integration).map((item) => (
+                                <li key={item.label} className="flex items-start gap-2">
+                                  {item.ok ? (
+                                    <CheckCircle size={14} className="mt-0.5 shrink-0 text-emerald-600" />
+                                  ) : (
+                                    <XCircle size={14} className="mt-0.5 shrink-0 text-red-500" />
+                                  )}
+                                  <span>{item.label}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
                         </div>
                         <div className="flex flex-wrap gap-2 shrink-0">
+                          {!integration.readiness?.instagram?.ready && (
+                            <button
+                              onClick={handleConnect}
+                              disabled={connecting}
+                              className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-sm text-amber-800 hover:bg-amber-100 disabled:opacity-50"
+                              title="Reconecta a conta Meta para atualizar permissões e liberar postagem no Instagram"
+                            >
+                              {connecting ? 'Reconectando...' : 'Reconectar permissões'}
+                            </button>
+                          )}
                           <button
                             onClick={() => router.push(`/admin/instancias/add-page?integration_id=${integration.id}`)}
                             className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-100"

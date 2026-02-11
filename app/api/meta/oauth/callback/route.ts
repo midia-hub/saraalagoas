@@ -5,6 +5,8 @@ import {
   exchangeCodeForToken,
   exchangeForLongLivedToken,
   getUserProfile,
+  listGrantedPermissions,
+  getMissingRequiredInstagramPublishScopes,
   listUserPages,
 } from '@/lib/meta'
 
@@ -81,6 +83,14 @@ export async function GET(request: NextRequest) {
 
     console.log(LOG_PREFIX, '5/6 Buscando perfil e páginas...')
     const userProfile = await getUserProfile(accessToken)
+    const grantedPermissions = await listGrantedPermissions(accessToken)
+    const missingPermissions = getMissingRequiredInstagramPublishScopes(grantedPermissions)
+    if (missingPermissions.length > 0) {
+      return redirectTo(donePath, {
+        error: 'missing_instagram_permissions',
+        error_description: `Permissões ausentes para Instagram: ${missingPermissions.join(', ')}. Reconecte e aceite todas as permissões.`,
+      })
+    }
     const pages = await listUserPages(accessToken)
     console.log(LOG_PREFIX, 'Páginas encontradas:', pages.length, '| Usuário:', userProfile.name)
 
@@ -101,16 +111,15 @@ export async function GET(request: NextRequest) {
     const instagramNames: string[] = []
 
     for (const page of pages) {
-      // Não cadastrar página que já está ativa na plataforma
-      const { data: existing } = await db
+      // Se a página já existir, atualiza tokens/permissões ao reconectar.
+      const { data: existing, error: existingError } = await db
         .from('meta_integrations')
         .select('id')
         .eq('page_id', page.id)
-        .eq('is_active', true)
         .limit(1)
         .maybeSingle()
-      if (existing) {
-        console.log(LOG_PREFIX, 'Página já conectada, ignorando:', page.id, page.name)
+      if (existingError) {
+        console.error(LOG_PREFIX, 'Falha ao buscar integração existente:', page.id, existingError.message)
         continue
       }
 
@@ -127,28 +136,61 @@ export async function GET(request: NextRequest) {
         // Página sem Instagram vinculado
       }
 
-      const { error: insertError } = await db
-        .from('meta_integrations')
-        .insert({
-          created_by: stateData.userId,
-          provider: 'meta',
-          facebook_user_id: userProfile.id,
-          facebook_user_name: userProfile.name,
-          page_id: page.id,
-          page_name: page.name,
-          page_access_token: page.access_token,
-          instagram_business_account_id: instagramAccountId,
-          instagram_username: instagramUsername,
-          access_token: accessToken,
-          token_expires_at: tokenExpiresAt,
-          is_active: true,
-        })
-
-      if (insertError) {
-        console.error(LOG_PREFIX, 'Insert falhou para página', page.id, insertError.message)
+      // Prioriza Instagram: só salva integrações com conta IG Business vinculada.
+      if (!instagramAccountId) {
+        console.log(LOG_PREFIX, 'Página sem Instagram Business, ignorando:', page.id, page.name)
         continue
       }
+
+      const payload = {
+        provider: 'meta',
+        facebook_user_id: userProfile.id,
+        facebook_user_name: userProfile.name,
+        page_id: page.id,
+        page_name: page.name,
+        page_access_token: page.access_token,
+        instagram_business_account_id: instagramAccountId,
+        instagram_username: instagramUsername,
+        scopes: grantedPermissions,
+        access_token: accessToken,
+        token_expires_at: tokenExpiresAt,
+        is_active: true,
+      }
+
+      if (existing?.id) {
+        const { error: updateError } = await db
+          .from('meta_integrations')
+          .update({
+            ...payload,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', existing.id)
+
+        if (updateError) {
+          console.error(LOG_PREFIX, 'Update falhou para página', page.id, updateError.message)
+          continue
+        }
+      } else {
+        const { error: insertError } = await db
+          .from('meta_integrations')
+          .insert({
+            ...payload,
+            created_by: stateData.userId,
+          })
+
+        if (insertError) {
+          console.error(LOG_PREFIX, 'Insert falhou para página', page.id, insertError.message)
+          continue
+        }
+      }
       savedCount++
+    }
+
+    if (savedCount === 0) {
+      return redirectTo(donePath, {
+        error: 'no_instagram_business_account',
+        error_description: 'Nenhuma Página com Instagram Business vinculada foi encontrada. Vincule uma conta profissional no Meta Business e tente novamente.',
+      })
     }
 
     console.log(LOG_PREFIX, '6/6 Integrações salvas:', savedCount, 'de', pages.length)
