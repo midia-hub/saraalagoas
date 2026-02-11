@@ -3,6 +3,8 @@
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
+import Lightbox from 'yet-another-react-lightbox'
+import 'yet-another-react-lightbox/styles.css'
 import { GaleriaLoading } from '@/components/GaleriaLoading'
 import { PageAccessGuard } from '@/app/admin/PageAccessGuard'
 import { adminFetchJson } from '@/lib/admin-client'
@@ -39,6 +41,8 @@ export default function AlbumPostSelectPage() {
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [lightboxOpen, setLightboxOpen] = useState(false)
+  const [lightboxIndex, setLightboxIndex] = useState(0)
 
   useEffect(() => {
     if (!albumId) {
@@ -103,6 +107,24 @@ export default function AlbumPostSelectPage() {
     router.push(`/admin/galeria/${albumId}/post/create`)
   }
 
+  function handleViewFile(file: AlbumFile) {
+    const index = files.findIndex((f) => f.id === file.id)
+    if (index !== -1) {
+      setLightboxIndex(index)
+      setLightboxOpen(true)
+    }
+  }
+
+  const lightboxSlides = useMemo(
+    () =>
+      files.map((file) => ({
+        src: fullUrl(file.id),
+        alt: file.name,
+        title: file.name,
+      })),
+    [files]
+  )
+
   return (
     <PageAccessGuard pageKey="galeria">
       <div className="p-6 md:p-8">
@@ -136,8 +158,62 @@ export default function AlbumPostSelectPage() {
           />
         ) : (
           <div className="mt-4">
-            <PhotoPickerGrid files={files} selectedIds={selectedIds} onToggle={toggle} />
+            <PhotoPickerGrid
+              files={files}
+              selectedIds={selectedIds}
+              onToggle={toggle}
+              onView={handleViewFile}
+            />
           </div>
+        )}
+
+        {lightboxSlides.length > 0 && (
+          <Lightbox
+            open={lightboxOpen}
+            close={() => setLightboxOpen(false)}
+            slides={lightboxSlides}
+            index={lightboxIndex}
+            on={{
+              view: ({ index }) => setLightboxIndex(index),
+            }}
+            carousel={{
+              finite: lightboxSlides.length <= 1,
+            }}
+            render={{
+              buttonPrev: lightboxSlides.length <= 1 ? () => null : undefined,
+              buttonNext: lightboxSlides.length <= 1 ? () => null : undefined,
+              controls: () =>
+                lightboxOpen && files[lightboxIndex] ? (
+                  <div
+                    className="absolute bottom-0 left-0 right-0 z-10 flex items-center justify-center gap-4 border-t border-white/20 bg-black/80 px-4 py-3 text-white shadow-lg"
+                    style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}
+                  >
+                    <span className="max-w-[40%] truncate text-sm font-medium">
+                      {files[lightboxIndex].name}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => toggle(files[lightboxIndex].id)}
+                      className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
+                        selectedIds.includes(files[lightboxIndex].id)
+                          ? 'bg-amber-600 hover:bg-amber-700'
+                          : 'bg-[#c62737] hover:bg-[#a01f2d]'
+                      }`}
+                    >
+                      {selectedIds.includes(files[lightboxIndex].id)
+                        ? '✓ Desmarcar foto'
+                        : 'Selecionar foto'}
+                    </button>
+                  </div>
+                ) : null,
+            }}
+            styles={{
+              container: { backgroundColor: 'rgba(0, 0, 0, 0.9)' },
+            }}
+            controller={{
+              closeOnBackdropClick: true,
+            }}
+          />
         )}
       </div>
     </PageAccessGuard>
