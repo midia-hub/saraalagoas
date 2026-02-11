@@ -7,7 +7,7 @@ import type { User } from '@supabase/supabase-js'
 import { AdminSidebar } from '@/app/admin/AdminSidebar'
 import { AdminAccessProvider } from '@/lib/admin-access-context'
 import { adminFetchJson } from '@/lib/admin-client'
-import type { PermissionMap } from '@/lib/rbac'
+import type { PermissionMap } from '@/lib/rbac-types'
 import { clearSupabaseLocalSession, getSessionWithRecovery } from '@/lib/auth-recovery'
 
 function hasAdminCookie(): boolean {
