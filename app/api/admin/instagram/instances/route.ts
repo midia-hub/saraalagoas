@@ -27,6 +27,13 @@ export async function GET(request: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
+  const requiredInstagramScopes = [
+    'pages_show_list',
+    'pages_read_engagement',
+    'instagram_basic',
+    'instagram_content_publish',
+  ]
+
   const { data: metaRows, error: metaError } = await db
     .from('meta_integrations')
     .select(`
@@ -39,7 +46,8 @@ export async function GET(request: NextRequest) {
       instagram_business_account_id,
       instagram_username,
       token_expires_at,
-      is_active
+      is_active,
+      scopes
     `)
     .eq('is_active', true)
     .order('updated_at', { ascending: false })
@@ -47,9 +55,23 @@ export async function GET(request: NextRequest) {
   if (metaError) return NextResponse.json({ error: metaError.message }, { status: 500 })
 
   const metaInstances = (metaRows || []).flatMap((row) => {
+    const expiresAt = row.token_expires_at ? new Date(row.token_expires_at) : null
+    const tokenExpired = !!(expiresAt && expiresAt < new Date())
+    const grantedScopes = Array.isArray(row.scopes) ? row.scopes.filter((s): s is string => typeof s === 'string') : []
+    const missingScopes = requiredInstagramScopes.filter((scope) => !grantedScopes.includes(scope))
+    const hasPageAccessToken = !!row.page_access_token
+    const hasInstagramBusinessAccount = !!row.instagram_business_account_id
+    const isReadyForPosting =
+      hasPageAccessToken &&
+      hasInstagramBusinessAccount &&
+      !tokenExpired &&
+      missingScopes.length === 0
+
+    if (!isReadyForPosting) return []
+
     const instances: Array<Record<string, unknown>> = []
 
-    // Instância Instagram (Meta OAuth)
+    // Instância Instagram (Meta OAuth) — só quando autorização de postagem ok
     if (row.instagram_business_account_id && row.page_access_token) {
       instances.push({
         id: `meta_ig:${row.id}`,
@@ -68,7 +90,7 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // Instância Facebook (Meta OAuth)
+    // Instância Facebook (Meta OAuth) — mesmo token, mesma validação
     if (row.page_id && row.page_access_token) {
       instances.push({
         id: `meta_fb:${row.id}`,
@@ -88,7 +110,52 @@ export async function GET(request: NextRequest) {
     return instances
   })
 
-  return NextResponse.json([...(metaInstances || []), ...((legacyRows as unknown[]) || [])])
+  const forPosting = request.nextUrl.searchParams.get('forPosting') === '1'
+  const now = new Date().toISOString()
+  const legacyValid = (legacyRows || []).filter((row: { status?: string; token_expires_at?: string | null }) => {
+    if (row.status !== 'connected') return false
+    if (!forPosting) return true
+    if (!row.token_expires_at) return true
+    return row.token_expires_at > now
+  })
+
+  const metaList = forPosting ? metaInstances : (metaRows || []).flatMap((row: (typeof metaRows)[number]) => {
+    const instances: Array<Record<string, unknown>> = []
+    if (row.instagram_business_account_id && row.page_access_token) {
+      instances.push({
+        id: `meta_ig:${row.id}`,
+        name: row.instagram_username ? `${row.page_name || 'Instagram'} (@${row.instagram_username})` : (row.page_name || 'Instagram'),
+        provider: 'instagram',
+        access_token: '(gerenciado via Meta OAuth)',
+        ig_user_id: row.instagram_business_account_id,
+        token_expires_at: row.token_expires_at,
+        status: 'connected',
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+        read_only: true,
+        source: 'meta',
+      })
+    }
+    if (row.page_id && row.page_access_token) {
+      instances.push({
+        id: `meta_fb:${row.id}`,
+        name: `${row.page_name || 'Página do Facebook'} (Facebook)`,
+        provider: 'facebook',
+        access_token: '(gerenciado via Meta OAuth)',
+        ig_user_id: row.page_id,
+        token_expires_at: row.token_expires_at,
+        status: 'connected',
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+        read_only: true,
+        source: 'meta',
+      })
+    }
+    return instances
+  })
+
+  const result = forPosting ? [...metaInstances, ...legacyValid] : [...metaList, ...(legacyValid as unknown[])]
+  return NextResponse.json(result)
 }
 
 export async function POST(request: NextRequest) {

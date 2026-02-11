@@ -67,25 +67,26 @@ export function PostComposer({
           </p>
         ) : (
           <div className="mt-3 space-y-3">
-            <div className="flex flex-wrap gap-2">
+            <ul className="space-y-2" role="list">
               {instances.map((inst) => (
-                <label
-                  key={inst.id}
-                  className={`inline-flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition ${
-                    selectedSet.has(inst.id) ? 'border-[#c62737] bg-[#c62737]/5' : 'border-slate-200 hover:bg-slate-50'
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedSet.has(inst.id)}
-                    onChange={() => toggleInstance(inst.id)}
-                    className="rounded border-slate-300 text-[#c62737] focus:ring-[#c62737]"
-                  />
-                  <span className="font-medium text-slate-800">{inst.name}</span>
-                  <span className="rounded bg-slate-200 px-1.5 py-0.5 text-xs text-slate-600">{inst.provider}</span>
-                </label>
+                <li key={inst.id}>
+                  <label
+                    className={`flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2.5 text-sm transition ${
+                      selectedSet.has(inst.id) ? 'border-[#c62737] bg-[#c62737]/5' : 'border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedSet.has(inst.id)}
+                      onChange={() => toggleInstance(inst.id)}
+                      className="rounded border-slate-300 text-[#c62737] focus:ring-[#c62737]"
+                    />
+                    <span className="min-w-0 flex-1 font-medium text-slate-800">{inst.name}</span>
+                    <span className="shrink-0 rounded bg-slate-200 px-1.5 py-0.5 text-xs text-slate-600">{inst.provider}</span>
+                  </label>
+                </li>
               ))}
-            </div>
+            </ul>
             <p className="text-xs text-slate-500">
               Problemas ao publicar? Conecte ou reconecte em{' '}
               <Link href="/admin/instancias" className="font-medium text-[#c62737] hover:underline">

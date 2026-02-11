@@ -38,7 +38,7 @@ export default function AlbumPostCreatePage() {
   }, [albumId])
 
   useEffect(() => {
-    adminFetchJson<SocialInstance[]>('/api/admin/instagram/instances')
+    adminFetchJson<SocialInstance[]>('/api/admin/instagram/instances?forPosting=1')
       .then((data) => setInstances(Array.isArray(data) ? data : []))
       .catch(() => setInstances([]))
   }, [])
