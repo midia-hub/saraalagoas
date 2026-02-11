@@ -6,6 +6,9 @@
 
 const META_API_VERSION = 'v21.0'
 const META_API_BASE = `https://graph.facebook.com/${META_API_VERSION}`
+/** v24.0 exigido para criação de containers de mídia (carrossel/imagem) conforme doc atual. */
+const META_MEDIA_API_VERSION = 'v24.0'
+const META_MEDIA_API_BASE = `https://graph.facebook.com/${META_MEDIA_API_VERSION}`
 /** Scopes necessários para publicar no Instagram e no Facebook (Page). */
 const REQUIRED_INSTAGRAM_PUBLISH_SCOPES = [
   'pages_show_list',
@@ -414,7 +417,7 @@ export async function createInstagramMediaContainer(params: {
   }
 
   const response = await fetch(
-    `${META_API_BASE}/${igUserId}/media`,
+    `${META_MEDIA_API_BASE}/${igUserId}/media`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -573,8 +576,9 @@ export async function publishInstagramMediaWithRetry(params: {
 
 /**
  * Cria um container filho para usar em carrossel (múltiplas imagens).
- * Mesmo formato do container de imagem única (createInstagramMediaContainer): JSON com image_url.
- * A API infere IMAGE pela presença de image_url; is_carousel_item=true indica que é item de carrossel.
+ * Documentação Meta: Image Containers usam parâmetros na query string (não JSON).
+ * POST .../media?image_url=...&is_carousel_item=true&access_token=...
+ * Usa v24.0 para o endpoint de media conforme doc atual.
  */
 export async function createInstagramCarouselItemContainer(params: {
   igUserId: string
@@ -583,20 +587,14 @@ export async function createInstagramCarouselItemContainer(params: {
 }): Promise<{ id: string }> {
   const { igUserId, imageUrl, accessToken } = params
 
-  const body = {
+  const query = new URLSearchParams({
     image_url: imageUrl,
-    is_carousel_item: true,
+    is_carousel_item: 'true',
     access_token: accessToken,
-  }
+  })
+  const url = `${META_MEDIA_API_BASE}/${igUserId}/media?${query.toString()}`
 
-  const response = await fetch(
-    `${META_API_BASE}/${igUserId}/media`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    }
-  )
+  const response = await fetch(url, { method: 'POST' })
 
   if (!response.ok) {
     const err = await response.json().catch(() => ({ error: { message: response.statusText } }))
@@ -622,8 +620,8 @@ export async function createInstagramCarouselContainer(params: {
     throw new Error('Carrossel requer ao menos 2 imagens')
   }
 
-  if (childContainerIds.length > 20) {
-    throw new Error('Instagram limita carrosséis a 20 imagens')
+  if (childContainerIds.length > 10) {
+    throw new Error('Instagram Graph API limita carrosséis a 10 itens')
   }
 
   const body = {
@@ -634,7 +632,7 @@ export async function createInstagramCarouselContainer(params: {
   }
 
   const response = await fetch(
-    `${META_API_BASE}/${igUserId}/media`,
+    `${META_MEDIA_API_BASE}/${igUserId}/media`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

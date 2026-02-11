@@ -109,8 +109,8 @@ export default function AlbumPostCreatePage() {
   const hasFacebookDestination = draft.destinations?.facebook || false
   
   const instagramLimitError = useMemo(() => {
-    if (hasInstagramDestination && draft.media.length > 20) {
-      return 'Para Instagram, o limite é de 20 mídias por post.'
+    if (hasInstagramDestination && draft.media.length > 10) {
+      return 'Para Instagram, o limite é de 10 mídias por post (carrossel).'
     }
     return null
   }, [hasInstagramDestination, draft.media.length])
