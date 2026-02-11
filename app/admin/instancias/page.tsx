@@ -486,6 +486,11 @@ export default function AdminInstanciasPage() {
                                 </li>
                               ))}
                             </ul>
+                            {(integration.readiness?.instagram?.missingScopes?.length ?? 0) > 0 && (
+                              <p className="mt-2 text-xs text-slate-600 border-t border-slate-200 pt-2">
+                                Já ativou essas permissões no app Meta (ex.: Mídia_sara_alagoas)? Clique em <strong>Reconectar permissões</strong> para obter um novo token e liberar a publicação.
+                              </p>
+                            )}
                           </div>
                         </div>
                         <div className="flex flex-wrap gap-2 shrink-0">

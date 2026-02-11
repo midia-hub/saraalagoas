@@ -489,7 +489,8 @@ export async function getInstagramMediaContainerStatus(params: {
   const { containerId, accessToken } = params
 
   const query = new URLSearchParams({
-    fields: 'status_code,status,status_message',
+    // Alguns tipos (ex.: ShadowIGMediaBuilder) não aceitam status_message.
+    fields: 'status_code,status',
     access_token: accessToken,
   })
 
