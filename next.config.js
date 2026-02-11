@@ -14,10 +14,14 @@ const isStaticExport =
 const basePath = useGithubPagesBasePath ? '/saraalagoas' : ''
 const assetPrefix = useGithubPagesBasePath ? '/saraalagoas/' : ''
 
+// Limite de body para upload (Route Handlers). Em serverless ex.: Vercel o limite do plano pode ser ~4,5 MB.
 const nextConfig = {
   ...(isStaticExport ? { output: 'export' } : {}),
   basePath,
   assetPrefix,
+  experimental: {
+    proxyClientMaxBodySize: '11mb', // permite uploads até ~10 MB quando o servidor (Node) aceitar
+  },
   images: {
     unoptimized: true,
     formats: ['image/avif', 'image/webp'],

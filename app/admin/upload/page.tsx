@@ -8,7 +8,11 @@ import { adminFetchJson, getAccessTokenOrThrow } from '@/lib/admin-client'
 type UploadType = 'culto' | 'evento'
 type WorshipService = { id: string; name: string }
 
-const MAX_SIZE = 10 * 1024 * 1024
+// Limite por imagem (MB). Use NEXT_PUBLIC_MAX_UPLOAD_MB no .env para alterar (ex.: 4 para Vercel).
+const MAX_MB = typeof process.env.NEXT_PUBLIC_MAX_UPLOAD_MB !== 'undefined'
+  ? Math.max(1, Math.min(50, parseInt(process.env.NEXT_PUBLIC_MAX_UPLOAD_MB, 10) || 10))
+  : 10
+const MAX_SIZE = MAX_MB * 1024 * 1024
 const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif']
 
 const DAY_NAMES: Record<number, string> = { 0: 'Domingo', 2: 'Terça', 6: 'Sábado' }
@@ -59,6 +63,10 @@ function uploadOneFile(
     xhr.addEventListener('load', () => {
       if (xhr.status >= 200 && xhr.status < 300) resolve()
       else {
+        if (xhr.status === 413) {
+          reject(new Error(`Arquivo muito grande (máx. ${MAX_MB} MB). Reduza o tamanho da imagem.`))
+          return
+        }
         try {
           const j = JSON.parse(xhr.responseText || '{}')
           const msg = j.error || `Erro ${xhr.status}`
@@ -126,7 +134,7 @@ export default function AdminUploadPage() {
         return
       }
       if (file.size > MAX_SIZE) {
-        setError('Cada arquivo deve ter no máximo 10 MB.')
+        setError(`Cada arquivo deve ter no máximo ${MAX_MB} MB. Reduza o tamanho da imagem e tente novamente.`)
         return
       }
     }
@@ -289,6 +297,7 @@ export default function AdminUploadPage() {
       {step === 2 && (
         <div className="mt-6 bg-white border border-slate-200 rounded-xl p-5">
           <label className="block text-sm font-medium text-slate-700 mb-2">Imagens (sem limite de quantidade)</label>
+          <p className="text-xs text-slate-500 mb-2">Cada imagem até {MAX_MB} MB. Formatos: PNG, JPEG, WebP ou GIF.</p>
           <input type="file" multiple accept={ALLOWED_TYPES.join(',')} onChange={(e) => handleSelectFiles(e.target.files)} />
 
           {files.length > 0 && !isUploading && (
@@ -380,11 +389,12 @@ export default function AdminUploadPage() {
                 {files.map((file, i) =>
                   fileStatuses[i]?.status === 'error' ? (
                     <li key={`err-${i}-${file.name}`}>
-                      <strong>{file.name}</strong>: não foi possível enviar
+                      <strong>{file.name}</strong>: {fileStatuses[i]?.error && !fileStatuses[i].error.includes('413') && !fileStatuses[i].error.includes('Payload') ? fileStatuses[i].error : `arquivo muito grande (máx. ${MAX_MB} MB). Reduza o tamanho da imagem.`}
                     </li>
                   ) : null
                 )}
               </ul>
+              <p className="mt-2 text-xs text-amber-700">Dica: use imagens de até {MAX_MB} MB cada. Se o servidor recusar (erro 413), reduza o limite em .env (MAX_UPLOAD_MB e NEXT_PUBLIC_MAX_UPLOAD_MB).</p>
             </div>
           )}
           <div className="mt-4 flex gap-2">

@@ -6,7 +6,8 @@ import { getSiteConfig } from '@/lib/site-config-server'
 import { requireAccess } from '@/lib/admin-api'
 
 const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif']
-const MAX_SIZE = 10 * 1024 * 1024
+const MAX_MB = process.env.MAX_UPLOAD_MB ? Math.max(1, Math.min(50, parseInt(process.env.MAX_UPLOAD_MB, 10) || 10)) : 10
+const MAX_SIZE = MAX_MB * 1024 * 1024
 
 export async function POST(request: NextRequest) {
   const access = await requireAccess(request, { pageKey: 'upload', action: 'create' })
@@ -52,7 +53,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: `Arquivo ${file.name} com tipo inválido.` }, { status: 400 })
     }
     if (file.size > MAX_SIZE) {
-      return NextResponse.json({ error: `Arquivo ${file.name} excede 10MB.` }, { status: 400 })
+      return NextResponse.json(
+        { error: `Arquivo ${file.name} excede o limite de ${MAX_MB} MB. Reduza o tamanho da imagem.` },
+        { status: 400 }
+      )
     }
   }
 
