@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getAccessSnapshotFromRequest, hasPermission } from '@/lib/rbac'
 import { supabaseServer } from '@/lib/supabase-server'
 
+export const dynamic = 'force-dynamic'
+
 /**
  * GET /api/admin/resources
  * Lista todos os recursos do sistema
