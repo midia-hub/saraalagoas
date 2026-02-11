@@ -19,9 +19,6 @@ const nextConfig = {
   ...(isStaticExport ? { output: 'export' } : {}),
   basePath,
   assetPrefix,
-  experimental: {
-    proxyClientMaxBodySize: '11mb', // permite uploads até ~10 MB quando o servidor (Node) aceitar
-  },
   images: {
     unoptimized: true,
     formats: ['image/avif', 'image/webp'],
