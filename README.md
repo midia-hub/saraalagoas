@@ -44,6 +44,22 @@ Acesse **http://localhost:3000**
 └── supabase/      # Migrations e Edge Functions
 ```
 
+## Git (primeiro push)
+
+O projeto já está pronto para versionamento. **Nunca commite** o arquivo `.env` (ele está no `.gitignore`).
+
+```bash
+git init
+git add .
+git status   # confira: .env não deve aparecer
+git commit -m "chore: estado inicial do projeto"
+git remote add origin <URL_DO_SEU_REPOSITORIO>
+git branch -M main
+git push -u origin main
+```
+
+Antes do primeiro push, confira que variáveis sensíveis (Supabase, Meta, Google) estão apenas em `.env` e que `.env` está ignorado.
+
 ## Deploy (Vercel)
 
 Configure no painel da Vercel (Settings → Environment Variables) as mesmas variáveis do `.env.example`. Para a **galeria de imagens** (Google Drive) funcionar em produção:

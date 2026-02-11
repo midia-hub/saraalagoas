@@ -12,7 +12,7 @@ export async function GET() {
   const redirectUri = process.env.META_REDIRECT_URI
   const hasStateSecret = !!process.env.META_STATE_SECRET
   const scopes = process.env.META_SCOPES
-  const requiredScopes = ['pages_show_list', 'pages_read_engagement', 'instagram_basic', 'instagram_content_publish']
+  const requiredScopes = ['pages_show_list', 'pages_read_engagement', 'instagram_basic', 'instagram_content_publish', 'pages_manage_posts']
   const configuredScopes = (scopes || '')
     .split(',')
     .map((s) => s.trim())
