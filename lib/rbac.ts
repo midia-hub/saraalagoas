@@ -11,6 +11,8 @@ import type {
 } from '@/lib/rbac-types'
 import { type AppPermissionCode, APP_PERMISSION_CODES } from '@/lib/rbac-types'
 
+export type { AccessSnapshot, PermissionAction, PermissionMap, PermissionSet } from '@/lib/rbac-types'
+
 // ============================================================
 // TIPOS INTERNOS (para o sistema legado e transição)
 // ============================================================
@@ -35,7 +37,7 @@ type ProfileRow = {
   email?: string | null
   access_profile_id?: string | null
   role_id?: string | null
-  roles?: Role | null
+  roles?: Role | Role[] | null
   access_profiles?:
     | {
         id: string
@@ -396,7 +398,7 @@ export async function getAccessSnapshotByToken(accessToken: string): Promise<Acc
   // ============================================================
   // NOVO SISTEMA RBAC (priority)
   // ============================================================
-  const newRole = profileRow?.roles as Role | undefined | null
+  const newRole = Array.isArray(profileRow?.roles) ? profileRow?.roles[0] : profileRow?.roles
 
   if (newRole && newRole.id) {
     // Usuário tem role no novo sistema
