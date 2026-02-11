@@ -568,3 +568,198 @@ export async function publishInstagramMediaWithRetry(params: {
 
   throw lastError || new Error('Falha ao publicar no Instagram.')
 }
+
+/**
+ * Cria um container filho para usar em carrossel (múltiplas imagens)
+ */
+export async function createInstagramCarouselItemContainer(params: {
+  igUserId: string
+  imageUrl: string
+  accessToken: string
+}): Promise<{ id: string }> {
+  const { igUserId, imageUrl, accessToken } = params
+
+  const body = {
+    image_url: imageUrl,
+    is_carousel_item: true,
+    access_token: accessToken,
+  }
+
+  const response = await fetch(
+    `${META_API_BASE}/${igUserId}/media`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }
+  )
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: { message: 'Failed to create carousel item' } }))
+    throw new Error(`Meta create carousel item failed: ${error.error?.message || response.statusText}`)
+  }
+
+  return response.json()
+}
+
+/**
+ * Cria um container de carrossel com múltiplas imagens
+ */
+export async function createInstagramCarouselContainer(params: {
+  igUserId: string
+  childContainerIds: string[]
+  caption?: string
+  accessToken: string
+}): Promise<{ id: string }> {
+  const { igUserId, childContainerIds, caption, accessToken } = params
+
+  if (childContainerIds.length < 2) {
+    throw new Error('Carrossel requer ao menos 2 imagens')
+  }
+
+  if (childContainerIds.length > 20) {
+    throw new Error('Instagram limita carrosséis a 20 imagens')
+  }
+
+  const body = {
+    media_type: 'CAROUSEL',
+    children: childContainerIds,
+    caption: caption || '',
+    access_token: accessToken,
+  }
+
+  const response = await fetch(
+    `${META_API_BASE}/${igUserId}/media`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }
+  )
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: { message: 'Failed to create carousel' } }))
+    throw new Error(`Meta create carousel failed: ${error.error?.message || response.statusText}`)
+  }
+
+  return response.json()
+}
+
+// ============================================================
+// Collaboration / Collab Posts
+// ============================================================
+
+export type CollaborationInvite = {
+  media_id: string
+  media_owner_username: string
+  caption: string
+  media_url: string
+}
+
+export type CollaborationInvitesResponse = {
+  data: CollaborationInvite[]
+  paging?: {
+    cursors?: {
+      before?: string
+      after?: string
+    }
+  }
+}
+
+export type Collaborator = {
+  id: string
+  username: string
+  invite_status: 'Accepted' | 'Pending'
+}
+
+export type CollaboratorsResponse = {
+  data: Collaborator[]
+}
+
+/**
+ * Lista convites de colaboração recebidos para um usuário Instagram
+ * @see https://developers.facebook.com/docs/instagram-platform/instagram-api-with-facebook-login/collaboration
+ */
+export async function fetchCollaborationInvites(params: {
+  igUserId: string
+  accessToken: string
+  limit?: number
+  after?: string
+  before?: string
+}): Promise<CollaborationInvitesResponse> {
+  const { igUserId, accessToken, limit = 10, after, before } = params
+
+  const query = new URLSearchParams({
+    access_token: accessToken,
+    limit: String(limit),
+  })
+
+  if (after) query.append('after', after)
+  if (before) query.append('before', before)
+
+  const response = await fetch(
+    `${META_API_BASE}/${igUserId}/collaboration_invites?${query.toString()}`,
+    { method: 'GET' }
+  )
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: { message: 'Failed to fetch collaboration invites' } }))
+    throw new Error(`Meta fetch collaboration invites failed: ${error.error?.message || response.statusText}`)
+  }
+
+  return response.json()
+}
+
+/**
+ * Aceita ou recusa um convite de colaboração
+ * @see https://developers.facebook.com/docs/instagram-platform/instagram-api-with-facebook-login/collaboration
+ */
+export async function respondToCollaborationInvite(params: {
+  igUserId: string
+  mediaId: string
+  accept: boolean
+  accessToken: string
+}): Promise<{ success: boolean }> {
+  const { igUserId, mediaId, accept, accessToken } = params
+
+  const query = new URLSearchParams({
+    media_id: mediaId,
+    accept: String(accept),
+    access_token: accessToken,
+  })
+
+  const response = await fetch(
+    `${META_API_BASE}/${igUserId}/collaboration_invites?${query.toString()}`,
+    { method: 'POST' }
+  )
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: { message: 'Failed to respond to collaboration invite' } }))
+    throw new Error(`Meta respond to collaboration invite failed: ${error.error?.message || response.statusText}`)
+  }
+
+  return response.json()
+}
+
+/**
+ * Lista colaboradores de um post específico
+ * @see https://developers.facebook.com/docs/instagram-platform/instagram-graph-api/reference/ig-media/collaborators/
+ */
+export async function fetchMediaCollaborators(params: {
+  mediaId: string
+  accessToken: string
+}): Promise<CollaboratorsResponse> {
+  const { mediaId, accessToken } = params
+
+  const response = await fetch(
+    `${META_API_BASE}/${mediaId}/collaborators?access_token=${accessToken}`,
+    { method: 'GET' }
+  )
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: { message: 'Failed to fetch collaborators' } }))
+    throw new Error(`Meta fetch collaborators failed: ${error.error?.message || response.statusText}`)
+  }
+
+  return response.json()
+}

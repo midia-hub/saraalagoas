@@ -54,8 +54,8 @@ export default function AdminInstagramPostNewPage() {
   function toggleSelect(id: string) {
     setSelectedIds((prev) => {
       if (prev.includes(id)) return prev.filter((item) => item !== id)
-      if (prev.length >= 10) {
-        setError('Você pode selecionar no máximo 10 fotos.')
+      if (prev.length >= 20) {
+        setError('Você pode selecionar no máximo 20 fotos.')
         return prev
       }
       setError(null)

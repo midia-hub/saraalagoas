@@ -11,12 +11,19 @@ export type SocialInstance = {
   name: string
   provider: string
   status: string
+  has_instagram?: boolean
+  has_facebook?: boolean
 }
 
 type PostComposerProps = {
   instances: SocialInstance[]
   selectedInstanceIds: string[]
   onInstanceSelectionChange: (instanceIds: string[]) => void
+  destinations?: {
+    instagram: boolean
+    facebook: boolean
+  }
+  onDestinationsChange?: (destinations: { instagram: boolean; facebook: boolean }) => void
   text: string
   media: DraftMedia[]
   onTextChange: (value: string) => void
@@ -35,6 +42,8 @@ export function PostComposer({
   instances,
   selectedInstanceIds,
   onInstanceSelectionChange,
+  destinations = { instagram: true, facebook: false },
+  onDestinationsChange,
   text,
   media,
   onTextChange,
@@ -50,6 +59,8 @@ export function PostComposer({
 }: PostComposerProps) {
   const selectedId = selectedInstanceIds[0] || ''
   const selectedInstance = instances.find((inst) => inst.id === selectedId) || null
+  const hasInstagram = destinations.instagram
+  const hasFacebook = destinations.facebook
 
   return (
     <div className="space-y-4">
@@ -79,9 +90,80 @@ export function PostComposer({
               ))}
             </select>
             {selectedInstance && (
-              <p className="text-xs text-slate-500">
-                Destino confirmado: <strong>{selectedInstance.name}</strong>
-              </p>
+              <>
+                {/* Destinos disponíveis para publicação */}
+                {(selectedInstance.has_instagram || selectedInstance.has_facebook) && (
+                  <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
+                    <p className="mb-3 text-sm font-medium text-slate-800">
+                      Onde deseja publicar?
+                    </p>
+                    <div className="space-y-2">
+                      {selectedInstance.has_instagram && (
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={hasInstagram}
+                            onChange={(e) => {
+                              if (onDestinationsChange) {
+                                const newDest = { ...destinations, instagram: e.target.checked }
+                                // Garante que pelo menos um está marcado
+                                if (!newDest.instagram && !newDest.facebook) {
+                                  return
+                                }
+                                onDestinationsChange(newDest)
+                              }
+                            }}
+                            disabled={publishing}
+                            className="h-4 w-4 rounded border-slate-300 text-[#c62737] focus:ring-2 focus:ring-[#c62737] focus:ring-offset-0"
+                          />
+                          <span className="text-sm text-slate-700">
+                            📷 Instagram
+                          </span>
+                        </label>
+                      )}
+                      {selectedInstance.has_facebook && (
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={hasFacebook}
+                            onChange={(e) => {
+                              if (onDestinationsChange) {
+                                const newDest = { ...destinations, facebook: e.target.checked }
+                                // Garante que pelo menos um está marcado
+                                if (!newDest.instagram && !newDest.facebook) {
+                                  return
+                                }
+                                onDestinationsChange(newDest)
+                              }
+                            }}
+                            disabled={publishing}
+                            className="h-4 w-4 rounded border-slate-300 text-[#c62737] focus:ring-2 focus:ring-[#c62737] focus:ring-offset-0"
+                          />
+                          <span className="text-sm text-slate-700">
+                            📘 Facebook
+                          </span>
+                        </label>
+                      )}
+                    </div>
+                    {!hasInstagram && !hasFacebook && (
+                      <p className="mt-2 text-xs text-red-600">
+                        Selecione ao menos uma plataforma
+                      </p>
+                    )}
+                  </div>
+                )}
+                <p className="mt-3 text-xs text-slate-500">
+                  Destino confirmado: <strong>{selectedInstance.name}</strong>
+                  {(selectedInstance.has_instagram || selectedInstance.has_facebook) && (
+                    <>
+                      {' • '}
+                      {hasInstagram && hasFacebook && 'Instagram e Facebook'}
+                      {hasInstagram && !hasFacebook && 'Apenas Instagram'}
+                      {!hasInstagram && hasFacebook && 'Apenas Facebook'}
+                    </>
+                  )}
+                </p>
+              </>
             )}
             <p className="text-xs text-slate-500">
               Problemas ao publicar? Conecte ou reconecte em{' '}
@@ -138,7 +220,13 @@ export function PostComposer({
         <button
           type="button"
           onClick={onPublish}
-          disabled={publishing || !selectedId || !!instagramLimitError || media.length === 0}
+          disabled={
+            publishing || 
+            !selectedId || 
+            !!instagramLimitError || 
+            media.length === 0 ||
+            (!hasInstagram && !hasFacebook)
+          }
           className="rounded-lg bg-[#c62737] px-4 py-2 text-sm text-white disabled:opacity-60"
         >
           {publishing ? 'Publicando...' : 'Publicar'}

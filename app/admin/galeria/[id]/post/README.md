@@ -59,7 +59,7 @@ post/
 ### 4. **Publicação**
 - ✅ Suporte Instagram/Facebook
 - ✅ Preview em tempo real
-- ✅ Validação de limites (10 fotos para Instagram)
+- ✅ Validação de limites (20 fotos para Instagram)
 - ✅ Rascunhos locais (localStorage)
 
 ---

@@ -262,7 +262,7 @@ Status: ✅ Pronto para produção
 Nenhum problema crítico identificado até o momento.
 
 #### Limitações
-- Instagram limita posts a 10 imagens
+- Instagram limita posts a 20 imagens (atualizado em 2026)
 - Cropper.js requer imagens com dimensões válidas
 - Upload de arquivos muito grandes pode ser lento
 
