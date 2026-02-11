@@ -49,6 +49,7 @@ export default function AdminInstanciasPage() {
     pages_read_engagement: 'Leitura de engajamento da página',
     instagram_basic: 'Acesso básico ao Instagram',
     instagram_content_publish: 'Publicação de conteúdo no Instagram',
+    pages_manage_posts: 'Publicar posts na Página do Facebook',
   }
 
   async function loadIntegrations() {

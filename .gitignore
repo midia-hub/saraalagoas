@@ -53,3 +53,15 @@ package.json.vite-backup
 
 # TypeScript
 *.tsbuildinfo
+
+# Cursor / IDE
+.cursor
+
+# Testes e cobertura
+coverage
+.nyc_output
+
+# Chaves e segredos (nunca commitar)
+*.pem
+*.key
+config/*-service-account*.json

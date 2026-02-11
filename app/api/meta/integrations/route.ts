@@ -21,6 +21,7 @@ export async function GET(request: NextRequest) {
       'pages_read_engagement',
       'instagram_basic',
       'instagram_content_publish',
+      'pages_manage_posts',
     ]
 
     const { data: raw, error } = await db

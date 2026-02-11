@@ -6,11 +6,13 @@
 
 const META_API_VERSION = 'v21.0'
 const META_API_BASE = `https://graph.facebook.com/${META_API_VERSION}`
+/** Scopes necessários para publicar no Instagram e no Facebook (Page). */
 const REQUIRED_INSTAGRAM_PUBLISH_SCOPES = [
   'pages_show_list',
   'pages_read_engagement',
   'instagram_basic',
   'instagram_content_publish',
+  'pages_manage_posts', // obrigatório para publicar fotos/post na Página do Facebook
 ]
 
 // ============================================================
@@ -570,7 +572,9 @@ export async function publishInstagramMediaWithRetry(params: {
 }
 
 /**
- * Cria um container filho para usar em carrossel (múltiplas imagens)
+ * Cria um container filho para usar em carrossel (múltiplas imagens).
+ * Documentação: image_url + is_carousel_item (sem media_type; a API infere IMAGE pela URL).
+ * Envio em application/x-www-form-urlencoded conforme exemplos da doc Meta.
  */
 export async function createInstagramCarouselItemContainer(params: {
   igUserId: string
@@ -579,20 +583,18 @@ export async function createInstagramCarouselItemContainer(params: {
 }): Promise<{ id: string }> {
   const { igUserId, imageUrl, accessToken } = params
 
-  const body: Record<string, string | boolean> = {
+  const body = new URLSearchParams({
     image_url: imageUrl,
-    is_carousel_item: true,
+    is_carousel_item: 'true',
     access_token: accessToken,
-  }
-  // A API do Meta exige media_type explícito: IMAGE para foto, VIDEO para vídeo (apenas esses são aceitos no carrossel).
-  body.media_type = 'IMAGE'
+  })
 
   const response = await fetch(
     `${META_API_BASE}/${igUserId}/media`,
     {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body.toString(),
     }
   )
 
