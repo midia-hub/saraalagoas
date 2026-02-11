@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getAccessSnapshotFromRequest, hasPermission } from '@/lib/rbac'
 import { supabaseServer } from '@/lib/supabase-server'
 
+export const dynamic = 'force-dynamic'
+
 /**
  * GET /api/admin/app-permissions
  * Lista todas as funções nomeadas (app_permissions) do sistema

@@ -35,6 +35,16 @@ type StoredDraft = {
   updatedAt: string
 }
 
+/** Formato que pode vir do JSON (drafts antigos podem ter url/thumbnailUrl) */
+type ParsedMediaItem = {
+  id: string
+  url?: string
+  thumbnailUrl?: string
+  filename?: string
+  cropMode?: CropMode
+  altText?: string
+}
+
 const EMPTY_DRAFT = (albumId: string): PostDraft => ({
   albumId,
   selectedInstanceIds: [],
@@ -71,13 +81,13 @@ function toStoredDraft(draft: PostDraft): StoredDraft {
 function parseDraft(raw: string | null, albumId: string): PostDraft {
   if (!raw) return EMPTY_DRAFT(albumId)
   try {
-    const data = JSON.parse(raw) as Partial<StoredDraft> & { destination?: { facebook?: boolean; instagram?: boolean }; media?: Array<{ id: string; url?: string; thumbnailUrl?: string; filename?: string; cropMode?: CropMode; altText?: string }> }
+    const data = JSON.parse(raw) as Partial<StoredDraft> & { destination?: { facebook?: boolean; instagram?: boolean }; media?: ParsedMediaItem[] }
     if (!data || data.albumId !== albumId) return EMPTY_DRAFT(albumId)
     const selectedInstanceIds = Array.isArray(data.selectedInstanceIds) ? data.selectedInstanceIds : []
     const text = typeof data.text === 'string' ? data.text : ''
     const updatedAt = typeof data.updatedAt === 'string' ? data.updatedAt : new Date().toISOString()
     const media = Array.isArray(data.media)
-      ? data.media.map((m) => {
+      ? (data.media as ParsedMediaItem[]).map((m) => {
           const { url, thumbnailUrl } = galleryUrls(m.id)
           return {
             id: m.id,
