@@ -220,6 +220,11 @@ export default function AlbumPostCreatePage() {
                 <p className="mt-2 text-xs text-amber-700">
                   Conecte ou reconecte a conta em <strong>Instâncias (Meta)</strong> no menu ao lado para liberar as postagens.
                 </p>
+                {publishFailureReasons.some((r) => r.includes('pages_manage_posts')) && (
+                  <p className="mt-2 text-xs text-amber-800">
+                    Para publicar no <strong>Facebook</strong>, o app Meta precisa da permissão <code className="rounded bg-amber-100 px-1">pages_manage_posts</code>. Adicione no app em developers.facebook.com → seu app → Configurações do app → Básico → Permissões e solicite a Revisão do app se necessário.
+                  </p>
+                )}
                 <Link
                   href="/admin/instancias"
                   className="mt-3 inline-flex items-center gap-2 rounded-lg bg-[#c62737] px-4 py-2 text-sm font-medium text-white hover:bg-[#a01f2d]"

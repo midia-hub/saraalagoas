@@ -579,11 +579,13 @@ export async function createInstagramCarouselItemContainer(params: {
 }): Promise<{ id: string }> {
   const { igUserId, imageUrl, accessToken } = params
 
-  const body = {
+  const body: Record<string, string | boolean> = {
     image_url: imageUrl,
     is_carousel_item: true,
     access_token: accessToken,
   }
+  // A API do Meta exige media_type explícito: IMAGE para foto, VIDEO para vídeo (apenas esses são aceitos no carrossel).
+  body.media_type = 'IMAGE'
 
   const response = await fetch(
     `${META_API_BASE}/${igUserId}/media`,
