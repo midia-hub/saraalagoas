@@ -57,33 +57,21 @@ export async function GET(request: NextRequest) {
 
     const instances: Array<Record<string, unknown>> = []
 
-    // Instância Instagram (Meta OAuth) — só quando autorização de postagem ok
-    if (row.instagram_business_account_id && row.page_access_token) {
+    // Instância Meta unificada (Instagram + Facebook) — usuário escolhe destino depois
+    if ((row.instagram_business_account_id || row.page_id) && row.page_access_token) {
+      const name = row.instagram_username
+        ? `${row.page_name || 'Conta Meta'} (@${row.instagram_username})`
+        : (row.page_name || 'Conta Meta')
+      
       instances.push({
-        id: `meta_ig:${row.id}`,
-        name: row.instagram_username
-          ? `${row.page_name || 'Instagram'} (@${row.instagram_username})`
-          : (row.page_name || 'Instagram'),
-        provider: 'instagram',
+        id: `meta_ig:${row.id}`, // Mantém formato meta_ig para compatibilidade
+        name,
+        provider: 'meta', // Provider agora é 'meta' para indicar ambos disponíveis
         access_token: '(gerenciado via Meta OAuth)',
         ig_user_id: row.instagram_business_account_id,
-        token_expires_at: row.token_expires_at,
-        status: 'connected',
-        created_at: row.created_at,
-        updated_at: row.updated_at,
-        read_only: true,
-        source: 'meta',
-      })
-    }
-
-    // Instância Facebook (Meta OAuth) — mesmo token, mesma validação
-    if (row.page_id && row.page_access_token) {
-      instances.push({
-        id: `meta_fb:${row.id}`,
-        name: `${row.page_name || 'Página do Facebook'} (Facebook)`,
-        provider: 'facebook',
-        access_token: '(gerenciado via Meta OAuth)',
-        ig_user_id: row.page_id,
+        page_id: row.page_id,
+        has_instagram: !!row.instagram_business_account_id,
+        has_facebook: !!row.page_id,
         token_expires_at: row.token_expires_at,
         status: 'connected',
         created_at: row.created_at,
@@ -101,13 +89,22 @@ export async function GET(request: NextRequest) {
 
   const metaList = forPosting ? metaInstances : (metaRows || []).flatMap((row: (typeof metaRows)[number]) => {
     const instances: Array<Record<string, unknown>> = []
-    if (row.instagram_business_account_id && row.page_access_token) {
+    
+    // Para listagem geral, retorna instância unificada
+    if ((row.instagram_business_account_id || row.page_id) && row.page_access_token) {
+      const name = row.instagram_username
+        ? `${row.page_name || 'Conta Meta'} (@${row.instagram_username})`
+        : (row.page_name || 'Conta Meta')
+      
       instances.push({
         id: `meta_ig:${row.id}`,
-        name: row.instagram_username ? `${row.page_name || 'Instagram'} (@${row.instagram_username})` : (row.page_name || 'Instagram'),
-        provider: 'instagram',
+        name,
+        provider: 'meta',
         access_token: '(gerenciado via Meta OAuth)',
         ig_user_id: row.instagram_business_account_id,
+        page_id: row.page_id,
+        has_instagram: !!row.instagram_business_account_id,
+        has_facebook: !!row.page_id,
         token_expires_at: row.token_expires_at,
         status: 'connected',
         created_at: row.created_at,
@@ -116,28 +113,13 @@ export async function GET(request: NextRequest) {
         source: 'meta',
       })
     }
-    if (row.page_id && row.page_access_token) {
-      instances.push({
-        id: `meta_fb:${row.id}`,
-        name: `${row.page_name || 'Página do Facebook'} (Facebook)`,
-        provider: 'facebook',
-        access_token: '(gerenciado via Meta OAuth)',
-        ig_user_id: row.page_id,
-        token_expires_at: row.token_expires_at,
-        status: 'connected',
-        created_at: row.created_at,
-        updated_at: row.updated_at,
-        read_only: true,
-        source: 'meta',
-      })
-    }
+    
     return instances
   })
 
   let scopedMetaList = metaList
-  if (instagramOnly) {
-    scopedMetaList = scopedMetaList.filter((instance) => instance.provider === 'instagram')
-  }
+  // instagramOnly agora não filtra porque provider é 'meta' (ambos disponíveis)
+  // O frontend controla via checkboxes de destinations
 
   return NextResponse.json(scopedMetaList)
 }

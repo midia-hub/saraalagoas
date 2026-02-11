@@ -4,6 +4,8 @@ import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { getFileDownloadBuffer } from '@/lib/drive'
 import {
   createInstagramMediaContainer,
+  createInstagramCarouselItemContainer,
+  createInstagramCarouselContainer,
   publishInstagramMediaWithRetry,
   waitForInstagramMediaContainerReady,
 } from '@/lib/meta'
@@ -88,6 +90,62 @@ async function publishFacebookImage(params: {
   return response.json()
 }
 
+async function publishFacebookMultipleImages(params: {
+  pageId: string
+  pageAccessToken: string
+  imageUrls: string[]
+  message: string
+}): Promise<{ id: string }> {
+  const { pageId, pageAccessToken, imageUrls, message } = params
+
+  // Primeiro, fazer upload de cada foto sem publicar (published=false)
+  const attachedMediaIds: string[] = []
+
+  for (const imageUrl of imageUrls) {
+    const body = new URLSearchParams({
+      url: imageUrl,
+      published: 'false',
+      access_token: pageAccessToken,
+    })
+
+    const response = await fetch(`${META_API_BASE}/${pageId}/photos`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body.toString(),
+    })
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({ error: { message: 'Falha ao fazer upload da foto' } }))
+      throw new Error(`Facebook photo upload failed: ${err.error?.message || response.statusText}`)
+    }
+
+    const result = await response.json()
+    attachedMediaIds.push(result.id)
+  }
+
+  // Criar o post com todas as fotos anexadas
+  const attachedMedia = attachedMediaIds.map((id) => ({ media_fbid: id }))
+
+  const postBody = {
+    message: message || '',
+    attached_media: attachedMedia,
+    access_token: pageAccessToken,
+  }
+
+  const postResponse = await fetch(`${META_API_BASE}/${pageId}/feed`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(postBody),
+  })
+
+  if (!postResponse.ok) {
+    const err = await postResponse.json().catch(() => ({ error: { message: 'Falha ao criar post no Facebook' } }))
+    throw new Error(`Facebook feed post failed: ${err.error?.message || postResponse.statusText}`)
+  }
+
+  return postResponse.json()
+}
+
 /**
  * Publicação a partir da galeria. Cria draft, assets (source_url = drive:fileId) e jobs na fila.
  * Para não perder qualidade: ao processar, o job usa a imagem original (Drive) e envia para a rede.
@@ -101,6 +159,12 @@ export async function POST(request: NextRequest) {
   const instanceIds = Array.isArray(body.instanceIds)
     ? (body.instanceIds as string[]).filter((id): id is string => typeof id === 'string')
     : []
+  const destinations = body.destinations && typeof body.destinations === 'object'
+    ? { 
+        instagram: Boolean(body.destinations.instagram), 
+        facebook: Boolean(body.destinations.facebook) 
+      }
+    : { instagram: true, facebook: false }
   const text = typeof body.text === 'string' ? body.text : ''
   const mediaEdits = Array.isArray(body.mediaEdits) ? body.mediaEdits : []
 
@@ -112,6 +176,9 @@ export async function POST(request: NextRequest) {
   }
   if (mediaEdits.length === 0) {
     return NextResponse.json({ error: 'Selecione ao menos uma mídia para publicar.' }, { status: 400 })
+  }
+  if (!destinations.instagram && !destinations.facebook) {
+    return NextResponse.json({ error: 'Selecione ao menos Instagram ou Facebook como destino.' }, { status: 400 })
   }
 
   const db = createSupabaseServerClient(request)
@@ -125,10 +192,34 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Nenhuma mídia válida (id de arquivo obrigatório).' }, { status: 400 })
   }
 
-  const metaSelections = instanceIds
-    .map((id) => parseMetaSelection(id))
-    .filter((v): v is MetaSelection => !!v)
-  const legacyInstanceIds = instanceIds.filter((id) => !parseMetaSelection(id))
+  // Extrair IDs de integração e criar seleções baseadas em destinations
+  const integrationIds = instanceIds
+    .filter((id) => id.startsWith('meta_ig:') || id.startsWith('meta_fb:'))
+    .map((id) => {
+      if (id.startsWith('meta_ig:')) return id.slice('meta_ig:'.length).trim()
+      if (id.startsWith('meta_fb:')) return id.slice('meta_fb:'.length).trim()
+      return ''
+    })
+    .filter(Boolean)
+  
+  const uniqueIntegrationIds = Array.from(new Set(integrationIds))
+  
+  // Criar seleções Meta baseadas nos destinations
+  const metaSelections: MetaSelection[] = []
+  for (const integrationId of uniqueIntegrationIds) {
+    if (destinations.instagram) {
+      metaSelections.push({ type: 'instagram', integrationId })
+    }
+    if (destinations.facebook) {
+      metaSelections.push({ type: 'facebook', integrationId })
+    }
+  }
+  
+  console.log('[publish] Destinations:', destinations)
+  console.log('[publish] Meta Selections:', metaSelections)
+  console.log('[publish] Integration IDs:', uniqueIntegrationIds)
+  
+  const legacyInstanceIds = instanceIds.filter((id) => !id.startsWith('meta_ig:') && !id.startsWith('meta_fb:'))
   if (legacyInstanceIds.length > 0) {
     return NextResponse.json(
       { error: 'Somente integrações Meta são aceitas para publicação.' },
@@ -284,10 +375,15 @@ export async function POST(request: NextRequest) {
     }
 
     const firstImageUrl = mediaUrls[0]
+    const isMultipleImages = mediaUrls.length > 1
+
     for (const selection of availableMetaSelections) {
       const instanceId = selection.type === 'instagram'
         ? `meta_ig:${selection.integrationId}`
         : `meta_fb:${selection.integrationId}`
+      
+      console.log(`[publish] Processing ${selection.type} for integration ${selection.integrationId}`)
+      
       try {
         const integration = map.get(selection.integrationId)
         if (!integration) throw new Error('Integração Meta não encontrada.')
@@ -297,34 +393,95 @@ export async function POST(request: NextRequest) {
           if (!integration.instagram_business_account_id) {
             throw new Error('Integração sem conta Instagram Business vinculada.')
           }
-          const container = await createInstagramMediaContainer({
-            igUserId: integration.instagram_business_account_id,
-            imageUrl: firstImageUrl,
-            caption: text || '',
-            accessToken: integration.page_access_token,
-          })
-          if (!container?.id) {
-            throw new Error('Meta create container failed: ID do container não retornado.')
+
+          // Validar limite do Instagram (atualizado para 20 em 2026)
+          if (mediaUrls.length > 20) {
+            throw new Error('Instagram permite no máximo 20 imagens por post.')
           }
+
+          let containerId: string
+
+          if (isMultipleImages) {
+            // Criar carrossel com múltiplas imagens
+            const childContainerIds: string[] = []
+
+            // Criar container filho para cada imagem
+            for (const imageUrl of mediaUrls) {
+              const childContainer = await createInstagramCarouselItemContainer({
+                igUserId: integration.instagram_business_account_id,
+                imageUrl,
+                accessToken: integration.page_access_token,
+              })
+              if (!childContainer?.id) {
+                throw new Error('Falha ao criar container filho do carrossel.')
+              }
+              childContainerIds.push(childContainer.id)
+            }
+
+            // Criar container de carrossel
+            const carouselContainer = await createInstagramCarouselContainer({
+              igUserId: integration.instagram_business_account_id,
+              childContainerIds,
+              caption: text || '',
+              accessToken: integration.page_access_token,
+            })
+            if (!carouselContainer?.id) {
+              throw new Error('Falha ao criar container de carrossel.')
+            }
+            containerId = carouselContainer.id
+          } else {
+            // Post simples com uma única imagem
+            const container = await createInstagramMediaContainer({
+              igUserId: integration.instagram_business_account_id,
+              imageUrl: firstImageUrl,
+              caption: text || '',
+              accessToken: integration.page_access_token,
+            })
+            if (!container?.id) {
+              throw new Error('Meta create container failed: ID do container não retornado.')
+            }
+            containerId = container.id
+          }
+
           await waitForInstagramMediaContainerReady({
-            containerId: container.id,
+            containerId,
             accessToken: integration.page_access_token,
           })
           await publishInstagramMediaWithRetry({
             igUserId: integration.instagram_business_account_id,
-            creationId: container.id,
+            creationId: containerId,
             accessToken: integration.page_access_token,
           })
         } else {
+          // Facebook
+          console.log(`[publish] Publishing to Facebook page ${integration.page_id}`)
+          
           if (!integration.page_id) throw new Error('Integração sem página do Facebook.')
-          await publishFacebookImage({
-            pageId: integration.page_id,
-            pageAccessToken: integration.page_access_token,
-            imageUrl: firstImageUrl,
-            message: text || '',
-          })
+          
+          if (isMultipleImages) {
+            // Publicar múltiplas imagens no Facebook
+            console.log(`[publish] Publishing ${mediaUrls.length} images to Facebook`)
+            const result = await publishFacebookMultipleImages({
+              pageId: integration.page_id,
+              pageAccessToken: integration.page_access_token,
+              imageUrls: mediaUrls,
+              message: text || '',
+            })
+            console.log(`[publish] Facebook post created:`, result.id)
+          } else {
+            // Publicar única imagem no Facebook
+            console.log(`[publish] Publishing single image to Facebook`)
+            const result = await publishFacebookImage({
+              pageId: integration.page_id,
+              pageAccessToken: integration.page_access_token,
+              imageUrl: firstImageUrl,
+              message: text || '',
+            })
+            console.log(`[publish] Facebook post created:`, result.id)
+          }
         }
 
+        console.log(`[publish] ${selection.type} published successfully`)
         metaResults.push({ instanceId, provider: selection.type, ok: true })
       } catch (e) {
         metaResults.push({
@@ -345,14 +502,34 @@ export async function POST(request: NextRequest) {
     message += `Post enviado para fila em ${jobCount} instância(s) legado. `
   }
   if (metaResults.length > 0) {
+    const platformsPublished = []
+    if (destinations.instagram && metaResults.some(r => r.provider === 'instagram' && r.ok)) {
+      platformsPublished.push('Instagram')
+    }
+    if (destinations.facebook && metaResults.some(r => r.provider === 'facebook' && r.ok)) {
+      platformsPublished.push('Facebook')
+    }
+    
     message += `Publicação Meta: ${metaSuccess} sucesso(s), ${metaFailed} falha(s). `
+    if (platformsPublished.length > 0) {
+      message += `Publicado em: ${platformsPublished.join(' e ')}. `
+    }
     if (mediaFileIds.length > 1) {
-      message += 'No fluxo Meta direto, foi usada a primeira mídia selecionada.'
+      message += `${mediaFileIds.length} ${mediaFileIds.length === 1 ? 'imagem' : 'imagens'}.`
+    } else {
+      message += '1 imagem.'
     }
   }
   if (!message) {
     message = 'Nenhuma instância válida encontrada para publicação.'
   }
+
+  console.log('[publish] Final results:', {
+    metaSuccess,
+    metaFailed,
+    metaResults,
+    destinations,
+  })
 
   return NextResponse.json({
     ok: metaFailed === 0,
@@ -360,5 +537,7 @@ export async function POST(request: NextRequest) {
     draftId,
     jobCount,
     metaResults,
+    mediaCount: mediaFileIds.length,
+    destinations, // Retornar para debug no frontend
   })
 }

@@ -463,11 +463,11 @@ accept: {
 }
 
 // Número de arquivos
-maxFiles: 10
+maxFiles: 20
 
-// Limite Instagram
-if (hasInstagram && media.length > 10) {
-  throw new Error('Instagram: máx 10 imagens')
+// Limite Instagram (atualizado em 2026)
+if (hasInstagram && media.length > 20) {
+  throw new Error('Instagram: máx 20 imagens')
 }
 ```
 

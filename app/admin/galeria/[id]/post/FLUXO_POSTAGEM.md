@@ -22,7 +22,7 @@ import { ImageUploader } from './_components/ImageUploader'
 
 <ImageUploader
   onDrop={(files) => handleUpload(files)}
-  maxFiles={10}
+  maxFiles={20}
   disabled={false}
 />
 ```
@@ -214,7 +214,7 @@ Na página `/admin/galeria/[id]/post/create`:
 
 ## ⚠️ Limitações
 
-1. **Instagram**: Máximo de 10 imagens por post
+1. **Instagram**: Máximo de 20 imagens por post
 2. **Formatos aceitos**: JPG, JPEG, PNG, GIF, WEBP
 3. **Drag-and-drop**: Requer movimento mínimo de 8px para ativar
 
@@ -235,7 +235,7 @@ const CROP_OPTIONS = [
 
 **ImageUploader.tsx** - Limite de arquivos:
 ```typescript
-maxFiles={10} // Altere conforme necessário
+maxFiles={20} // Limite do Instagram (atualizado em 2026)
 ```
 
 ---

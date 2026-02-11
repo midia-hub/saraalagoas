@@ -8,7 +8,14 @@ export type PostDraft = {
   albumId: string
   /** IDs das instâncias (ex.: Instagram) selecionadas para publicar */
   selectedInstanceIds: string[]
+  /** Destinos selecionados: Instagram e/ou Facebook */
+  destinations?: {
+    instagram: boolean
+    facebook: boolean
+  }
   text: string
+  /** Usernames (@) de colaboradores a serem convidados (manual no Instagram) */
+  collaborators?: string[]
   media: Array<{
     id: string
     url: string
@@ -25,7 +32,12 @@ export type PostDraft = {
 type StoredDraft = {
   albumId: string
   selectedInstanceIds: string[]
+  destinations?: {
+    instagram: boolean
+    facebook: boolean
+  }
   text: string
+  collaborators?: string[]
   media: Array<{
     id: string
     filename?: string
@@ -48,7 +60,12 @@ type ParsedMediaItem = {
 const EMPTY_DRAFT = (albumId: string): PostDraft => ({
   albumId,
   selectedInstanceIds: [],
+  destinations: {
+    instagram: true,
+    facebook: false,
+  },
   text: '',
+  collaborators: [],
   media: [],
   updatedAt: new Date().toISOString(),
 })
@@ -67,7 +84,9 @@ function toStoredDraft(draft: PostDraft): StoredDraft {
   return {
     albumId: draft.albumId,
     selectedInstanceIds: draft.selectedInstanceIds,
+    destinations: draft.destinations || { instagram: true, facebook: false },
     text: draft.text.length > 50000 ? draft.text.slice(0, 50000) : draft.text,
+    collaborators: draft.collaborators || [],
     media: draft.media.map((m) => ({
       id: m.id,
       filename: m.filename,
@@ -84,7 +103,14 @@ function parseDraft(raw: string | null, albumId: string): PostDraft {
     const data = JSON.parse(raw) as Partial<StoredDraft> & { destination?: { facebook?: boolean; instagram?: boolean }; media?: ParsedMediaItem[] }
     if (!data || data.albumId !== albumId) return EMPTY_DRAFT(albumId)
     const selectedInstanceIds = Array.isArray(data.selectedInstanceIds) ? data.selectedInstanceIds : []
+    const destinations = data.destinations && typeof data.destinations === 'object'
+      ? { 
+          instagram: Boolean(data.destinations.instagram), 
+          facebook: Boolean(data.destinations.facebook) 
+        }
+      : { instagram: true, facebook: false }
     const text = typeof data.text === 'string' ? data.text : ''
+    const collaborators = Array.isArray(data.collaborators) ? data.collaborators : []
     const updatedAt = typeof data.updatedAt === 'string' ? data.updatedAt : new Date().toISOString()
     const media = Array.isArray(data.media)
       ? (data.media as ParsedMediaItem[]).map((m) => {
@@ -102,7 +128,9 @@ function parseDraft(raw: string | null, albumId: string): PostDraft {
     return {
       albumId,
       selectedInstanceIds,
+      destinations,
       text,
+      collaborators,
       media,
       updatedAt,
     }

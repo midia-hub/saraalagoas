@@ -10,7 +10,7 @@ type ImageUploaderProps = {
   disabled?: boolean
 }
 
-export function ImageUploader({ onDrop, maxFiles = 10, disabled = false }: ImageUploaderProps) {
+export function ImageUploader({ onDrop, maxFiles = 20, disabled = false }: ImageUploaderProps) {
   const handleDrop = useCallback(
     (acceptedFiles: File[]) => {
       onDrop(acceptedFiles)

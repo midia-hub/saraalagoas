@@ -102,11 +102,16 @@ export function DirectUploadExample() {
     setEditingMedia(mediaItem)
   }
 
-  const handleApplyEdit = (updatedMedia: DraftMedia) => {
+  const handleApplyEdit = (updatedMedia: DraftMedia, options?: { switchToMediaId?: string }) => {
     setMedia((prev) =>
       prev.map((item) => (item.id === updatedMedia.id ? updatedMedia : item))
     )
-    setEditingMedia(null)
+    if (options?.switchToMediaId) {
+      const nextMedia = media.find((m) => m.id === options.switchToMediaId)
+      if (nextMedia) setEditingMedia(nextMedia)
+    } else {
+      setEditingMedia(null)
+    }
   }
 
   const handleRemove = (mediaId: string) => {
@@ -127,7 +132,7 @@ export function DirectUploadExample() {
         </h2>
         <ImageUploader
           onDrop={handleDrop}
-          maxFiles={10}
+          maxFiles={20}
           disabled={uploading}
         />
         {uploading && (
@@ -157,8 +162,15 @@ export function DirectUploadExample() {
       <EditPhotoModal
         open={!!editingMedia}
         media={editingMedia}
+        allMedia={media}
         onClose={() => setEditingMedia(null)}
         onApply={handleApplyEdit}
+        onSwitchMedia={(mediaId) => {
+          const nextMedia = media.find((m) => m.id === mediaId)
+          if (nextMedia) {
+            setEditingMedia(nextMedia)
+          }
+        }}
       />
 
       {/* Lightbox para visualização */}

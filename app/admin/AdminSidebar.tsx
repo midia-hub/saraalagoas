@@ -39,6 +39,7 @@ const primaryLinks = [
 
 const instagramLinks = [
   { href: '/admin/instagram/posts', label: 'Painel de publicações' },
+  { href: '/admin/instagram/collaboration', label: 'Convites de Colaboração' },
 ] as const
 
 // Conexão via OAuth Meta (Facebook/Instagram) — fluxo principal

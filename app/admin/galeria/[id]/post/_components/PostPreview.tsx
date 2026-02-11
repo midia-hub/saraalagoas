@@ -10,11 +10,15 @@ export type SocialInstance = {
   name: string
   provider: string
   status: string
+  has_instagram?: boolean
+  has_facebook?: boolean
 }
 
 type PostPreviewProps = {
-  /** Instâncias selecionadas pelo usuário (define qual prévia mostrar) */
+  /** Instâncias selecionadas pelo usuário (exibe mensagem se vazio) */
   selectedInstances: SocialInstance[]
+  /** Destinos marcados pelo usuário (Instagram/Facebook) — define qual prévia mostrar. Se não informado, tenta inferir pelas instâncias (provider ou has_instagram/has_facebook). */
+  destinations?: { instagram: boolean; facebook: boolean }
   /** Nome da página/conta para exibir no card */
   pageName: string
   text: string
@@ -139,14 +143,29 @@ function GridFeedPreview({
   )
 }
 
+function getHasInstagram(instances: SocialInstance[], destinations?: { instagram: boolean; facebook: boolean }): boolean {
+  if (destinations) return destinations.instagram
+  return instances.some(
+    (i) => i.provider === 'instagram' || (i.provider === 'meta' && i.has_instagram !== false)
+  )
+}
+
+function getHasFacebook(instances: SocialInstance[], destinations?: { instagram: boolean; facebook: boolean }): boolean {
+  if (destinations) return destinations.facebook
+  return instances.some(
+    (i) => i.provider === 'facebook' || (i.provider === 'meta' && i.has_facebook !== false)
+  )
+}
+
 export function PostPreview({
   selectedInstances,
+  destinations,
   pageName,
   text,
   media,
 }: PostPreviewProps) {
-  const hasInstagram = selectedInstances.some((i) => i.provider === 'instagram')
-  const hasFacebook = selectedInstances.some((i) => i.provider === 'facebook')
+  const hasInstagram = getHasInstagram(selectedInstances, destinations)
+  const hasFacebook = getHasFacebook(selectedInstances, destinations)
   const onlyInstagram = hasInstagram && !hasFacebook
   const onlyFacebook = hasFacebook && !hasInstagram
 

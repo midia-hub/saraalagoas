@@ -43,6 +43,11 @@ export default function AlbumPostCreatePage() {
       .catch(() => setInstances([]))
   }, [])
 
+  const selectedInstances = useMemo(() => {
+    const set = new Set(draft.selectedInstanceIds)
+    return instances.filter((i) => set.has(i.id))
+  }, [instances, draft.selectedInstanceIds])
+
   useEffect(() => {
     if (!ready || instances.length === 0 || draft.selectedInstanceIds.length === 0) return
     const available = new Set(instances.map((instance) => instance.id))
@@ -56,6 +61,43 @@ export default function AlbumPostCreatePage() {
     setNotice((prev) => prev ?? 'Algumas contas selecionadas não estão mais disponíveis e foram removidas.')
   }, [ready, instances, draft.selectedInstanceIds, patchDraft])
 
+  // Ajustar destinations baseado na conta selecionada
+  useEffect(() => {
+    if (!ready || selectedInstances.length === 0) return
+
+    const selectedInstance = selectedInstances[0]
+    const hasInstagram = selectedInstance.has_instagram !== false
+    const hasFacebook = selectedInstance.has_facebook !== false
+
+    // Ajustar destinations para refletir o que está disponível
+    const currentDestinations = draft.destinations || { instagram: true, facebook: false }
+    let needsUpdate = false
+    const newDestinations = { ...currentDestinations }
+
+    // Se Instagram não está disponível mas está marcado, desmarcar
+    if (!hasInstagram && currentDestinations.instagram) {
+      newDestinations.instagram = false
+      needsUpdate = true
+    }
+
+    // Se Facebook não está disponível mas está marcado, desmarcar
+    if (!hasFacebook && currentDestinations.facebook) {
+      newDestinations.facebook = false
+      needsUpdate = true
+    }
+
+    // Garantir que pelo menos um está marcado
+    if (!newDestinations.instagram && !newDestinations.facebook) {
+      if (hasInstagram) newDestinations.instagram = true
+      else if (hasFacebook) newDestinations.facebook = true
+      needsUpdate = true
+    }
+
+    if (needsUpdate) {
+      patchDraft({ destinations: newDestinations })
+    }
+  }, [ready, selectedInstances, draft.destinations, patchDraft])
+
   useEffect(() => {
     if (!ready) return
     if (draft.media.length === 0) {
@@ -63,18 +105,15 @@ export default function AlbumPostCreatePage() {
     }
   }, [ready, draft.media.length, albumId, router])
 
-  const selectedInstances = useMemo(() => {
-    const set = new Set(draft.selectedInstanceIds)
-    return instances.filter((i) => set.has(i.id))
-  }, [instances, draft.selectedInstanceIds])
-
-  const hasInstagramSelected = selectedInstances.some((i) => i.provider === 'instagram')
+  const hasInstagramDestination = draft.destinations?.instagram || false
+  const hasFacebookDestination = draft.destinations?.facebook || false
+  
   const instagramLimitError = useMemo(() => {
-    if (hasInstagramSelected && draft.media.length > 10) {
-      return 'Para Instagram, o limite é de 10 mídias por post.'
+    if (hasInstagramDestination && draft.media.length > 20) {
+      return 'Para Instagram, o limite é de 20 mídias por post.'
     }
     return null
-  }, [hasInstagramSelected, draft.media.length])
+  }, [hasInstagramDestination, draft.media.length])
 
   function updateMedia(mediaId: string, updater: (item: PostDraft['media'][number]) => PostDraft['media'][number]) {
     patchDraft({
@@ -98,31 +137,46 @@ export default function AlbumPostCreatePage() {
       setError('Selecione uma conta liberada em "Postar em".')
       return
     }
+    if (!hasInstagramDestination && !hasFacebookDestination) {
+      setError('Selecione ao menos Instagram ou Facebook como destino.')
+      return
+    }
     if (instagramLimitError) {
       setError(instagramLimitError)
       return
     }
     setPublishing(true)
     try {
+      const payload = {
+        albumId,
+        instanceIds: draft.selectedInstanceIds,
+        destinations: draft.destinations || { instagram: true, facebook: false },
+        text: draft.text,
+        mediaEdits: draft.media.map((item) => ({
+          id: item.id,
+          cropMode: item.cropMode || 'original',
+          altText: item.altText || '',
+        })),
+      }
+      
+      console.log('[DEBUG] Publishing with payload:', payload)
+      console.log('[DEBUG] Destinations:', payload.destinations)
+      
       const res = await adminFetchJson<{
         message?: string
         draftId?: string
         jobCount?: number
         ok?: boolean
         metaResults?: Array<{ instanceId: string; provider: string; ok: boolean; error?: string }>
+        destinations?: { instagram: boolean; facebook: boolean }
       }>('/api/social/publish', {
         method: 'POST',
-        body: JSON.stringify({
-          albumId,
-          instanceIds: draft.selectedInstanceIds,
-          text: draft.text,
-          mediaEdits: draft.media.map((item) => ({
-            id: item.id,
-            cropMode: item.cropMode || 'original',
-            altText: item.altText || '',
-          })),
-        }),
+        body: JSON.stringify(payload),
       })
+      
+      console.log('[DEBUG] Publish response:', res)
+      console.log('[DEBUG] Meta results:', res?.metaResults)
+      
       setNotice(res?.message ?? 'Post enviado. Confira no Painel de publicações.')
       const failed = (res?.metaResults ?? []).filter((r) => !r.ok && r.error)
       if (failed.length > 0) {
@@ -180,12 +234,44 @@ export default function AlbumPostCreatePage() {
           <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-red-700">{error}</div>
         )}
 
+        {/* Debug Panel - Remover em produção */}
+        {process.env.NODE_ENV === 'development' && selectedInstances.length > 0 && (
+          <details className="mt-4">
+            <summary className="cursor-pointer text-xs text-slate-500 hover:text-slate-700">
+              🔍 Debug Info (clique para expandir)
+            </summary>
+            <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs font-mono space-y-2">
+              <div>
+                <strong>Conta selecionada:</strong>
+                <pre className="mt-1 text-slate-700">{JSON.stringify(selectedInstances[0], null, 2)}</pre>
+              </div>
+              <div>
+                <strong>Destinations:</strong>
+                <pre className="mt-1 text-slate-700">{JSON.stringify(draft.destinations, null, 2)}</pre>
+              </div>
+              <div>
+                <strong>Instance IDs:</strong>
+                <pre className="mt-1 text-slate-700">{JSON.stringify(draft.selectedInstanceIds, null, 2)}</pre>
+              </div>
+              <div>
+                <strong>Checkboxes:</strong>
+                <p className="mt-1 text-slate-700">
+                  Instagram: {hasInstagramDestination ? '✓' : '✗'} | 
+                  Facebook: {hasFacebookDestination ? '✓' : '✗'}
+                </p>
+              </div>
+            </div>
+          </details>
+        )}
+
         {ready && draft.media.length > 0 && (
           <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[1.5fr_1fr]">
             <PostComposer
               instances={instances}
               selectedInstanceIds={draft.selectedInstanceIds}
               onInstanceSelectionChange={(ids) => patchDraft({ selectedInstanceIds: ids })}
+              destinations={draft.destinations || { instagram: true, facebook: false }}
+              onDestinationsChange={(destinations) => patchDraft({ destinations })}
               text={draft.text}
               media={draft.media}
               onTextChange={(value) => patchDraft({ text: value })}
@@ -202,6 +288,7 @@ export default function AlbumPostCreatePage() {
 
             <PostPreview
               selectedInstances={selectedInstances}
+              destinations={draft.destinations || { instagram: true, facebook: false }}
               pageName={selectedInstances.length === 1 ? selectedInstances[0].name : 'Sara Alagoas'}
               text={draft.text}
               media={draft.media}
@@ -213,12 +300,23 @@ export default function AlbumPostCreatePage() {
       <EditPhotoModal
         open={!!editingMedia}
         media={editingMedia}
+        allMedia={draft.media}
         onClose={() => setEditingMedia(null)}
-        onApply={(next) => {
+        onApply={(next, options) => {
           updateMedia(next.id, () => next)
-          setEditingMedia(null)
+          if (options?.switchToMediaId) {
+            const nextMedia = draft.media.find((m) => m.id === options.switchToMediaId)
+            if (nextMedia) setEditingMedia(nextMedia)
+          } else {
+            setEditingMedia(null)
+          }
+        }}
+        onSwitchMedia={(mediaId) => {
+          const nextMedia = draft.media.find((m) => m.id === mediaId)
+          if (nextMedia) setEditingMedia(nextMedia)
         }}
       />
+
     </PageAccessGuard>
   )
 }
