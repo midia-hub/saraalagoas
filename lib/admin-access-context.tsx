@@ -1,7 +1,7 @@
 'use client'
 
 import { createContext, useContext } from 'react'
-import type { PermissionMap } from '@/lib/rbac'
+import type { PermissionMap } from '@/lib/rbac-types'
 
 export type AdminAccessContextValue = {
   loading: boolean
