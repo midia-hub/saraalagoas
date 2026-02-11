@@ -573,8 +573,8 @@ export async function publishInstagramMediaWithRetry(params: {
 
 /**
  * Cria um container filho para usar em carrossel (múltiplas imagens).
- * Documentação: image_url + is_carousel_item (sem media_type; a API infere IMAGE pela URL).
- * Envio em application/x-www-form-urlencoded conforme exemplos da doc Meta.
+ * Mesmo formato do container de imagem única (createInstagramMediaContainer): JSON com image_url.
+ * A API infere IMAGE pela presença de image_url; is_carousel_item=true indica que é item de carrossel.
  */
 export async function createInstagramCarouselItemContainer(params: {
   igUserId: string
@@ -583,24 +583,25 @@ export async function createInstagramCarouselItemContainer(params: {
 }): Promise<{ id: string }> {
   const { igUserId, imageUrl, accessToken } = params
 
-  const body = new URLSearchParams({
+  const body = {
     image_url: imageUrl,
-    is_carousel_item: 'true',
+    is_carousel_item: true,
     access_token: accessToken,
-  })
+  }
 
   const response = await fetch(
     `${META_API_BASE}/${igUserId}/media`,
     {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: body.toString(),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
     }
   )
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: { message: 'Failed to create carousel item' } }))
-    throw new Error(`Meta create carousel item failed: ${error.error?.message || response.statusText}`)
+    const err = await response.json().catch(() => ({ error: { message: response.statusText } }))
+    const msg = err?.error?.message || response.statusText
+    throw new Error(`Meta create carousel item failed: ${msg}`)
   }
 
   return response.json()

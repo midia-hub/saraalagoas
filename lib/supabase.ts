@@ -16,13 +16,9 @@ const GLOBAL_KEY = '__midia_igreja_supabase_client__'
 function getSupabaseClient(): SupabaseClient | null {
   if (typeof window !== 'undefined') {
     const g = window as unknown as Record<string, SupabaseClient | null | undefined>
-    if (g[GLOBAL_KEY] !== undefined) return g[GLOBAL_KEY] ?? null
-    const client =
-      supabaseUrl && supabaseAnonKey
-        ? createClient(supabaseUrl, supabaseAnonKey)
-        : null
-    g[GLOBAL_KEY] = client
-    return client
+    // Atribuição atômica: só cria se ainda não existir, evita "Multiple GoTrueClient instances"
+    g[GLOBAL_KEY] = g[GLOBAL_KEY] ?? (supabaseUrl && supabaseAnonKey ? createClient(supabaseUrl, supabaseAnonKey) : null)
+    return g[GLOBAL_KEY] ?? null
   }
   return supabaseUrl && supabaseAnonKey
     ? createClient(supabaseUrl, supabaseAnonKey)
