@@ -4,16 +4,21 @@ import { useEffect, useMemo, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { PageAccessGuard } from '@/app/admin/PageAccessGuard'
 import { adminFetchJson, getAccessTokenOrThrow } from '@/lib/admin-client'
+import { supabase } from '@/lib/supabase'
 
 type UploadType = 'culto' | 'evento'
 type WorshipService = { id: string; name: string }
 
-// Limite por imagem (MB). Use NEXT_PUBLIC_MAX_UPLOAD_MB no .env para alterar (ex.: 4 para Vercel).
-const MAX_MB = typeof process.env.NEXT_PUBLIC_MAX_UPLOAD_MB !== 'undefined'
-  ? Math.max(1, Math.min(50, parseInt(process.env.NEXT_PUBLIC_MAX_UPLOAD_MB, 10) || 10))
-  : 10
-const MAX_SIZE = MAX_MB * 1024 * 1024
+// Até este tamanho: upload direto para a API. Acima: vai para Supabase e depois a API envia ao Drive.
+const SIZE_THRESHOLD_DIRECT_MB = 4
+const SIZE_THRESHOLD_DIRECT = SIZE_THRESHOLD_DIRECT_MB * 1024 * 1024
+// Máximo quando usar Supabase (evita 413 na API; arquivo vai direto ao bucket).
+const MAX_SIZE_LARGE_MB = 50
+const MAX_SIZE_LARGE = MAX_SIZE_LARGE_MB * 1024 * 1024
+const MAX_MB = SIZE_THRESHOLD_DIRECT_MB // mensagens "até X MB" para o fluxo direto
+const MAX_SIZE = SIZE_THRESHOLD_DIRECT
 const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif']
+const BUCKET_TEMP = 'temp-gallery-uploads'
 
 const DAY_NAMES: Record<number, string> = { 0: 'Domingo', 2: 'Terça', 6: 'Sábado' }
 const SUGGESTED_WEEKDAYS = [0, 2, 6] // Domingo, Terça, Sábado
@@ -64,7 +69,9 @@ function uploadOneFile(
       if (xhr.status >= 200 && xhr.status < 300) resolve()
       else {
         if (xhr.status === 413) {
-          reject(new Error(`Arquivo muito grande (máx. ${MAX_MB} MB). Reduza o tamanho da imagem.`))
+          reject(new Error(
+            `Servidor recusou o tamanho (413). Arquivos acima de ${SIZE_THRESHOLD_DIRECT_MB} MB devem ir pelo Supabase. Faça deploy da versão mais recente e crie o bucket "temp-gallery-uploads" no Supabase.`
+          ))
           return
         }
         try {
@@ -85,6 +92,28 @@ function uploadOneFile(
     xhr.setRequestHeader('Authorization', `Bearer ${accessToken}`)
     xhr.send(formData)
   })
+}
+
+/** Upload de arquivo grande: envia ao bucket Supabase e a API envia ao Drive e remove do bucket. */
+async function uploadViaSupabase(
+  galleryId: string,
+  file: File,
+  userId: string,
+  onProgress: (percent: number) => void
+): Promise<void> {
+  if (!supabase) throw new Error('Supabase não configurado.')
+  const path = `${userId}/${crypto.randomUUID()}/${file.name.replace(/[/\\]/g, '_')}`
+  onProgress(10)
+  const { error: uploadError } = await supabase.storage
+    .from(BUCKET_TEMP)
+    .upload(path, file, { contentType: file.type || 'image/jpeg', upsert: false })
+  if (uploadError) throw new Error(uploadError.message || 'Falha ao enviar para o armazenamento.')
+  onProgress(60)
+  await adminFetchJson(`/api/gallery/${galleryId}/upload-from-storage`, {
+    method: 'POST',
+    body: JSON.stringify({ path }),
+  })
+  onProgress(100)
 }
 
 export default function AdminUploadPage() {
@@ -133,8 +162,8 @@ export default function AdminUploadPage() {
         setError('Tipo de arquivo não permitido. Use apenas imagens (PNG, JPEG, WebP ou GIF).')
         return
       }
-      if (file.size > MAX_SIZE) {
-        setError(`Cada arquivo deve ter no máximo ${MAX_MB} MB. Reduza o tamanho da imagem e tente novamente.`)
+      if (file.size > MAX_SIZE_LARGE) {
+        setError(`Cada arquivo deve ter no máximo ${MAX_SIZE_LARGE_MB} MB. Reduza o tamanho da imagem.`)
         return
       }
     }
@@ -155,6 +184,22 @@ export default function AdminUploadPage() {
 
     try {
       const accessToken = await getAccessTokenOrThrow()
+      let userId = ''
+      if (files.some((f) => f.size > SIZE_THRESHOLD_DIRECT)) {
+        if (!supabase) {
+          setError('Supabase não está configurado. Arquivos acima de 4 MB precisam do bucket temporário.')
+          setLoading(false)
+          return
+        }
+        const { data: { session } } = await supabase.auth.getSession()
+        userId = session?.user?.id ?? ''
+        if (!userId) {
+          setError('Sessão necessária para enviar arquivos grandes. Faça login novamente.')
+          setLoading(false)
+          return
+        }
+      }
+
       const prepareJson = await adminFetchJson<{ galleryId: string; galleryRoute: string }>('/api/gallery/prepare', {
         method: 'POST',
         body: JSON.stringify({
@@ -169,6 +214,8 @@ export default function AdminUploadPage() {
 
       const total = files.length
       for (let i = 0; i < files.length; i++) {
+        const file = files[i]
+        const useSupabase = file.size > SIZE_THRESHOLD_DIRECT
         setFileStatuses((prev) => {
           const next = [...prev]
           next[i] = { ...next[i], status: 'uploading', progress: 0 }
@@ -176,14 +223,25 @@ export default function AdminUploadPage() {
         })
         setOverallProgress(Math.round((i / total) * 100))
         try {
-          await uploadOneFile(galleryId, files[i], (percent) => {
-            setFileStatuses((prev) => {
-              const next = [...prev]
-              next[i] = { ...next[i], progress: percent }
-              return next
+          if (useSupabase) {
+            await uploadViaSupabase(galleryId, file, userId, (percent) => {
+              setFileStatuses((prev) => {
+                const next = [...prev]
+                next[i] = { ...next[i], progress: percent }
+                return next
+              })
+              setOverallProgress(Math.round(((i + percent / 100) / total) * 100))
             })
-            setOverallProgress(Math.round(((i + percent / 100) / total) * 100))
-          }, accessToken)
+          } else {
+            await uploadOneFile(galleryId, file, (percent) => {
+              setFileStatuses((prev) => {
+                const next = [...prev]
+                next[i] = { ...next[i], progress: percent }
+                return next
+              })
+              setOverallProgress(Math.round(((i + percent / 100) / total) * 100))
+            }, accessToken)
+          }
           setFileStatuses((prev) => {
             const next = [...prev]
             next[i] = { status: 'done', progress: 100 }
@@ -297,7 +355,7 @@ export default function AdminUploadPage() {
       {step === 2 && (
         <div className="mt-6 bg-white border border-slate-200 rounded-xl p-5">
           <label className="block text-sm font-medium text-slate-700 mb-2">Imagens (sem limite de quantidade)</label>
-          <p className="text-xs text-slate-500 mb-2">Cada imagem até {MAX_MB} MB. Formatos: PNG, JPEG, WebP ou GIF.</p>
+          <p className="text-xs text-slate-500 mb-2">Até {SIZE_THRESHOLD_DIRECT_MB} MB: envio direto. Até {MAX_SIZE_LARGE_MB} MB: envio via armazenamento temporário (Supabase). Formatos: PNG, JPEG, WebP ou GIF.</p>
           <input type="file" multiple accept={ALLOWED_TYPES.join(',')} onChange={(e) => handleSelectFiles(e.target.files)} />
 
           {files.length > 0 && !isUploading && (
@@ -389,12 +447,14 @@ export default function AdminUploadPage() {
                 {files.map((file, i) =>
                   fileStatuses[i]?.status === 'error' ? (
                     <li key={`err-${i}-${file.name}`}>
-                      <strong>{file.name}</strong>: {fileStatuses[i]?.error && !fileStatuses[i].error.includes('413') && !fileStatuses[i].error.includes('Payload') ? fileStatuses[i].error : `arquivo muito grande (máx. ${MAX_MB} MB). Reduza o tamanho da imagem.`}
+                      <strong>{file.name}</strong>: {fileStatuses[i]?.error && !fileStatuses[i].error.includes('413') && !fileStatuses[i].error.includes('Payload') ? fileStatuses[i].error : `arquivo muito grande (máx. ${MAX_SIZE_LARGE_MB} MB). Reduza o tamanho da imagem.`}
                     </li>
                   ) : null
                 )}
               </ul>
-              <p className="mt-2 text-xs text-amber-700">Dica: use imagens de até {MAX_MB} MB cada. Se o servidor recusar (erro 413), reduza o limite em .env (MAX_UPLOAD_MB e NEXT_PUBLIC_MAX_UPLOAD_MB).</p>
+              <p className="mt-2 text-xs text-amber-700">
+              Erro 413 = arquivo passou pelo servidor (limite ~4,5 MB). Na versão atual, arquivos acima de {SIZE_THRESHOLD_DIRECT_MB} MB vão direto ao Supabase e depois ao Drive. Faça deploy da versão mais recente e aplique a migration do bucket &quot;temp-gallery-uploads&quot; no Supabase.
+            </p>
             </div>
           )}
           <div className="mt-4 flex gap-2">

@@ -6,7 +6,8 @@ import { getSiteConfig } from '@/lib/site-config-server'
 import { requireAccess } from '@/lib/admin-api'
 
 const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif']
-const MAX_MB = process.env.MAX_UPLOAD_MB ? Math.max(1, Math.min(50, parseInt(process.env.MAX_UPLOAD_MB, 10) || 10)) : 10
+// Padrão 4 MB para evitar 413 em serverless. Defina MAX_UPLOAD_MB no .env se o servidor permitir mais.
+const MAX_MB = process.env.MAX_UPLOAD_MB ? Math.max(1, Math.min(50, parseInt(process.env.MAX_UPLOAD_MB, 10) || 4)) : 4
 const MAX_SIZE = MAX_MB * 1024 * 1024
 
 export async function POST(request: NextRequest) {
