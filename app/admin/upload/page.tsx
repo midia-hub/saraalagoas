@@ -91,7 +91,7 @@ export default function AdminUploadPage() {
   const [files, setFiles] = useState<File[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [successRoute, setSuccessRoute] = useState<string | null>(null)
+  const [successGalleryId, setSuccessGalleryId] = useState<string | null>(null)
   const [fileStatuses, setFileStatuses] = useState<Array<{ status: FileStatus; progress: number; error?: string }>>([])
   const [overallProgress, setOverallProgress] = useState(0)
 
@@ -122,11 +122,11 @@ export default function AdminUploadPage() {
     const next = [...files, ...picked]
     for (const file of picked) {
       if (!ALLOWED_TYPES.includes(file.type)) {
-        setError(`Arquivo inválido: ${file.name}`)
+        setError('Tipo de arquivo não permitido. Use apenas imagens (PNG, JPEG, WebP ou GIF).')
         return
       }
       if (file.size > MAX_SIZE) {
-        setError(`Arquivo ${file.name} excede 10MB.`)
+        setError('Cada arquivo deve ter no máximo 10 MB.')
         return
       }
     }
@@ -156,8 +156,8 @@ export default function AdminUploadPage() {
           ...(type === 'culto' ? { serviceId } : { eventName: eventName.trim() }),
         }),
       })
-      const { galleryId, galleryRoute } = prepareJson
-      setSuccessRoute(galleryRoute || null)
+      const { galleryId } = prepareJson
+      setSuccessGalleryId(galleryId || null)
 
       const total = files.length
       for (let i = 0; i < files.length; i++) {
@@ -194,7 +194,7 @@ export default function AdminUploadPage() {
       setOverallProgress(100)
       setStep(3)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Falha no envio.')
+      setError('Não foi possível enviar. Tente novamente.')
     } finally {
       setLoading(false)
     }
@@ -341,7 +341,7 @@ export default function AdminUploadPage() {
                         {status === 'pending' && 'Na fila'}
                         {status === 'uploading' && `${progress}%`}
                         {status === 'done' && 'Concluído'}
-                        {status === 'error' && (st?.error || 'Erro')}
+                        {status === 'error' && 'Falhou'}
                       </span>
                     </li>
                   )
@@ -380,25 +380,24 @@ export default function AdminUploadPage() {
                 {files.map((file, i) =>
                   fileStatuses[i]?.status === 'error' ? (
                     <li key={`err-${i}-${file.name}`}>
-                      <strong>{file.name}</strong>: {fileStatuses[i]?.error || 'Erro desconhecido'}
+                      <strong>{file.name}</strong>: não foi possível enviar
                     </li>
                   ) : null
                 )}
               </ul>
-              <p className="mt-2 text-amber-700 text-xs">Abra o Console do navegador (F12) para mais detalhes.</p>
             </div>
           )}
           <div className="mt-4 flex gap-2">
-            {successRoute && (
+            {successGalleryId && (
               <button
-                onClick={() => router.push(successRoute)}
+                onClick={() => router.push(`/admin/galeria/${successGalleryId}`)}
                 className="px-4 py-2 bg-[#c62737] text-white rounded-lg"
               >
-                Ver galeria criada
+                Ver álbum
               </button>
             )}
             <button
-              onClick={() => { setStep(1); setSuccessRoute(null); setFiles([]); setFileStatuses([]); setOverallProgress(0); }}
+              onClick={() => { setStep(1); setSuccessGalleryId(null); setFiles([]); setFileStatuses([]); setOverallProgress(0); }}
               className="px-4 py-2 border border-slate-300 rounded-lg"
             >
               Novo upload

@@ -65,7 +65,7 @@ export default function AdminInstagramPostNewPage() {
 
   async function handleNext() {
     if (!galleryId) {
-      setError('galleryId não encontrado na URL.')
+      setError('Álbum não encontrado. Volte e tente novamente.')
       return
     }
     if (selectedFiles.length < 1) {
@@ -92,7 +92,7 @@ export default function AdminInstagramPostNewPage() {
 
       router.push(`/admin/instagram/post/editor?draftId=${result.draft.id}`)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Erro ao criar rascunho.')
+      setError('Não foi possível criar o rascunho. Tente novamente.')
     } finally {
       setSaving(false)
     }

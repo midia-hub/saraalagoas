@@ -178,7 +178,7 @@ export default function AdminInstagramPostPublishPage() {
           setDraftId(activeDraftId)
           router.replace(`/admin/instagram/post/publish?draftId=${activeDraftId}`)
         } catch (e) {
-          setError(e instanceof Error ? e.message : 'Erro ao preparar mídia selecionada.')
+          setError('Não foi possível preparar as imagens. Tente novamente.')
           setLoading(false)
           setCreatingDraft(false)
           return
@@ -224,7 +224,7 @@ export default function AdminInstagramPostPublishPage() {
           }))
         setMedia(mediaRows)
       } catch (e) {
-        setError(e instanceof Error ? e.message : 'Erro ao carregar dados de publicação.')
+        setError('Não foi possível carregar os dados. Tente novamente.')
       } finally {
         setLoading(false)
       }
@@ -250,7 +250,7 @@ export default function AdminInstagramPostPublishPage() {
 
   async function persistEditedAssets(): Promise<void> {
     if (!draftId) throw new Error('Draft inválido para salvar edições.')
-    if (!supabase) throw new Error('Supabase não configurado para upload.')
+    if (!supabase) throw new Error('Serviço temporariamente indisponível.')
     if (!media.length) throw new Error('Nenhuma mídia selecionada para publicar.')
 
     setSavingEdits(true)
@@ -313,7 +313,7 @@ export default function AdminInstagramPostPublishPage() {
 
   async function handlePublish() {
     if (!draftId) {
-      setError('draftId não informado.')
+      setError('Rascunho inválido. Volte e tente novamente.')
       return
     }
     if (!instanceId) {
@@ -352,7 +352,7 @@ export default function AdminInstagramPostPublishPage() {
 
       router.push('/admin/instagram/posts')
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Falha ao criar job de publicação.')
+      setError('Não foi possível agendar a publicação. Tente novamente.')
     } finally {
       setPublishing(false)
     }

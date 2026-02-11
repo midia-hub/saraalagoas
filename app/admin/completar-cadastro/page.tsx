@@ -62,7 +62,7 @@ export default function CompletarCadastroPage() {
       return
     }
     if (!supabase) {
-      setError('Supabase não configurado.')
+      setError('Serviço temporariamente indisponível. Tente mais tarde.')
       return
     }
     setSubmitting(true)
@@ -75,16 +75,43 @@ export default function CompletarCadastroPage() {
         },
       })
       if (updateError) {
-        setError(updateError.message)
+        setError('Não foi possível salvar. Tente novamente.')
         setSubmitting(false)
         return
       }
       const basePath = typeof process.env.NEXT_PUBLIC_USE_BASEPATH === 'string' && process.env.NEXT_PUBLIC_USE_BASEPATH === 'true' ? '/saraalagoas' : ''
-      const isHttps = typeof window !== 'undefined' && window.location?.protocol === 'https:'
-      document.cookie = `admin_access=1; path=/; max-age=86400; SameSite=Lax${isHttps ? '; Secure' : ''}`
+      const session = (await supabase.auth.getSession()).data.session
+      const accessToken = session?.access_token
+      if (!accessToken) {
+        setError('Sessão inválida. Faça login novamente.')
+        setSubmitting(false)
+        return
+      }
+      const adminCheckRes = await fetch(`${basePath}/api/auth/admin-check`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accessToken }),
+      })
+      const adminCheckJson = await adminCheckRes.json().catch(() => ({}))
+      if (!adminCheckRes.ok || !adminCheckJson.canAccessAdmin) {
+        setError('Seu perfil não possui acesso ao painel. Entre em contato com um administrador.')
+        setSubmitting(false)
+        return
+      }
+      const setCookieRes = await fetch(`${basePath}/api/auth/set-admin-cookie`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accessToken }),
+        credentials: 'same-origin',
+      })
+      if (!setCookieRes.ok) {
+        setError('Erro ao definir sessão. Tente novamente.')
+        setSubmitting(false)
+        return
+      }
       window.location.replace(`${basePath}/admin`)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Erro ao salvar.')
+      setError('Não foi possível salvar. Tente novamente.')
       setSubmitting(false)
     }
   }
@@ -141,13 +168,14 @@ export default function CompletarCadastroPage() {
           <h1 className="text-2xl font-semibold text-slate-900">Completar cadastro</h1>
           <p className="mt-1 text-sm text-slate-600">Defina seu nome, usuário e senha para acessar o painel.</p>
         </div>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} method="post" action="#" autoComplete="on" className="space-y-4" data-form-type="other">
           <div>
-            <label htmlFor="nome" className="mb-1 block text-sm font-medium text-slate-700">
+            <label htmlFor="completar-nome" className="mb-1 block text-sm font-medium text-slate-700">
               Nome
             </label>
             <input
-              id="nome"
+              id="completar-nome"
+              name="nome"
               type="text"
               value={nome}
               onChange={(e) => setNome(e.target.value)}
@@ -158,11 +186,12 @@ export default function CompletarCadastroPage() {
             />
           </div>
           <div>
-            <label htmlFor="usuario" className="mb-1 block text-sm font-medium text-slate-700">
+            <label htmlFor="completar-usuario" className="mb-1 block text-sm font-medium text-slate-700">
               Usuário
             </label>
             <input
-              id="usuario"
+              id="completar-usuario"
+              name="usuario"
               type="text"
               value={usuario}
               onChange={(e) => setUsuario(e.target.value)}
@@ -172,11 +201,12 @@ export default function CompletarCadastroPage() {
             />
           </div>
           <div>
-            <label htmlFor="senha" className="mb-1 block text-sm font-medium text-slate-700">
+            <label htmlFor="completar-senha" className="mb-1 block text-sm font-medium text-slate-700">
               Senha
             </label>
             <input
-              id="senha"
+              id="completar-senha"
+              name="senha"
               type="password"
               value={senha}
               onChange={(e) => setSenha(e.target.value)}
@@ -185,14 +215,17 @@ export default function CompletarCadastroPage() {
               minLength={6}
               className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-[#c62737] focus:ring-2 focus:ring-[#c62737]/20"
               placeholder="Mínimo 6 caracteres"
+              data-lpignore="false"
+              data-1p-ignore="false"
             />
           </div>
           <div>
-            <label htmlFor="confirmarSenha" className="mb-1 block text-sm font-medium text-slate-700">
+            <label htmlFor="completar-confirmarSenha" className="mb-1 block text-sm font-medium text-slate-700">
               Confirmar senha
             </label>
             <input
-              id="confirmarSenha"
+              id="completar-confirmarSenha"
+              name="confirmarSenha"
               type="password"
               value={confirmarSenha}
               onChange={(e) => setConfirmarSenha(e.target.value)}
@@ -201,6 +234,8 @@ export default function CompletarCadastroPage() {
               minLength={6}
               className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-[#c62737] focus:ring-2 focus:ring-[#c62737]/20"
               placeholder="Repita a senha"
+              data-lpignore="false"
+              data-1p-ignore="false"
             />
           </div>
           {error && (

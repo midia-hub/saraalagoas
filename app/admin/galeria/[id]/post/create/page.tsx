@@ -26,6 +26,7 @@ export default function AlbumPostCreatePage() {
   const [instances, setInstances] = useState<SocialInstance[]>([])
   const [publishing, setPublishing] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
+  const [publishFailureReasons, setPublishFailureReasons] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
   const [editingMedia, setEditingMedia] = useState<PostDraft['media'][number] | null>(null)
 
@@ -74,6 +75,7 @@ export default function AlbumPostCreatePage() {
 
   async function handlePublish() {
     setNotice(null)
+    setPublishFailureReasons([])
     setError(null)
     if (draft.selectedInstanceIds.length === 0) {
       setError('Selecione ao menos uma conta em "Postar em".')
@@ -85,7 +87,13 @@ export default function AlbumPostCreatePage() {
     }
     setPublishing(true)
     try {
-      const res = await adminFetchJson<{ message?: string; draftId?: string; jobCount?: number }>('/api/social/publish', {
+      const res = await adminFetchJson<{
+        message?: string
+        draftId?: string
+        jobCount?: number
+        ok?: boolean
+        metaResults?: Array<{ instanceId: string; provider: string; ok: boolean; error?: string }>
+      }>('/api/social/publish', {
         method: 'POST',
         body: JSON.stringify({
           albumId,
@@ -99,8 +107,12 @@ export default function AlbumPostCreatePage() {
         }),
       })
       setNotice(res?.message ?? 'Post enviado. Confira no Painel de publicações.')
+      const failed = (res?.metaResults ?? []).filter((r) => !r.ok && r.error)
+      if (failed.length > 0) {
+        setPublishFailureReasons(failed.map((r) => r.error!).filter(Boolean))
+      }
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Falha ao publicar.')
+      setError('Não foi possível publicar. Tente novamente.')
     } finally {
       setPublishing(false)
     }
@@ -118,7 +130,34 @@ export default function AlbumPostCreatePage() {
         <p className="mt-1 text-slate-600">{album?.title || 'Álbum'} — editor de postagem.</p>
 
         {notice && (
-          <div className="mt-4 rounded-lg border border-green-200 bg-green-50 p-3 text-green-700">{notice}</div>
+          <div
+            className={`mt-4 rounded-lg border p-3 ${
+              publishFailureReasons.length > 0
+                ? 'border-amber-200 bg-amber-50 text-amber-800'
+                : 'border-green-200 bg-green-50 text-green-700'
+            }`}
+          >
+            <p>{notice}</p>
+            {publishFailureReasons.length > 0 && (
+              <div className="mt-3 border-t border-amber-200/60 pt-3">
+                <p className="font-medium text-amber-900">Motivo da falha na postagem:</p>
+                <ul className="mt-1 list-inside list-disc text-sm text-amber-900">
+                  {publishFailureReasons.map((reason, i) => (
+                    <li key={i}>{reason}</li>
+                  ))}
+                </ul>
+                <p className="mt-2 text-xs text-amber-700">
+                  Conecte ou reconecte a conta em <strong>Instâncias (Meta)</strong> no menu ao lado para liberar as postagens.
+                </p>
+                <Link
+                  href="/admin/instancias"
+                  className="mt-3 inline-flex items-center gap-2 rounded-lg bg-[#c62737] px-4 py-2 text-sm font-medium text-white hover:bg-[#a01f2d]"
+                >
+                  Ir para Instâncias (Meta) e conectar
+                </Link>
+              </div>
+            )}
+          </div>
         )}
         {error && (
           <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-red-700">{error}</div>

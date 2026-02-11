@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { UserPlus, Mail } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { adminFetchJson } from '@/lib/admin-client'
+import { Toast } from '@/components/Toast'
 
 type PageCatalog = {
   key: string
@@ -107,7 +108,7 @@ export function AdminUsers() {
     } catch (error) {
       setSavingMessage({
         type: 'err',
-        text: error instanceof Error ? error.message : 'Falha ao carregar usuários e perfis.',
+        text: 'Não foi possível carregar usuários e perfis. Tente novamente.',
       })
     } finally {
       setLoading(false)
@@ -128,7 +129,7 @@ export function AdminUsers() {
       return
     }
     if (!supabase) {
-      setInviteMessage({ type: 'err', text: 'Supabase não configurado.' })
+      setInviteMessage({ type: 'err', text: 'Serviço temporariamente indisponível. Tente mais tarde.' })
       return
     }
     setInviteLoading(true)
@@ -151,7 +152,7 @@ export function AdminUsers() {
       })
       const json = await res.json().catch(() => ({}))
       if (!res.ok) {
-        setInviteMessage({ type: 'err', text: json.message || json.error || 'Erro ao enviar convite.' })
+        setInviteMessage({ type: 'err', text: 'Não foi possível enviar o convite. Tente novamente.' })
         setInviteLoading(false)
         return
       }
@@ -159,7 +160,7 @@ export function AdminUsers() {
       setInviteEmail('')
       await loadRbacData()
     } catch (err) {
-      setInviteMessage({ type: 'err', text: 'Erro de rede. Verifique se a Edge Function admin-invite-user está publicada.' })
+      setInviteMessage({ type: 'err', text: 'Não foi possível enviar o convite. Tente novamente.' })
     } finally {
       setInviteLoading(false)
     }
@@ -179,7 +180,7 @@ export function AdminUsers() {
       setUsers((prev) => prev.map((user) => (user.id === userId ? { ...user, access_profile_id: profileId } : user)))
       setSavingMessage({ type: 'ok', text: 'Perfil do usuário atualizado.' })
     } catch (error) {
-      setSavingMessage({ type: 'err', text: error instanceof Error ? error.message : 'Falha ao atualizar usuário.' })
+      setSavingMessage({ type: 'err', text: 'Não foi possível atualizar. Tente novamente.' })
     }
   }
 
@@ -231,7 +232,7 @@ export function AdminUsers() {
       setSavingMessage({ type: 'ok', text: editingProfileId ? 'Perfil atualizado.' : 'Perfil criado com sucesso.' })
       await loadRbacData()
     } catch (error) {
-      setSavingMessage({ type: 'err', text: error instanceof Error ? error.message : 'Falha ao salvar perfil.' })
+      setSavingMessage({ type: 'err', text: 'Não foi possível salvar o perfil. Tente novamente.' })
     }
   }
 
@@ -245,7 +246,7 @@ export function AdminUsers() {
       setSavingMessage({ type: 'ok', text: 'Perfil removido.' })
       await loadRbacData()
     } catch (error) {
-      setSavingMessage({ type: 'err', text: error instanceof Error ? error.message : 'Falha ao remover perfil.' })
+      setSavingMessage({ type: 'err', text: 'Não foi possível remover o perfil. Tente novamente.' })
     }
   }
 
@@ -283,13 +284,8 @@ export function AdminUsers() {
             {inviteLoading ? 'Enviando...' : 'Enviar convite'}
           </button>
         </form>
-        {inviteMessage && (
-          <p className={`mt-3 text-sm ${inviteMessage.type === 'ok' ? 'text-green-700' : 'text-red-600'}`}>
-            {inviteMessage.text}
-          </p>
-        )}
         <p className="mt-3 text-xs text-gray-500">
-          Para que o convite funcione, é necessário publicar a Edge Function &quot;admin-invite-user&quot; no Supabase (veja README-ADMIN.md).
+          O convidado receberá um e-mail para definir a senha e acessar o painel.
         </p>
       </section>
 
@@ -452,11 +448,15 @@ export function AdminUsers() {
         )}
       </section>
 
-      {savingMessage && (
-        <p className={`${savingMessage.type === 'ok' ? 'text-green-700 bg-green-50' : 'text-red-700 bg-red-50'} p-3 rounded-lg`}>
-          {savingMessage.text}
-        </p>
-      )}
+      <Toast
+        visible={!!inviteMessage || !!savingMessage}
+        message={(savingMessage ?? inviteMessage)?.text ?? ''}
+        type={(savingMessage ?? inviteMessage)?.type ?? 'err'}
+        onClose={() => {
+          setInviteMessage(null)
+          setSavingMessage(null)
+        }}
+      />
     </div>
   )
 }

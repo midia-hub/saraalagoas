@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { MediaManager } from './MediaManager'
 import type { PostDraft } from '../_lib/usePostDraft'
 
@@ -61,26 +62,37 @@ export function PostComposer({
         <h2 className="text-lg font-semibold text-slate-900">Postar em</h2>
         <p className="mt-1 text-sm text-slate-600">Selecione uma ou mais contas para publicar.</p>
         {instances.length === 0 ? (
-          <p className="mt-3 text-sm text-amber-700">Nenhuma instância cadastrada. Cadastre em Instagram → Instâncias.</p>
+          <p className="mt-3 text-sm text-amber-700">
+            Nenhuma conta conectada. Conecte em <strong>Instâncias (Meta)</strong> no menu para publicar.
+          </p>
         ) : (
-          <div className="mt-3 flex flex-wrap gap-2">
-            {instances.map((inst) => (
-              <label
-                key={inst.id}
-                className={`inline-flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition ${
-                  selectedSet.has(inst.id) ? 'border-[#c62737] bg-[#c62737]/5' : 'border-slate-200 hover:bg-slate-50'
-                }`}
-              >
-                <input
-                  type="checkbox"
-                  checked={selectedSet.has(inst.id)}
-                  onChange={() => toggleInstance(inst.id)}
-                  className="rounded border-slate-300 text-[#c62737] focus:ring-[#c62737]"
-                />
-                <span className="font-medium text-slate-800">{inst.name}</span>
-                <span className="rounded bg-slate-200 px-1.5 py-0.5 text-xs text-slate-600">{inst.provider}</span>
-              </label>
-            ))}
+          <div className="mt-3 space-y-3">
+            <div className="flex flex-wrap gap-2">
+              {instances.map((inst) => (
+                <label
+                  key={inst.id}
+                  className={`inline-flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition ${
+                    selectedSet.has(inst.id) ? 'border-[#c62737] bg-[#c62737]/5' : 'border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedSet.has(inst.id)}
+                    onChange={() => toggleInstance(inst.id)}
+                    className="rounded border-slate-300 text-[#c62737] focus:ring-[#c62737]"
+                  />
+                  <span className="font-medium text-slate-800">{inst.name}</span>
+                  <span className="rounded bg-slate-200 px-1.5 py-0.5 text-xs text-slate-600">{inst.provider}</span>
+                </label>
+              ))}
+            </div>
+            <p className="text-xs text-slate-500">
+              Problemas ao publicar? Conecte ou reconecte em{' '}
+              <Link href="/admin/instancias" className="font-medium text-[#c62737] hover:underline">
+                Instâncias (Meta)
+              </Link>
+              .
+            </p>
           </div>
         )}
       </section>

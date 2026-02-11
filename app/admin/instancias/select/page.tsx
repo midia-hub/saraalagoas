@@ -49,7 +49,7 @@ export default function AdminInstanciasSelectPage() {
 
   useEffect(() => {
     if (!integrationId) {
-      setError('integration_id ausente na URL')
+      setError('Link inválido. Volte à página de instâncias.')
       setLoading(false)
       return
     }
@@ -63,7 +63,7 @@ export default function AdminInstanciasSelectPage() {
         )
         setPages(data.pages || [])
       } catch (e) {
-        setError(e instanceof Error ? e.message : 'Erro ao carregar páginas.')
+        setError('Não foi possível carregar as páginas. Tente novamente.')
         setPages([])
       } finally {
         setLoading(false)
@@ -101,7 +101,7 @@ export default function AdminInstanciasSelectPage() {
       }
     } catch (e) {
       setSelecting(false)
-      setError(e instanceof Error ? e.message : 'Erro ao selecionar página.')
+      setError('Não foi possível selecionar a página. Tente novamente.')
     }
   }
 
@@ -123,7 +123,7 @@ export default function AdminInstanciasSelectPage() {
       }
     } catch (e) {
       setUnlinking(false)
-      setError(e instanceof Error ? e.message : 'Erro ao desvincular.')
+      setError('Não foi possível desvincular. Tente novamente.')
     }
   }
 
@@ -132,7 +132,7 @@ export default function AdminInstanciasSelectPage() {
       <PageAccessGuard pageKey="instagram">
         <div className="p-6 md:p-8">
           <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-700">
-            <p>Parâmetro integration_id ausente. Volte para a página de instâncias.</p>
+            <p>Link inválido. Volte para a página de instâncias.</p>
             <button
               onClick={() => router.push('/admin/instancias')}
               className="mt-3 inline-flex items-center gap-2 text-sm underline"

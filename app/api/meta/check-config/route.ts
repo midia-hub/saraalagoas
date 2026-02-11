@@ -58,7 +58,6 @@ export async function GET() {
       META_REDIRECT_URI: redirectUri
         ? {
             set: true,
-            value: redirectUri,
             isHttps: redirectUri.startsWith('https://'),
             isLocalhost: isLocalhostRedirect,
           }

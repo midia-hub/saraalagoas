@@ -42,7 +42,7 @@ export default function AdminInstanciasPage() {
       const data = await adminFetchJson<{ integrations: MetaIntegration[] }>('/api/meta/integrations?all=1')
       setIntegrations(data.integrations || [])
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Erro ao carregar integrações.')
+      setError('Não foi possível carregar as integrações. Tente novamente.')
       setIntegrations([])
     } finally {
       setLoading(false)
@@ -82,7 +82,7 @@ export default function AdminInstanciasPage() {
       setTimeout(() => loadIntegrations(), 800)
       router.replace('/admin/instancias')
     } else if (errorParam) {
-      setError(errorDesc || (errorParam === 'oauth_failed' ? 'Falha ao conectar. Veja os logs no Vercel (Deployments → Logs) filtrando por "Meta OAuth".' : 'Erro ao conectar conta Meta'))
+      setError(errorDesc || 'Não foi possível conectar a conta. Tente novamente.')
       router.replace('/admin/instancias')
     }
   }, [searchParams, router])
@@ -119,8 +119,7 @@ export default function AdminInstanciasPage() {
         setConnecting(false)
         if (msg.error) {
           setError(
-            msg.errorDescription ||
-            (msg.error === 'oauth_failed' ? 'Falha ao conectar. Veja os logs no Vercel (Deployments → Logs) filtrando por "Meta OAuth".' : 'Erro ao conectar conta Meta')
+            msg.errorDescription || 'Não foi possível conectar a conta. Tente novamente.'
           )
         } else if (msg.connected) {
           const n = msg.count ? Number(msg.count) : 0
@@ -150,7 +149,8 @@ export default function AdminInstanciasPage() {
       window.addEventListener('message', handleMessage)
     } catch (e) {
       setConnecting(false)
-      setError(e instanceof Error ? e.message : 'Erro ao iniciar conexão.')
+      const msg = e instanceof Error ? e.message : null
+      setError(msg && msg !== 'Erro 500' ? msg : 'Não foi possível iniciar a conexão. Verifique as configurações do servidor (Meta) e tente novamente.')
     }
   }
 
@@ -163,7 +163,7 @@ export default function AdminInstanciasPage() {
       })
       await loadIntegrations()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Erro ao atualizar integração.')
+      setError('Não foi possível atualizar. Tente novamente.')
     }
   }
 
@@ -185,7 +185,7 @@ export default function AdminInstanciasPage() {
       setSuccess('Conta desvinculada da lista. Ela continua disponível ao escolher onde postar.')
       await loadIntegrations()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Erro ao desvincular conta.')
+      setError('Não foi possível desvincular. Tente novamente.')
     } finally {
       setUnlinking(false)
     }
@@ -206,7 +206,7 @@ export default function AdminInstanciasPage() {
       setSuccess('Conta revinculada. Ela voltou à lista de integrações.')
       await loadIntegrations()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Erro ao revincular.')
+      setError('Não foi possível revincular. Tente novamente.')
     } finally {
       setRevinkingId(null)
     }
@@ -257,7 +257,7 @@ export default function AdminInstanciasPage() {
         <header className="mb-6">
           <h1 className="text-2xl font-bold text-slate-900">Instâncias (Meta)</h1>
           <p className="text-slate-600 mt-1">
-            Conecte contas do Facebook/Instagram via OAuth para publicar e gerenciar mensagens.
+            Conecte aqui sua conta do Facebook/Instagram para liberar as postagens no Instagram. Faça o login com a conta que administra a página e o perfil do Instagram.
           </p>
         </header>
 
@@ -275,11 +275,11 @@ export default function AdminInstanciasPage() {
           </div>
         )}
 
-        {/* Botão conectar */}
-        <div className="mb-6 rounded-xl border border-slate-200 bg-white p-5">
-          <h2 className="text-lg font-semibold text-slate-900 mb-3">Nova conexão</h2>
+        {/* Login / Conectar Instagram e Facebook */}
+        <div className="mb-6 rounded-xl border-2 border-[#c62737]/20 bg-white p-5">
+          <h2 className="text-lg font-semibold text-slate-900 mb-2">Conectar Instagram e Facebook</h2>
           <p className="text-slate-600 text-sm mb-4">
-            Conecte uma conta Meta (Facebook) e selecione uma página. Para usar <strong>outras páginas da mesma conta</strong>, use &quot;Adicionar outra página&quot; em cada integração abaixo.
+            Faça o login com a conta Meta (Facebook) que administra a página e o perfil do Instagram. Depois de conectar aqui, as contas aparecerão em &quot;Postar em&quot; ao criar um post na Galeria.
           </p>
           <button
             onClick={handleConnect}
@@ -289,15 +289,18 @@ export default function AdminInstanciasPage() {
             {connecting ? (
               <>
                 <Loader2 size={18} className="animate-spin" />
-                Conectando...
+                Abrindo login...
               </>
             ) : (
               <>
                 <Facebook size={18} />
-                Conectar conta Meta
+                Conectar conta (login Meta / Instagram)
               </>
             )}
           </button>
+          <p className="mt-3 text-xs text-slate-500">
+            Para usar outras páginas da mesma conta, use &quot;Adicionar outra página&quot; na integração abaixo.
+          </p>
         </div>
 
         {/* Resumo: contas disponíveis para postagem */}

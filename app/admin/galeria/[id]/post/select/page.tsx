@@ -54,7 +54,7 @@ export default function AlbumPostSelectPage() {
         setFiles(Array.isArray(fileData) ? fileData : [])
       })
       .catch((e) => {
-        setError(e instanceof Error ? e.message : 'Erro ao carregar fotos do álbum.')
+        setError('Não foi possível carregar as fotos. Tente novamente.')
         setFiles([])
       })
       .finally(() => setLoading(false))

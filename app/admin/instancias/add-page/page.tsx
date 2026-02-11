@@ -53,7 +53,7 @@ export default function AdminInstanciasAddPage() {
         setPages(allPages)
         setExistingPageIds(connectedIds)
       } catch (e) {
-        setError(e instanceof Error ? e.message : 'Erro ao carregar páginas.')
+        setError('Não foi possível carregar as páginas. Tente novamente.')
         setPages([])
       } finally {
         setLoading(false)
@@ -77,7 +77,7 @@ export default function AdminInstanciasAddPage() {
       router.push('/admin/instancias?connected=1')
     } catch (e) {
       setAdding(false)
-      setError(e instanceof Error ? e.message : 'Erro ao adicionar página.')
+      setError('Não foi possível adicionar a página. Tente novamente.')
     }
   }
 

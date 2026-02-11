@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import { GaleriaLoading } from '@/components/GaleriaLoading'
 import { PageAccessGuard } from '@/app/admin/PageAccessGuard'
 import { useAdminAccess } from '@/lib/admin-access-context'
@@ -30,6 +30,7 @@ function imageUrl(fileId: string, mode: 'thumb' | 'full' = 'full'): string {
 
 export default function AdminGaleriaAlbumPage() {
   const params = useParams<{ id: string }>()
+  const router = useRouter()
   const id = params?.id
   const { permissions, isAdmin } = useAdminAccess()
   const canDeletePhotos = isAdmin || !!permissions.galeria?.delete
@@ -42,6 +43,8 @@ export default function AdminGaleriaAlbumPage() {
   const [lightboxImageLoading, setLightboxImageLoading] = useState(true)
   const [fileToDelete, setFileToDelete] = useState<GalleryFile | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [showDeleteAlbumModal, setShowDeleteAlbumModal] = useState(false)
+  const [deletingAlbum, setDeletingAlbum] = useState(false)
 
   useEffect(() => {
     if (selected) setLightboxImageLoading(true)
@@ -63,7 +66,7 @@ export default function AdminGaleriaAlbumPage() {
         setFiles(Array.isArray(list) ? list : [])
       })
       .catch((e) => {
-        setError(e instanceof Error ? e.message : 'Erro ao carregar álbum.')
+        setError('Não foi possível carregar o álbum. Tente novamente.')
         setGallery(null)
         setFiles([])
       })
@@ -79,8 +82,8 @@ export default function AdminGaleriaAlbumPage() {
         setFiles((prev) => prev.filter((f) => f.id !== file.id))
         setSelected(null)
         setFileToDelete(null)
-      } catch (e) {
-        alert(e instanceof Error ? e.message : 'Erro ao excluir imagem.')
+      } catch {
+        alert('Não foi possível excluir a imagem.')
       } finally {
         setDeletingId(null)
       }
@@ -95,6 +98,20 @@ export default function AdminGaleriaAlbumPage() {
   const closeDeleteModal = useCallback(() => {
     if (!deletingId) setFileToDelete(null)
   }, [deletingId])
+
+  const handleConfirmDeleteAlbum = useCallback(async () => {
+    if (!id || !canDeletePhotos || deletingAlbum) return
+    setDeletingAlbum(true)
+    try {
+      await adminFetchJson(`/api/gallery/${id}`, { method: 'DELETE' })
+      setShowDeleteAlbumModal(false)
+      router.push('/admin/galeria')
+    } catch {
+      alert('Não foi possível excluir o álbum. Ele pode estar vinculado a publicações.')
+    } finally {
+      setDeletingAlbum(false)
+    }
+  }, [id, canDeletePhotos, deletingAlbum, router])
 
   if (loading) {
     return (
@@ -151,6 +168,19 @@ export default function AdminGaleriaAlbumPage() {
           >
             Fazer postagem
           </Link>
+          {canDeletePhotos && (
+            <button
+              type="button"
+              onClick={() => setShowDeleteAlbumModal(true)}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 bg-white px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-50"
+              title="Excluir álbum"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              Excluir álbum
+            </button>
+          )}
         </div>
 
         <div className="mt-6 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
@@ -196,7 +226,59 @@ export default function AdminGaleriaAlbumPage() {
           <p className="text-slate-500">Nenhuma foto neste álbum ainda.</p>
         )}
 
-        {/* Modal de confirmação de exclusão */}
+        {/* Modal de confirmação de exclusão do álbum */}
+        {showDeleteAlbumModal && (
+          <div
+            className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+            onClick={() => !deletingAlbum && setShowDeleteAlbumModal(false)}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-album-modal-title"
+          >
+            <div
+              className="w-full max-w-md rounded-2xl bg-white shadow-xl p-6"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-start gap-4">
+                <div className="flex-shrink-0 w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
+                  <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h2 id="delete-album-modal-title" className="text-lg font-semibold text-slate-900">
+                    Excluir álbum inteiro?
+                  </h2>
+                  <p className="mt-1 text-sm text-slate-600">
+                    <span className="font-medium text-slate-700">{gallery.title}</span>
+                    <br />
+                    Todas as {files.length} foto(s) serão removidas do álbum. Esta ação não pode ser desfeita.
+                  </p>
+                </div>
+              </div>
+              <div className="mt-6 flex flex-row-reverse gap-3">
+                <button
+                  type="button"
+                  onClick={handleConfirmDeleteAlbum}
+                  disabled={deletingAlbum}
+                  className="px-4 py-2.5 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {deletingAlbum ? 'Excluindo...' : 'Excluir álbum'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => !deletingAlbum && setShowDeleteAlbumModal(false)}
+                  disabled={deletingAlbum}
+                  className="px-4 py-2.5 rounded-lg border border-slate-300 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50 disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal de confirmação de exclusão de imagem */}
         {fileToDelete && (
           <div
             className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
