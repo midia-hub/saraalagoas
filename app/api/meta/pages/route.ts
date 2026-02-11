@@ -25,15 +25,11 @@ export async function GET(request: NextRequest) {
       .from('meta_integrations')
       .select('*')
       .eq('id', integrationId)
+      .eq('created_by', access.snapshot.userId)
       .single()
 
     if (error || !integration) {
       return NextResponse.json({ error: 'Integração não encontrada' }, { status: 404 })
-    }
-
-    // Verificar se é do usuário ou se é admin
-    if (integration.created_by !== access.snapshot.userId && !access.snapshot.isAdmin) {
-      return NextResponse.json({ error: 'Acesso negado' }, { status: 403 })
     }
 
     // Listar páginas usando o access_token da integração

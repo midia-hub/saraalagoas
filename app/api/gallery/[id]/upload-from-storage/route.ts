@@ -21,6 +21,7 @@ export async function POST(
     if (!access.ok) return access.response
 
     const userId = access.snapshot.userId
+    const uploadedByName = access.snapshot.displayName ?? access.snapshot.email ?? null
     if (!userId) {
       return NextResponse.json({ error: 'Usuário não identificado.' }, { status: 401 })
     }
@@ -80,6 +81,8 @@ export async function POST(
       thumbnail_link: uploadedFile.thumbnailLink ?? null,
       mime_type: uploadedFile.mimeType,
       created_time: uploadedFile.createdTime ?? null,
+      uploaded_by_user_id: userId,
+      uploaded_by_name: uploadedByName,
     })
 
     if (insertError) {

@@ -13,7 +13,11 @@ export function PageAccessGuard({
 }) {
   const router = useRouter()
   const access = useAdminAccess()
-  const allowed = access.isAdmin || !!access.permissions[pageKey]?.view
+  // Dashboard (página inicial) é acessível a todos os usuários do painel
+  const allowed =
+    access.isAdmin ||
+    !!access.permissions[pageKey]?.view ||
+    pageKey === 'dashboard'
 
   useEffect(() => {
     if (!access.loading && !allowed) {

@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { Settings, Users, Upload, Image as ImageIcon } from 'lucide-react'
+import { Settings, Users, Upload, Image as ImageIcon, Instagram, Link2 } from 'lucide-react'
 import { useAdminAccess } from '@/lib/admin-access-context'
 import { PageAccessGuard } from '@/app/admin/PageAccessGuard'
 
@@ -10,6 +10,8 @@ const cards = [
   { href: '/admin/usuarios', label: 'Usuários', icon: Users, desc: 'Convidar e gerenciar acessos', permission: 'usuarios' },
   { href: '/admin/upload', label: 'Upload Cultos/Eventos', icon: Upload, desc: 'Fluxo em etapas + Google Drive', permission: 'upload' },
   { href: '/admin/galeria', label: 'Galerias', icon: ImageIcon, desc: 'Lista e filtros de galerias', permission: 'galeria' },
+  { href: '/admin/instancias', label: 'Instâncias (Meta)', icon: Link2, desc: 'Conectar Facebook/Instagram', permission: 'instagram' },
+  { href: '/admin/instagram/posts', label: 'Publicações Instagram', icon: Instagram, desc: 'Acompanhar fila e posts', permission: 'instagram' },
 ]
 
 export default function AdminPage() {
@@ -24,21 +26,27 @@ export default function AdminPage() {
       <div className="p-6 md:p-8">
         <h1 className="text-2xl font-bold text-slate-900 mb-2">Painel administrativo</h1>
         <p className="text-slate-600 mb-8">Escolha uma seção abaixo para começar.</p>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {visibleCards.map(({ href, label, icon: Icon, desc }) => (
-            <Link
-              key={href}
-              href={href}
-              className="bg-white rounded-xl p-6 shadow-sm border border-slate-200 hover:border-[#c62737]/40 hover:shadow-md transition-all flex flex-col"
-            >
-              <div className="w-11 h-11 rounded-lg bg-[#c62737]/10 flex items-center justify-center mb-4">
-                <Icon className="text-[#c62737]" size={22} />
-              </div>
-              <h2 className="font-semibold text-slate-900 mb-1">{label}</h2>
-              <p className="text-sm text-slate-500">{desc}</p>
-            </Link>
-          ))}
-        </div>
+        {visibleCards.length > 0 ? (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {visibleCards.map(({ href, label, icon: Icon, desc }) => (
+              <Link
+                key={href}
+                href={href}
+                className="bg-white rounded-xl p-6 shadow-sm border border-slate-200 hover:border-[#c62737]/40 hover:shadow-md transition-all flex flex-col"
+              >
+                <div className="w-11 h-11 rounded-lg bg-[#c62737]/10 flex items-center justify-center mb-4">
+                  <Icon className="text-[#c62737]" size={22} />
+                </div>
+                <h2 className="font-semibold text-slate-900 mb-1">{label}</h2>
+                <p className="text-sm text-slate-500">{desc}</p>
+              </Link>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-xl border border-slate-200 bg-white p-6 text-slate-600">
+            Seu perfil não possui páginas disponíveis neste painel no momento. Se precisar, solicite acesso a um administrador.
+          </div>
+        )}
       </div>
     </PageAccessGuard>
   )

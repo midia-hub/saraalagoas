@@ -1,32 +1,24 @@
 import { createClient } from '@supabase/supabase-js'
 import type { NextRequest } from 'next/server'
 import { supabaseServer } from '@/lib/supabase-server'
+import type {
+  AccessSnapshot,
+  PermissionAction,
+  PermissionMap,
+  PermissionSet,
+  Role,
+  UserPermissionRow,
+} from '@/lib/rbac-types'
+import { type AppPermissionCode, APP_PERMISSION_CODES } from '@/lib/rbac-types'
 
-export type PermissionAction = 'view' | 'create' | 'edit' | 'delete'
+// ============================================================
+// TIPOS INTERNOS (para o sistema legado e transição)
+// ============================================================
 
-export type PermissionSet = {
-  view: boolean
-  create: boolean
-  edit: boolean
-  delete: boolean
-}
-
-export type PermissionMap = Record<string, PermissionSet>
-
-export type AccessProfile = {
+type AccessProfile = {
   id: string
   name: string
   description: string
-  isAdmin: boolean
-}
-
-export type AccessSnapshot = {
-  userId: string
-  email: string | null
-  role: string | null
-  profile: AccessProfile
-  permissions: PermissionMap
-  canAccessAdmin: boolean
   isAdmin: boolean
 }
 
@@ -42,6 +34,8 @@ type ProfileRow = {
   role?: string | null
   email?: string | null
   access_profile_id?: string | null
+  role_id?: string | null
+  roles?: Role | null
   access_profiles?:
     | {
         id: string
@@ -60,25 +54,68 @@ type ProfileRow = {
     | null
 }
 
-const ADMIN_PAGE_KEYS = ['dashboard', 'configuracoes', 'upload', 'galeria', 'usuarios', 'perfis', 'instagram']
+const ADMIN_PAGE_KEYS = [
+  'dashboard',
+  'configuracoes',
+  'upload',
+  'galeria',
+  'usuarios',
+  'perfis',
+  'roles',
+  'instagram',
+  'facebook',
+  'meta',
+  'cultos',
+]
 
 const LEGACY_ADMIN_PERMISSIONS: PermissionMap = {
-  dashboard: { view: true, create: true, edit: true, delete: true },
-  configuracoes: { view: true, create: true, edit: true, delete: true },
-  upload: { view: true, create: true, edit: true, delete: true },
-  galeria: { view: true, create: true, edit: true, delete: true },
-  usuarios: { view: true, create: true, edit: true, delete: true },
-  perfis: { view: true, create: true, edit: true, delete: true },
+  dashboard: { view: true, create: true, edit: true, delete: true, manage: true },
+  configuracoes: { view: true, create: true, edit: true, delete: true, manage: true },
+  upload: { view: true, create: true, edit: true, delete: true, manage: true },
+  galeria: { view: true, create: true, edit: true, delete: true, manage: true },
+  usuarios: { view: true, create: true, edit: true, delete: true, manage: true },
+  perfis: { view: true, create: true, edit: true, delete: true, manage: true },
+  roles: { view: true, create: true, edit: true, delete: true, manage: true },
+  instagram: { view: true, create: true, edit: true, delete: true, manage: true },
+  facebook: { view: true, create: true, edit: true, delete: true, manage: true },
+  meta: { view: true, create: true, edit: true, delete: true, manage: true },
+  cultos: { view: true, create: true, edit: true, delete: true, manage: true },
 }
 
 const LEGACY_VIEWER_PERMISSIONS: PermissionMap = {
-  dashboard: { view: true, create: false, edit: false, delete: false },
+  dashboard: { view: true, create: false, edit: false, delete: false, manage: false },
 }
 
 const LEGACY_EDITOR_PERMISSIONS: PermissionMap = {
-  dashboard: { view: true, create: false, edit: false, delete: false },
-  galeria: { view: true, create: false, edit: true, delete: false },
-  instagram: { view: true, create: true, edit: true, delete: false },
+  dashboard: { view: true, create: false, edit: false, delete: false, manage: false },
+  galeria: { view: true, create: false, edit: true, delete: false, manage: false },
+  instagram: { view: true, create: true, edit: true, delete: false, manage: false },
+}
+
+/**
+ * Mapeamento: código da função nomeada → recurso + ação
+ * Deve estar alinhado com a tabela app_permissions no banco
+ */
+const APP_PERMISSION_TO_RESOURCE_ACTION: Record<string, { resource_key: string; action: PermissionAction }> = {
+  [APP_PERMISSION_CODES.VIEW_DASHBOARD]: { resource_key: 'dashboard', action: 'view' },
+  [APP_PERMISSION_CODES.VIEW_GALLERY]: { resource_key: 'galeria', action: 'view' },
+  [APP_PERMISSION_CODES.CREATE_GALLERY]: { resource_key: 'galeria', action: 'create' },
+  [APP_PERMISSION_CODES.EDIT_GALLERY]: { resource_key: 'galeria', action: 'edit' },
+  [APP_PERMISSION_CODES.DELETE_GALLERY]: { resource_key: 'galeria', action: 'delete' },
+  [APP_PERMISSION_CODES.CREATE_POST]: { resource_key: 'instagram', action: 'create' },
+  [APP_PERMISSION_CODES.EDIT_POST]: { resource_key: 'instagram', action: 'edit' },
+  [APP_PERMISSION_CODES.DELETE_POST]: { resource_key: 'instagram', action: 'delete' },
+  [APP_PERMISSION_CODES.VIEW_INSTAGRAM]: { resource_key: 'instagram', action: 'view' },
+  [APP_PERMISSION_CODES.MANAGE_USERS]: { resource_key: 'usuarios', action: 'manage' },
+  [APP_PERMISSION_CODES.VIEW_USERS]: { resource_key: 'usuarios', action: 'view' },
+  [APP_PERMISSION_CODES.MANAGE_SETTINGS]: { resource_key: 'configuracoes', action: 'manage' },
+  [APP_PERMISSION_CODES.VIEW_SETTINGS]: { resource_key: 'configuracoes', action: 'view' },
+  [APP_PERMISSION_CODES.MANAGE_ROLES]: { resource_key: 'roles', action: 'manage' },
+  [APP_PERMISSION_CODES.VIEW_ROLES]: { resource_key: 'roles', action: 'view' },
+  [APP_PERMISSION_CODES.UPLOAD_FILES]: { resource_key: 'upload', action: 'create' },
+  [APP_PERMISSION_CODES.VIEW_META]: { resource_key: 'meta', action: 'view' },
+  [APP_PERMISSION_CODES.VIEW_CULTOS]: { resource_key: 'cultos', action: 'view' },
+  [APP_PERMISSION_CODES.MANAGE_CULTOS]: { resource_key: 'cultos', action: 'manage' },
 }
 
 function getAccessTokenFromRequest(request: NextRequest): string {
@@ -190,6 +227,50 @@ async function getProfileRowWithUserToken(
 }
 
 async function getProfileRow(userId: string, accessToken?: string): Promise<ProfileRow | null> {
+  // Primeiro tenta buscar com o novo sistema de roles
+  const { data: newData, error: newError } = await supabaseServer
+    .from('profiles')
+    .select(
+      `
+      role,
+      email,
+      access_profile_id,
+      role_id,
+      roles (
+        id,
+        key,
+        name,
+        description,
+        is_admin,
+        is_system,
+        sort_order,
+        is_active,
+        created_at,
+        updated_at
+      ),
+      access_profiles (
+        id,
+        name,
+        description,
+        is_admin,
+        access_profile_permissions (
+          page_key,
+          can_view,
+          can_create,
+          can_edit,
+          can_delete
+        )
+      )
+    `
+    )
+    .eq('id', userId)
+    .maybeSingle()
+
+  if (!newError && newData) {
+    return (newData as ProfileRow | null) ?? null
+  }
+
+  // Fallback para sistema legado
   const { data, error } = await supabaseServer
     .from('profiles')
     .select(
@@ -221,7 +302,7 @@ async function getProfileRow(userId: string, accessToken?: string): Promise<Prof
 
   const { data: fallback, error: fallbackError } = await supabaseServer
     .from('profiles')
-    .select('role, email, access_profile_id')
+    .select('role, email, access_profile_id, role_id')
     .eq('id', userId)
     .maybeSingle()
 
@@ -247,34 +328,136 @@ function getNestedPermissions(profileRow: ProfileRow | null): PermissionRow[] | 
   return related?.access_profile_permissions ?? null
 }
 
+/**
+ * Busca as permissões do usuário no novo sistema RBAC
+ */
+async function getNewSystemPermissions(userId: string): Promise<UserPermissionRow[]> {
+  try {
+    const { data, error } = await supabaseServer.rpc('get_user_permissions', {
+      user_id: userId,
+    })
+
+    if (error) {
+      console.error('Erro ao buscar permissões:', error)
+      return []
+    }
+
+    return (data as UserPermissionRow[]) || []
+  } catch (err) {
+    console.error('Erro ao buscar permissões:', err)
+    return []
+  }
+}
+
+/**
+ * Converte as permissões do novo sistema para o formato PermissionMap
+ */
+function buildPermissionMapFromNewSystem(permissions: UserPermissionRow[]): PermissionMap {
+  const map: PermissionMap = {}
+
+  for (const perm of permissions) {
+    if (!map[perm.resource_key]) {
+      map[perm.resource_key] = {
+        view: false,
+        create: false,
+        edit: false,
+        delete: false,
+        manage: false,
+      }
+    }
+
+    const action = perm.permission_action
+    if (action === 'manage') {
+      // Manage dá todas as permissões
+      map[perm.resource_key] = {
+        view: true,
+        create: true,
+        edit: true,
+        delete: true,
+        manage: true,
+      }
+    } else {
+      map[perm.resource_key]![action] = true
+    }
+  }
+
+  return map
+}
+
 export async function getAccessSnapshotByToken(accessToken: string): Promise<AccessSnapshot> {
   if (!accessToken) throw new Error('Token ausente.')
   const user = await getUserByAccessToken(accessToken)
   const profileRow = await getProfileRow(user.id, accessToken)
-  const role = profileRow?.role ?? null
+  const legacyRole = profileRow?.role ?? null
 
-  const profile = resolveAccessProfile(profileRow, role)
+  const displayName =
+    (user.user_metadata?.full_name as string | undefined)?.trim() || user.email || null
 
-  if (role === 'admin' || profile.isAdmin) {
+  // ============================================================
+  // NOVO SISTEMA RBAC (priority)
+  // ============================================================
+  const newRole = profileRow?.roles as Role | undefined | null
+
+  if (newRole && newRole.id) {
+    // Usuário tem role no novo sistema
+    const isAdmin = newRole.is_admin
+
+    if (isAdmin) {
+      // Admin tem acesso total
+      return {
+        userId: user.id,
+        email: user.email ?? profileRow?.email ?? null,
+        displayName,
+        role: newRole,
+        permissions: LEGACY_ADMIN_PERMISSIONS,
+        canAccessAdmin: true,
+        isAdmin: true,
+        legacyRole,
+      }
+    }
+
+    // Buscar permissões do novo sistema
+    const userPermissions = await getNewSystemPermissions(user.id)
+    const permissionMap = buildPermissionMapFromNewSystem(userPermissions)
+    // Todo usuário com role tem acesso ao Dashboard (página inicial do painel)
+    permissionMap.dashboard = { ...(permissionMap.dashboard || {}), view: true }
+    const canAccessAdmin = hasAnyAdminViewPermission(permissionMap)
+
     return {
       userId: user.id,
       email: user.email ?? profileRow?.email ?? null,
-      role,
-      profile: {
-        ...profile,
-        name: profile.isAdmin ? profile.name : 'Admin',
-        isAdmin: true,
-      },
-      permissions: LEGACY_ADMIN_PERMISSIONS,
-      canAccessAdmin: true,
-      isAdmin: true,
+      displayName,
+      role: newRole,
+      permissions: permissionMap,
+      canAccessAdmin,
+      isAdmin: false,
+      legacyRole,
     }
   }
 
-  const permissions = getNestedPermissions(profileRow)
-  const permissionMap = permissions?.length
-    ? buildPermissionMap(permissions)
-    : role === 'editor'
+  // ============================================================
+  // SISTEMA LEGADO (fallback)
+  // ============================================================
+  const legacyProfile = resolveAccessProfile(profileRow, legacyRole)
+
+  if (legacyRole === 'admin' || legacyProfile.isAdmin) {
+    return {
+      userId: user.id,
+      email: user.email ?? profileRow?.email ?? null,
+      displayName,
+      role: null,
+      permissions: LEGACY_ADMIN_PERMISSIONS,
+      canAccessAdmin: true,
+      isAdmin: true,
+      legacyRole,
+      legacyProfile,
+    }
+  }
+
+  const legacyPermissions = getNestedPermissions(profileRow)
+  const permissionMap = legacyPermissions?.length
+    ? buildPermissionMap(legacyPermissions)
+    : legacyRole === 'editor'
       ? LEGACY_EDITOR_PERMISSIONS
       : LEGACY_VIEWER_PERMISSIONS
 
@@ -283,11 +466,13 @@ export async function getAccessSnapshotByToken(accessToken: string): Promise<Acc
   return {
     userId: user.id,
     email: user.email ?? profileRow?.email ?? null,
-    role,
-    profile,
+    displayName,
+    role: null,
     permissions: permissionMap,
     canAccessAdmin,
     isAdmin: false,
+    legacyRole,
+    legacyProfile,
   }
 }
 
@@ -302,5 +487,58 @@ export function hasPermission(
   action: PermissionAction
 ): boolean {
   if (snapshot.isAdmin) return true
+  
+  // Se tem manage, tem todas as permissões
+  if (snapshot.permissions[pageKey]?.manage) return true
+  
   return !!snapshot.permissions[pageKey]?.[action]
+}
+
+/**
+ * Verifica se o usuário pode visualizar um recurso
+ */
+export function canView(snapshot: AccessSnapshot, pageKey: string): boolean {
+  return hasPermission(snapshot, pageKey, 'view')
+}
+
+/**
+ * Verifica se o usuário pode criar em um recurso
+ */
+export function canCreate(snapshot: AccessSnapshot, pageKey: string): boolean {
+  return hasPermission(snapshot, pageKey, 'create')
+}
+
+/**
+ * Verifica se o usuário pode editar em um recurso
+ */
+export function canEdit(snapshot: AccessSnapshot, pageKey: string): boolean {
+  return hasPermission(snapshot, pageKey, 'edit')
+}
+
+/**
+ * Verifica se o usuário pode excluir em um recurso
+ */
+export function canDelete(snapshot: AccessSnapshot, pageKey: string): boolean {
+  return hasPermission(snapshot, pageKey, 'delete')
+}
+
+/**
+ * Verifica se o usuário pode gerenciar completamente um recurso
+ */
+export function canManage(snapshot: AccessSnapshot, pageKey: string): boolean {
+  return hasPermission(snapshot, pageKey, 'manage')
+}
+
+/**
+ * Verifica se o usuário tem uma função nomeada (permissão por código).
+ * Ex.: hasAppPermission(snapshot, 'view_gallery'), hasAppPermission(snapshot, 'create_post')
+ * Útil para controle de acesso no backend por nome de função.
+ */
+export function hasAppPermission(
+  snapshot: AccessSnapshot,
+  permissionCode: AppPermissionCode | string
+): boolean {
+  const mapping = APP_PERMISSION_TO_RESOURCE_ACTION[permissionCode]
+  if (!mapping) return false
+  return hasPermission(snapshot, mapping.resource_key, mapping.action)
 }

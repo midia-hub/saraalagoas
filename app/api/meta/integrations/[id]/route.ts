@@ -26,7 +26,12 @@ export async function PATCH(
     if (typeof is_active === 'boolean') updates.is_active = is_active
 
     if (typeof show_in_list === 'boolean') {
-      const { data: current } = await db.from('meta_integrations').select('metadata').eq('id', params.id).single()
+      const { data: current } = await db
+        .from('meta_integrations')
+        .select('metadata')
+        .eq('id', params.id)
+        .eq('created_by', access.snapshot.userId)
+        .single()
       const metadata = { ...((current?.metadata as Record<string, unknown>) || {}), show_in_list }
       updates.metadata = metadata
     }
@@ -39,6 +44,7 @@ export async function PATCH(
       .from('meta_integrations')
       .update(updates)
       .eq('id', params.id)
+      .eq('created_by', access.snapshot.userId)
       .select()
       .single()
 
@@ -73,6 +79,7 @@ export async function DELETE(
       .from('meta_integrations')
       .delete()
       .eq('id', params.id)
+      .eq('created_by', access.snapshot.userId)
 
     if (error) {
       throw new Error(`Erro ao remover integração: ${error.message}`)

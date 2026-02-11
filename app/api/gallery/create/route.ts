@@ -14,6 +14,9 @@ export async function POST(request: NextRequest) {
   const access = await requireAccess(request, { pageKey: 'upload', action: 'create' })
   if (!access.ok) return access.response
 
+  const uploadedByUserId = access.snapshot.userId
+  const uploadedByName = access.snapshot.displayName ?? access.snapshot.email ?? null
+
   const formData = await request.formData().catch(() => null)
   if (!formData) return NextResponse.json({ error: 'FormData inválido.' }, { status: 400 })
 
@@ -116,6 +119,8 @@ export async function POST(request: NextRequest) {
           thumbnail_link: uploadedFile.thumbnailLink,
           mime_type: uploadedFile.mimeType,
           created_time: uploadedFile.createdTime,
+          uploaded_by_user_id: uploadedByUserId,
+          uploaded_by_name: uploadedByName,
         }, { onConflict: 'drive_file_id' })
 
       uploaded.push({ name: uploadedFile.name, id: uploadedFile.id })

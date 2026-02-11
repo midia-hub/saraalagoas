@@ -116,6 +116,7 @@ export async function GET(request: NextRequest) {
         .from('meta_integrations')
         .select('id')
         .eq('page_id', page.id)
+        .eq('created_by', stateData.userId)
         .limit(1)
         .maybeSingle()
       if (existingError) {
