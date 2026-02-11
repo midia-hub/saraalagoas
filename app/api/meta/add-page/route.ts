@@ -31,14 +31,11 @@ export async function POST(request: NextRequest) {
     .from('meta_integrations')
     .select('*')
     .eq('id', integrationId)
+    .eq('created_by', access.snapshot.userId)
     .single()
 
   if (fetchError || !source) {
     return NextResponse.json({ error: 'Integração não encontrada' }, { status: 404 })
-  }
-
-  if (source.created_by !== access.snapshot.userId && !access.snapshot.isAdmin) {
-    return NextResponse.json({ error: 'Acesso negado' }, { status: 403 })
   }
 
   if (!source.access_token) {
@@ -70,6 +67,7 @@ export async function POST(request: NextRequest) {
     .from('meta_integrations')
     .select('id')
     .eq('page_id', pageId)
+    .eq('created_by', access.snapshot.userId)
     .eq('is_active', true)
     .limit(1)
     .maybeSingle()

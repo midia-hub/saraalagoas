@@ -15,6 +15,7 @@ type FileItem = {
   thumbnailLink: string | null
   createdTime: string | null
   viewUrl: string
+  uploaded_by_name?: string | null
 }
 
 function rowToFileItem(row: {
@@ -24,6 +25,7 @@ function rowToFileItem(row: {
   web_view_link: string | null
   thumbnail_link: string | null
   created_time: string | null
+  uploaded_by_name?: string | null
 }): FileItem {
   return {
     id: row.drive_file_id,
@@ -33,6 +35,7 @@ function rowToFileItem(row: {
     thumbnailLink: row.thumbnail_link,
     createdTime: row.created_time,
     viewUrl: `https://drive.google.com/uc?export=view&id=${row.drive_file_id}`,
+    uploaded_by_name: row.uploaded_by_name ?? null,
   }
 }
 
@@ -40,7 +43,7 @@ function rowToFileItem(row: {
 async function getFilesFromDb(galleryId: string): Promise<FileItem[]> {
   const { data, error } = await supabaseServer
     .from('gallery_files')
-    .select('drive_file_id, name, mime_type, web_view_link, thumbnail_link, created_time')
+    .select('drive_file_id, name, mime_type, web_view_link, thumbnail_link, created_time, uploaded_by_name')
     .eq('gallery_id', galleryId)
     .order('created_time', { ascending: false })
 
@@ -91,8 +94,22 @@ export async function GET(
       }
     }
 
-    setCachedFiles(galleryId, files)
-    return NextResponse.json(files)
+    const { data: uploaderRows } = await supabaseServer
+      .from('gallery_files')
+      .select('drive_file_id, uploaded_by_name')
+      .eq('gallery_id', galleryId)
+    const uploaderByFileId = new Map<string, string | null>()
+    for (const r of uploaderRows || []) {
+      uploaderByFileId.set(r.drive_file_id, r.uploaded_by_name ?? null)
+    }
+    const filesWithUploader: FileItem[] = files.map((f) => ({
+      ...f,
+      viewUrl: f.viewUrl ?? `https://drive.google.com/uc?export=view&id=${f.id}`,
+      uploaded_by_name: uploaderByFileId.get(f.id) ?? null,
+    }))
+
+    setCachedFiles(galleryId, filesWithUploader)
+    return NextResponse.json(filesWithUploader)
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     console.error('[gallery/files] Drive error, using DB fallback:', message)

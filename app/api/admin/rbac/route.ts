@@ -82,11 +82,19 @@ export async function GET(request: NextRequest) {
       `
       id,
       email,
+      full_name,
       role,
       access_profile_id,
+      role_id,
       created_at,
       access_profiles (
         id,
+        name,
+        is_admin
+      ),
+      roles (
+        id,
+        key,
         name,
         is_admin
       )

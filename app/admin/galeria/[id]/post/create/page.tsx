@@ -38,7 +38,7 @@ export default function AlbumPostCreatePage() {
   }, [albumId])
 
   useEffect(() => {
-    adminFetchJson<SocialInstance[]>('/api/admin/instagram/instances?forPosting=1')
+    adminFetchJson<SocialInstance[]>('/api/admin/instagram/instances?forPosting=1&metaOnly=1&instagramOnly=1')
       .then((data) => setInstances(Array.isArray(data) ? data : []))
       .catch(() => setInstances([]))
   }, [])
@@ -46,7 +46,7 @@ export default function AlbumPostCreatePage() {
   useEffect(() => {
     if (!ready || instances.length === 0 || draft.selectedInstanceIds.length === 0) return
     const available = new Set(instances.map((instance) => instance.id))
-    const validIds = draft.selectedInstanceIds.filter((id) => available.has(id))
+    const validIds = draft.selectedInstanceIds.filter((id) => available.has(id)).slice(0, 1)
     const unchanged =
       validIds.length === draft.selectedInstanceIds.length &&
       validIds.every((id, index) => id === draft.selectedInstanceIds[index])
@@ -91,7 +91,7 @@ export default function AlbumPostCreatePage() {
     setPublishFailureReasons([])
     setError(null)
     if (draft.selectedInstanceIds.length === 0) {
-      setError('Selecione ao menos uma conta em "Postar em".')
+      setError('Selecione uma conta liberada em "Postar em".')
       return
     }
     if (instagramLimitError) {

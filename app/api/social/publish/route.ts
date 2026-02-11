@@ -129,6 +129,12 @@ export async function POST(request: NextRequest) {
     .map((id) => parseMetaSelection(id))
     .filter((v): v is MetaSelection => !!v)
   const legacyInstanceIds = instanceIds.filter((id) => !parseMetaSelection(id))
+  if (legacyInstanceIds.length > 0) {
+    return NextResponse.json(
+      { error: 'Somente integrações Meta são aceitas para publicação.' },
+      { status: 400 }
+    )
+  }
 
   // Garantir que a galeria existe
   const { data: gallery, error: galleryError } = await db
@@ -146,6 +152,23 @@ export async function POST(request: NextRequest) {
 
   // Fluxo legado: mantém fila/jobs para instâncias da tabela instagram_instances.
   if (legacyInstanceIds.length > 0) {
+    const { data: ownedLegacyRows, error: ownedLegacyError } = await db
+      .from('instagram_instances')
+      .select('id')
+      .in('id', legacyInstanceIds)
+      .eq('created_by', userId)
+    if (ownedLegacyError) {
+      return NextResponse.json({ error: ownedLegacyError.message }, { status: 500 })
+    }
+    const ownedLegacyIds = new Set((ownedLegacyRows || []).map((row) => row.id as string))
+    const invalidLegacyIds = legacyInstanceIds.filter((id) => !ownedLegacyIds.has(id))
+    if (invalidLegacyIds.length > 0) {
+      return NextResponse.json(
+        { error: 'Uma ou mais instâncias selecionadas não pertencem ao usuário atual.' },
+        { status: 403 }
+      )
+    }
+
     const { data: draft, error: draftError } = await db
       .from('instagram_post_drafts')
       .insert({
@@ -224,6 +247,7 @@ export async function POST(request: NextRequest) {
       .from('meta_integrations')
       .select('id,page_id,page_name,page_access_token,instagram_business_account_id,instagram_username,is_active')
       .in('id', integrationIds)
+      .eq('created_by', userId)
       .eq('is_active', true)
 
     if (integrationsError) {

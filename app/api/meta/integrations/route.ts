@@ -26,6 +26,7 @@ export async function GET(request: NextRequest) {
     const { data: raw, error } = await db
       .from('meta_integrations')
       .select('id, created_at, updated_at, facebook_user_name, page_name, page_id, instagram_username, is_active, token_expires_at, metadata, scopes, instagram_business_account_id, page_access_token')
+      .eq('created_by', access.snapshot.userId)
       .order('created_at', { ascending: false })
 
     if (error) {

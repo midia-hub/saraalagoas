@@ -7,6 +7,7 @@ import { GaleriaLoading } from '@/components/GaleriaLoading'
 import { PageAccessGuard } from '@/app/admin/PageAccessGuard'
 import { useAdminAccess } from '@/lib/admin-access-context'
 import { adminFetchJson } from '@/lib/admin-client'
+import { Toast } from '@/components/Toast'
 
 type Gallery = {
   id: string
@@ -22,6 +23,7 @@ type GalleryFile = {
   webViewLink: string | null
   thumbnailLink: string | null
   mimeType?: string
+  uploaded_by_name?: string | null
 }
 
 function imageUrl(fileId: string, mode: 'thumb' | 'full' = 'full'): string {
@@ -45,6 +47,7 @@ export default function AdminGaleriaAlbumPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [showDeleteAlbumModal, setShowDeleteAlbumModal] = useState(false)
   const [deletingAlbum, setDeletingAlbum] = useState(false)
+  const [toast, setToast] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
 
   useEffect(() => {
     if (selected) setLightboxImageLoading(true)
@@ -83,7 +86,7 @@ export default function AdminGaleriaAlbumPage() {
         setSelected(null)
         setFileToDelete(null)
       } catch {
-        alert('Não foi possível excluir a imagem.')
+        setToast({ type: 'err', text: 'Não foi possível excluir a imagem.' })
       } finally {
         setDeletingId(null)
       }
@@ -107,7 +110,7 @@ export default function AdminGaleriaAlbumPage() {
       setShowDeleteAlbumModal(false)
       router.push('/admin/galeria')
     } catch {
-      alert('Não foi possível excluir o álbum. Ele pode estar vinculado a publicações.')
+      setToast({ type: 'err', text: 'Não foi possível excluir o álbum. Ele pode estar vinculado a publicações.' })
     } finally {
       setDeletingAlbum(false)
     }
@@ -198,6 +201,11 @@ export default function AdminGaleriaAlbumPage() {
                   loading="lazy"
                   decoding="async"
                 />
+                {file.uploaded_by_name && (
+                  <p className="absolute bottom-0 left-0 right-0 px-2 py-1 bg-black/60 text-white text-xs truncate text-left">
+                    Enviado por {file.uploaded_by_name}
+                  </p>
+                )}
               </button>
               {canDeletePhotos && (
                 <button
@@ -358,7 +366,12 @@ export default function AdminGaleriaAlbumPage() {
                 />
               </div>
               <div className="mt-3 flex flex-wrap justify-between items-center gap-2 text-white">
-                <span>{selected.name}</span>
+                <span>
+                  {selected.name}
+                  {selected.uploaded_by_name && (
+                    <span className="ml-2 text-white/80 text-sm">• Enviado por {selected.uploaded_by_name}</span>
+                  )}
+                </span>
                 <div className="flex items-center gap-2">
                   {canDeletePhotos && (
                     <button
@@ -384,6 +397,13 @@ export default function AdminGaleriaAlbumPage() {
           </div>
         )}
       </div>
+
+      <Toast
+        visible={!!toast}
+        message={toast?.text ?? ''}
+        type={toast?.type ?? 'err'}
+        onClose={() => setToast(null)}
+      />
     </PageAccessGuard>
   )
 }

@@ -19,6 +19,8 @@ import {
   X,
   PanelLeftClose,
   PanelLeft,
+  Shield,
+  UserCircle,
 } from 'lucide-react'
 
 const SIDEBAR_WIDTH_KEY = 'admin-sidebar-width'
@@ -30,6 +32,7 @@ const primaryLinks = [
   { href: '/admin', label: 'Início', icon: LayoutDashboard, permission: 'dashboard' },
   { href: '/admin/configuracoes', label: 'Configurações do site', icon: Settings, permission: 'configuracoes' },
   { href: '/admin/usuarios', label: 'Usuários e perfis', icon: Users, permission: 'usuarios' },
+  { href: '/admin/roles', label: 'Funções e Permissões', icon: Shield, permission: 'roles' },
   { href: '/admin/upload', label: 'Upload', icon: Upload, permission: 'upload' },
   { href: '/admin/galeria', label: 'Galeria', icon: ImageIcon, permission: 'galeria' },
 ] as const
@@ -43,10 +46,6 @@ const metaLinks = [
   { href: '/admin/instancias', label: 'Instâncias (Meta)' },
 ] as const
 
-// Token manual (legado) — opcional, não destacado no menu
-const instagramLegacyLinks = [
-  { href: '/admin/instagram/instances', label: 'Token manual (avançado)' },
-] as const
 
 function getStoredWidth(): number {
   if (typeof window === 'undefined') return DEFAULT_WIDTH
@@ -110,6 +109,8 @@ export function AdminSidebar() {
 
   const visibleLinks = primaryLinks.filter((link) => {
     if (access.isAdmin) return true
+    // Dashboard (Início) sempre visível para todos no painel
+    if (link.permission === 'dashboard') return true
     return !!access.permissions[link.permission]?.view
   })
 
@@ -200,25 +201,6 @@ export function AdminSidebar() {
                 </Link>
               )
             })}
-            {instagramLegacyLinks.map(({ href, label }) => {
-              const isActive = pathname?.startsWith(href)
-              return (
-                <Link
-                  key={href}
-                  href={href}
-                  onClick={closeMobileMenu}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
-                    isActive
-                      ? 'bg-[#c62737] text-white shadow-md'
-                      : 'text-slate-400 hover:bg-slate-800 hover:text-slate-300'
-                  }`}
-                >
-                  <Instagram size={18} className="shrink-0 opacity-70" />
-                  <span className="flex-1 truncate">{label}</span>
-                  {isActive && <ChevronRight size={16} className="shrink-0 opacity-80" />}
-                </Link>
-              )
-            })}
           </div>
         )}
       </nav>
@@ -228,6 +210,14 @@ export function AdminSidebar() {
         <p className="px-3 pb-2 text-xs text-slate-500 truncate" title={access.profileName || ''}>
           Perfil: {access.profileName || 'Sem perfil'}
         </p>
+        <Link
+          href="/admin/conta"
+          onClick={closeMobileMenu}
+          className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-slate-300 hover:bg-slate-800 hover:text-white transition-colors"
+        >
+          <UserCircle size={20} className="shrink-0" />
+          <span className="truncate">Minha conta</span>
+        </Link>
         <Link
           href="/"
           onClick={closeMobileMenu}
@@ -358,16 +348,6 @@ export function AdminSidebar() {
                     </Link>
                   )
                 })}
-                {instagramLegacyLinks.map(({ href, label }) => {
-                  const isActive = pathname?.startsWith(href)
-                  return (
-                    <Link key={href} href={href} onClick={closeMobileMenu} className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${isActive ? 'bg-[#c62737] text-white shadow-md' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-300'}`}>
-                      <Instagram size={18} className="shrink-0 opacity-70" />
-                      <span className="flex-1 truncate">{label}</span>
-                      {isActive && <ChevronRight size={16} className="shrink-0 opacity-80" />}
-                    </Link>
-                  )
-                })}
               </div>
             )}
           </nav>
@@ -375,6 +355,10 @@ export function AdminSidebar() {
             <p className="px-3 pb-2 text-xs text-slate-500 truncate" title={access.profileName || ''}>
               Perfil: {access.profileName || 'Sem perfil'}
             </p>
+            <Link href="/admin/conta" onClick={closeMobileMenu} className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-slate-300 hover:bg-slate-800 hover:text-white transition-colors">
+              <UserCircle size={20} className="shrink-0" />
+              <span className="truncate">Minha conta</span>
+            </Link>
             <Link href="/" onClick={closeMobileMenu} className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-slate-300 hover:bg-slate-800 hover:text-white transition-colors">
               <Home size={20} className="shrink-0" />
               <span className="truncate">Ver site</span>

@@ -14,6 +14,7 @@ import {
   type SortOption,
 } from './_components/AlbumFilters'
 import { GaleriaLoading } from '@/components/GaleriaLoading'
+import { Toast } from '@/components/Toast'
 
 /** Resposta bruta da API /api/gallery/list */
 type GalleryRow = {
@@ -99,6 +100,7 @@ export default function AdminGaleriaPage() {
   const [error, setError] = useState<string | null>(null)
   const [albumToDelete, setAlbumToDelete] = useState<Album | null>(null)
   const [deletingAlbumId, setDeletingAlbumId] = useState<string | null>(null)
+  const [toast, setToast] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
   const [filters, setFilters] = useState<AlbumFiltersState>({
     search: '',
     type: '',
@@ -274,7 +276,7 @@ export default function AdminGaleriaPage() {
       setAlbumToDelete(null)
       ENRICH_CACHE.delete(albumToDelete.id)
     } catch {
-      alert('Não foi possível excluir o álbum. Ele pode estar vinculado a publicações.')
+      setToast({ type: 'err', text: 'Não foi possível excluir o álbum. Ele pode estar vinculado a publicações.' })
     } finally {
       setDeletingAlbumId(null)
     }
@@ -405,6 +407,13 @@ export default function AdminGaleriaPage() {
           </div>
         )}
       </div>
+
+      <Toast
+        visible={!!toast}
+        message={toast?.text ?? ''}
+        type={toast?.type ?? 'err'}
+        onClose={() => setToast(null)}
+      />
     </PageAccessGuard>
   )
 }
