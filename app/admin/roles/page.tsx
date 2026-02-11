@@ -196,7 +196,7 @@ export default function RolesPage() {
                             onClick={() => openDeleteConfirm(role.id, role.name)}
                             className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
                             title="Excluir"
-                            disabled={role.users_count && role.users_count > 0}
+                            disabled={(role.users_count ?? 0) > 0}
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
