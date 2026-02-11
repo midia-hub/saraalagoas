@@ -82,7 +82,8 @@ export default function AdminLayout({
           setProfileName(access.profile?.name || '')
           setPermissions(access.permissions || {})
           if (access.canAccessAdmin) {
-            document.cookie = 'admin_access=1; path=/; max-age=86400'
+            const isHttps = typeof window !== 'undefined' && window.location?.protocol === 'https:'
+            document.cookie = `admin_access=1; path=/; max-age=86400; SameSite=Lax${isHttps ? '; Secure' : ''}`
           } else {
             clearAccessState()
           }
@@ -118,7 +119,9 @@ export default function AdminLayout({
 
   useEffect(() => {
     if (loading || isPublicAdminPage) return
-    if (!user || !hasAdminCookie() || !canAccessAdmin) router.replace('/admin/login')
+    // Não exige hasAdminCookie() aqui: o cookie pode ser HttpOnly (definido pela API set-admin-cookie)
+    // e não fica visível em document.cookie. O middleware já validou o cookie no servidor.
+    if (!user || !canAccessAdmin) router.replace('/admin/login')
   }, [loading, isPublicAdminPage, user, canAccessAdmin, router])
 
   if (isPublicAdminPage) return <>{children}</>
@@ -131,7 +134,7 @@ export default function AdminLayout({
     )
   }
 
-  if (!user || !hasAdminCookie() || !canAccessAdmin) {
+  if (!user || !canAccessAdmin) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-100">
         <p className="text-slate-600">Redirecionando para o login...</p>

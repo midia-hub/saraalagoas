@@ -107,7 +107,7 @@ export default function AdminInstagramPostEditorPage() {
         setPreset(data.preset || '4:5')
         setTransforms(initialTransforms)
       } catch (e) {
-        setError(e instanceof Error ? e.message : 'Erro ao carregar draft.')
+        setError('Não foi possível carregar o rascunho. Tente novamente.')
       } finally {
         setLoading(false)
       }
@@ -129,7 +129,7 @@ export default function AdminInstagramPostEditorPage() {
 
   async function handleSave() {
     if (!draft || !supabase) {
-      setError('Supabase não configurado para upload.')
+      setError('Serviço temporariamente indisponível. Tente mais tarde.')
       return
     }
     setSaving(true)
@@ -191,7 +191,7 @@ export default function AdminInstagramPostEditorPage() {
 
       setSuccessMessage('Imagens processadas e salvas com sucesso.')
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Erro ao salvar imagens.')
+      setError('Não foi possível salvar as imagens. Tente novamente.')
     } finally {
       setSaving(false)
     }

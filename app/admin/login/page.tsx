@@ -48,12 +48,7 @@ export default function AdminLoginPage() {
       return
     }
     if (!supabase) {
-      const isProd = typeof window !== 'undefined' && !/localhost|127\.0\.0\.1/.test(window.location.origin)
-      setError(
-        isProd
-          ? 'Supabase não configurado na Vercel. Em Vercel → Settings → Environment Variables, adicione NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY (Production) e faça um novo deploy (Redeploy). Veja docs/LOGIN-VERCEL.md.'
-          : 'Supabase não configurado. Configure NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY no .env.local'
-      )
+      setError('Serviço temporariamente indisponível. Tente mais tarde ou contate o administrador.')
       return
     }
     setLoading(true)
@@ -68,7 +63,7 @@ export default function AdminLoginPage() {
       }
 
       if (err) {
-        setError(err.message === 'Invalid login credentials' ? 'E-mail ou senha incorretos.' : err.message)
+        setError(err.message === 'Invalid login credentials' ? 'E-mail ou senha incorretos.' : 'Não foi possível entrar. Tente novamente.')
         setLoading(false)
         return
       }
@@ -91,18 +86,7 @@ export default function AdminLoginPage() {
         if (!adminCheckRes.ok) {
           await supabase.auth.signOut()
           document.cookie = 'admin_access=; path=/; max-age=0'
-          const msg = adminCheckJson?.error || `Erro ao verificar permissão (${adminCheckRes.status}).`
-          const isProd = typeof window !== 'undefined' && !/localhost|127\.0\.0\.1/.test(window.location.origin)
-          const hint500 = isProd
-            ? ' Na Vercel, confira SUPABASE_SERVICE_ROLE_KEY e NEXT_PUBLIC_SUPABASE_* e faça um Redeploy. Veja docs/LOGIN-VERCEL.md.'
-            : ' Verifique as variáveis de ambiente (Supabase).'
-          setError(
-            adminCheckRes.status === 401
-              ? `${msg} Faça login novamente.`
-              : adminCheckRes.status === 500
-                ? `${msg}${hint500}`
-                : msg
-          )
+          setError(adminCheckRes.status === 401 ? 'Sessão inválida. Faça login novamente.' : 'Não foi possível verificar seu acesso. Tente novamente.')
           return
         }
         if (!adminCheckJson.canAccessAdmin) {
@@ -112,23 +96,26 @@ export default function AdminLoginPage() {
           return
         }
 
-        // Cookie com Secure em HTTPS para produção; redirecionamento completo para o cookie ser enviado na próxima requisição
-        const isHttps = typeof window !== 'undefined' && window.location?.protocol === 'https:'
-        document.cookie = `admin_access=1; path=/; max-age=86400; SameSite=Lax${isHttps ? '; Secure' : ''}`
+        // Cookie HttpOnly definido pelo servidor (reduz risco de XSS)
+        const setCookieRes = await fetch(`${basePath}/api/auth/set-admin-cookie`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ accessToken }),
+          credentials: 'same-origin',
+        })
+        if (!setCookieRes.ok) {
+          await supabase.auth.signOut()
+          document.cookie = 'admin_access=; path=/; max-age=0'
+          setError('Erro ao definir sessão. Tente novamente.')
+          return
+        }
         window.location.replace(`${basePath}/admin`)
         return
       }
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Erro ao entrar. Tente novamente.'
-      const isProd = typeof window !== 'undefined' && !/localhost|127\.0\.0\.1/.test(window.location.origin)
+      const msg = e instanceof Error ? e.message : ''
       const isNetwork = msg.includes('fetch') || msg.includes('Failed to fetch')
-      setError(
-        isNetwork
-          ? isProd
-            ? 'Não foi possível conectar ao servidor. Na Vercel, confira as variáveis NEXT_PUBLIC_SUPABASE_* e SUPABASE_SERVICE_ROLE_KEY e faça um Redeploy. Veja docs/LOGIN-VERCEL.md.'
-            : 'Não foi possível conectar ao servidor. Verifique sua internet e se o servidor está rodando.'
-          : msg
-      )
+      setError(isNetwork ? 'Não foi possível conectar. Verifique sua internet e tente novamente.' : 'Não foi possível entrar. Tente novamente.')
     } finally {
       setLoading(false)
     }
@@ -143,12 +130,7 @@ export default function AdminLoginPage() {
     const form = formFromBtn ?? formRef.current
     const emailValue = form ? getCredentialValues(form, emailRef.current, passwordRef.current).emailValue : getInputValue(emailRef.current)
     if (!supabase) {
-      const isProd = typeof window !== 'undefined' && !/localhost|127\.0\.0\.1/.test(window.location.origin)
-      setError(
-        isProd
-          ? 'Supabase não configurado na Vercel. Adicione NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY nas variáveis de ambiente e faça Redeploy.'
-          : 'Supabase não configurado. Configure NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY no .env.local'
-      )
+      setError('Serviço temporariamente indisponível. Tente mais tarde ou contate o administrador.')
       return
     }
     if (!emailValue) {
@@ -168,7 +150,7 @@ export default function AdminLoginPage() {
         options: { emailRedirectTo },
       })
       if (err) {
-        setError(err.message)
+        setError('Não foi possível enviar o link. Tente novamente.')
         setLoading(false)
         return
       }
@@ -200,66 +182,70 @@ export default function AdminLoginPage() {
           ref={formRef}
           onSubmit={handleLogin}
           method="post"
+          action="#"
           autoComplete="on"
           className="space-y-4"
+          data-form-type="login"
         >
           <div>
-            <label htmlFor="email" className="mb-1 block text-sm font-medium text-slate-700">
+            <label htmlFor="admin-login-email" className="mb-1 block text-sm font-medium text-slate-700">
               E-mail
             </label>
             <input
               ref={emailRef}
-              id="email"
+              id="admin-login-email"
               type="email"
               name="email"
               inputMode="email"
-              autoComplete="username"
+              autoComplete="email"
               autoCapitalize="none"
               autoCorrect="off"
               spellCheck={false}
               required
               className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-[#c62737] focus:ring-2 focus:ring-[#c62737]/20"
               placeholder="seu@email.com"
+              data-lpignore="false"
+              data-1p-ignore="false"
             />
           </div>
           <div>
-            <label htmlFor="password" className="mb-1 block text-sm font-medium text-slate-700">
+            <label htmlFor="admin-login-password" className="mb-1 block text-sm font-medium text-slate-700">
               Senha
             </label>
             <div className="relative">
               <input
                 ref={passwordRef}
-                id="password"
+                id="admin-login-password"
                 type={showPassword ? 'text' : 'password'}
                 name="password"
                 autoComplete="current-password"
                 required
                 className="w-full rounded-lg border border-slate-300 px-4 py-2.5 pr-24 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-[#c62737] focus:ring-2 focus:ring-[#c62737]/20"
                 placeholder="••••••••"
+                data-lpignore="false"
+                data-1p-ignore="false"
+                aria-describedby="admin-login-password-toggle"
               />
               <button
                 type="button"
+                id="admin-login-password-toggle"
                 onClick={() => setShowPassword((prev) => !prev)}
                 className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-800"
+                aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
               >
                 {showPassword ? 'Ocultar' : 'Mostrar'}
               </button>
             </div>
           </div>
           {error && (
-            <div className="space-y-1 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+            <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">
               <p>{error}</p>
-              {error.includes('500') || error.includes('Supabase') ? (
-                <p className="text-xs text-red-700 mt-1">
-                  Se o erro persistir, confira no Supabase (Dashboard → Settings → API) se a chave <strong>service_role</strong> está em <code className="bg-red-100 px-1">SUPABASE_SERVICE_ROLE_KEY</code> no .env.
-                </p>
-              ) : null}
             </div>
           )}
           {message && (
             <div className="space-y-1 rounded-lg bg-green-50 p-3 text-sm text-green-700">
               <p>{message}</p>
-              <p className="text-gray-600 mt-2">Não recebeu? Verifique a pasta <strong>Spam</strong>. Configure as URLs em Supabase (Auth → URL Configuration) e, se precisar, use SMTP customizado (veja <code className="text-xs bg-gray-100 px-1">docs/EMAIL-NAO-RECEBIDO.md</code>).</p>
+              <p className="text-gray-600 mt-2">Não recebeu? Verifique a pasta <strong>Spam</strong>.</p>
             </div>
           )}
           <div className="flex flex-col gap-2 pt-1">
@@ -284,7 +270,7 @@ export default function AdminLoginPage() {
           <Link href="/" className="text-[#c62737] hover:underline">Voltar ao site</Link>
         </p>
         <p className="mx-auto mt-3 max-w-xs text-center text-xs text-slate-400">
-          Não recebeu o e-mail de criação de conta? Verifique o Spam ou crie o usuário em Supabase (Authentication → Users) e defina a senha lá. Veja <code className="bg-gray-100 px-1">docs/EMAIL-NAO-RECEBIDO.md</code>.
+          Não recebeu o e-mail? Verifique o Spam ou entre em contato com um administrador.
         </p>
       </div>
     </div>

@@ -22,9 +22,13 @@ export interface AlbumCardProps {
   onCopyLink?: (album: Album) => void
   /** Chamado quando o card entra na viewport (para lazy enrichment de capa/contagem) */
   onVisible?: (albumId: string) => void
+  /** Se true, mostra botão para excluir álbum */
+  canDeleteAlbum?: boolean
+  /** Chamado ao clicar em excluir álbum (abre confirmação no pai) */
+  onDeleteAlbum?: (album: Album) => void
 }
 
-export function AlbumCard({ album, onCopyLink, onVisible }: AlbumCardProps) {
+export function AlbumCard({ album, onCopyLink, onVisible, canDeleteAlbum, onDeleteAlbum }: AlbumCardProps) {
   const [showActions, setShowActions] = useState(false)
   const [copied, setCopied] = useState(false)
   const cardRef = useRef<HTMLElement>(null)
@@ -196,6 +200,23 @@ export function AlbumCard({ album, onCopyLink, onVisible }: AlbumCardProps) {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
           </svg>
         </Link>
+        {canDeleteAlbum && onDeleteAlbum && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              e.preventDefault()
+              onDeleteAlbum(album)
+            }}
+            className="flex items-center justify-center w-8 h-8 rounded-lg bg-white/90 shadow border border-red-200 hover:bg-red-50 text-red-600"
+            title="Excluir álbum"
+          >
+            <span className="sr-only">Excluir álbum</span>
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+          </button>
+        )}
       </div>
     </article>
   )

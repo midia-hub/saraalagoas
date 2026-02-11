@@ -50,7 +50,7 @@ export default function AdminInstagramInstancesPage() {
       const data = await adminFetchJson<InstagramInstance[]>('/api/admin/instagram/instances')
       setItems(Array.isArray(data) ? data : [])
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Falha ao carregar instâncias.')
+      setError('Não foi possível carregar as instâncias. Tente novamente.')
       setItems([])
     } finally {
       setLoading(false)
@@ -89,7 +89,7 @@ export default function AdminInstagramInstancesPage() {
       resetForm()
       await loadInstances()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Erro ao salvar instância.')
+      setError('Não foi possível salvar. Tente novamente.')
     } finally {
       setSaving(false)
     }
@@ -103,7 +103,7 @@ export default function AdminInstagramInstancesPage() {
       if (editingId === id) resetForm()
       await loadInstances()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Erro ao remover instância.')
+      setError('Não foi possível remover. Tente novamente.')
     }
   }
 

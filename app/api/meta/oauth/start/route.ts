@@ -40,7 +40,14 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ url: authUrl })
   } catch (error) {
     console.error('[META OAuth] Error:', error)
-    const message = error instanceof Error ? error.message : 'Erro ao iniciar OAuth'
+    const raw = error instanceof Error ? error.message : 'Erro ao iniciar OAuth'
+    // Mensagem amigável para erros de configuração conhecidos
+    const message =
+      raw.includes('inválido') && raw.includes('META_APP_ID')
+        ? 'META_APP_ID inválido. Use o ID numérico do app em Meta for Developers (Settings → Basic).'
+        : raw.includes('Configuração Meta incompleta') || raw.includes('META_')
+          ? 'Configuração Meta incompleta no servidor. No .env defina: META_APP_ID, META_APP_SECRET, META_REDIRECT_URI (ex.: http://localhost:3001/api/meta/oauth/callback) e META_STATE_SECRET. Veja .env.example.'
+          : raw
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }

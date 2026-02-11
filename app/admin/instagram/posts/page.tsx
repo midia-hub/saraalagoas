@@ -91,7 +91,7 @@ export default function AdminInstagramPostsPage() {
     setLoading(true)
     adminFetchJson<PostItem[]>('/api/admin/instagram/posts')
       .then((data) => setItems(Array.isArray(data) ? data : []))
-      .catch((e) => setError(e instanceof Error ? e.message : 'Erro ao carregar publicações.'))
+      .catch(() => setError('Não foi possível carregar as publicações. Tente novamente.'))
       .finally(() => setLoading(false))
   }
 
@@ -108,7 +108,7 @@ export default function AdminInstagramPostsPage() {
       })
       loadPosts()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Não foi possível processar a fila.')
+      setError('Não foi possível processar a fila. Tente novamente.')
     } finally {
       setRunningQueue(false)
     }
@@ -269,9 +269,9 @@ export default function AdminInstagramPostsPage() {
                     <p className="mt-1 text-xs text-slate-500">
                       {date ? new Date(date).toLocaleString('pt-BR') : '-'}
                     </p>
-                    {item.status === 'failed' && item.error_message && (
+                    {item.status === 'failed' && (
                       <p className="mt-2 rounded border border-red-100 bg-red-50 px-2 py-1.5 text-xs text-red-700">
-                        {item.error_message}
+                        Falha na publicação. Tente novamente.
                       </p>
                     )}
                     <div className="mt-auto flex flex-wrap gap-2 pt-3">

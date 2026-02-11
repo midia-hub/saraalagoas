@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { siteConfig as defaultConfig } from '@/config/site'
 import type { SiteConfig } from '@/lib/types'
 import { adminFetchJson } from '@/lib/admin-client'
+import { Toast } from '@/components/Toast'
 
 export function AdminSiteConfig() {
   const [config, setConfig] = useState<SiteConfig>(defaultConfig as SiteConfig)
@@ -31,9 +32,8 @@ export function AdminSiteConfig() {
         body: JSON.stringify({ value: config }),
       })
       setMessage({ type: 'ok', text: 'Configurações salvas. A página inicial será atualizada ao recarregar.' })
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Erro ao salvar. Tente novamente.'
-      setMessage({ type: 'err', text: msg })
+    } catch {
+      setMessage({ type: 'err', text: 'Não foi possível salvar. Tente novamente.' })
     } finally {
       setSaving(false)
     }
@@ -397,11 +397,12 @@ export function AdminSiteConfig() {
           </div>
         </section>
 
-        {message && (
-          <p className={message.type === 'ok' ? 'text-green-700 bg-green-50 p-3 rounded-lg' : 'text-red-700 bg-red-50 p-3 rounded-lg'}>
-            {message.text}
-          </p>
-        )}
+        <Toast
+          visible={!!message}
+          message={message?.text ?? ''}
+          type={message?.type ?? 'err'}
+          onClose={() => setMessage(null)}
+        />
         <button
           type="submit"
           disabled={saving}

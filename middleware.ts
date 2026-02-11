@@ -14,11 +14,24 @@ function hasAdminAccess(request: NextRequest): boolean {
   )
 }
 
+const SECURITY_HEADERS: Record<string, string> = {
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'DENY',
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+}
+
+function applySecurityHeaders(response: NextResponse): NextResponse {
+  Object.entries(SECURITY_HEADERS).forEach(([key, value]) => {
+    response.headers.set(key, value)
+  })
+  return response
+}
+
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
   // Nunca aplicar regras de admin a estáticos (favicon, _next, public)
   if (pathname.startsWith('/_next') || pathname.startsWith('/favicon') || pathname === '/robots.txt' || pathname === '/manifest.json') {
-    return NextResponse.next()
+    return applySecurityHeaders(NextResponse.next())
   }
   const normalizedPath =
     pathname.length > 1 && pathname.endsWith('/') ? pathname.slice(0, -1) : pathname
@@ -31,18 +44,22 @@ export function middleware(request: NextRequest) {
   if ((isAdminPage || isAdminApi) && !isPublicAdminPage) {
     if (!hasAdminAccess(request)) {
       if (isAdminApi) {
-        return NextResponse.json({ error: 'Acesso negado.' }, { status: 401 })
+        return applySecurityHeaders(NextResponse.json({ error: 'Acesso negado.' }, { status: 401 }))
       }
       const url = request.nextUrl.clone()
       url.pathname = '/admin/login'
-      return NextResponse.redirect(url)
+      return applySecurityHeaders(NextResponse.redirect(url))
     }
   }
 
-  return NextResponse.next()
+  return applySecurityHeaders(NextResponse.next())
 }
 
 export const config = {
-  matcher: ['/admin/:path*', '/api/admin/:path*'],
+  matcher: [
+    '/admin/:path*',
+    '/api/admin/:path*',
+    '/((?!_next/static|_next/image|favicon|robots\\.txt|manifest\\.json).*)',
+  ],
 }
 
