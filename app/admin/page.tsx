@@ -6,11 +6,11 @@ import { useAdminAccess } from '@/lib/admin-access-context'
 import { PageAccessGuard } from '@/app/admin/PageAccessGuard'
 
 const cards = [
-  { href: '/admin/configuracoes', label: 'Configurações do site', icon: Settings, desc: 'Editar textos e menu do site', permission: 'configuracoes' },
+  { href: '/admin/configuracoes', label: 'Ajustes do Site', icon: Settings, desc: 'Editar textos e menu do site', permission: 'configuracoes' },
   { href: '/admin/usuarios', label: 'Usuários', icon: Users, desc: 'Convidar e gerenciar acessos', permission: 'usuarios' },
   { href: '/admin/upload', label: 'Upload Cultos/Eventos', icon: Upload, desc: 'Fluxo em etapas + Google Drive', permission: 'upload' },
   { href: '/admin/galeria', label: 'Galerias', icon: ImageIcon, desc: 'Lista e filtros de galerias', permission: 'galeria' },
-  { href: '/admin/instancias', label: 'Instâncias (Meta)', icon: Link2, desc: 'Conectar Facebook/Instagram', permission: 'instagram' },
+  { href: '/admin/instancias', label: 'Configurações do Instagram/Facebook', icon: Link2, desc: 'Conectar Facebook/Instagram', permission: 'instagram' },
   { href: '/admin/instagram/posts', label: 'Publicações Instagram', icon: Instagram, desc: 'Acompanhar fila e posts', permission: 'instagram' },
 ]
 
@@ -25,7 +25,7 @@ export default function AdminPage() {
     <PageAccessGuard pageKey="dashboard">
       <div className="p-6 md:p-8">
         <h1 className="text-2xl font-bold text-slate-900 mb-2">Painel administrativo</h1>
-        <p className="text-slate-600 mb-8">Escolha uma seção abaixo para começar.</p>
+        <p className="text-slate-600 mb-8">Selecione uma área para começar.</p>
         {visibleCards.length > 0 ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {visibleCards.map(({ href, label, icon: Icon, desc }) => (

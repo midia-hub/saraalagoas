@@ -64,7 +64,7 @@ export async function POST(
       .single()
 
     if (galleryError || !gallery?.drive_folder_id) {
-      return NextResponse.json({ error: 'Galeria não encontrada.' }, { status: 404 })
+      return NextResponse.json({ error: 'Não conseguimos localizar a galeria.' }, { status: 404 })
     }
 
     const uploadedFile = await uploadImageToFolder(gallery.drive_folder_id, {

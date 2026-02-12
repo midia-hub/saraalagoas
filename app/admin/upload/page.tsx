@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { PageAccessGuard } from '@/app/admin/PageAccessGuard'
 import { adminFetchJson, getAccessTokenOrThrow } from '@/lib/admin-client'
 import { supabase } from '@/lib/supabase'
+import { Loader2 } from 'lucide-react'
 
 type UploadType = 'culto' | 'evento'
 type WorshipService = { id: string; name: string }
@@ -86,8 +87,8 @@ function uploadOneFile(
         }
       }
     })
-    xhr.addEventListener('error', () => reject(new Error('Falha na rede')))
-    xhr.addEventListener('abort', () => reject(new Error('Cancelado')))
+    xhr.addEventListener('error', () => reject(new Error('Erro na rede. Tente novamente.')))
+    xhr.addEventListener('abort', () => reject(new Error('Erro na rede. Tente novamente.')))
     xhr.open('POST', url)
     xhr.setRequestHeader('Authorization', `Bearer ${accessToken}`)
     xhr.send(formData)
@@ -101,7 +102,7 @@ async function uploadViaSupabase(
   userId: string,
   onProgress: (percent: number) => void
 ): Promise<void> {
-  if (!supabase) throw new Error('Supabase não configurado.')
+  if (!supabase) throw new Error('A configuração do serviço não está concluída. Tente novamente.')
   const path = `${userId}/${crypto.randomUUID()}/${file.name.replace(/[/\\]/g, '_')}`
   onProgress(10)
   const { error: uploadError } = await supabase.storage
@@ -159,7 +160,7 @@ export default function AdminUploadPage() {
     const next = [...files, ...picked]
     for (const file of picked) {
       if (!ALLOWED_TYPES.includes(file.type)) {
-        setError('Tipo de arquivo não permitido. Use apenas imagens (PNG, JPEG, WebP ou GIF).')
+        setError('Formato de arquivo inválido. Envie apenas imagens nos formatos PNG, JPEG, WebP ou GIF.')
         return
       }
       if (file.size > MAX_SIZE_LARGE) {
@@ -260,7 +261,7 @@ export default function AdminUploadPage() {
       setOverallProgress(100)
       setStep(3)
     } catch (e) {
-      setError('Não foi possível enviar. Tente novamente.')
+      setError('O envio falhou. Tente novamente.')
     } finally {
       setLoading(false)
     }
@@ -354,7 +355,7 @@ export default function AdminUploadPage() {
 
       {step === 2 && (
         <div className="mt-6 bg-white border border-slate-200 rounded-xl p-5">
-          <label className="block text-sm font-medium text-slate-700 mb-2">Imagens (sem limite de quantidade)</label>
+          <label className="block text-sm font-medium text-slate-700 mb-2">Você pode enviar várias imagens.</label>
           <p className="text-xs text-slate-500 mb-2">Até {MAX_SIZE_LARGE_MB} MB por imagem. PNG, JPEG, WebP ou GIF.</p>
           <input type="file" multiple accept={ALLOWED_TYPES.join(',')} onChange={(e) => handleSelectFiles(e.target.files)} />
 
@@ -378,7 +379,7 @@ export default function AdminUploadPage() {
             <div className="mt-6 space-y-4">
               <div>
                 <div className="flex justify-between text-sm text-slate-600 mb-1">
-                  <span>Progresso geral</span>
+                  <span>Status do upload</span>
                   <span>{overallProgress}%</span>
                 </div>
                 <div className="h-3 bg-slate-200 rounded-full overflow-hidden">
@@ -428,8 +429,9 @@ export default function AdminUploadPage() {
             <button
               onClick={handleSubmit}
               disabled={loading || files.length === 0}
-              className="px-4 py-2 bg-[#c62737] text-white rounded-lg disabled:opacity-50"
+              className="px-4 py-2 bg-[#c62737] text-white rounded-lg disabled:opacity-50 flex items-center gap-2"
             >
+              {loading && <Loader2 className="w-4 h-4 animate-spin" />}
               {loading ? 'Enviando...' : 'Iniciar upload'}
             </button>
           </div>

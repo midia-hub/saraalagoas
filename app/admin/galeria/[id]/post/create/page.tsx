@@ -20,7 +20,7 @@ export default function AlbumPostCreatePage() {
   const params = useParams<{ id: string }>()
   const albumId = params?.id || ''
 
-  const { ready, draft, patchDraft } = usePostDraft(albumId)
+  const { ready, draft, patchDraft, clearDraft } = usePostDraft(albumId)
 
   const [album, setAlbum] = useState<Gallery | null>(null)
   const [instances, setInstances] = useState<SocialInstance[]>([])
@@ -29,6 +29,8 @@ export default function AlbumPostCreatePage() {
   const [publishFailureReasons, setPublishFailureReasons] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
   const [editingMedia, setEditingMedia] = useState<PostDraft['media'][number] | null>(null)
+  const [publishMode, setPublishMode] = useState<'now' | 'scheduled'>('now')
+  const [scheduledAt, setScheduledAt] = useState('')
 
   useEffect(() => {
     if (!albumId) return
@@ -110,7 +112,7 @@ export default function AlbumPostCreatePage() {
   
   const instagramLimitError = useMemo(() => {
     if (hasInstagramDestination && draft.media.length > 10) {
-      return 'Para Instagram, o limite é de 10 mídias por post (carrossel).'
+      return 'O Instagram permite até 10 imagens por post.'
     }
     return null
   }, [hasInstagramDestination, draft.media.length])
@@ -138,16 +140,27 @@ export default function AlbumPostCreatePage() {
       return
     }
     if (!hasInstagramDestination && !hasFacebookDestination) {
-      setError('Selecione ao menos Instagram ou Facebook como destino.')
+      setError('Escolha pelo menos uma plataforma para fazer a postagem.')
       return
     }
     if (instagramLimitError) {
       setError(instagramLimitError)
       return
     }
+    const isScheduling = publishMode === 'scheduled' && scheduledAt.trim()
+    const scheduledAtDate = isScheduling ? new Date(scheduledAt.trim()) : null
+    if (publishMode === 'scheduled' && (!scheduledAt.trim() || !scheduledAtDate || Number.isNaN(scheduledAtDate.getTime()))) {
+      setError('Informe a data e hora para programar a postagem.')
+      return
+    }
+    if (scheduledAtDate && scheduledAtDate.getTime() <= Date.now()) {
+      setError('A data/hora programada deve ser no futuro.')
+      return
+    }
+
     setPublishing(true)
     try {
-      const payload = {
+      const payload: Record<string, unknown> = {
         albumId,
         instanceIds: draft.selectedInstanceIds,
         destinations: draft.destinations || { instagram: true, facebook: false },
@@ -156,34 +169,43 @@ export default function AlbumPostCreatePage() {
           id: item.id,
           cropMode: item.cropMode || 'original',
           altText: item.altText || '',
+          croppedUrl:
+            typeof item.croppedUrl === 'string'
+              ? item.croppedUrl
+              : typeof item.url === 'string' && item.url.startsWith('data:image/')
+              ? item.url
+              : '',
         })),
       }
-      
-      console.log('[DEBUG] Publishing with payload:', payload)
-      console.log('[DEBUG] Destinations:', payload.destinations)
-      
+      if (isScheduling && scheduledAtDate) {
+        payload.scheduled_at = scheduledAtDate.toISOString()
+      }
+
       const res = await adminFetchJson<{
         message?: string
         draftId?: string
         jobCount?: number
         ok?: boolean
+        scheduled?: boolean
+        scheduledAt?: string
         metaResults?: Array<{ instanceId: string; provider: string; ok: boolean; error?: string }>
         destinations?: { instagram: boolean; facebook: boolean }
       }>('/api/social/publish', {
         method: 'POST',
         body: JSON.stringify(payload),
       })
-      
-      console.log('[DEBUG] Publish response:', res)
-      console.log('[DEBUG] Meta results:', res?.metaResults)
-      
-      setNotice(res?.message ?? 'Post enviado. Confira no Painel de publicações.')
+
+      setNotice(res?.message ?? (res?.scheduled ? 'Postagem agendada.' : 'Post enviado. Confira no Painel de publicações.'))
       const failed = (res?.metaResults ?? []).filter((r) => !r.ok && r.error)
       if (failed.length > 0) {
         setPublishFailureReasons(failed.map((r) => r.error!).filter(Boolean))
       }
+      if (res?.ok || res?.scheduled) {
+        clearDraft()
+        router.push('/admin/instagram/posts')
+      }
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Não foi possível publicar. Tente novamente.')
+      setError(e instanceof Error ? e.message : 'Ocorreu um erro ao tentar publicar. Por favor, tente novamente.')
     } finally {
       setPublishing(false)
     }
@@ -218,7 +240,7 @@ export default function AlbumPostCreatePage() {
                   ))}
                 </ul>
                 <p className="mt-2 text-xs text-amber-700">
-                  Conecte ou reconecte a conta em <strong>Instâncias (Meta)</strong> no menu ao lado para liberar as postagens.
+                  Conecte ou reconecte a conta em <strong>Configurações do Instagram/Facebook</strong> no menu ao lado para liberar as postagens.
                 </p>
                 {publishFailureReasons.some((r) => r.includes('pages_manage_posts')) && (
                   <p className="mt-2 text-xs text-amber-800">
@@ -229,7 +251,7 @@ export default function AlbumPostCreatePage() {
                   href="/admin/instancias"
                   className="mt-3 inline-flex items-center gap-2 rounded-lg bg-[#c62737] px-4 py-2 text-sm font-medium text-white hover:bg-[#a01f2d]"
                 >
-                  Ir para Instâncias (Meta) e conectar
+                  Ir para Configurações do Instagram/Facebook e conectar
                 </Link>
               </div>
             )}
@@ -270,7 +292,52 @@ export default function AlbumPostCreatePage() {
         )}
 
         {ready && draft.media.length > 0 && (
-          <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[1.5fr_1fr]">
+          <>
+            <section className="mt-6 rounded-xl border border-slate-200 bg-white p-4">
+              <h2 className="text-lg font-semibold text-slate-900">Quando publicar?</h2>
+              <div className="mt-3 flex flex-wrap items-center gap-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="publishMode"
+                    checked={publishMode === 'now'}
+                    onChange={() => setPublishMode('now')}
+                    className="h-4 w-4 border-slate-300 text-[#c62737] focus:ring-[#c62737]"
+                  />
+                  <span className="text-sm text-slate-700">Publicar agora</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="publishMode"
+                    checked={publishMode === 'scheduled'}
+                    onChange={() => setPublishMode('scheduled')}
+                    className="h-4 w-4 border-slate-300 text-[#c62737] focus:ring-[#c62737]"
+                  />
+                  <span className="text-sm text-slate-700">Programar postagem</span>
+                </label>
+                {publishMode === 'scheduled' && (
+                  <input
+                    type="datetime-local"
+                    value={scheduledAt}
+                    onChange={(e) => setScheduledAt(e.target.value)}
+                    min={(() => {
+                      const d = new Date()
+                      d.setMinutes(d.getMinutes() + 1)
+                      return d.toISOString().slice(0, 16)
+                    })()}
+                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800"
+                  />
+                )}
+              </div>
+              {publishMode === 'scheduled' && (
+                <p className="mt-2 text-xs text-slate-500">
+                  No horário programado a postagem será publicada automaticamente (confira no Painel de publicações).
+                </p>
+              )}
+            </section>
+
+            <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[1.5fr_1fr]">
             <PostComposer
               instances={instances}
               selectedInstanceIds={draft.selectedInstanceIds}
@@ -298,7 +365,8 @@ export default function AlbumPostCreatePage() {
               text={draft.text}
               media={draft.media}
             />
-          </div>
+            </div>
+          </>
         )}
       </div>
 

@@ -59,7 +59,7 @@ export default function Footer() {
                 href="/privacidade"
                 className="text-gray-400 hover:text-white text-sm transition-colors duration-300"
               >
-                Política de Privacidade
+                Como protegemos seus dados
               </Link>
             </div>
           </div>

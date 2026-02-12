@@ -5,7 +5,7 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   return NextResponse.json(
-    { error: `Instância ${params.id} não editável por esta rota. Use Instâncias (Meta).` },
+    { error: `Instância ${params.id} não editável por esta rota. Use Configurações do Instagram/Facebook.` },
     { status: 410 }
   )
 }
@@ -15,7 +15,7 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   return NextResponse.json(
-    { error: `Instância ${params.id} não editável por esta rota. Use Instâncias (Meta).` },
+    { error: `Instância ${params.id} não editável por esta rota. Use Configurações do Instagram/Facebook.` },
     { status: 410 }
   )
 }
@@ -25,7 +25,7 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   return NextResponse.json(
-    { error: `Instância ${params.id} não removível por esta rota. Use Instâncias (Meta).` },
+    { error: `Instância ${params.id} não removível por esta rota. Use Configurações do Instagram/Facebook.` },
     { status: 410 }
   )
 }

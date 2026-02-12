@@ -65,3 +65,7 @@ coverage
 *.pem
 *.key
 config/*-service-account*.json
+
+# Supabase local
+supabase/.env
+supabase/.temp

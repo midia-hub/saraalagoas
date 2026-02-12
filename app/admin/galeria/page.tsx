@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Loader2 } from 'lucide-react'
 import { PageAccessGuard } from '@/app/admin/PageAccessGuard'
 import { useAdminAccess } from '@/lib/admin-access-context'
 import { adminFetchJson } from '@/lib/admin-client'
@@ -167,7 +168,7 @@ export default function AdminGaleriaPage() {
         })
       })
       .catch((e) => {
-        setError('Não foi possível carregar os álbuns. Tente novamente.')
+        setError('Não conseguimos carregar os álbuns. Por favor, tente novamente.')
         setAlbums([])
       })
       .finally(() => setLoading(false))
@@ -367,7 +368,7 @@ export default function AdminGaleriaPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <h2 id="delete-album-list-title" className="text-lg font-semibold text-slate-900">
-                    Excluir álbum?
+                    Você tem certeza que deseja excluir este álbum?
                   </h2>
                   <p className="mt-1 text-sm text-slate-600">
                     <span className="font-medium text-slate-700">{albumToDelete.title}</span>
@@ -381,8 +382,9 @@ export default function AdminGaleriaPage() {
                   type="button"
                   onClick={handleConfirmDeleteAlbum}
                   disabled={!!deletingAlbumId}
-                  className="px-4 py-2.5 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 disabled:opacity-50"
+                  className="px-4 py-2.5 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 disabled:opacity-50 flex items-center gap-2"
                 >
+                  {deletingAlbumId === albumToDelete.id && <Loader2 className="w-4 h-4 animate-spin" />}
                   {deletingAlbumId === albumToDelete.id ? 'Excluindo...' : 'Excluir álbum'}
                 </button>
                 <button

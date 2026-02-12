@@ -16,7 +16,7 @@ export default function AdminInstagramInstancesPage() {
             href="/admin/instancias"
             className="mt-4 inline-flex rounded-lg bg-[#c62737] px-4 py-2 text-sm font-medium text-white hover:bg-[#a01f2d]"
           >
-            Ir para Instâncias (Meta)
+            Ir para Configurações do Instagram/Facebook
           </Link>
         </div>
       </div>

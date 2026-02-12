@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { ArrowLeft, Save, Shield, AlertCircle } from 'lucide-react'
+import { ArrowLeft, Save, Shield, AlertCircle, Loader2 } from 'lucide-react'
 import { useRouter, useParams } from 'next/navigation'
 import { useRBAC } from '@/lib/hooks/useRBAC'
 import { adminFetchJson } from '@/lib/admin-client'

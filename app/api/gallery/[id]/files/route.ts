@@ -68,7 +68,7 @@ export async function GET(
     .single()
 
   if (error || !gallery) {
-    return NextResponse.json({ error: 'Galeria não encontrada.' }, { status: 404 })
+    return NextResponse.json({ error: 'Não conseguimos localizar a galeria.' }, { status: 404 })
   }
 
   try {

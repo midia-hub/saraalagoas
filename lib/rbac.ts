@@ -193,7 +193,7 @@ async function getUserByAccessToken(accessToken: string) {
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
   if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error('Supabase não configurado no servidor.')
+    throw new Error('A configuração do serviço não está concluída. Tente novamente.')
   }
 
   const authClient = createClient(supabaseUrl, supabaseAnonKey, {

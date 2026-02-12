@@ -21,7 +21,7 @@ export async function POST(
 
     const { id: galleryId } = await context.params
     const formData = await request.formData().catch(() => null)
-    if (!formData) return NextResponse.json({ error: 'FormData inválido.' }, { status: 400 })
+    if (!formData) return NextResponse.json({ error: 'O arquivo enviado está inválido. Tente novamente.' }, { status: 400 })
 
     const file = formData.get('file')
     if (!(file instanceof File)) {
@@ -44,7 +44,7 @@ export async function POST(
       .single()
 
     if (galleryError || !gallery?.drive_folder_id) {
-      return NextResponse.json({ error: 'Galeria não encontrada.' }, { status: 404 })
+      return NextResponse.json({ error: 'Não conseguimos localizar a galeria.' }, { status: 404 })
     }
 
     const buffer = Buffer.from(await file.arrayBuffer())

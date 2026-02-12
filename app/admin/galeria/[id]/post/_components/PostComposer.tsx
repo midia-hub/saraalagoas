@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { Loader2 } from 'lucide-react'
 import { MediaManager } from './MediaManager'
 import type { PostDraft } from '../_lib/usePostDraft'
 
@@ -69,7 +70,7 @@ export function PostComposer({
         <p className="mt-1 text-sm text-slate-600">Selecione a conta liberada para publicar.</p>
         {instances.length === 0 ? (
           <p className="mt-3 text-sm text-amber-700">
-            Nenhuma conta com checklist concluído. Conecte/reconecte em <strong>Instâncias (Meta)</strong> para liberar.
+            Nenhuma conta com checklist concluído. Conecte/reconecte em <strong>Configurações do Instagram/Facebook</strong> para liberar.
           </p>
         ) : (
           <div className="mt-3 space-y-3">
@@ -168,7 +169,7 @@ export function PostComposer({
             <p className="text-xs text-slate-500">
               Problemas ao publicar? Conecte ou reconecte em{' '}
               <Link href="/admin/instancias" className="font-medium text-[#c62737] hover:underline">
-                Instâncias (Meta)
+                Configurações do Instagram/Facebook
               </Link>
               .
             </p>
@@ -227,8 +228,9 @@ export function PostComposer({
             media.length === 0 ||
             (!hasInstagram && !hasFacebook)
           }
-          className="rounded-lg bg-[#c62737] px-4 py-2 text-sm text-white disabled:opacity-60"
+          className="rounded-lg bg-[#c62737] px-4 py-2 text-sm text-white disabled:opacity-60 flex items-center gap-2"
         >
+          {publishing && <Loader2 className="w-4 h-4 animate-spin" />}
           {publishing ? 'Publicando...' : 'Publicar'}
         </button>
       </div>

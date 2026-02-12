@@ -58,7 +58,7 @@ export default function CompletarCadastroPage() {
       return
     }
     if (senha !== confirmarSenha) {
-      setError('As senhas não coincidem.')
+      setError('As senhas não correspondem. Verifique e tente novamente.')
       return
     }
     if (!supabase) {

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { Loader2 } from 'lucide-react'
 import { siteConfig as defaultConfig } from '@/config/site'
 import type { SiteConfig } from '@/lib/types'
 import { adminFetchJson } from '@/lib/admin-client'
@@ -43,7 +44,7 @@ export function AdminSiteConfig() {
 
   return (
     <div className="max-w-3xl">
-      <h2 className="text-xl font-bold text-gray-900 mb-4">Configurações do site</h2>
+      <h2 className="text-xl font-bold text-gray-900 mb-4">Ajustes do Site</h2>
       <p className="text-gray-600 mb-6">
         Altere as informações exibidas na página inicial e no menu. Salve ao final.
       </p>
@@ -406,8 +407,9 @@ export function AdminSiteConfig() {
         <button
           type="submit"
           disabled={saving}
-          className="px-6 py-2.5 bg-[#c62737] text-white font-medium rounded-lg hover:bg-[#a01f2d] disabled:opacity-50"
+          className="px-6 py-2.5 bg-[#c62737] text-white font-medium rounded-lg hover:bg-[#a01f2d] disabled:opacity-50 flex items-center gap-2"
         >
+          {saving && <Loader2 className="w-4 h-4 animate-spin" />}
           {saving ? 'Salvando...' : 'Salvar configurações'}
         </button>
       </form>

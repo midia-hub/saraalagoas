@@ -304,7 +304,7 @@ export default function AdminInstanciasPage() {
     <PageAccessGuard pageKey="instagram">
       <div className="p-6 md:p-8">
         <header className="mb-6">
-          <h1 className="text-2xl font-bold text-slate-900">Instâncias (Meta)</h1>
+          <h1 className="text-2xl font-bold text-slate-900">Configurações do Instagram/Facebook</h1>
           <p className="text-slate-600 mt-1">
             Conecte aqui sua conta do Facebook/Instagram para liberar as postagens no Instagram. Faça o login com a conta que administra a página e o perfil do Instagram.
           </p>
@@ -499,9 +499,10 @@ export default function AdminInstanciasPage() {
                             <button
                               onClick={handleConnect}
                               disabled={connecting}
-                              className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-sm text-amber-800 hover:bg-amber-100 disabled:opacity-50"
+                              className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-sm text-amber-800 hover:bg-amber-100 disabled:opacity-50 flex items-center gap-2"
                               title="Reconecta a conta Meta para atualizar permissões e liberar postagem no Instagram"
                             >
+                              {connecting && <Loader2 className="w-3 h-3 animate-spin" />}
                               {connecting ? 'Reconectando...' : 'Reconectar permissões'}
                             </button>
                           )}

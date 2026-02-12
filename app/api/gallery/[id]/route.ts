@@ -9,7 +9,7 @@ export async function GET(
 ) {
   const params = await Promise.resolve(context.params)
   const id = params.id
-  if (!id) return NextResponse.json({ error: 'ID obrigatório.' }, { status: 400 })
+  if (!id) return NextResponse.json({ error: 'O ID é obrigatório. Por favor, informe-o.' }, { status: 400 })
   const { data, error } = await supabaseServer
     .from('galleries')
     .select('*')
@@ -17,7 +17,7 @@ export async function GET(
     .single()
 
   if (error || !data) {
-    return NextResponse.json({ error: 'Galeria não encontrada.' }, { status: 404 })
+    return NextResponse.json({ error: 'Não conseguimos localizar a galeria.' }, { status: 404 })
   }
   return NextResponse.json(data)
 }
@@ -37,7 +37,7 @@ export async function DELETE(
   const params = await Promise.resolve(context.params)
   const id = params.id
   if (!id) {
-    return NextResponse.json({ error: 'ID do álbum é obrigatório.' }, { status: 400 })
+    return NextResponse.json({ error: 'O ID do álbum é obrigatório.' }, { status: 400 })
   }
 
   const { data: gallery, error: fetchErr } = await supabaseServer
