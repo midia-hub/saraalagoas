@@ -8,7 +8,7 @@ export default function AcessoNegadoPage() {
       <div className="max-w-xl bg-white border border-red-200 rounded-xl p-6">
         <h1 className="text-2xl font-bold text-red-700">Acesso negado</h1>
         <p className="mt-2 text-slate-700">
-          Seu perfil não tem permissão para acessar esta página.
+          Você não tem permissão para acessar esta página. Entre em contato com o administrador.
         </p>
         <div className="mt-5 flex gap-2">
           <Link
@@ -21,7 +21,7 @@ export default function AcessoNegadoPage() {
             href="/admin/login"
             className="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50"
           >
-            Trocar usuário
+            Fazer login com outro usuário
           </Link>
         </div>
       </div>

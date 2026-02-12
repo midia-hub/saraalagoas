@@ -30,9 +30,9 @@ const DEFAULT_WIDTH = 256
 
 const primaryLinks = [
   { href: '/admin', label: 'Início', icon: LayoutDashboard, permission: 'dashboard' },
-  { href: '/admin/configuracoes', label: 'Configurações do site', icon: Settings, permission: 'configuracoes' },
+  { href: '/admin/configuracoes', label: 'Ajustes do Site', icon: Settings, permission: 'configuracoes' },
   { href: '/admin/usuarios', label: 'Usuários e perfis', icon: Users, permission: 'usuarios' },
-  { href: '/admin/roles', label: 'Funções e Permissões', icon: Shield, permission: 'roles' },
+  { href: '/admin/roles', label: 'Gerenciar Permissões', icon: Shield, permission: 'roles' },
   { href: '/admin/upload', label: 'Upload', icon: Upload, permission: 'upload' },
   { href: '/admin/galeria', label: 'Galeria', icon: ImageIcon, permission: 'galeria' },
 ] as const
@@ -44,7 +44,7 @@ const instagramLinks = [
 
 // Conexão via OAuth Meta (Facebook/Instagram) — fluxo principal
 const metaLinks = [
-  { href: '/admin/instancias', label: 'Instâncias (Meta)' },
+  { href: '/admin/instancias', label: 'Configurações do Instagram/Facebook' },
 ] as const
 
 
@@ -233,7 +233,7 @@ export function AdminSidebar() {
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-slate-300 hover:bg-slate-800 hover:text-white transition-colors text-left"
         >
           <LogOut size={20} className="shrink-0" />
-          Sair
+          Sair do Painel
         </button>
       </div>
     </>
@@ -366,7 +366,7 @@ export function AdminSidebar() {
             </Link>
             <button type="button" onClick={handleSignOut} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-slate-300 hover:bg-slate-800 hover:text-white transition-colors text-left">
               <LogOut size={20} className="shrink-0" />
-              Sair
+              Sair do Painel
             </button>
           </div>
         </div>

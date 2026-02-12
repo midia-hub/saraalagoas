@@ -4,6 +4,7 @@ import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
+import { Loader2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { clearSupabaseLocalSession } from '@/lib/auth-recovery'
 
@@ -40,7 +41,7 @@ export default function AdminLoginPage() {
     const form = e.currentTarget
     const { emailValue, passwordValue } = getCredentialValues(form, emailRef.current, passwordRef.current)
     if (!emailValue) {
-      setError('Informe o e-mail.')
+      setError('Por favor, insira seu e-mail.')
       return
     }
     if (!passwordValue) {
@@ -63,7 +64,7 @@ export default function AdminLoginPage() {
       }
 
       if (err) {
-        setError(err.message === 'Invalid login credentials' ? 'E-mail ou senha incorretos.' : 'Não foi possível entrar. Tente novamente.')
+        setError(err.message === 'Invalid login credentials' ? 'Verifique seu e-mail ou senha e tente novamente.' : 'Não foi possível entrar. Tente novamente.')
         setLoading(false)
         return
       }
@@ -134,7 +135,7 @@ export default function AdminLoginPage() {
       return
     }
     if (!emailValue) {
-      setError('Informe o e-mail.')
+      setError('Por favor, insira seu e-mail.')
       return
     }
     setLoading(true)
@@ -189,7 +190,7 @@ export default function AdminLoginPage() {
         >
           <div>
             <label htmlFor="admin-login-email" className="mb-1 block text-sm font-medium text-slate-700">
-              E-mail
+              Digite seu e-mail
             </label>
             <input
               ref={emailRef}
@@ -252,16 +253,18 @@ export default function AdminLoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full rounded-lg bg-[#c62737] py-2.5 font-medium text-white transition hover:bg-[#a01f2d] disabled:opacity-60"
+              className="w-full rounded-lg bg-[#c62737] py-2.5 font-medium text-white transition hover:bg-[#a01f2d] disabled:opacity-60 flex items-center justify-center gap-2"
             >
+              {loading && <Loader2 className="w-4 h-4 animate-spin" />}
               {loading ? 'Validando acesso...' : 'Entrar'}
             </button>
             <button
               type="button"
               onClick={handleMagicLink}
               disabled={loading}
-              className="w-full rounded-lg border border-slate-300 py-2.5 font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
+              className="w-full rounded-lg border border-slate-300 py-2.5 font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-60 flex items-center justify-center gap-2"
             >
+              {loading && <Loader2 className="w-4 h-4 animate-spin" />}
               Enviar link de acesso por e-mail
             </button>
           </div>

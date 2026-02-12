@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase'
 
 export async function getAccessTokenOrThrow(): Promise<string> {
   if (!supabase) {
-    throw new Error('Supabase não configurado.')
+    throw new Error('A configuração do serviço não está concluída. Tente novamente.')
   }
   const {
     data: { session },

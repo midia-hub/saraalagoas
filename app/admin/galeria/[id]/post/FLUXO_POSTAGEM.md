@@ -169,8 +169,11 @@ Na página `/admin/galeria/[id]/post/create`:
 
 ### 4️⃣ **Publicação**
 
-- Clique em "Publicar" para enviar para as plataformas
-- Ou "Concluir mais tarde" para salvar o rascunho
+- Escolha **Quando publicar:** "Publicar agora" ou "Programar postagem" (informe data e hora).
+- Clique em "Publicar" para enviar imediatamente ou agendar.
+- Após sucesso, o rascunho é limpo e você é redirecionado ao **Painel de publicações** (`/admin/instagram/posts`).
+- Postagens programadas são publicadas no horário (via cron ou botão "Processar fila agora" no painel).
+- Ou use "Concluir mais tarde" para salvar o rascunho localmente.
 
 ---
 

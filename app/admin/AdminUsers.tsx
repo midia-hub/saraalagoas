@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { UserPlus, Mail, Pencil, KeyRound, Trash2 } from 'lucide-react'
+import { UserPlus, Mail, Pencil, KeyRound, Trash2, Loader2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { adminFetchJson } from '@/lib/admin-client'
 import { Toast } from '@/components/Toast'
@@ -87,7 +87,7 @@ export function AdminUsers() {
     setInviteMessage(null)
     const email = inviteEmail.trim()
     if (!email) {
-      setInviteMessage({ type: 'err', text: 'Informe o e-mail.' })
+      setInviteMessage({ type: 'err', text: 'Por favor, insira seu e-mail.' })
       return
     }
     if (!supabase) {
@@ -118,7 +118,7 @@ export function AdminUsers() {
         setInviteLoading(false)
         return
       }
-      setInviteMessage({ type: 'ok', text: 'Convite enviado! O usuário receberá um e-mail para definir a senha.' })
+      setInviteMessage({ type: 'ok', text: 'Convite enviado! Aguarde o e-mail.' })
       setInviteEmail('')
       await loadData()
     } catch (err) {
@@ -187,7 +187,7 @@ export function AdminUsers() {
     setLoadingReset(userId)
     try {
       await adminFetchJson(`/api/admin/users/${userId}/send-reset-password`, { method: 'POST' })
-      setSavingMessage({ type: 'ok', text: 'E-mail de redefinição de senha enviado.' })
+      setSavingMessage({ type: 'ok', text: 'Enviamos um e-mail para redefinir sua senha.' })
     } catch (error) {
       setSavingMessage({ type: 'err', text: 'Não foi possível enviar o e-mail. Tente novamente.' })
     } finally {
@@ -206,7 +206,7 @@ export function AdminUsers() {
     try {
       await adminFetchJson(`/api/admin/users/${userToDelete.id}`, { method: 'DELETE' })
       setUsers((prev) => prev.filter((u) => u.id !== userToDelete.id))
-      setSavingMessage({ type: 'ok', text: 'Usuário excluído.' })
+      setSavingMessage({ type: 'ok', text: 'Usuário excluído com sucesso.' })
       if (editUser?.id === userToDelete.id) closeEditModal()
       setUserToDelete(null)
     } catch (error) {
@@ -222,7 +222,7 @@ export function AdminUsers() {
     <div className="max-w-6xl space-y-6">
       <h2 className="text-xl font-bold text-gray-900 mb-2">Usuários</h2>
       <p className="text-gray-600 mb-6">
-        Convide usuários e atribua perfis de acesso. Para gerenciar funções e permissões, use o menu &quot;Funções e Permissões&quot;.
+        Convide usuários e atribua perfis de acesso. Para gerenciar funções e permissões, use o menu &quot;Gerenciar Permissões&quot;.
       </p>
 
       <section className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 mb-6">
@@ -246,7 +246,7 @@ export function AdminUsers() {
             disabled={inviteLoading}
             className="px-4 py-2 bg-[#c62737] text-white font-medium rounded-lg hover:bg-[#a01f2d] disabled:opacity-50 flex items-center gap-2"
           >
-            <Mail size={18} />
+            {inviteLoading ? <Loader2 size={18} className="animate-spin" /> : <Mail size={18} />}
             {inviteLoading ? 'Enviando...' : 'Enviar convite'}
           </button>
         </form>
@@ -307,7 +307,7 @@ export function AdminUsers() {
                         className="p-2 text-gray-600 hover:text-[#c62737] hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
                         title="Enviar e-mail de redefinição de senha"
                       >
-                        <KeyRound size={18} />
+                        {loadingReset === user.id ? <Loader2 size={18} className="animate-spin" /> : <KeyRound size={18} />}
                       </button>
                       <button
                         type="button"
@@ -366,8 +366,9 @@ export function AdminUsers() {
                 type="button"
                 onClick={handleEditSave}
                 disabled={savingEdit}
-                className="px-4 py-2 bg-[#c62737] text-white rounded-lg hover:bg-[#a01f2d] disabled:opacity-50"
+                className="px-4 py-2 bg-[#c62737] text-white rounded-lg hover:bg-[#a01f2d] disabled:opacity-50 flex items-center gap-2"
               >
+                {savingEdit && <Loader2 className="w-4 h-4 animate-spin" />}
                 {savingEdit ? 'Salvando...' : 'Salvar'}
               </button>
             </div>

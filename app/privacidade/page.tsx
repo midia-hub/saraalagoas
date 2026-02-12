@@ -4,8 +4,8 @@ import { ArrowLeft } from 'lucide-react'
 import { siteConfig } from '@/config/site'
 
 export const metadata = {
-  title: `Política de Privacidade - ${siteConfig.name}`,
-  description: 'Política de privacidade e proteção de dados da Sara Sede Alagoas',
+  title: `Como protegemos seus dados - ${siteConfig.name}`,
+  description: 'Como protegemos seus dados - Sara Sede Alagoas',
 }
 
 export default function PrivacyPage() {
@@ -17,20 +17,20 @@ export default function PrivacyPage() {
           className="inline-flex items-center gap-2 text-sara-red hover:text-red-700 mb-8 transition-colors duration-300"
         >
           <ArrowLeft size={20} />
-          <span>Voltar para o início</span>
+          <span>Voltar ao início</span>
         </Link>
         
         <h1 className="text-4xl font-bold text-sara-gray-dark mb-8">
-          Política de Privacidade
+          Como protegemos seus dados
         </h1>
         
         <div className="prose prose-lg max-w-none text-gray-700 space-y-6">
           <section>
             <h2 className="text-2xl font-bold text-sara-gray-dark mb-4">
-              1. Introdução
+              O que é nossa Política de Privacidade
             </h2>
             <p>
-              A Sara Sede Alagoas respeita a privacidade de todos os visitantes e membros. 
+              A Sara Sede Alagoas valoriza e protege a sua privacidade de todos os visitantes e membros. 
               Esta política de privacidade explica como coletamos, usamos e protegemos suas informações pessoais.
             </p>
           </section>

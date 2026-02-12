@@ -30,3 +30,21 @@
 .animate-gallery-scroll {
   animation: gallery-scroll linear infinite;
 }
+
+/* Painel de postagens – calendário */
+.calendar-month .react-calendar {
+  width: 100%;
+  border: none;
+  font-family: inherit;
+}
+.calendar-month .react-calendar__tile {
+  position: relative;
+  padding: 0.5em 0.25em;
+  min-height: 4rem;
+}
+.calendar-month .react-calendar__tile.has-posts {
+  background: rgba(198, 39, 55, 0.08);
+}
+.calendar-month .react-calendar__tile:enabled:hover {
+  background: rgba(198, 39, 55, 0.12);
+}

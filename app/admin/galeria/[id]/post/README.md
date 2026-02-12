@@ -57,10 +57,12 @@ post/
 - ✅ Contador de itens
 
 ### 4. **Publicação**
-- ✅ Suporte Instagram/Facebook
+- ✅ Suporte Instagram/Facebook (Meta OAuth)
 - ✅ Preview em tempo real
-- ✅ Validação de limites (20 fotos para Instagram)
+- ✅ Validação de limites (até 10 fotos para Instagram — carrossel)
+- ✅ **Programar postagem** (data e hora; processamento no horário ou via “Processar fila” no painel)
 - ✅ Rascunhos locais (localStorage)
+- ✅ Após publicar: redirecionamento ao Painel de publicações e limpeza do rascunho
 
 ---
 
@@ -84,9 +86,11 @@ post/
    - Escreva o texto da postagem
    - Selecione a conta de destino
 
-3. **Publicar**
+3. **Publicar ou programar**
    - Revise o preview
-   - Clique em "Publicar"
+   - Escolha **Publicar agora** ou **Programar postagem** (informe data e hora)
+   - Clique em "Publicar" (ou "Programar" conforme o modo)
+   - Você será redirecionado ao **Painel de publicações** (`/admin/instagram/posts`)
 
 ### Upload Direto (Opcional)
 
@@ -142,14 +146,7 @@ const CROP_OPTIONS = [
 
 ### Alterar Limite de Imagens
 
-Edite `ImageUploader.tsx`:
-
-```typescript
-<ImageUploader
-  maxFiles={20} // Altere aqui
-  onDrop={handleDrop}
-/>
-```
+O limite para **Instagram** (carrossel) é 10 imagens (validação na API e na UI). Para outros contextos, edite o componente de upload (ex.: `ImageUploader.tsx`) e a validação em `create/page.tsx` e na rota `/api/social/publish`.
 
 ### Mudar Cores do Tema
 
@@ -266,31 +263,41 @@ POST /api/social/publish
 Body:
 {
   "albumId": "string",
-  "instanceIds": ["string"],
+  "instanceIds": ["string"],           // ex.: ["meta_ig:<integration-uuid>"]
+  "destinations": { "instagram": true, "facebook": false },
   "text": "string",
   "mediaEdits": [
-    {
-      "id": "string",
-      "cropMode": "1:1",
-      "altText": "string"
-    }
-  ]
+    { "id": "string", "cropMode": "1:1" | "4:5" | "1.91:1" | "original", "altText": "string", "croppedUrl": "data:..."? }
+  ],
+  "scheduled_at": "2026-02-15T14:00:00.000Z"   // opcional: programa para essa data/hora (ISO)
 }
 
-Response:
+Response (publicação imediata):
 {
+  "ok": boolean,
   "message": "string",
-  "draftId": "string",
+  "draftId": "string" | null,
   "jobCount": number,
-  "metaResults": [
-    {
-      "instanceId": "string",
-      "provider": "instagram",
-      "ok": boolean,
-      "error": "string?"
-    }
-  ]
+  "metaResults": [ { "instanceId": "string", "provider": "instagram" | "facebook", "ok": boolean, "error"?: "string" } ]
 }
+
+Response (postagem programada):
+{
+  "ok": true,
+  "scheduled": true,
+  "scheduledAt": "2026-02-15T14:00:00.000Z",
+  "id": "uuid",
+  "message": "string"
+}
+```
+
+### Processar postagens programadas
+
+Para publicar no horário programado, chame (manual no painel ou via cron):
+
+```typescript
+POST /api/social/run-scheduled
+// Com usuário autenticado (painel) ou header: x-cron-secret: <CRON_SECRET>
 ```
 
 ---
@@ -371,5 +378,5 @@ Para dúvidas ou problemas:
 ---
 
 **Última atualização:** Fevereiro 2026  
-**Versão:** 1.0.0  
-**Status:** ✅ Produção
+**Versão:** 1.1.0  
+**Status:** ✅ Produção (publicação imediata e programada; Instagram/Facebook via Meta)

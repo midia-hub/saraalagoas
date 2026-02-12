@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
     const folderId = await ensureDrivePath([year, type, slug, date])
 
     if (!supabaseServer) {
-      return NextResponse.json({ error: 'Supabase não configurado. Verifique as variáveis de ambiente.' }, { status: 500 })
+      return NextResponse.json({ error: 'A configuração do serviço não está concluída. Tente novamente.' }, { status: 500 })
     }
 
     const { data: existing } = await supabaseServer

@@ -65,7 +65,7 @@ export default function RedefinirSenhaPage() {
       return
     }
     if (p !== c) {
-      setError('As senhas não coincidem.')
+      setError('As senhas não correspondem. Verifique e tente novamente.')
       return
     }
     if (!supabase) {

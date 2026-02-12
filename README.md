@@ -9,6 +9,7 @@ Site institucional da Igreja Sara Nossa Terra - Sede Alagoas. Next.js 14, TypeSc
 - TailwindCSS
 - Supabase (auth, storage, banco)
 - Lucide React (ícones)
+- Integração Meta (Instagram e Facebook) para publicações
 
 ## Como rodar
 
@@ -22,7 +23,30 @@ Acesse **http://localhost:3000**
 ## Configuração
 
 1. **Dados do site:** edite `config/site.ts` (WhatsApp, redes sociais, endereço, textos).
-2. **Variáveis de ambiente:** copie `.env.example` para `.env` e preencha (Supabase, etc.).
+2. **Variáveis de ambiente:** copie `.env.example` para `.env` e preencha (Supabase, Meta, Google, etc.).
+
+## Painel administrativo
+
+- **Login:** `/admin/login`
+- **Início:** `/admin`
+- **Galeria:** `/admin/galeria` — álbuns e fotos (Drive).
+- **Publicações:** `/admin/instagram/posts` — painel de postagens (Instagram/Facebook).
+- **Instâncias (Meta):** `/admin/instancias` — conectar contas Instagram/Facebook via OAuth.
+
+### Fluxo de publicação (Instagram/Facebook)
+
+1. Em **Galeria**, abra um álbum e clique em **Criar post**.
+2. Em **Seleção de fotos**, escolha as imagens (até 10 para Instagram).
+3. Em **Criar post**, edite as fotos (crop, ordem), escreva o texto, escolha a conta e os destinos (Instagram e/ou Facebook).
+4. Escolha **Publicar agora** ou **Programar postagem** (data e hora).
+5. Após publicar (ou programar), você é redirecionado ao **Painel de publicações**.
+
+### Postagens programadas
+
+- Na tela de criar post, use **Programar postagem** e defina data/hora.
+- As programadas aparecem no **Painel de publicações** (seção “Postagens programadas”).
+- **Processar fila agora** no painel dispara a publicação das programadas em atraso.
+- Para publicação automática no horário: configure um cron (ex.: Vercel Cron) chamando `POST /api/social/run-scheduled` com header `x-cron-secret: <CRON_SECRET>`. Defina `CRON_SECRET` nas variáveis de ambiente.
 
 ## Scripts
 
@@ -37,12 +61,23 @@ Acesse **http://localhost:3000**
 
 ```
 ├── app/           # Páginas e layout (Next.js App Router)
+│   └── admin/    # Painel (galeria, publicações, instâncias Meta, usuários, roles)
 ├── components/    # Componentes React
-├── config/        # Dados do site (site.ts)
-├── lib/           # Utilitários e integrações
-├── public/        # Imagens e estáticos
-└── supabase/      # Migrations e Edge Functions
+├── config/       # Dados do site (site.ts)
+├── lib/          # Utilitários e integrações (meta, drive, publish-meta, etc.)
+├── public/       # Imagens e estáticos
+└── supabase/     # Migrations e Edge Functions
 ```
+
+## Variáveis de ambiente (resumo)
+
+Além das variáveis do Supabase e do Google Drive (galeria), para **publicações no Meta** (Instagram/Facebook):
+
+- **META_APP_ID**, **META_APP_SECRET** — App Meta (developers.facebook.com).
+- **NEXT_PUBLIC_META_REDIRECT_URI** — URL de callback OAuth (ex.: `https://seu-dominio.com/admin/instancias/oauth-done`).
+- **CRON_SECRET** (opcional) — Para o cron de postagens programadas (`/api/social/run-scheduled`).
+
+Consulte `.env.example` para a lista completa.
 
 ## Git (primeiro push)
 
@@ -62,12 +97,17 @@ Antes do primeiro push, confira que variáveis sensíveis (Supabase, Meta, Googl
 
 ## Deploy (Vercel)
 
-Configure no painel da Vercel (Settings → Environment Variables) as mesmas variáveis do `.env.example`. Para a **galeria de imagens** (Google Drive) funcionar em produção:
+Configure no painel da Vercel (Settings → Environment Variables) as mesmas variáveis do `.env.example`.
 
-1. **GOOGLE_DRIVE_ROOT_FOLDER_ID** – ID da pasta raiz no Drive (ex.: `1abc...xyz`).
-2. **GOOGLE_SERVICE_ACCOUNT_JSON** – Conteúdo completo do JSON da Service Account em **uma linha** (o mesmo que está em `config/*-service-account.json` local). No Google Cloud: IAM → Service Accounts → criar chave JSON; copie o arquivo, minifique (uma linha) e cole no valor da variável.
+- **Galeria (Google Drive):** `GOOGLE_DRIVE_ROOT_FOLDER_ID` e `GOOGLE_SERVICE_ACCOUNT_JSON`. Sem elas, `/api/gallery/image` retorna 503.
+- **Publicações Meta:** `META_APP_ID`, `META_APP_SECRET`, `NEXT_PUBLIC_META_REDIRECT_URI`.
+- **Postagens programadas (cron):** defina `CRON_SECRET` e configure um Cron Job para `POST /api/social/run-scheduled` com header `x-cron-secret`.
 
-Sem essas duas variáveis, a rota `/api/gallery/image` retorna 503 (Service Unavailable).
+## Documentação adicional
+
+- **Documentação completa da plataforma:** `DOCUMENTACAO_PLATAFORMA.md` — tecnologias, funcionalidades, integrações, APIs, banco e variáveis de ambiente.
+- **Módulo de postagem:** `app/admin/galeria/[id]/post/README.md` e `FLUXO_POSTAGEM.md`.
+- **Templates de e-mail:** `supabase/email-templates/README.md`.
 
 ## Licença
 

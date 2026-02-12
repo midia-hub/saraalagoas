@@ -105,7 +105,7 @@ export default function GalleryDetailPage() {
 
   if (!gallery) {
     return (
-      <div className="p-6">Galeria não encontrada.</div>
+      <div className="p-6">Não conseguimos localizar a galeria.</div>
     )
   }
 

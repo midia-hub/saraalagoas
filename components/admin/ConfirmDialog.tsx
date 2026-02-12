@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
-import { AlertCircle } from 'lucide-react'
+import { AlertCircle, Loader2 } from 'lucide-react'
 
 export interface ConfirmDialogProps {
   open: boolean
@@ -88,11 +88,12 @@ export function ConfirmDialog({
             type="button"
             onClick={onConfirm}
             disabled={loading}
-            className="inline-flex items-center justify-center rounded-xl px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:opacity-90 disabled:opacity-50"
+            className="inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:opacity-90 disabled:opacity-50"
             style={{
               backgroundColor: isDanger ? '#dc2626' : SITE_RED,
             }}
           >
+            {loading && <Loader2 className="w-4 h-4 animate-spin" />}
             {loading ? 'Aguarde...' : label}
           </button>
           {cancelLabel != null && cancelLabel !== '' && (

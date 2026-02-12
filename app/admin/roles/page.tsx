@@ -75,7 +75,7 @@ export default function RolesPage() {
           <div>
             <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
               <Shield className="w-8 h-8 text-blue-600" />
-              Funções e Permissões
+              Gerenciar Funções e Acessos
             </h1>
             <p className="mt-2 text-gray-600">
               Gerencie os tipos de usuários e suas permissões na plataforma

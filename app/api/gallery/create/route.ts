@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
   const uploadedByName = access.snapshot.displayName ?? access.snapshot.email ?? null
 
   const formData = await request.formData().catch(() => null)
-  if (!formData) return NextResponse.json({ error: 'FormData inválido.' }, { status: 400 })
+  if (!formData) return NextResponse.json({ error: 'O arquivo enviado está inválido. Tente novamente.' }, { status: 400 })
 
   const type = String(formData.get('type') || '').toLowerCase()
   const date = String(formData.get('date') || '')

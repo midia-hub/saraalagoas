@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { Loader2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { PageAccessGuard } from '@/app/admin/PageAccessGuard'
 import { Toast } from '@/components/Toast'
@@ -144,8 +145,9 @@ export default function AdminContaPage() {
             <button
               type="submit"
               disabled={savingEmail}
-              className="px-4 py-2 bg-[#c62737] text-white font-medium rounded-lg hover:bg-[#a01f2d] disabled:opacity-50"
+              className="px-4 py-2 bg-[#c62737] text-white font-medium rounded-lg hover:bg-[#a01f2d] disabled:opacity-50 flex items-center gap-2"
             >
+              {savingEmail && <Loader2 className="w-4 h-4 animate-spin" />}
               {savingEmail ? 'Enviando...' : 'Enviar confirmação para o novo e-mail'}
             </button>
           </form>

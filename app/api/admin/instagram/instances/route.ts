@@ -127,7 +127,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST() {
   return NextResponse.json(
-    { error: 'Integrações manuais foram desativadas. Use apenas Instâncias (Meta).' },
+    { error: 'Integrações manuais foram desativadas. Use apenas Configurações do Instagram/Facebook.' },
     { status: 410 }
   )
 }
