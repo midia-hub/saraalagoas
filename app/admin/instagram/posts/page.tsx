@@ -371,9 +371,9 @@ export default function AdminInstagramPostsPage() {
                   {loadingRecentMeta ? 'Buscando…' : 'Buscar postagens nas redes'}
                 </button>
               </div>
-              {recentFromMeta?.errors && recentFromMeta.errors.length > 0 && (
+              {(recentFromMeta?.errors?.length ?? 0) > 0 && (
                 <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-                  {recentFromMeta.errors.map((err, i) => (
+                  {(recentFromMeta?.errors ?? []).map((err, i) => (
                     <p key={i}>{err}</p>
                   ))}
                 </div>
@@ -384,7 +384,7 @@ export default function AdminInstagramPostsPage() {
                     <Instagram className="h-4 w-4" /> Instagram
                   </h3>
                   <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    {recentFromMeta.instagram.map((item) => (
+                    {(recentFromMeta?.instagram ?? []).map((item) => (
                       <article
                         key={item.id}
                         className="flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"
@@ -441,7 +441,7 @@ export default function AdminInstagramPostsPage() {
                     <Facebook className="h-4 w-4" /> Facebook
                   </h3>
                   <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    {recentFromMeta.facebook.map((item) => (
+                    {(recentFromMeta?.facebook ?? []).map((item) => (
                       <article
                         key={item.id}
                         className="flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"
