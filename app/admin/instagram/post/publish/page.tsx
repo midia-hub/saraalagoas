@@ -6,6 +6,7 @@ import { PageAccessGuard } from '@/app/admin/PageAccessGuard'
 import { adminFetchJson } from '@/lib/admin-client'
 import { supabase } from '@/lib/supabase'
 import { Crop, Filter, Pencil, Sticker, Type, X } from 'lucide-react'
+import { CustomSelect } from '@/components/ui/CustomSelect'
 
 type InstagramInstance = {
   id: string
@@ -387,17 +388,12 @@ export default function AdminInstagramPostPublishPage() {
             <div className="space-y-4">
               <section className="rounded-xl border border-slate-200 bg-white p-4">
                 <h2 className="text-sm font-semibold text-slate-800">Postar em</h2>
-                <select
+                <CustomSelect
                   value={instanceId}
-                  onChange={(e) => setInstanceId(e.target.value)}
-                  className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                >
-                  {instances.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.name} ({item.status})
-                    </option>
-                  ))}
-                </select>
+                  onChange={setInstanceId}
+                  placeholder="Selecione a conta"
+                  options={instances.map((item) => ({ value: item.id, label: `${item.name} (${item.status})` }))}
+                />
               </section>
 
               <section className="rounded-xl border border-slate-200 bg-white p-4">

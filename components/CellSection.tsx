@@ -14,7 +14,7 @@ export default function CellSection() {
   return (
     <SectionWrapper id="celula" bgColor="white">
       <div className="max-w-4xl mx-auto text-center">
-        <h2 className="text-4xl md:text-5xl font-bold text-sara-gray-dark mb-6">
+        <h2 className="text-4xl md:text-5xl font-bold text-sara-gray-dark mb-6 uppercase tracking-[2px]">
           {config.cell.title}
         </h2>
         <p className="text-lg text-gray-600 mb-12">

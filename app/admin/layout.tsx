@@ -9,6 +9,7 @@ import { AdminAccessProvider } from '@/lib/admin-access-context'
 import { adminFetchJson } from '@/lib/admin-client'
 import type { PermissionMap } from '@/lib/rbac-types'
 import { clearSupabaseLocalSession, getSessionWithRecovery } from '@/lib/auth-recovery'
+import { PageLoading } from '@/components/ui/PageLoading'
 
 function hasAdminCookie(): boolean {
   if (typeof document === 'undefined') return false
@@ -127,24 +128,16 @@ export default function AdminLayout({
   if (isPublicAdminPage) return <>{children}</>
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-100">
-        <p className="text-slate-600">Carregando...</p>
-      </div>
-    )
+    return <PageLoading message="Carregando..." fullScreen />
   }
 
   if (!user || !canAccessAdmin) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-100">
-        <p className="text-slate-600">Redirecionando para o login...</p>
-      </div>
-    )
+    return <PageLoading message="Redirecionando para o login..." fullScreen />
   }
 
   return (
     <AdminAccessProvider value={{ loading: false, canAccessAdmin, isAdmin, profileName, permissions }}>
-      <div className="min-h-screen flex bg-slate-100">
+      <div className="min-h-screen flex bg-slate-50">
         <AdminSidebar />
         <main className="flex-1 overflow-auto pt-14 md:pt-0">
           {children}

@@ -41,10 +41,11 @@ export default function Header() {
   
   return (
     <header
-      className={`fixed top-0 left-0 right-0 z-[100] bg-white shadow-sm transition-all duration-300 lg:z-50 ${
-        isScrolled ? 'lg:shadow-lg' : 'lg:bg-white/95 lg:backdrop-blur-sm lg:shadow-none'
+      className={`relative fixed top-0 left-0 right-0 z-[100] bg-white shadow-md transition-shadow duration-300 lg:z-50 ${
+        isScrolled ? 'lg:shadow-xl' : 'lg:shadow-none'
       }`}
     >
+      <div className="absolute bottom-0 left-0 right-0 h-1 bg-sara-red" aria-hidden />
       <div className="container mx-auto px-4 md:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20">
           {/* Logo */}
@@ -65,14 +66,14 @@ export default function Header() {
               <button
                 key={item.id}
                 onClick={() => scrollToSection(item.id)}
-                className="text-sara-gray-dark hover:text-sara-red font-medium transition-colors duration-300"
+                className="text-sara-gray-dark hover:text-sara-red font-medium transition-colors duration-300 uppercase tracking-[2px]"
               >
                 {item.label}
               </button>
             ))}
             <Link
               href="/admin"
-              className="inline-flex items-center gap-1.5 text-sara-gray-dark hover:text-sara-red font-medium transition-colors duration-300"
+              className="inline-flex items-center gap-1.5 text-sara-gray-dark hover:text-sara-red font-medium transition-colors duration-300 uppercase tracking-[2px]"
             >
               <Shield size={18} aria-hidden />
               Admin
@@ -82,7 +83,7 @@ export default function Header() {
           {/* Botão Menu Mobile - área de toque maior e bem visível */}
           <button
             onClick={() => setIsMenuOpen(!isMenuOpen)}
-            className="lg:hidden flex items-center justify-center w-12 h-12 -mr-2 text-slate-700 hover:text-sara-red hover:bg-slate-100 rounded-lg transition-colors"
+            className="lg:hidden flex items-center justify-center w-12 h-12 -mr-2 text-sara-gray-dark hover:text-sara-red hover:bg-sara-gray-light/20 rounded-lg transition-colors"
             aria-label={isMenuOpen ? 'Fechar menu' : 'Abrir menu'}
             aria-expanded={isMenuOpen}
           >
@@ -98,13 +99,13 @@ export default function Header() {
         }`}
         aria-hidden={!isMenuOpen}
       >
-        <div className="h-full w-full overflow-auto bg-white">
+        <div className="h-full w-full overflow-auto bg-white border-t border-sara-gray-light/30">
         <nav className="flex flex-col p-6 gap-4" aria-label="Menu principal">
           {config.menuItems.map((item) => (
             <button
               key={item.id}
               onClick={() => scrollToSection(item.id)}
-              className="text-sara-gray-dark hover:text-sara-red font-medium text-lg py-3 text-left transition-colors duration-300"
+              className="text-sara-gray-dark hover:text-sara-red font-medium text-lg py-3 text-left transition-colors duration-300 uppercase tracking-[2px]"
             >
               {item.label}
             </button>
@@ -112,7 +113,7 @@ export default function Header() {
           <Link
             href="/admin"
             onClick={() => setIsMenuOpen(false)}
-            className="inline-flex items-center gap-2 text-sara-gray-dark hover:text-sara-red font-medium text-lg py-3 text-left transition-colors duration-300"
+            className="inline-flex items-center gap-2 text-sara-gray-dark hover:text-sara-red font-medium text-lg py-3 text-left transition-colors duration-300 uppercase tracking-[2px]"
           >
             <Shield size={20} aria-hidden />
             Admin

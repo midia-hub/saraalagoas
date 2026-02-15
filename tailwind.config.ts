@@ -13,6 +13,20 @@ const config: Config = {
         'sara-white': '#FFFFFF',
         'sara-red': '#c62737',
       },
+      backgroundImage: {
+        'sara-page': 'linear-gradient(160deg, #e8e9ea 0%, #B6B8BA 25%, #252525 60%, #1a1a1a 100%)',
+        'sara-header': 'linear-gradient(90deg, #c62737 0%, #9e1f2e 35%, #252525 100%)',
+        'sara-cta': 'linear-gradient(135deg, #c62737 0%, #252525 100%)',
+        'sara-success': 'linear-gradient(135deg, #4CAF50 0%, #45a049 100%)',
+      },
+      boxShadow: {
+        'sara-card': '0 20px 60px rgba(0, 0, 0, 0.1)',
+        'sara-focus': '0 0 0 3px rgba(198, 39, 55, 0.1)',
+        'sara-cta-hover': '0 10px 25px rgba(198, 39, 55, 0.3)',
+      },
+      transitionDuration: {
+        '300': '300ms',
+      },
       animation: {
         'fade-in': 'fadeIn 0.6s ease-out',
         'slide-up': 'slideUp 0.6s ease-out',

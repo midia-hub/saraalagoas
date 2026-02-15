@@ -17,12 +17,12 @@ export default function MissionSection() {
             <Target className="text-sara-red" size={40} />
           </div>
           
-          <h2 className="text-4xl md:text-5xl font-bold text-sara-gray-dark mb-6">
+          <h2 className="text-4xl md:text-5xl font-bold text-sara-gray-dark mb-6 uppercase tracking-[2px]">
             Missão e Visão
           </h2>
         </div>
         
-        <div className="bg-gray-50 rounded-lg p-8">
+        <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 border border-sara-gray-light/30 shadow-sara-card">
           <p className="text-lg text-gray-700 leading-relaxed mb-6">
             {config.mission.short}
           </p>

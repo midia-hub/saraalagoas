@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { CustomSelect } from '@/components/ui/CustomSelect'
 
 export type AlbumTypeFilter = '' | 'culto' | 'evento'
 
@@ -72,22 +73,22 @@ export function AlbumFilters({
   }, [state.search])
 
   const handleTypeChange = useCallback(
-    (e: React.ChangeEvent<HTMLSelectElement>) => {
-      onChange({ ...state, type: e.target.value as AlbumTypeFilter })
+    (v: string) => {
+      onChange({ ...state, type: v as AlbumTypeFilter })
     },
     [state, onChange]
   )
 
   const handlePeriodChange = useCallback(
-    (e: React.ChangeEvent<HTMLSelectElement>) => {
-      onChange({ ...state, period: e.target.value as PeriodFilter })
+    (v: string) => {
+      onChange({ ...state, period: v as PeriodFilter })
     },
     [state, onChange]
   )
 
   const handleSortChange = useCallback(
-    (e: React.ChangeEvent<HTMLSelectElement>) => {
-      onChange({ ...state, sort: e.target.value as SortOption })
+    (v: string) => {
+      onChange({ ...state, sort: v as SortOption })
     },
     [state, onChange]
   )
@@ -118,40 +119,9 @@ export function AlbumFilters({
           className="flex-1 min-w-[140px] max-w-[220px] px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#c62737]/30 focus:border-[#c62737] outline-none"
           aria-label="Buscar álbum por nome"
         />
-        <select
-          value={state.type}
-          onChange={handleTypeChange}
-          className="px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#c62737]/30 focus:border-[#c62737] outline-none"
-          aria-label="Filtrar por tipo"
-        >
-          <option value="">Todos os tipos</option>
-          <option value="culto">Culto</option>
-          <option value="evento">Evento</option>
-        </select>
-        <select
-          value={state.period}
-          onChange={handlePeriodChange}
-          className="px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#c62737]/30 focus:border-[#c62737] outline-none"
-          aria-label="Filtrar por período"
-        >
-          {PERIOD_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </select>
-        <select
-          value={state.sort}
-          onChange={handleSortChange}
-          className="px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#c62737]/30 focus:border-[#c62737] outline-none"
-          aria-label="Ordenar"
-        >
-          {sortOptions.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </select>
+        <CustomSelect value={state.type} onChange={handleTypeChange} placeholder="Todos os tipos" options={[{ value: 'culto', label: 'Culto' }, { value: 'evento', label: 'Evento' }]} aria-label="Filtrar por tipo" />
+        <CustomSelect value={state.period} onChange={handlePeriodChange} placeholder="Período" options={PERIOD_OPTIONS} allowEmpty={false} aria-label="Filtrar por período" />
+        <CustomSelect value={state.sort} onChange={handleSortChange} placeholder="Ordenar" options={sortOptions} allowEmpty={false} aria-label="Ordenar" />
         {hasActiveFilters && (
           <button
             type="button"

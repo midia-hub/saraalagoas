@@ -2,13 +2,84 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Design System — Sara Nossa Terra */
+:root {
+  --sara-gray-light: #B6B8BA;
+  --sara-gray-dark: #252525;
+  --sara-white: #FFFFFF;
+  --sara-red: #c62737;
+  --sara-page-gradient: linear-gradient(160deg, #e8e9ea 0%, #B6B8BA 25%, #252525 60%, #1a1a1a 100%);
+  --sara-header-gradient: linear-gradient(90deg, #c62737 0%, #9e1f2e 35%, #252525 100%);
+}
+
 @layer base {
   body {
-    @apply bg-white text-sara-gray-dark antialiased;
+    @apply text-sara-gray-dark antialiased;
+    background: var(--sara-page-gradient);
+    min-height: 100vh;
   }
   
   html {
     scroll-padding-top: 80px;
+  }
+}
+
+/* Componentes conforme Design System */
+@layer components {
+  /* Input / Select padrão */
+  .sara-input {
+    @apply border-2 border-sara-gray-light rounded-xl bg-white text-sara-gray-dark text-base;
+    padding: 15px 18px;
+    transition: all 0.3s ease;
+  }
+  .sara-input:focus {
+    @apply outline-none border-sara-red;
+    box-shadow: 0 0 0 3px rgba(198, 39, 55, 0.1);
+    transform: translateY(-2px);
+  }
+  .sara-input:disabled {
+    @apply opacity-50 cursor-default;
+  }
+  
+  /* Select com seta customizada */
+  .sara-select {
+    @apply sara-input;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23252525' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+    background-position: right 12px center;
+    background-repeat: no-repeat;
+    background-size: 16px;
+    padding-right: 40px;
+  }
+  
+  /* Botão CTA principal */
+  .sara-cta {
+    @apply w-full py-[18px] rounded-xl font-bold cursor-pointer uppercase;
+    font-size: 1.1rem;
+    letter-spacing: 1px;
+    background: var(--sara-header-gradient);
+    color: white;
+    border: none;
+    transition: all 0.3s ease;
+  }
+  .sara-cta:hover:not(:disabled) {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 25px rgba(198, 39, 55, 0.3);
+  }
+  .sara-cta:active:not(:disabled) {
+    transform: translateY(-1px);
+  }
+  .sara-cta:disabled {
+    @apply opacity-50 cursor-not-allowed;
+  }
+  
+  /* Card / Container principal */
+  .sara-card {
+    border-radius: 20px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
   }
 }
 
@@ -47,4 +118,150 @@
 }
 .calendar-month .react-calendar__tile:enabled:hover {
   background: rgba(198, 39, 55, 0.12);
+}
+
+/* DatePickerInput – modal do calendário (Data de Nascimento / Data da Conversão) */
+.date-picker-calendar .react-calendar {
+  width: 100%;
+  border: none;
+  font-family: inherit;
+  background: transparent;
+}
+.date-picker-calendar .react-calendar__navigation {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+  gap: 0.5rem;
+}
+.date-picker-calendar .react-calendar__navigation button {
+  min-width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  border: none;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: #334155;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.date-picker-calendar .react-calendar__navigation button:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+.date-picker-calendar .react-calendar__navigation button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.date-picker-calendar .react-calendar__navigation__label {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: #1e293b;
+  text-transform: capitalize;
+}
+.date-picker-calendar .react-calendar__month-view__weekdays {
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.date-picker-calendar .react-calendar__month-view__weekdays__weekday abbr {
+  text-decoration: none;
+}
+.date-picker-calendar .react-calendar__month-view__days {
+  gap: 2px;
+}
+.date-picker-calendar .react-calendar__tile {
+  max-width: none;
+  padding: 0.5rem;
+  font-size: 0.875rem;
+  border: none;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: #334155;
+  transition: background 0.15s, color 0.15s;
+}
+.date-picker-calendar .react-calendar__tile:enabled:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+.date-picker-calendar .react-calendar__tile--now {
+  background: rgba(198, 39, 55, 0.1);
+  color: #c62737;
+  font-weight: 600;
+}
+.date-picker-calendar .react-calendar__tile--now:enabled:hover {
+  background: rgba(198, 39, 55, 0.18);
+  color: #b91c1c;
+}
+.date-picker-calendar .react-calendar__tile--active {
+  background: #c62737;
+  color: white;
+  font-weight: 600;
+}
+.date-picker-calendar .react-calendar__tile--active:enabled:hover {
+  background: #b91c1c;
+  color: white;
+}
+.date-picker-calendar .react-calendar__month-view__days__day--neighboringMonth {
+  color: #94a3b8;
+}
+
+/* Modais de cadastro (Consolidação): selects e listas de opções */
+.cadastro-modal select {
+  @apply w-full rounded-xl border-2 border-slate-200 bg-white text-slate-800 outline-none transition-all cursor-pointer;
+  padding: 0.5rem 2.5rem 0.5rem 1rem;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%2364748b' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+  background-position: right 0.75rem center;
+  background-repeat: no-repeat;
+  background-size: 1.25rem;
+}
+.cadastro-modal select:hover {
+  @apply border-slate-300;
+}
+.cadastro-modal select:focus {
+  border-color: var(--sara-red);
+  box-shadow: 0 0 0 3px rgba(198, 39, 55, 0.12);
+}
+.cadastro-modal select:disabled {
+  @apply bg-slate-50 text-slate-400 cursor-not-allowed;
+}
+/* Listas dropdown (busca pessoa, etc.) */
+.cadastro-modal .dropdown-options {
+  @apply rounded-xl border-2 border-slate-200 bg-white shadow-xl overflow-hidden overflow-y-auto;
+  max-height: 12rem;
+}
+.cadastro-modal .dropdown-options li button {
+  @apply w-full text-left text-sm text-slate-800 transition-colors duration-150;
+  padding: 0.625rem 1rem;
+}
+.cadastro-modal .dropdown-options li button:hover {
+  background: rgba(198, 39, 55, 0.08);
+  color: var(--sara-red);
+}
+.cadastro-modal .dropdown-options li + li {
+  @apply border-t border-slate-100;
+}
+/* Inputs dentro do modal alinhados ao select */
+.cadastro-modal input[type="text"],
+.cadastro-modal input[type="email"],
+.cadastro-modal input[type="tel"],
+.cadastro-modal input[type="time"] {
+  @apply rounded-xl border-2 border-slate-200 outline-none transition-all;
+  padding: 0.5rem 1rem;
+}
+.cadastro-modal input[type="text"]:focus,
+.cadastro-modal input[type="email"]:focus,
+.cadastro-modal input[type="tel"]:focus,
+.cadastro-modal input[type="time"]:focus {
+  border-color: var(--sara-red);
+  box-shadow: 0 0 0 3px rgba(198, 39, 55, 0.12);
+}
+.cadastro-modal input::placeholder {
+  @apply text-slate-400;
 }

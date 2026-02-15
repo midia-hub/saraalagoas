@@ -5,7 +5,7 @@ import { siteConfig } from '@/config/site'
 import { SiteConfigProvider } from '@/lib/site-config-context'
 
 const poppins = Poppins({
-  weight: ['400', '500', '600', '700'],
+  weight: ['200', '400', '500', '600', '700'],
   subsets: ['latin'],
   display: 'swap',
 })

@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { PageAccessGuard } from '@/app/admin/PageAccessGuard'
 import { adminFetchJson } from '@/lib/admin-client'
 import { supabase } from '@/lib/supabase'
+import { CustomSelect } from '@/components/ui/CustomSelect'
 
 type PresetKey = '4:5' | '3:4' | '1:1' | '1.91:1'
 
@@ -232,15 +233,16 @@ export default function AdminInstagramPostEditorPage() {
 
         <div className="mt-6 rounded-xl border border-slate-200 bg-white p-4">
           <label className="text-sm font-medium text-slate-700">Preset global</label>
-          <select
+          <CustomSelect
             value={preset}
-            onChange={(e) => setPreset(e.target.value as PresetKey)}
-            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 md:max-w-sm"
-          >
-            {Object.entries(PRESETS).map(([value, info]) => (
-              <option key={value} value={value}>{info.label} ({info.width}x{info.height})</option>
-            ))}
-          </select>
+            onChange={(v) => setPreset(v as PresetKey)}
+            placeholder="Preset"
+            options={Object.entries(PRESETS).map(([value, info]) => ({
+              value,
+              label: `${info.label} (${info.width}x${info.height})`,
+            }))}
+            allowEmpty={false}
+          />
         </div>
 
         <div className="mt-5 grid gap-4">

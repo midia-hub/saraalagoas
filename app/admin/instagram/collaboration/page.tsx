@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { PageAccessGuard } from '@/app/admin/PageAccessGuard'
 import { adminFetchJson } from '@/lib/admin-client'
 import { Check, X, Users, Loader2, RefreshCw, ExternalLink } from 'lucide-react'
+import { CustomSelect } from '@/components/ui/CustomSelect'
 
 type MetaIntegration = {
   id: string
@@ -151,19 +152,15 @@ export default function InstagramCollaborationPage() {
               Conta Instagram
             </label>
             <div className="flex items-center gap-3">
-              <select
+              <CustomSelect
                 value={selectedIntegrationId}
-                onChange={(e) => setSelectedIntegrationId(e.target.value)}
-                className="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                {integrations.map((integration) => (
-                  <option key={integration.id} value={integration.id}>
-                    {integration.instagram_username
-                      ? `@${integration.instagram_username}`
-                      : integration.page_name || 'Conta Instagram'}
-                  </option>
-                ))}
-              </select>
+                onChange={setSelectedIntegrationId}
+                placeholder="Conta Instagram"
+                options={integrations.map((integration) => ({
+                  value: integration.id,
+                  label: integration.instagram_username ? `@${integration.instagram_username}` : integration.page_name || 'Conta Instagram',
+                }))}
+              />
               <button
                 onClick={loadInvites}
                 disabled={refreshing}

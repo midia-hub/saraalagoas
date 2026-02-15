@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { Loader2 } from 'lucide-react'
+import { CustomSelect } from '@/components/ui/CustomSelect'
 import { MediaManager } from './MediaManager'
 import type { PostDraft } from '../_lib/usePostDraft'
 
@@ -77,19 +78,12 @@ export function PostComposer({
             <label className="block text-sm font-medium text-slate-700" htmlFor="post-target-account">
               Conta de destino
             </label>
-            <select
-              id="post-target-account"
+            <CustomSelect
               value={selectedId}
-              onChange={(e) => onInstanceSelectionChange(e.target.value ? [e.target.value] : [])}
-              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
-            >
-              <option value="">Selecione a conta</option>
-              {instances.map((inst) => (
-                <option key={inst.id} value={inst.id}>
-                  {inst.name}
-                </option>
-              ))}
-            </select>
+              onChange={(v) => onInstanceSelectionChange(v ? [v] : [])}
+              placeholder="Selecione a conta"
+              options={instances.map((inst) => ({ value: inst.id, label: inst.name }))}
+            />
             {selectedInstance && (
               <>
                 {/* Destinos disponíveis para publicação */}

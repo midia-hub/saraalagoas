@@ -1,0 +1,101 @@
+'use client'
+
+import { useState, useRef, useEffect } from 'react'
+import { ChevronDown } from 'lucide-react'
+
+export type CustomSelectOption = { value: string; label: string }
+
+type CustomSelectProps = {
+  value: string
+  onChange: (value: string) => void
+  options: CustomSelectOption[]
+  placeholder?: string
+  disabled?: boolean
+  allowEmpty?: boolean
+  id?: string
+  'aria-label'?: string
+}
+
+export function CustomSelect({
+  value,
+  onChange,
+  options,
+  placeholder = 'Selecione...',
+  disabled = false,
+  allowEmpty = true,
+  id,
+  'aria-label': ariaLabel,
+}: CustomSelectProps) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  const selected = options.find((o) => o.value === value)
+  const display = selected ? selected.label : placeholder
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    if (open) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [open])
+
+  return (
+    <div ref={ref} className="relative w-full">
+      <button
+        type="button"
+        id={id}
+        aria-label={ariaLabel}
+        aria-expanded={open}
+        aria-haspopup="listbox"
+        aria-controls={open ? `${id}-listbox` : undefined}
+        role="combobox"
+        disabled={disabled}
+        onClick={() => !disabled && setOpen((v) => !v)}
+        className="flex w-full items-center justify-between gap-2 rounded-xl border-2 border-slate-200 bg-white px-4 py-2.5 text-left text-slate-800 outline-none transition-all hover:border-slate-300 focus:border-[#c62737] focus:shadow-[0_0_0_3px_rgba(198,39,55,0.12)] disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+      >
+        <span className={!selected ? 'text-slate-400' : ''}>{display}</span>
+        <ChevronDown size={18} className={`shrink-0 text-slate-500 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <ul
+          id={id ? `${id}-listbox` : undefined}
+          role="listbox"
+          className="absolute z-50 mt-1.5 max-h-52 w-full overflow-hidden overflow-y-auto rounded-xl border-2 border-slate-200 bg-white shadow-xl"
+          style={{ maxHeight: '13rem' }}
+        >
+          {allowEmpty && (
+            <li role="option">
+              <button
+                type="button"
+                className="w-full px-4 py-2.5 text-left text-sm text-slate-800 transition-colors hover:bg-[#c62737]/10 hover:text-[#c62737]"
+                onClick={() => {
+                  onChange('')
+                  setOpen(false)
+                }}
+              >
+                {placeholder}
+              </button>
+            </li>
+          )}
+          {options.map((opt, idx) => (
+            <li key={opt.value} role="option" aria-selected={value === opt.value} className={allowEmpty || idx > 0 ? 'border-t border-slate-100' : ''}>
+              <button
+                type="button"
+                className={`w-full px-4 py-2.5 text-left text-sm transition-colors hover:bg-[#c62737]/10 hover:text-[#c62737] ${value === opt.value ? 'bg-[#c62737]/10 text-[#c62737]' : 'text-slate-800'}`}
+                onClick={() => {
+                  onChange(opt.value)
+                  setOpen(false)
+                }}
+              >
+                {opt.label}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}

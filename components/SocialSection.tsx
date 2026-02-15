@@ -25,7 +25,7 @@ export default function SocialSection() {
   return (
     <SectionWrapper id="redes" bgColor="white">
       <div className="text-center max-w-3xl mx-auto">
-        <h2 className="text-4xl md:text-5xl font-bold text-sara-gray-dark mb-6">
+        <h2 className="text-4xl md:text-5xl font-bold text-sara-gray-dark mb-6 uppercase tracking-[2px]">
           Nossas Redes Sociais
         </h2>
         <p className="text-lg text-gray-600 mb-12">
@@ -41,7 +41,7 @@ export default function SocialSection() {
                 href={social.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className={`flex items-center gap-3 bg-sara-gray-dark text-white px-8 py-4 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 ${social.color}`}
+                className={`flex items-center gap-3 bg-sara-gray-dark text-white px-8 py-4 rounded-xl shadow-lg transition-all duration-300 hover:-translate-y-[3px] hover:shadow-sara-cta-hover uppercase tracking-[1px] font-bold ${social.color}`}
                 aria-label={social.name}
               >
                 <Icon size={28} />

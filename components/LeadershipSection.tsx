@@ -13,7 +13,7 @@ export default function LeadershipSection() {
   return (
     <SectionWrapper id="lideranca" bgColor="gray">
       <div className="text-center mb-12">
-        <h2 className="text-4xl md:text-5xl font-bold text-sara-gray-dark mb-4">
+        <h2 className="text-4xl md:text-5xl font-bold text-sara-gray-dark mb-4 uppercase tracking-[2px]">
           Nossa Liderança
         </h2>
         <p className="text-lg text-sara-gray-light max-w-2xl mx-auto">

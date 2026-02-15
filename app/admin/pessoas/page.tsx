@@ -1,0 +1,107 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { UserCircle, Search } from 'lucide-react'
+import { PageAccessGuard } from '@/app/admin/PageAccessGuard'
+import { CustomSelect } from '@/components/ui/CustomSelect'
+import { PeopleTable } from '@/components/admin/people/PeopleTable'
+import { fetchPeople } from '@/lib/people'
+import type { Person } from '@/lib/types/person'
+
+export default function PessoasPage() {
+  const [people, setPeople] = useState<Person[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [q, setQ] = useState('')
+  const [churchProfile, setChurchProfile] = useState('')
+  const [churchSituation, setChurchSituation] = useState('')
+  const [churchRole, setChurchRole] = useState('')
+
+  async function load() {
+    setLoading(true)
+    setError(null)
+    try {
+      const list = await fetchPeople({
+        q: q || undefined,
+        church_profile: churchProfile || undefined,
+        church_situation: churchSituation || undefined,
+        church_role: churchRole || undefined,
+      })
+      setPeople(list)
+    } catch (e) {
+      setPeople([])
+      setError(e instanceof Error ? e.message : 'Erro ao carregar pessoas.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    load()
+  }, [q, churchProfile, churchSituation, churchRole])
+
+  return (
+    <PageAccessGuard pageKey="pessoas">
+      <div className="p-6 md:p-8">
+        <div className="mb-8">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-12 h-12 rounded-xl bg-[#c62737]/10 flex items-center justify-center">
+              <UserCircle className="text-[#c62737]" size={24} />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-slate-800">Pessoas</h1>
+              <p className="text-slate-500">Cadastro central de pessoas</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl border border-slate-200 p-6 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="lg:col-span-2">
+              <label className="block text-sm font-medium text-slate-700 mb-2">Buscar</label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                <input
+                  type="text"
+                  value={q}
+                  onChange={(e) => setQ(e.target.value)}
+                  placeholder="Nome, telefone, e-mail ou CPF..."
+                  className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-300 focus:border-[#c62737] focus:ring-2 focus:ring-[#c62737]/20 outline-none"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">Perfil</label>
+              <CustomSelect value={churchProfile} onChange={setChurchProfile} placeholder="Todos" options={[{ value: 'Membro', label: 'Membro' }, { value: 'Frequentador', label: 'Frequentador' }, { value: 'Visitante', label: 'Visitante' }]} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">Situação</label>
+              <CustomSelect value={churchSituation} onChange={setChurchSituation} placeholder="Todos" options={[{ value: 'Ativo', label: 'Ativo' }, { value: 'Inativo', label: 'Inativo' }]} />
+            </div>
+          </div>
+          <div className="mt-4">
+            <label className="block text-sm font-medium text-slate-700 mb-2">Função</label>
+            <div className="max-w-xs">
+              <CustomSelect
+                value={churchRole}
+                onChange={setChurchRole}
+                placeholder="Todas"
+                options={[
+                  { value: 'Nenhum', label: 'Nenhum' }, { value: 'Obreiro', label: 'Obreiro' }, { value: 'Voluntário', label: 'Voluntário' },
+                  { value: 'Diácono', label: 'Diácono' }, { value: 'Cooperador', label: 'Cooperador' }, { value: 'Missionário', label: 'Missionário' }, { value: 'Pastor', label: 'Pastor' },
+                ]}
+              />
+            </div>
+          </div>
+        </div>
+
+        {error && (
+          <div className="mb-4 p-4 rounded-lg bg-red-50 border border-red-200 text-red-800 text-sm">
+            {error}
+          </div>
+        )}
+        <PeopleTable people={people} loading={loading} />
+      </div>
+    </PageAccessGuard>
+  )
+}
