@@ -15,7 +15,7 @@ export default function OfferingsSection() {
           <DollarSign className="text-sara-red" size={40} />
         </div>
         
-        <h2 className="text-4xl md:text-5xl font-bold text-sara-gray-dark mb-6">
+        <h2 className="text-4xl md:text-5xl font-bold text-sara-gray-dark mb-6 uppercase tracking-[2px]">
           {config.offerings.title}
         </h2>
         

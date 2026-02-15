@@ -11,7 +11,7 @@ export default function ServicesSection() {
   return (
     <SectionWrapper id="cultos" bgColor="gray">
       <div className="text-center mb-12">
-        <h2 className="text-4xl md:text-5xl font-bold text-sara-gray-dark mb-4">
+        <h2 className="text-4xl md:text-5xl font-bold text-sara-gray-dark mb-4 uppercase tracking-[2px]">
           Cultos Presenciais
         </h2>
         <p className="text-lg text-sara-gray-light max-w-2xl mx-auto">

@@ -27,9 +27,11 @@ Acesse **http://localhost:3000**
 
 ## Painel administrativo
 
-- **Login:** `/admin/login`
+- **Login:** `/admin/login` — com modais **Primeiro login** (magic link) e **Redefinir senha** na própria tela. Páginas separadas: `/admin/criar-acesso`, `/admin/reset-senha`, `/admin/completar-cadastro`.
 - **Início:** `/admin`
 - **Galeria:** `/admin/galeria` — álbuns e fotos (Drive).
+- **Upload:** `/admin/upload` — fluxo em 3 etapas (informações, imagens, confirmação).
+- **Consolidação:** `/admin/consolidacao/lista` (lista de convertidos), `/admin/consolidacao/conversoes` (formulário de conversão).
 - **Publicações:** `/admin/instagram/posts` — painel de postagens (Instagram/Facebook).
 - **Instâncias (Meta):** `/admin/instancias` — conectar contas Instagram/Facebook via OAuth.
 
@@ -105,7 +107,9 @@ Configure no painel da Vercel (Settings → Environment Variables) as mesmas var
 
 ## Documentação adicional
 
-- **Documentação completa da plataforma:** `DOCUMENTACAO_PLATAFORMA.md` — tecnologias, funcionalidades, integrações, APIs, banco e variáveis de ambiente.
+- **Documentação completa da plataforma:** `DOCUMENTACAO_PLATAFORMA.md` — tecnologias, funcionalidades, autenticação (login, primeiro login, redefinir senha, completar cadastro), menu modular, consolidação, integrações, APIs, banco e variáveis de ambiente.
+- **Menu admin:** `app/admin/README_MENU_MODULAR.md` e `app/admin/menu-config.ts`.
+- **Consolidação:** `app/admin/IMPLEMENTACAO_CONSOLIDACAO.md` (se existir).
 - **Módulo de postagem:** `app/admin/galeria/[id]/post/README.md` e `FLUXO_POSTAGEM.md`.
 - **Templates de e-mail:** `supabase/email-templates/README.md`.
 

@@ -39,10 +39,10 @@ export default function Hero() {
       
       {/* Conteúdo */}
       <div className="relative z-10 text-center px-4 max-w-4xl mx-auto animate-fade-in">
-        <h1 className="text-5xl md:text-7xl font-bold text-white mb-6 tracking-tight">
+        <h1 className="text-5xl md:text-7xl font-bold text-white mb-6 uppercase tracking-[2px]">
           SEJA BEM-VINDO(A)
         </h1>
-        <p className="text-2xl md:text-3xl text-white/90 mb-12 font-light">
+        <p className="text-2xl md:text-3xl text-white/90 mb-12 font-extralight">
           Sara Sede Alagoas
         </p>
         

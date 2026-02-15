@@ -15,14 +15,14 @@ export default function SectionWrapper({
 }: SectionWrapperProps) {
   const bgStyles = {
     white: 'bg-white',
-    gray: 'bg-gray-50',
+    gray: 'bg-white',
     dark: 'bg-sara-gray-dark text-white',
   }
   
   return (
     <section
       id={id}
-      className={`py-16 md:py-24 ${bgStyles[bgColor]} ${className}`}
+      className={`py-16 md:py-24 border-b border-sara-gray-light/25 ${bgStyles[bgColor]} ${className}`}
     >
       <div className="container mx-auto px-4 md:px-6 lg:px-8">
         {children}

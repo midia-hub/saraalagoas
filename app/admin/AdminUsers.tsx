@@ -6,6 +6,8 @@ import { supabase } from '@/lib/supabase'
 import { adminFetchJson } from '@/lib/admin-client'
 import { Toast } from '@/components/Toast'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
+import { TableSkeleton } from '@/components/ui/TableSkeleton'
+import { CustomSelect } from '@/components/ui/CustomSelect'
 
 interface RoleItem {
   id: string
@@ -216,7 +218,20 @@ export function AdminUsers() {
     }
   }
 
-  if (loading) return <p className="text-gray-600">Carregando usuários...</p>
+  if (loading) {
+    return (
+      <div className="max-w-6xl space-y-6">
+        <div className="animate-pulse">
+          <div className="h-8 w-48 rounded bg-slate-200 mb-6" />
+          <div className="flex flex-wrap gap-4 mb-6">
+            <div className="h-10 w-64 rounded-lg bg-slate-100" />
+            <div className="h-10 w-32 rounded-lg bg-slate-100" />
+          </div>
+        </div>
+        <TableSkeleton rows={6} columns={4} showHeader />
+      </div>
+    )
+  }
 
   return (
     <div className="max-w-6xl space-y-6">
@@ -274,22 +289,20 @@ export function AdminUsers() {
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <label className="text-sm text-gray-600 whitespace-nowrap sr-only md:not-sr-only">Função</label>
-                    <select
-                      value={user.role_id || ''}
-                      onChange={(e) => handleAssignRole(user.id, e.target.value)}
-                      disabled={isAssigning}
-                      className="px-3 py-2 border border-gray-300 rounded-lg text-sm min-w-[160px] disabled:opacity-60"
-                    >
-                      <option value="">Função...</option>
-                      {roles
-                        .filter((r) => r.is_active !== false)
-                        .map((role) => (
-                          <option key={role.id} value={role.id}>
-                            {role.name}
-                            {role.is_admin ? ' (Admin)' : ''}
-                          </option>
-                        ))}
-                    </select>
+                    <div className="min-w-[160px]">
+                      <CustomSelect
+                        value={user.role_id || ''}
+                        onChange={(v) => handleAssignRole(user.id, v)}
+                        disabled={isAssigning}
+                        placeholder="Função..."
+                        options={roles
+                          .filter((r) => r.is_active !== false)
+                          .map((role) => ({
+                            value: role.id,
+                            label: role.name + (role.is_admin ? ' (Admin)' : ''),
+                          }))}
+                      />
+                    </div>
                     {isAssigning && <span className="text-xs text-gray-500">Salvando...</span>}
                     <div className="flex items-center gap-1">
                       <button

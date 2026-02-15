@@ -17,12 +17,12 @@ export default function Button({
   href,
   ...props
 }: ButtonProps) {
-  const baseStyles = 'font-semibold rounded-lg transition-all duration-300 inline-flex items-center justify-center gap-2'
+  const baseStyles = 'font-bold rounded-xl transition-all duration-300 inline-flex items-center justify-center gap-2 uppercase tracking-[1px]'
   
   const variantStyles = {
-    primary: 'bg-sara-red text-white hover:bg-red-700 hover:scale-105 shadow-lg hover:shadow-xl',
-    secondary: 'bg-sara-gray-dark text-white hover:bg-gray-800 hover:scale-105 shadow-lg hover:shadow-xl',
-    outline: 'border-2 border-sara-red text-sara-red hover:bg-sara-red hover:text-white hover:scale-105',
+    primary: 'bg-sara-cta text-white hover:-translate-y-[3px] shadow-lg hover:shadow-sara-cta-hover active:-translate-y-[1px]',
+    secondary: 'bg-sara-gray-dark text-white hover:-translate-y-[3px] shadow-lg hover:shadow-sara-cta-hover active:-translate-y-[1px]',
+    outline: 'border-2 border-sara-red text-sara-red hover:bg-sara-red hover:text-white hover:-translate-y-[3px]',
   }
   
   const sizeStyles = {

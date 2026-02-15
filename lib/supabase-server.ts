@@ -1,19 +1,23 @@
 import { createClient } from '@supabase/supabase-js'
 import type { NextRequest } from 'next/server'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''
+const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? ''
+const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? ''
 
-if (!supabaseUrl || (!serviceKey && !anonKey)) {
-  throw new Error('Supabase server não configurado. Defina NEXT_PUBLIC_SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY.')
-}
-
+// Não lançar na carga do módulo para que rotas API possam responder com JSON em caso de config ausente
+const hasValidConfig = !!supabaseUrl && !!(serviceKey || anonKey)
 const fallbackKey = serviceKey || anonKey || ''
 
-export const supabaseServer = createClient(supabaseUrl, fallbackKey, {
-  auth: { autoRefreshToken: false, persistSession: false },
-})
+export const supabaseServer = hasValidConfig
+  ? createClient(supabaseUrl, fallbackKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    })
+  : createClient(
+      supabaseUrl || 'https://placeholder.supabase.co',
+      fallbackKey || 'placeholder',
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    )
 
 function getAccessTokenFromRequest(request: NextRequest): string {
   const authHeader = request.headers.get('authorization') || request.headers.get('Authorization')
@@ -76,5 +80,17 @@ export function createSupabaseServerClient(request?: NextRequest) {
     auth: { autoRefreshToken: false, persistSession: false },
     global: headers ? { headers } : undefined,
   })
+}
+
+/**
+ * Cliente para rotas admin já autorizadas: usa service role se disponível (ignora RLS),
+ * senão usa o token do request (RLS aplicado). Evita 500 quando SUPABASE_SERVICE_ROLE_KEY não está definida.
+ */
+export function createSupabaseAdminClient(request?: NextRequest) {
+  try {
+    return createSupabaseServiceClient()
+  } catch {
+    return createSupabaseServerClient(request)
+  }
 }
 

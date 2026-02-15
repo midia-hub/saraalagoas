@@ -24,7 +24,7 @@ export default function GallerySection() {
         <div className="inline-flex items-center justify-center w-16 h-16 bg-sara-red/10 rounded-full mb-6">
           <Camera className="text-sara-red" size={32} />
         </div>
-        <h2 className="text-4xl md:text-5xl font-bold text-sara-gray-dark mb-4">
+        <h2 className="text-4xl md:text-5xl font-bold text-sara-gray-dark mb-4 uppercase tracking-[2px]">
           Galeria de Fotos
         </h2>
         <p className="text-lg text-sara-gray-light max-w-2xl mx-auto mb-8">
@@ -52,7 +52,7 @@ export default function GallerySection() {
 
         <Link
           href="/galeria"
-          className="inline-flex items-center gap-2 rounded-lg bg-sara-red px-6 py-3 text-white font-semibold hover:bg-sara-red/90 transition-colors"
+          className="inline-flex items-center gap-2 rounded-xl bg-sara-cta px-8 py-4 text-white font-bold uppercase tracking-[1px] transition-all duration-300 hover:-translate-y-[3px] hover:shadow-sara-cta-hover"
         >
           Ver galeria de fotos
         </Link>

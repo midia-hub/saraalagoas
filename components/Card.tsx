@@ -8,11 +8,11 @@ interface CardProps {
 
 export default function Card({ children, className = '', hoverable = true }: CardProps) {
   const hoverStyles = hoverable
-    ? 'hover:shadow-xl hover:-translate-y-1 hover:border-sara-red transition-all duration-300'
+    ? 'hover:shadow-sara-cta-hover hover:-translate-y-1 hover:border-sara-red transition-all duration-300'
     : ''
   
   return (
-    <div className={`bg-white rounded-lg shadow-md border border-gray-200 p-6 ${hoverStyles} ${className}`}>
+    <div className={`sara-card p-6 border border-sara-gray-light/30 ${hoverStyles} ${className}`}>
       {children}
     </div>
   )

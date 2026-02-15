@@ -16,7 +16,7 @@ export default function Footer() {
           {/* Sobre */}
           <div>
             <h3 className="text-xl font-bold mb-4">Sara Sede Alagoas</h3>
-            <p className="text-gray-400 leading-relaxed">
+            <p className="text-sara-gray-light leading-relaxed">
               Um lugar de transformação, crescimento e restauração através do amor de Cristo.
             </p>
           </div>
@@ -24,7 +24,7 @@ export default function Footer() {
           {/* Endereço */}
           <div>
             <h3 className="text-xl font-bold mb-4">Onde Estamos</h3>
-            <p className="text-gray-400 leading-relaxed">
+            <p className="text-sara-gray-light leading-relaxed">
               {config.address.full}
             </p>
           </div>
@@ -42,22 +42,22 @@ export default function Footer() {
         </div>
         
         {/* Divider */}
-        <div className="border-t border-gray-700 pt-8">
+        <div className="border-t border-sara-gray-light/30 pt-8">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-            <p className="text-gray-400 text-sm">
+            <p className="text-sara-gray-light text-sm">
               © {currentYear} Sara Sede Alagoas. Todos os direitos reservados.
             </p>
             
             <div className="flex items-center gap-4">
               <Link
                 href="/admin"
-                className="text-gray-400 hover:text-white text-sm transition-colors duration-300"
+                className="text-sara-gray-light hover:text-white text-sm transition-colors duration-300"
               >
                 Admin
               </Link>
               <Link
                 href="/privacidade"
-                className="text-gray-400 hover:text-white text-sm transition-colors duration-300"
+                className="text-sara-gray-light hover:text-white text-sm transition-colors duration-300"
               >
                 Como protegemos seus dados
               </Link>

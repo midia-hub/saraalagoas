@@ -6,6 +6,7 @@ import { PageAccessGuard } from '@/app/admin/PageAccessGuard'
 import { adminFetchJson, getAccessTokenOrThrow } from '@/lib/admin-client'
 import { supabase } from '@/lib/supabase'
 import { Loader2 } from 'lucide-react'
+import { CustomSelect } from '@/components/ui/CustomSelect'
 
 type UploadType = 'culto' | 'evento'
 type WorshipService = { id: string; name: string }
@@ -271,50 +272,42 @@ export default function AdminUploadPage() {
 
   return (
     <PageAccessGuard pageKey="upload">
-      <div className="p-6 md:p-8">
-      <h1 className="text-2xl font-bold text-slate-900">Upload de Cultos/Eventos</h1>
-      <p className="text-slate-600 mt-1">Fluxo em 3 etapas: informações, imagens e confirmação.</p>
+      <div className="p-6 md:p-8 max-w-[800px] mx-auto">
+      <h1 className="text-2xl md:text-[2.5rem] font-bold text-slate-800 uppercase tracking-[2px]">Upload de Cultos/Eventos</h1>
+      <p className="text-slate-500 mt-2 text-base">Fluxo em 3 etapas: informações, imagens e confirmação.</p>
 
       <div className="mt-6 flex gap-2 text-sm">
         {[1, 2, 3].map((n) => (
-          <span key={n} className={`px-3 py-1.5 rounded-full ${step === n ? 'bg-[#c62737] text-white' : 'bg-slate-200 text-slate-700'}`}>
+          <span key={n} className={`px-3 py-1.5 rounded-full ${step === n ? 'bg-red-600 text-white' : 'bg-slate-200 text-slate-700'}`}>
             Etapa {n}
           </span>
         ))}
       </div>
 
-      {error && <div className="mt-4 p-3 rounded bg-red-50 text-red-700 border border-red-200">{error}</div>}
+      {error && <div className="mt-4 p-4 rounded-xl border-2 border-red-600/50 bg-red-50 text-red-600">{error}</div>}
 
       {step === 1 && (
-        <div className="mt-6 bg-white border border-slate-200 rounded-xl p-5 space-y-4">
-          <div>
-            <label className="text-sm font-medium text-slate-700">Tipo</label>
-            <select value={type} onChange={(e) => setType(e.target.value as UploadType)} className="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg">
-              <option value="culto">Culto</option>
-              <option value="evento">Evento</option>
-            </select>
+        <div className="mt-6 rounded-2xl shadow-lg bg-white border border-slate-200 p-8 space-y-5">
+          <div className="mb-6">
+            <label className="mb-1.5 block text-sm font-semibold text-slate-800">Tipo</label>
+            <CustomSelect value={type} onChange={(v) => setType(v as UploadType)} options={[{ value: 'culto', label: 'Culto' }, { value: 'evento', label: 'Evento' }]} placeholder="Selecione" allowEmpty={false} />
           </div>
 
           {type === 'culto' ? (
-            <div>
-              <label className="text-sm font-medium text-slate-700">Qual culto?</label>
-              <select value={serviceId} onChange={(e) => setServiceId(e.target.value)} className="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg">
-                <option value="">Selecione...</option>
-                {services.map((s) => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
-                ))}
-              </select>
+            <div className="mb-6">
+              <label className="mb-1.5 block text-sm font-semibold text-slate-800">Qual culto?</label>
+              <CustomSelect value={serviceId} onChange={setServiceId} placeholder="Selecione..." options={services.map((s) => ({ value: s.id, label: s.name }))} />
             </div>
           ) : (
-            <div>
-              <label className="text-sm font-medium text-slate-700">Nome do evento</label>
-              <input value={eventName} onChange={(e) => setEventName(e.target.value)} className="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg" />
+            <div className="mb-6">
+              <label className="mb-1.5 block text-sm font-semibold text-slate-800">Nome do evento</label>
+              <input value={eventName} onChange={(e) => setEventName(e.target.value)} className="w-full border-2 border-slate-300 rounded-xl bg-white text-slate-800 px-4 py-3 focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/20" />
             </div>
           )}
 
-          <div>
-            <label className="text-sm font-medium text-slate-700">Data</label>
-            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg" />
+          <div className="mb-6">
+            <label className="mb-1.5 block text-sm font-semibold text-slate-800">Data</label>
+            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full border-2 border-slate-300 rounded-xl bg-white text-slate-800 px-4 py-3 focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/20" />
             <p className="mt-1.5 text-xs text-slate-500">Sugestões (últimos cultos):</p>
             <div className="mt-1 flex flex-wrap gap-1.5">
               {getSuggestedDates().map(({ value, label }) => (
@@ -322,10 +315,10 @@ export default function AdminUploadPage() {
                   key={value}
                   type="button"
                   onClick={() => setDate(value)}
-                  className={`px-2.5 py-1 text-xs rounded-md border transition-colors ${
+                  className={`px-3 py-2 text-xs rounded-[25px] border-2 transition-all duration-300 ${
                     date === value
-                      ? 'bg-[#c62737] text-white border-[#c62737]'
-                      : 'bg-white border-slate-300 text-slate-700 hover:border-[#c62737]/60 hover:bg-slate-50'
+                      ? 'bg-red-600 text-white border-red-600'
+                      : 'bg-white border-slate-300 text-slate-800 hover:border-red-600 hover:bg-red-50'
                   }`}
                 >
                   {label}
@@ -334,9 +327,9 @@ export default function AdminUploadPage() {
             </div>
           </div>
 
-          <div>
-            <label className="text-sm font-medium text-slate-700">Descrição/observações (opcional)</label>
-            <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} className="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg" />
+          <div className="mb-6">
+            <label className="mb-1.5 block text-sm font-semibold text-slate-800">Descrição/observações (opcional)</label>
+            <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} className="w-full border-2 border-slate-300 rounded-xl bg-white text-slate-800 px-4 py-3 focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/20 resize-none" />
           </div>
 
           <button
@@ -346,7 +339,7 @@ export default function AdminUploadPage() {
               setError(null)
               setStep(2)
             }}
-            className="px-4 py-2 bg-[#c62737] text-white rounded-lg hover:bg-[#a01f2d]"
+            className="w-auto px-8 py-3 rounded-xl font-bold bg-red-600 text-white hover:bg-red-700 transition-all"
           >
             Avançar para upload
           </button>
@@ -354,9 +347,9 @@ export default function AdminUploadPage() {
       )}
 
       {step === 2 && (
-        <div className="mt-6 bg-white border border-slate-200 rounded-xl p-5">
-          <label className="block text-sm font-medium text-slate-700 mb-2">Você pode enviar várias imagens.</label>
-          <p className="text-xs text-slate-500 mb-2">Até {MAX_SIZE_LARGE_MB} MB por imagem. PNG, JPEG, WebP ou GIF.</p>
+        <div className="mt-6 rounded-2xl shadow-lg bg-white border border-slate-200 p-8">
+          <label className="block text-sm font-semibold text-slate-800 mb-2">Você pode enviar várias imagens.</label>
+          <p className="text-xs text-slate-500 mb-4">Até {MAX_SIZE_LARGE_MB} MB por imagem. PNG, JPEG, WebP ou GIF.</p>
           <input type="file" multiple accept={ALLOWED_TYPES.join(',')} onChange={(e) => handleSelectFiles(e.target.files)} />
 
           {files.length > 0 && !isUploading && (
@@ -384,7 +377,7 @@ export default function AdminUploadPage() {
                 </div>
                 <div className="h-3 bg-slate-200 rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-[#c62737] transition-all duration-300"
+                    className="h-full bg-red-600 transition-all duration-300"
                     style={{ width: `${overallProgress}%` }}
                   />
                 </div>
@@ -400,7 +393,7 @@ export default function AdminUploadPage() {
                       <div className="w-24 h-2 bg-slate-200 rounded-full overflow-hidden shrink-0">
                         {(status === 'uploading' || status === 'done') && (
                           <div
-                            className="h-full bg-[#c62737] transition-all duration-200"
+                            className="h-full bg-red-600 transition-all duration-200"
                             style={{ width: `${progress}%` }}
                           />
                         )}
@@ -418,18 +411,18 @@ export default function AdminUploadPage() {
             </div>
           )}
 
-          <div className="mt-5 flex gap-2">
+          <div className="mt-6 flex gap-3">
             <button
               onClick={() => setStep(1)}
               disabled={isUploading}
-              className="px-4 py-2 border border-slate-300 rounded-lg disabled:opacity-50"
+              className="px-6 py-3 border-2 border-slate-300 rounded-xl font-semibold text-slate-800 hover:border-red-600 hover:bg-red-50 transition-all duration-300 disabled:opacity-50"
             >
               Voltar
             </button>
             <button
               onClick={handleSubmit}
               disabled={loading || files.length === 0}
-              className="px-4 py-2 bg-[#c62737] text-white rounded-lg disabled:opacity-50 flex items-center gap-2"
+              className="w-auto px-8 py-3 rounded-xl font-bold bg-red-600 text-white hover:bg-red-700 transition-all flex items-center justify-center gap-2"
             >
               {loading && <Loader2 className="w-4 h-4 animate-spin" />}
               {loading ? 'Enviando...' : 'Iniciar upload'}
@@ -439,8 +432,8 @@ export default function AdminUploadPage() {
       )}
 
       {step === 3 && (
-        <div className="mt-6 bg-white border border-green-200 rounded-xl p-6">
-          <h2 className="text-lg font-semibold text-green-700">Upload concluído!</h2>
+        <div className="mt-6 rounded-2xl shadow-lg bg-white p-8 bg-green-50 border-2 border-green-300">
+          <h2 className="text-lg font-bold text-green-800 uppercase tracking-[1px]">Upload concluído!</h2>
           <p className="text-slate-600 mt-2">A galeria foi criada e as imagens foram enviadas para o Google Drive.</p>
           {fileStatuses.some((f) => f.status === 'error') && (
             <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
@@ -459,18 +452,18 @@ export default function AdminUploadPage() {
             </p>
             </div>
           )}
-          <div className="mt-4 flex gap-2">
+          <div className="mt-6 flex gap-3">
             {successGalleryId && (
               <button
                 onClick={() => router.push(`/admin/galeria/${successGalleryId}`)}
-                className="px-4 py-2 bg-[#c62737] text-white rounded-lg"
+                className="w-auto px-8 py-3 rounded-xl font-bold bg-red-600 text-white hover:bg-red-700 transition-all"
               >
                 Ver álbum
               </button>
             )}
             <button
               onClick={() => { setStep(1); setSuccessGalleryId(null); setFiles([]); setFileStatuses([]); setOverallProgress(0); }}
-              className="px-4 py-2 border border-slate-300 rounded-lg"
+              className="px-6 py-3 border-2 border-slate-300 rounded-xl font-semibold text-slate-800 hover:border-red-600 hover:bg-red-50 transition-all duration-300"
             >
               Novo upload
             </button>

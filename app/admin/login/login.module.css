@@ -1,0 +1,923 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+/* ============================================
+   LOGIN SARA - ONDAS FLUIDAS
+   ============================================ */
+
+/* Acessibilidade: título só para leitores de tela */
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Fundo Gradiente Suave - Cores Sara */
+.bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background: linear-gradient(180deg,
+      #ffffff 0%,
+      #fafafa 35%,
+      #f5f4f5 70%,
+      #f0eef0 100%);
+  animation: bgShift 15s ease-in-out infinite alternate;
+}
+
+@keyframes bgShift {
+  0% {
+    background: linear-gradient(180deg, #ffffff 0%, #fafafa 35%, #f5f4f5 70%, #f0eef0 100%);
+  }
+  100% {
+    background: linear-gradient(180deg, #f0eef0 0%, #f5f4f5 35%, #fafafa 70%, #ffffff 100%);
+  }
+}
+
+/* Overlay Gradiente Adicional */
+.bgGradient {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  background: radial-gradient(circle at 30% 20%, rgba(182, 184, 186, 0.15), transparent 50%),
+    radial-gradient(circle at 70% 80%, rgba(198, 39, 55, 0.05), transparent 50%);
+  pointer-events: none;
+}
+
+/* Container de Ondas */
+.waves {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.waveLayer {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  bottom: 0;
+  background-repeat: repeat-x;
+  background-position: 0 bottom;
+  will-change: transform;
+}
+
+.waveLayer1 {
+  height: 300px;
+  background-size: 1600px 300px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1600 300'%3E%3Cpath fill='rgba(198,39,55,0.08)' d='M0,150 C400,50 400,250 800,150 C1200,50 1200,250 1600,150 L1600,300 L0,300 Z'/%3E%3C/svg%3E");
+  animation: waveSlide1 25s linear infinite;
+  opacity: 0.8;
+  backface-visibility: hidden;
+  transform-style: preserve-3d;
+}
+
+.waveLayer2 {
+  height: 280px;
+  background-size: 1400px 280px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1400 280'%3E%3Cpath fill='rgba(182,184,186,0.12)' d='M0,140 C350,40 350,240 700,140 C1050,40 1050,240 1400,140 L1400,280 L0,280 Z'/%3E%3C/svg%3E");
+  animation: waveSlide2 30s linear infinite reverse;
+  opacity: 0.7;
+  backface-visibility: hidden;
+  transform-style: preserve-3d;
+}
+
+.waveLayer3 {
+  height: 260px;
+  background-size: 1200px 260px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 260'%3E%3Cpath fill='rgba(198,39,55,0.04)' d='M0,130 Q300,50 600,130 T1200,130 L1200,260 L0,260 Z'/%3E%3C/svg%3E");
+  animation: waveSlide3 35s linear infinite;
+  opacity: 0.6;
+  backface-visibility: hidden;
+  transform-style: preserve-3d;
+}
+
+@keyframes waveSlide1 {
+  0% { transform: translate3d(0, 0, 0); }
+  100% { transform: translate3d(-1600px, 0, 0); }
+}
+
+@keyframes waveSlide2 {
+  0% { transform: translate3d(0, 0, 0); }
+  100% { transform: translate3d(1400px, 0, 0); }
+}
+
+@keyframes waveSlide3 {
+  0% { transform: translate3d(0, 0, 0); }
+  100% { transform: translate3d(-1200px, 0, 0); }
+}
+
+/* Blobs Flutuantes - Cores Sara */
+.bgBlob {
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(100px);
+  pointer-events: none;
+  z-index: 1;
+  will-change: transform;
+}
+
+.bgBlob1 {
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(182, 184, 186, 0.15), transparent 70%);
+  top: -200px;
+  left: -200px;
+  animation: blobDrift1 25s ease-in-out infinite;
+}
+
+.bgBlob2 {
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, rgba(198, 39, 55, 0.05), transparent 70%);
+  bottom: -150px;
+  right: -150px;
+  animation: blobDrift2 30s ease-in-out infinite;
+}
+
+.bgBlob3 {
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(circle, rgba(182, 184, 186, 0.1), transparent 70%);
+  top: 40%;
+  right: 10%;
+  animation: blobDrift3 35s ease-in-out infinite;
+}
+
+@keyframes blobDrift1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(50px, -80px) scale(1.1); }
+  66% { transform: translate(-30px, 60px) scale(0.9); }
+}
+
+@keyframes blobDrift2 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(-60px, 40px) scale(1.15); }
+  66% { transform: translate(40px, -50px) scale(0.85); }
+}
+
+@keyframes blobDrift3 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(30px, 30px) scale(1.1); }
+}
+
+/* Shimmer Sutil */
+.bgShimmer {
+  position: fixed;
+  inset: 0;
+  z-index: 3;
+  background: linear-gradient(120deg,
+      transparent 0%, transparent 45%,
+      rgba(255, 255, 255, 0.2) 50%,
+      transparent 55%, transparent 100%);
+  background-size: 200% 100%;
+  animation: shimmerMove 10s ease-in-out infinite;
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+@keyframes shimmerMove {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Orbs Decorativos - Cores Sara */
+.orb {
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(80px);
+  pointer-events: none;
+  z-index: 2;
+  will-change: transform, opacity;
+}
+
+.orb1 {
+  width: 350px;
+  height: 350px;
+  background: radial-gradient(circle, rgba(182, 184, 186, 0.12), transparent 60%);
+  top: 15%;
+  right: 20%;
+  animation: orbFloat1 20s ease-in-out infinite;
+}
+
+.orb2 {
+  width: 300px;
+  height: 300px;
+  background: radial-gradient(circle, rgba(198, 39, 55, 0.05), transparent 60%);
+  bottom: 25%;
+  left: 15%;
+  animation: orbFloat2 24s ease-in-out infinite;
+}
+
+@keyframes orbFloat1 {
+  0%, 100% { transform: translate(0, 0); opacity: 0.6; }
+  50% { transform: translate(30px, -40px); opacity: 0.8; }
+}
+
+@keyframes orbFloat2 {
+  0%, 100% { transform: translate(0, 0); opacity: 0.5; }
+  50% { transform: translate(-25px, 35px); opacity: 0.7; }
+}
+
+/* Container: centraliza o modal na tela */
+.wrapper {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  gap: 0;
+}
+
+/* Logo entre o fundo e o modal — só a imagem, sem caixa */
+.logoAboveCard {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 20px;
+  animation: logoFade 0.6s ease 0.2s both;
+}
+
+.logoAboveCard img {
+  height: 72px;
+  width: auto;
+  max-width: 220px;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 12px rgba(0, 0, 0, 0.12)) drop-shadow(0 4px 16px rgba(198, 39, 55, 0.08));
+  transition: filter 0.2s ease;
+}
+
+.logoAboveCard img:hover {
+  filter: drop-shadow(0 4px 16px rgba(0, 0, 0, 0.15)) drop-shadow(0 6px 20px rgba(198, 39, 55, 0.12));
+}
+
+.logoWrap {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  margin-bottom: 24px;
+}
+
+/* Card do modal - compacto, não ocupa a página */
+.card {
+  position: relative;
+  width: 100%;
+  max-width: 400px;
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: #ffffff;
+  border: 1px solid rgba(182, 184, 186, 0.35);
+  border-radius: 16px;
+  padding: 20px 24px 18px;
+  box-shadow:
+    0 24px 48px rgba(0, 0, 0, 0.12),
+    0 12px 24px rgba(0, 0, 0, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 1);
+  animation: cardFadeIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  transition: box-shadow 0.25s ease;
+}
+
+.card:hover {
+  box-shadow:
+    0 28px 56px rgba(0, 0, 0, 0.14),
+    0 14px 28px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 1);
+}
+
+@keyframes cardFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Logo */
+.logoWrap {
+  text-align: center;
+  margin-bottom: 12px;
+  animation: logoFade 1s ease 0.3s both;
+}
+
+@keyframes logoFade {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.logoWrap img {
+  height: 44px;
+  width: auto;
+  filter: drop-shadow(0 2px 8px rgba(198, 39, 55, 0.1));
+  transition: filter 0.2s ease;
+}
+
+.logoWrap img:hover {
+  filter: drop-shadow(0 4px 12px rgba(198, 39, 55, 0.18));
+}
+
+/* Título */
+.cardTitle {
+  font-family: 'Inter', sans-serif;
+  font-size: 1.2rem;
+  font-weight: 700;
+  letter-spacing: -0.4px;
+  text-align: center;
+  color: #252525;
+  margin-bottom: 2px;
+  animation: titleSlide 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.15s both;
+}
+
+@keyframes titleSlide {
+  from {
+    opacity: 0;
+    transform: translateY(-15px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Subtítulo */
+.cardSub {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 400;
+  text-align: center;
+  color: #B6B8BA;
+  margin-bottom: 10px;
+  animation: subtitleFade 0.4s ease 0.2s both;
+}
+
+@keyframes subtitleFade {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+/* Separador — cor sólida #c62737 */
+.sep {
+  width: 24px;
+  height: 2px;
+  background: #c62737;
+  margin: 0 auto 14px;
+  border-radius: 2px;
+  animation: sepExpand 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.25s both;
+}
+
+@keyframes sepExpand {
+  from {
+    width: 0;
+    opacity: 0;
+  }
+
+  to {
+    width: 50px;
+    opacity: 1;
+  }
+}
+
+/* Campos de Formulário */
+.field {
+  margin-bottom: 12px;
+  position: relative;
+  animation: fieldSlide 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  animation-delay: calc(0.7s + var(--i, 0) * 0.1s);
+}
+
+@keyframes fieldSlide {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.field label {
+  display: block;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  color: #252525;
+  margin-bottom: 6px;
+  transition: color 0.3s ease;
+}
+
+.field:focus-within label {
+  color: #c62737;
+}
+
+/* Estrutura de Input Universal */
+/* Estrutura de Input Universal - Estilo Profundo */
+.inputContainer {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  background: #F8FAFC;
+  /* Fundo cinza claro para criar contraste */
+  border: 1px solid #CBD5E1;
+  /* Borda mais definida */
+  border-radius: 10px;
+  transition: all 0.2s ease-out;
+  overflow: hidden;
+  height: 44px;
+  position: relative;
+  width: 100%;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.04);
+  /* Sombra interna para profundidade */
+}
+
+.inputContainer:focus-within {
+  background: #ffffff;
+  border-color: #c62737;
+  box-shadow:
+    0 0 0 4px rgba(198, 39, 55, 0.15),
+    inset 0 1px 2px rgba(0, 0, 0, 0.05);
+  transform: translateY(-1px);
+}
+
+.inputContainer:hover {
+  background: #ffffff;
+  border-color: #94A3B8;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+.inputIcon {
+  margin-left: 12px;
+  margin-right: 10px;
+  color: #64748B;
+  /* Ícone mais escuro e visível */
+  flex-shrink: 0;
+  transition: all 0.3s ease;
+}
+
+.inputContainer:focus-within .inputIcon {
+  color: #c62737;
+}
+
+.innerInput {
+  flex: 1;
+  border: none !important;
+  background: transparent !important;
+  padding: 0 !important;
+  height: 100%;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #1E293B;
+  /* Texto mais escuro */
+  outline: none !important;
+  box-shadow: none !important;
+  min-width: 0;
+}
+
+/* Hack para remover background azul do Autofill mantendo o estilo do campo */
+/* Autofill: manter paleta Sara (evitar azul do navegador) */
+.innerInput:-webkit-autofill,
+.innerInput:-webkit-autofill:hover,
+.innerInput:-webkit-autofill:focus,
+.innerInput:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px #F8FAFC inset !important;
+  -webkit-text-fill-color: #1E293B !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+.inputContainer:focus-within .innerInput:-webkit-autofill {
+  -webkit-box-shadow: 0 0 0 30px #ffffff inset !important;
+}
+
+.innerInput:focus-visible {
+  outline: none;
+}
+
+.innerInput::placeholder {
+  color: #94A3B8;
+  /* Placeholder mais contrastado */
+  opacity: 1;
+  font-weight: 400;
+}
+
+.eyeButton {
+  padding: 0 16px;
+  height: 100%;
+  border: none;
+  background: transparent;
+  color: #B6B8BA;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.eyeButton:hover {
+  color: #c62737;
+}
+
+.eyeButton:active {
+  transform: scale(0.9);
+}
+
+.eyeButton:focus-visible {
+  outline: 2px solid #c62737;
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Remover estilos antigos do EyeBtn */
+
+/* Opções */
+.options {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 0;
+  margin-bottom: 14px;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.optionsBadge {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: #64748b;
+  letter-spacing: 0.2px;
+  background: rgba(248, 250, 252, 1);
+  border: 1px solid rgba(203, 213, 225, 0.8);
+  padding: 4px 8px;
+  border-radius: 6px;
+  line-height: 1.2;
+}
+
+/* Magic Link - maior contraste e área de toque */
+.magicLink {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #475569;
+  text-decoration: none;
+  letter-spacing: 0.2px;
+  transition: all 0.3s ease;
+  position: relative;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 2px;
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.magicLink:focus-visible {
+  outline: 2px solid #c62737;
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+.magicLink::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 0;
+  height: 1.5px;
+  background: #c62737;
+  transition: width 0.3s ease;
+  border-radius: 2px;
+}
+
+.magicLink:hover {
+  color: #c62737;
+}
+
+.magicLink:hover::after {
+  width: 100%;
+}
+
+/* Botão de Login — cor sólida #c62737 */
+.btnLogin {
+  width: 100%;
+  padding: 11px 20px;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  color: #ffffff;
+  background: #c62737;
+  box-shadow:
+    0 4px 16px rgba(198, 39, 55, 0.3),
+    0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  position: relative;
+  overflow: hidden;
+}
+
+.btnLogin::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.15);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.btnLogin:hover:not(:disabled)::before {
+  opacity: 1;
+}
+
+.btnLogin:hover:not(:disabled) {
+  background: #a01f2c;
+  box-shadow:
+    0 6px 24px rgba(198, 39, 55, 0.4),
+    0 4px 8px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+}
+
+.btnLogin:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow:
+    0 2px 8px rgba(198, 39, 55, 0.3),
+    0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.btnLogin:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btnLogin:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 3px;
+}
+
+/* Footer */
+.cardFooter {
+  margin-top: 12px;
+  text-align: center;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.625rem;
+  font-weight: 400;
+  color: #9ca3af;
+  letter-spacing: 0.15px;
+}
+
+/* Back Link */
+.backLink {
+  display: inline-block;
+  margin-top: 10px;
+  text-align: center;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #475569;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  position: relative;
+  padding: 4px 10px;
+  border-radius: 6px;
+}
+
+.backLink::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(198, 39, 55, 0.05);
+  border-radius: 10px;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.backLink:hover {
+  color: #c62737;
+}
+
+.backLink:hover::before {
+  opacity: 1;
+}
+
+.backLink:focus-visible {
+  outline: 2px solid #c62737;
+  outline-offset: 3px;
+  border-radius: 10px;
+}
+
+/* Modal Primeiro login */
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(37, 37, 37, 0.5);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  animation: overlayFade 0.2s ease-out;
+}
+
+@keyframes overlayFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modalCard {
+  background: #fff;
+  border-radius: 16px;
+  padding: 24px;
+  max-width: 380px;
+  width: 100%;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(182, 184, 186, 0.35);
+  animation: modalSlide 0.25s ease-out;
+}
+
+@keyframes modalSlide {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.modalBtnSecondary {
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #252525;
+  background: #F8FAFC;
+  border: 1px solid #CBD5E1;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.modalBtnSecondary:hover {
+  background: #F1F5F9;
+  border-color: #94A3B8;
+}
+
+/* Toast */
+.toast {
+  position: fixed;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%) translateY(100px);
+  background: rgba(31, 41, 55, 0.95);
+  backdrop-filter: blur(20px);
+  color: #fff;
+  padding: 16px 32px;
+  border-radius: 12px;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+  box-shadow:
+    0 12px 32px rgba(0, 0, 0, 0.2),
+    0 4px 8px rgba(0, 0, 0, 0.15);
+  transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  opacity: 0;
+  z-index: 1000;
+  max-width: calc(100vw - 48px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.toast.show {
+  transform: translateX(-50%) translateY(0);
+  opacity: 1;
+}
+
+.toast.success {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.95), rgba(5, 150, 105, 0.95));
+  box-shadow:
+    0 12px 32px rgba(16, 185, 129, 0.3),
+    0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Responsivo */
+@media (max-width: 480px) {
+  .wrapper {
+    padding: 12px;
+    gap: 0;
+  }
+
+  .logoAboveCard {
+    margin-bottom: 14px;
+  }
+
+  .logoAboveCard img {
+    height: 56px;
+    max-width: 180px;
+  }
+
+  .card {
+    padding: 16px 18px 14px;
+    border-radius: 14px;
+    max-width: 100%;
+    max-height: calc(100vh - 140px);
+  }
+
+  .logoWrap {
+    margin-bottom: 10px;
+  }
+
+  .logoWrap img {
+    height: 40px;
+  }
+
+  .cardTitle {
+    font-size: 1.1rem;
+  }
+
+  .cardSub {
+    font-size: 0.7rem;
+  }
+
+  .options {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    margin-bottom: 12px;
+  }
+
+  .optionsBadge {
+    font-size: 0.625rem;
+    padding: 3px 6px;
+  }
+
+  .magicLink {
+    font-size: 0.7rem;
+    min-height: 32px;
+  }
+
+  .inputContainer {
+    height: 42px;
+  }
+
+  .btnLogin {
+    padding: 10px 16px;
+    font-size: 0.875rem;
+  }
+
+  .cardFooter {
+    margin-top: 10px;
+    font-size: 0.625rem;
+  }
+
+  .backLink {
+    margin-top: 8px;
+    padding: 6px 12px;
+    min-height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+  }
+}

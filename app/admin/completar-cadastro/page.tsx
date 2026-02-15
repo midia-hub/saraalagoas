@@ -4,7 +4,23 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
+import { Loader2, User, Lock } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { getStorageUrl } from '@/lib/storage-url'
+import styles from '../login/login.module.css'
+
+function mensagemErroAmigavel(message: string): string {
+  const m = message.toLowerCase()
+  if (m.includes('new password should be different') || m.includes('password should be different'))
+    return 'A nova senha deve ser diferente da atual. Escolha outra senha (nunca usada antes neste acesso).'
+  if (m.includes('password') && m.includes('least 6'))
+    return 'A senha deve ter no mínimo 6 caracteres.'
+  if (m.includes('password') && (m.includes('match') || m.includes('same')))
+    return 'As senhas não coincidem. Digite a mesma senha nos dois campos.'
+  if (m.includes('email not confirmed'))
+    return 'E-mail ainda não confirmado. Use o link que enviamos por e-mail.'
+  return message || 'Não foi possível salvar. Tente novamente.'
+}
 
 export default function CompletarCadastroPage() {
   const router = useRouter()
@@ -24,7 +40,6 @@ export default function CompletarCadastroPage() {
       setHasSession(false)
       return
     }
-    // Deixar o Supabase processar o hash da URL (access_token após redirect do e-mail)
     const timer = setTimeout(() => {
       client.auth.getSession().then(({ data: { session } }) => {
         setHasSession(!!session?.user)
@@ -75,7 +90,7 @@ export default function CompletarCadastroPage() {
         },
       })
       if (updateError) {
-        setError('Não foi possível salvar. Tente novamente.')
+        setError(mensagemErroAmigavel(updateError.message || ''))
         setSubmitting(false)
         return
       }
@@ -109,154 +124,189 @@ export default function CompletarCadastroPage() {
         setSubmitting(false)
         return
       }
-      window.location.replace(`${basePath}/admin`)
+      router.replace(`${basePath}/admin`)
     } catch (e) {
-      setError('Não foi possível salvar. Tente novamente.')
+      const msg = e instanceof Error ? e.message : ''
+      setError(mensagemErroAmigavel(msg))
       setSubmitting(false)
     }
   }
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-100 px-4 py-8">
-        <div className="text-center">
-          <p className="text-slate-600">Carregando...</p>
-        </div>
+  const layout = (
+    <div
+      className="fixed inset-0 overflow-auto text-[#252525]"
+      style={{ fontFamily: "'Inter', sans-serif" }}
+      role="main"
+      aria-label="Completar cadastro"
+    >
+      <div className={styles.bg} />
+      <div className={styles.bgGradient} />
+      <div className={styles.waves}>
+        <div className={`${styles.waveLayer} ${styles.waveLayer1}`} />
+        <div className={`${styles.waveLayer} ${styles.waveLayer2}`} />
+        <div className={`${styles.waveLayer} ${styles.waveLayer3}`} />
       </div>
-    )
-  }
+      <div className={`${styles.bgBlob} ${styles.bgBlob1}`} />
+      <div className={`${styles.bgBlob} ${styles.bgBlob2}`} />
+      <div className={`${styles.bgBlob} ${styles.bgBlob3}`} />
+      <div className={styles.bgShimmer} />
+      <div className={`${styles.orb} ${styles.orb1}`} />
+      <div className={`${styles.orb} ${styles.orb2}`} />
 
-  if (!hasSession) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-100 px-4 py-8">
-        <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-7 shadow-xl text-center">
+      <main className={styles.wrapper}>
+        <div className={styles.logoAboveCard}>
           <Image
-            src="/logo-sara-oficial.png"
-            alt="Logo Sara Alagoas"
-            width={180}
-            height={80}
-            className="mx-auto mb-4"
-          />
-          <h1 className="text-xl font-semibold text-slate-900">Link inválido ou expirado</h1>
-          <p className="mt-2 text-sm text-slate-600">
-            Use o link mais recente que enviamos por e-mail ou peça um novo convite.
-          </p>
-          <Link
-            href="/admin/login"
-            className="mt-6 inline-block rounded-lg bg-[#c62737] px-5 py-2.5 font-medium text-white hover:bg-[#a01f2d]"
-          >
-            Ir para o login
-          </Link>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-100 px-4 py-8">
-      <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-7 shadow-xl">
-        <div className="mb-7 text-center">
-          <Image
-            src="/logo-sara-oficial.png"
-            alt="Logo oficial Sara Alagoas"
+            src={getStorageUrl('LOGO SARA ALAGAOS1.png')}
+            alt="Sara Nossa Terra Alagoas"
             width={220}
-            height={97}
-            loading="eager"
-            fetchPriority="high"
-            className="mx-auto mb-4 h-auto w-44 sm:w-52"
+            height={88}
+            sizes="(max-width: 480px) 160px, 220px"
+            style={{ width: 'auto', height: '72px', maxWidth: '220px', objectFit: 'contain' }}
+            unoptimized
+            priority
+            onError={(e) => {
+              const t = e.target as HTMLImageElement
+              t.src = '/logo-sara-oficial.png'
+            }}
           />
-          <h1 className="text-2xl font-semibold text-slate-900">Completar cadastro</h1>
-          <p className="mt-1 text-sm text-slate-600">Defina seu nome, usuário e senha para acessar o painel.</p>
         </div>
-        <form onSubmit={handleSubmit} method="post" action="#" autoComplete="on" className="space-y-4" data-form-type="other">
-          <div>
-            <label htmlFor="completar-nome" className="mb-1 block text-sm font-medium text-slate-700">
-              Nome
-            </label>
-            <input
-              id="completar-nome"
-              name="nome"
-              type="text"
-              value={nome}
-              onChange={(e) => setNome(e.target.value)}
-              autoComplete="name"
-              required
-              className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-[#c62737] focus:ring-2 focus:ring-[#c62737]/20"
-              placeholder="Seu nome completo"
-            />
-          </div>
-          <div>
-            <label htmlFor="completar-usuario" className="mb-1 block text-sm font-medium text-slate-700">
-              Usuário
-            </label>
-            <input
-              id="completar-usuario"
-              name="usuario"
-              type="text"
-              value={usuario}
-              onChange={(e) => setUsuario(e.target.value)}
-              autoComplete="username"
-              className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-[#c62737] focus:ring-2 focus:ring-[#c62737]/20"
-              placeholder="Nome de usuário (opcional)"
-            />
-          </div>
-          <div>
-            <label htmlFor="completar-senha" className="mb-1 block text-sm font-medium text-slate-700">
-              Senha
-            </label>
-            <input
-              id="completar-senha"
-              name="senha"
-              type="password"
-              value={senha}
-              onChange={(e) => setSenha(e.target.value)}
-              autoComplete="new-password"
-              required
-              minLength={6}
-              className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-[#c62737] focus:ring-2 focus:ring-[#c62737]/20"
-              placeholder="Mínimo 6 caracteres"
-              data-lpignore="false"
-              data-1p-ignore="false"
-            />
-          </div>
-          <div>
-            <label htmlFor="completar-confirmarSenha" className="mb-1 block text-sm font-medium text-slate-700">
-              Confirmar senha
-            </label>
-            <input
-              id="completar-confirmarSenha"
-              name="confirmarSenha"
-              type="password"
-              value={confirmarSenha}
-              onChange={(e) => setConfirmarSenha(e.target.value)}
-              autoComplete="new-password"
-              required
-              minLength={6}
-              className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-[#c62737] focus:ring-2 focus:ring-[#c62737]/20"
-              placeholder="Repita a senha"
-              data-lpignore="false"
-              data-1p-ignore="false"
-            />
-          </div>
-          {error && (
-            <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">
-              {error}
-            </div>
+        <div className={styles.card}>
+          {loading ? (
+            <>
+              <p className={styles.cardTitle} aria-hidden>Carregando...</p>
+              <p className={styles.cardSub} aria-hidden>Aguarde enquanto verificamos seu acesso.</p>
+            </>
+          ) : !hasSession ? (
+            <>
+              <h1 className={styles.srOnly}>Link inválido ou expirado</h1>
+              <p className={styles.cardTitle} aria-hidden>Link inválido ou expirado</p>
+              <p className={styles.cardSub} aria-hidden>
+                Use o link mais recente que enviamos por e-mail ou peça um novo convite.
+              </p>
+              <div className={styles.sep} aria-hidden />
+              <Link href="/admin/login" className={styles.btnLogin} style={{ display: 'inline-block', textAlign: 'center', textDecoration: 'none' }}>
+                Ir para o login
+              </Link>
+              <p className={styles.cardFooter} style={{ marginTop: 20 }}>
+                <Link href="/" className={styles.backLink}>
+                  Voltar ao site
+                </Link>
+              </p>
+            </>
+          ) : (
+            <>
+              <h1 className={styles.srOnly}>Completar cadastro</h1>
+              <p className={styles.cardTitle} aria-hidden>Completar cadastro</p>
+              <p className={styles.cardSub} aria-hidden>Defina seu nome, usuário e senha para acessar o painel.</p>
+              <div className={styles.sep} aria-hidden />
+
+              <form onSubmit={handleSubmit} method="post" autoComplete="on">
+                <div className={styles.field}>
+                  <label htmlFor="completar-nome">Nome</label>
+                  <div className={styles.inputContainer}>
+                    <User size={18} strokeWidth={1.5} className={styles.inputIcon} />
+                    <input
+                      id="completar-nome"
+                      name="nome"
+                      type="text"
+                      value={nome}
+                      onChange={(e) => setNome(e.target.value)}
+                      autoComplete="name"
+                      required
+                      className={styles.innerInput}
+                      placeholder="Seu nome completo"
+                    />
+                  </div>
+                </div>
+                <div className={styles.field}>
+                  <label htmlFor="completar-usuario">Usuário</label>
+                  <div className={styles.inputContainer}>
+                    <User size={18} strokeWidth={1.5} className={styles.inputIcon} />
+                    <input
+                      id="completar-usuario"
+                      name="usuario"
+                      type="text"
+                      value={usuario}
+                      onChange={(e) => setUsuario(e.target.value)}
+                      autoComplete="username"
+                      className={styles.innerInput}
+                      placeholder="Nome de usuário (opcional)"
+                    />
+                  </div>
+                </div>
+                <div className={styles.field}>
+                  <label htmlFor="completar-senha">Senha</label>
+                  <div className={styles.inputContainer}>
+                    <Lock size={18} strokeWidth={1.5} className={styles.inputIcon} />
+                    <input
+                      id="completar-senha"
+                      name="senha"
+                      type="password"
+                      value={senha}
+                      onChange={(e) => setSenha(e.target.value)}
+                      autoComplete="new-password"
+                      required
+                      minLength={6}
+                      className={styles.innerInput}
+                      placeholder="Mínimo 6 caracteres"
+                    />
+                  </div>
+                </div>
+                <div className={styles.field}>
+                  <label htmlFor="completar-confirmarSenha">Confirmar senha</label>
+                  <div className={styles.inputContainer}>
+                    <Lock size={18} strokeWidth={1.5} className={styles.inputIcon} />
+                    <input
+                      id="completar-confirmarSenha"
+                      name="confirmarSenha"
+                      type="password"
+                      value={confirmarSenha}
+                      onChange={(e) => setConfirmarSenha(e.target.value)}
+                      autoComplete="new-password"
+                      required
+                      minLength={6}
+                      className={styles.innerInput}
+                      placeholder="Repita a senha"
+                    />
+                  </div>
+                </div>
+                <p className={styles.cardSub} style={{ marginTop: 4, marginBottom: 8, textAlign: 'left', color: '#64748b', fontSize: '0.7rem' }}>
+                  Use uma senha nova (diferente de qualquer uma já usada neste usuário).
+                </p>
+                {error && (
+                  <div className={styles.cardSub} style={{ marginBottom: 12, color: '#c62737', textAlign: 'left', fontWeight: 600 }}>
+                    {error}
+                  </div>
+                )}
+                <button type="submit" disabled={submitting} className={styles.btnLogin}>
+                  {submitting ? (
+                    <span className="inline-flex items-center justify-center gap-2">
+                      <Loader2 size={18} className="animate-spin" />
+                      Salvando...
+                    </span>
+                  ) : (
+                    'Concluir cadastro'
+                  )}
+                </button>
+              </form>
+
+              <p className={styles.cardFooter} style={{ marginTop: 20 }}>
+                <Link href="/admin/login" className={styles.backLink}>
+                  Já tem conta? Fazer login
+                </Link>
+              </p>
+              <p className={styles.cardFooter} style={{ marginTop: 8 }}>
+                Sara Nossa Terra — {new Date().getFullYear()}
+              </p>
+              <Link href="/" className={styles.backLink} style={{ marginTop: 8 }}>
+                Voltar ao site
+              </Link>
+            </>
           )}
-          <button
-            type="submit"
-            disabled={submitting}
-            className="w-full rounded-lg bg-[#c62737] py-2.5 font-medium text-white transition hover:bg-[#a01f2d] disabled:opacity-60"
-          >
-            {submitting ? 'Salvando...' : 'Concluir cadastro'}
-          </button>
-        </form>
-        <p className="mt-6 text-center text-sm text-slate-500">
-          <Link href="/admin/login" className="text-[#c62737] hover:underline">
-            Já tem conta? Fazer login
-          </Link>
-        </p>
-      </div>
+        </div>
+      </main>
     </div>
   )
+
+  return layout
 }
