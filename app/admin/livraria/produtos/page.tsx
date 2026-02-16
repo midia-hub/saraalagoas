@@ -21,6 +21,8 @@ type Product = {
   min_stock: number
   current_stock: number
   active: boolean
+  discount_type?: string | null
+  discount_value?: number | null
   bookstore_categories?: { name: string } | null
   bookstore_product_images?: ProductImage[] | null
 }
@@ -106,8 +108,8 @@ export default function LivrariaProdutosPage() {
       category_name: catName,
       cost_price: row.cost_price ?? 0,
       sale_price: row.sale_price ?? 0,
-      discount_type: (row as { discount_type?: string }).discount_type === 'value' || (row as { discount_type?: string }).discount_type === 'percent' ? (row as { discount_type: 'value' | 'percent' }).discount_type : '',
-      discount_value: Number((row as { discount_value?: number }).discount_value) || 0,
+      discount_type: row.discount_type === 'value' || row.discount_type === 'percent' ? row.discount_type : '',
+      discount_value: Number(row.discount_value) || 0,
       min_stock: row.min_stock ?? 0,
       stock_adjust_to: '',
       active: row.active !== false,
