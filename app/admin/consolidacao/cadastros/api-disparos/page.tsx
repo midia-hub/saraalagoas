@@ -11,17 +11,14 @@ export default function ApiDisparosPage() {
   const [enabled, setEnabled] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saveLoading, setSaveLoading] = useState(false)
-  const [success, setSuccess] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
-    setError(null)
     try {
       const data = await adminFetchJson<{ disparos_api_enabled: boolean }>('/api/admin/consolidacao/disparos-settings')
       setEnabled(data.disparos_api_enabled ?? false)
-    } catch {
-      setError('Erro ao carregar configuração.')
+    } catch (err) {
+      console.error('[API disparos] Erro ao carregar configuração:', err)
       setEnabled(false)
     } finally {
       setLoading(false)
@@ -35,17 +32,14 @@ export default function ApiDisparosPage() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
     setSaveLoading(true)
-    setError(null)
-    setSuccess(false)
     try {
       await adminFetchJson('/api/admin/consolidacao/disparos-settings', {
         method: 'PATCH',
         body: JSON.stringify({ disparos_api_enabled: enabled }),
       })
-      setSuccess(true)
-      setTimeout(() => setSuccess(false), 3000)
-    } catch {
-      setError('Erro ao salvar. Tente novamente.')
+      console.log('[API disparos] Configuração salva com sucesso.')
+    } catch (err) {
+      console.error('[API disparos] Erro ao salvar:', err)
     } finally {
       setSaveLoading(false)
     }
@@ -73,17 +67,6 @@ export default function ApiDisparosPage() {
             </div>
           </div>
         </div>
-
-        {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-800 text-sm">
-            {error}
-          </div>
-        )}
-        {success && (
-          <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl text-green-800 text-sm">
-            Configuração salva com sucesso.
-          </div>
-        )}
 
         {loading ? (
           <div className="bg-white rounded-xl border border-slate-200 p-8 text-center text-slate-500">

@@ -23,20 +23,22 @@ const MESSAGE_ID_RECONCILIOU = '8f32bd0d-ae13-4261-af91-4845284ab1fe'
 
 export type ConversionTypeDisparos = 'accepted' | 'reconciled'
 
+export type DisparosWebhookResult = { success: boolean; statusCode?: number; phone: string; nome: string }
+
 /**
  * Chama o webhook de disparos após conversão (se configurado).
- * Não propaga erro para não falhar o fluxo principal; apenas loga.
+ * Retorna resultado para registro em disparos_log; não propaga erro.
  */
 export async function callDisparosWebhook(params: {
   phone: string
   nome: string
   conversionType: ConversionTypeDisparos
-}): Promise<void> {
+}): Promise<DisparosWebhookResult | null> {
   const url = process.env.DISPAROS_WEBHOOK_URL
   const bearer = process.env.DISPAROS_WEBHOOK_BEARER
   if (!url || !bearer) {
-    console.warn('Disparos webhook: DISPAROS_WEBHOOK_URL ou DISPAROS_WEBHOOK_BEARER não configurados.')
-    return
+    console.warn('Disparos webhook: DISPAROS_WEBHOOK_URL ou DISPAROS_WEBHOOK_BEARER não configurados. URL=', !!url, 'Bearer=', !!bearer)
+    return null
   }
 
   const digits = params.phone.replace(/\D/g, '')
@@ -46,24 +48,30 @@ export async function callDisparosWebhook(params: {
   const nomeReduzido = getNomeExibicao(params.nome)
 
   try {
+    const body = {
+      phone: phoneE164,
+      channel_id: CHANNEL_ID,
+      message_id: messageId,
+      variables: { nome: nomeReduzido },
+    }
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Disparos webhook chamando:', url, body)
+    }
     const res = await fetch(url, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${bearer}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        phone: phoneE164,
-        channel_id: CHANNEL_ID,
-        message_id: messageId,
-        variables: { nome: nomeReduzido },
-      }),
+      body: JSON.stringify(body),
     })
     if (!res.ok) {
       const text = await res.text()
       console.error('Disparos webhook falhou:', res.status, text)
     }
+    return { success: res.ok, statusCode: res.status, phone: phoneE164, nome: nomeReduzido }
   } catch (err) {
     console.error('Disparos webhook erro:', err)
+    return { success: false, phone: phoneE164, nome: nomeReduzido }
   }
 }

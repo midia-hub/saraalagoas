@@ -56,7 +56,6 @@ export default function FormularioConversaoPublicoPage() {
   const [churches, setChurches] = useState<{ id: string; name: string }[]>([])
   const [teams, setTeams] = useState<{ id: string; name: string; church_id: string | null }[]>([])
   const [loading, setLoading] = useState(false)
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [openSections, setOpenSections] = useState({ pessoais: true, endereco: false, conversao: false })
   const [cepLoading, setCepLoading] = useState(false)
   const [cepError, setCepError] = useState<string | null>(null)
@@ -65,7 +64,6 @@ export default function FormularioConversaoPublicoPage() {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
     setFormData((prev) => ({ ...prev, [name]: value }))
-    setErrorMessage(null)
     if (name === 'cep') setCepError(null)
   }
 
@@ -132,29 +130,28 @@ export default function FormularioConversaoPublicoPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setErrorMessage(null)
     const cultoEnvio =
       formData.culto === 'outro' && cultoOutroTexto.trim()
         ? `Outro - ${cultoOutroTexto.trim()}`
         : formData.culto
     if (!formData.culto) {
-      setErrorMessage('Culto/Evento é obrigatório.')
+      console.error('[Formulário conversão] Culto/Evento é obrigatório.')
       return
     }
     if (formData.culto === 'outro' && !cultoOutroTexto.trim()) {
-      setErrorMessage('Informe qual culto ou evento quando selecionar "Outro".')
+      console.error('[Formulário conversão] Informe qual culto ou evento quando selecionar "Outro".')
       return
     }
     if (!churchId) {
-      setErrorMessage('Igreja é obrigatória.')
+      console.error('[Formulário conversão] Igreja é obrigatória.')
       return
     }
     if (!formData.conversion_type) {
-      setErrorMessage('Aceitou ou Reconciliou é obrigatório.')
+      console.error('[Formulário conversão] Aceitou ou Reconciliou é obrigatório.')
       return
     }
     if (!formData.genero) {
-      setErrorMessage('Gênero é obrigatório.')
+      console.error('[Formulário conversão] Gênero é obrigatório.')
       return
     }
     setLoading(true)
@@ -198,14 +195,14 @@ export default function FormularioConversaoPublicoPage() {
         if (text) data = { error: text }
       }
       if (!res.ok) {
-        const msg = data?.error || (res.status === 500 ? 'Erro no servidor. Veja o terminal onde o Next.js está rodando para mais detalhes.' : 'Erro ao salvar.')
-        setErrorMessage(msg)
+        const msg = data?.error || (res.status === 500 ? 'Erro no servidor.' : 'Erro ao salvar.')
+        console.error('[Formulário conversão]', msg)
         return
       }
       const nomeParam = encodeURIComponent(formData.nome.trim())
       router.push(`/formulario-conversao/sucesso?nome=${nomeParam}&genero=${formData.genero}&tipo=${formData.conversion_type}`)
-    } catch {
-      setErrorMessage('Erro ao enviar. Tente novamente.')
+    } catch (err) {
+      console.error('[Formulário conversão] Erro ao enviar:', err)
     } finally {
       setLoading(false)
     }
@@ -228,16 +225,6 @@ export default function FormularioConversaoPublicoPage() {
             </div>
           </div>
         </div>
-
-        {errorMessage && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl flex items-center gap-3">
-            <X className="text-red-600 shrink-0" size={20} />
-            <div>
-              <p className="font-semibold text-red-800">Erro ao salvar</p>
-              <p className="text-sm text-red-600">{errorMessage}</p>
-            </div>
-          </div>
-        )}
 
         <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
           {/* Dados Pessoais */}
