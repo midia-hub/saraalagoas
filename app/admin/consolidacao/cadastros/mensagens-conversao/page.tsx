@@ -12,18 +12,15 @@ export default function MensagensConversaoPage() {
   const [reconciled, setReconciled] = useState('')
   const [loading, setLoading] = useState(true)
   const [saveLoading, setSaveLoading] = useState(false)
-  const [success, setSuccess] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
-    setError(null)
     try {
       const data = await adminFetchJson<{ accepted: string; reconciled: string }>('/api/admin/consolidacao/conversion-messages')
       setAccepted(data.accepted ?? '')
       setReconciled(data.reconciled ?? '')
-    } catch {
-      setError('Erro ao carregar mensagens.')
+    } catch (err) {
+      console.error('[Mensagens conversão] Erro ao carregar mensagens:', err)
       setAccepted('')
       setReconciled('')
     } finally {
@@ -38,17 +35,14 @@ export default function MensagensConversaoPage() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
     setSaveLoading(true)
-    setError(null)
-    setSuccess(false)
     try {
       await adminFetchJson('/api/admin/consolidacao/conversion-messages', {
         method: 'PATCH',
         body: JSON.stringify({ accepted: accepted.trim(), reconciled: reconciled.trim() }),
       })
-      setSuccess(true)
-      setTimeout(() => setSuccess(false), 3000)
-    } catch {
-      setError('Erro ao salvar. Tente novamente.')
+      console.log('[Mensagens conversão] Mensagens salvas com sucesso.')
+    } catch (err) {
+      console.error('[Mensagens conversão] Erro ao salvar:', err)
     } finally {
       setSaveLoading(false)
     }
@@ -76,17 +70,6 @@ export default function MensagensConversaoPage() {
             </div>
           </div>
         </div>
-
-        {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-800 text-sm">
-            {error}
-          </div>
-        )}
-        {success && (
-          <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl text-green-800 text-sm">
-            Mensagens salvas com sucesso.
-          </div>
-        )}
 
         {loading ? (
           <div className="bg-white rounded-xl border border-slate-200 p-8 text-center text-slate-500">
@@ -136,7 +119,7 @@ export default function MensagensConversaoPage() {
         )}
 
         <p className="mt-6 text-sm text-slate-500">
-          A primeira linha da tela de sucesso é montada automaticamente com &quot;Querido(a) [nome] irmão(ã) em Cristo,&quot; de acordo com o gênero informado no formulário. O conteúdo acima é exibido em seguida.
+          A primeira linha da tela de sucesso é montada automaticamente com &quot;Querido(a) [nome], irmão(ã) em Cristo,&quot; de acordo com o gênero informado no formulário. O conteúdo acima é exibido em seguida.
         </p>
       </div>
     </PageAccessGuard>

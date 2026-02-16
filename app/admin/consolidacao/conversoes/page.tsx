@@ -47,7 +47,6 @@ export default function FormularioConversaoPage() {
 
     const [loading, setLoading] = useState(false)
     const [success, setSuccess] = useState(false)
-    const [errorMessage, setErrorMessage] = useState<string | null>(null)
     const [openSections, setOpenSections] = useState({ pessoais: true, endereco: false, conversao: false })
     const toggleSection = (key: keyof typeof openSections) => setOpenSections(prev => ({ ...prev, [key]: !prev[key] }))
     const [cepLoading, setCepLoading] = useState(false)
@@ -57,7 +56,6 @@ export default function FormularioConversaoPage() {
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { name, value } = e.target
         setFormData(prev => ({ ...prev, [name]: value }))
-        setErrorMessage(null)
         if (name === 'cep') setCepError(null)
     }
 
@@ -149,28 +147,27 @@ export default function FormularioConversaoPage() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
-        setErrorMessage(null)
         const cultoEnvio = formData.culto === 'outro' && cultoOutroTexto.trim()
             ? `Outro - ${cultoOutroTexto.trim()}`
             : (formData.culto || undefined)
         if (!formData.culto) {
-            setErrorMessage('Culto/Evento é obrigatório.')
+            console.error('[Conversão admin] Culto/Evento é obrigatório.')
             return
         }
         if (formData.culto === 'outro' && !cultoOutroTexto.trim()) {
-            setErrorMessage('Informe qual culto ou evento quando selecionar "Outro".')
+            console.error('[Conversão admin] Informe qual culto ou evento quando selecionar "Outro".')
             return
         }
         if (!churchId) {
-            setErrorMessage('Igreja é obrigatória.')
+            console.error('[Conversão admin] Igreja é obrigatória.')
             return
         }
         if (!formData.conversion_type) {
-            setErrorMessage('Aceitou ou Reconciliou é obrigatório.')
+            console.error('[Conversão admin] Aceitou ou Reconciliou é obrigatório.')
             return
         }
         if (!formData.genero) {
-            setErrorMessage('Gênero é obrigatório.')
+            console.error('[Conversão admin] Gênero é obrigatório.')
             return
         }
         setLoading(true)
@@ -207,7 +204,7 @@ export default function FormularioConversaoPage() {
             router.push(`/admin/consolidacao/conversoes/sucesso?nome=${nomeParam}&genero=${generoParam}&tipo=${tipoParam}`)
         } catch (error) {
             console.error('Erro ao salvar conversão:', error)
-            setErrorMessage(error instanceof Error ? error.message : 'Erro ao salvar conversão.')
+            console.error('[Conversão admin]', error instanceof Error ? error.message : 'Erro ao salvar conversão.')
         } finally {
             setLoading(false)
         }
@@ -271,19 +268,6 @@ export default function FormularioConversaoPage() {
                         </a>
                     </div>
                 </div>
-
-                {/* Error Message */}
-                {errorMessage && (
-                    <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
-                            <X className="text-red-600" size={20} />
-                        </div>
-                        <div>
-                            <p className="font-semibold text-red-800">Erro ao salvar</p>
-                            <p className="text-sm text-red-600">{errorMessage}</p>
-                        </div>
-                    </div>
-                )}
 
                 {/* Form */}
                 <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">

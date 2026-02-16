@@ -281,16 +281,23 @@ export async function POST(request: NextRequest) {
     }
 
     const telefoneFinal = (conversaoPayload.telefone as string) || (person?.mobile_phone as string) || ''
-    if (telefoneFinal) {
-      const { data: settings } = await supabase.from('consolidation_settings').select('disparos_api_enabled').eq('id', 1).single()
-      if (settings?.disparos_api_enabled) {
-        const { callDisparosWebhook } = await import('@/lib/disparos-webhook')
-        const tipo = (conversionType === 'reconciled' ? 'reconciled' : 'accepted') as 'accepted' | 'reconciled'
-        callDisparosWebhook({
-          phone: telefoneFinal,
-          nome: (conversaoPayload.nome as string) || (person?.full_name as string) || '',
-          conversionType: tipo,
-        }).catch(() => {})
+    const { data: settings } = await supabase.from('consolidation_settings').select('disparos_api_enabled').eq('id', 1).single()
+    if (telefoneFinal && settings?.disparos_api_enabled) {
+      const { callDisparosWebhook } = await import('@/lib/disparos-webhook')
+      const tipo = (conversionType === 'reconciled' ? 'reconciled' : 'accepted') as 'accepted' | 'reconciled'
+      const result = await callDisparosWebhook({
+        phone: telefoneFinal,
+        nome: (conversaoPayload.nome as string) || (person?.full_name as string) || '',
+        conversionType: tipo,
+      }).catch((err) => { console.error('Disparos webhook (public conversao):', err); return null })
+      if (result) {
+        await supabase.from('disparos_log').insert({
+          phone: result.phone,
+          nome: result.nome,
+          conversion_type: tipo,
+          status_code: result.statusCode ?? null,
+          source: 'public',
+        }).then(({ error }) => { if (error) console.error('disparos_log insert:', error) })
       }
     }
 

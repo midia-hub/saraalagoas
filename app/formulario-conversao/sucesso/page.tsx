@@ -73,7 +73,7 @@ const searchParams = useSearchParams()
   const trat = getTratamento(genero)
   const irmao = getIrmaoIrma(genero)
   const nomeExib = getNomeExibicao(nome)
-  const paragrafoInicial = `${trat} ${nomeExib} ${irmao} em Cristo,`
+  const paragrafoInicial = `${trat} ${nomeExib}, ${irmao} em Cristo,`
   const textoCompleto =
     tipo === 'reconciled'
       ? (reconciledContent !== null && reconciledContent !== '' ? reconciledContent : FALLBACK_RECONCILIOU)
