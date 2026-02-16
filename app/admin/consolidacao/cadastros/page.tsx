@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { BookUser, UserCircle, Building2, UsersRound, Trophy, UserCog, MessageSquare } from 'lucide-react'
+import { BookUser, UserCircle, Building2, UsersRound, Trophy, UserCog, MessageSquare, Send } from 'lucide-react'
 import { PageAccessGuard } from '@/app/admin/PageAccessGuard'
 
 const cards = [
@@ -11,6 +11,7 @@ const cards = [
   { href: '/admin/consolidacao/cadastros/arenas', label: 'Arenas', icon: Trophy, desc: 'Arenas por igreja e líderes' },
   { href: '/admin/consolidacao/cadastros/equipes', label: 'Equipes', icon: UserCog, desc: 'Equipes (Arena ou Igreja) e líder' },
   { href: '/admin/consolidacao/cadastros/mensagens-conversao', label: 'Mensagens de conversão', icon: MessageSquare, desc: 'Texto exibido após cadastro (aceitou / reconciliou)' },
+  { href: '/admin/consolidacao/cadastros/api-disparos', label: 'API de disparos', icon: Send, desc: 'Ativar envio automático de mensagem ao finalizar formulário de consolidação' },
 ]
 
 export default function CadastrosHubPage() {
