@@ -3,9 +3,10 @@
 import { useEffect, useMemo, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { PageAccessGuard } from '@/app/admin/PageAccessGuard'
+import { AdminPageHeader } from '@/app/admin/AdminPageHeader'
 import { adminFetchJson, getAccessTokenOrThrow } from '@/lib/admin-client'
 import { supabase } from '@/lib/supabase'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Upload } from 'lucide-react'
 import { CustomSelect } from '@/components/ui/CustomSelect'
 
 type UploadType = 'culto' | 'evento'
@@ -273,8 +274,11 @@ export default function AdminUploadPage() {
   return (
     <PageAccessGuard pageKey="upload">
       <div className="p-6 md:p-8 max-w-[800px] mx-auto">
-      <h1 className="text-2xl md:text-[2.5rem] font-bold text-slate-800 uppercase tracking-[2px]">Upload de Cultos/Eventos</h1>
-      <p className="text-slate-500 mt-2 text-base">Fluxo em 3 etapas: informações, imagens e confirmação.</p>
+        <AdminPageHeader
+          icon={Upload}
+          title="Upload de cultos e eventos"
+          subtitle="Fluxo em 3 etapas: informações, imagens e confirmação."
+        />
 
       <div className="mt-6 flex gap-2 text-sm">
         {[1, 2, 3].map((n) => (

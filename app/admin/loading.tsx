@@ -1,5 +1,5 @@
-import { PageLoading } from '@/components/ui/PageLoading'
+import { AdminLoadingScreen } from '@/app/admin/AdminLoadingScreen'
 
 export default function AdminLoading() {
-  return <PageLoading message="Carregando painel..." fullScreen />
+  return <AdminLoadingScreen message="Carregando painel..." />
 }

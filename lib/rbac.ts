@@ -66,6 +66,11 @@ const ADMIN_PAGE_KEYS = [
   'roles',
   'pessoas',
   'consolidacao',
+  'livraria_produtos',
+  'livraria_estoque',
+  'livraria_movimentacoes',
+  'livraria_importacao',
+  'livraria_dashboard',
   'instagram',
   'facebook',
   'meta',
@@ -86,6 +91,11 @@ const LEGACY_ADMIN_PERMISSIONS: PermissionMap = {
   facebook: { view: true, create: true, edit: true, delete: true, manage: true },
   meta: { view: true, create: true, edit: true, delete: true, manage: true },
   cultos: { view: true, create: true, edit: true, delete: true, manage: true },
+  livraria_produtos: { view: true, create: true, edit: true, delete: true, manage: true },
+  livraria_estoque: { view: true, create: true, edit: true, delete: true, manage: true },
+  livraria_movimentacoes: { view: true, create: true, edit: true, delete: true, manage: true },
+  livraria_importacao: { view: true, create: true, edit: true, delete: true, manage: true },
+  livraria_dashboard: { view: true, create: true, edit: true, delete: true, manage: true },
 }
 
 const LEGACY_VIEWER_PERMISSIONS: PermissionMap = {

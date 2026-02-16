@@ -265,3 +265,12 @@
 .cadastro-modal input::placeholder {
   @apply text-slate-400;
 }
+
+/* Tela de carregamento do admin — barra indeterminada */
+@keyframes admin-loading-bar {
+  0%, 100% { transform: translateX(-100%); }
+  50% { transform: translateX(250%); }
+}
+.admin-loading-bar {
+  animation: admin-loading-bar 1.2s ease-in-out infinite;
+}

@@ -1,9 +1,10 @@
 'use client'
 
 import Link from 'next/link'
-import { Settings, Users, Upload, Image as ImageIcon, Instagram, Link2 } from 'lucide-react'
+import { Settings, Users, Upload, Image as ImageIcon, Instagram, Link2, LayoutDashboard } from 'lucide-react'
 import { useAdminAccess } from '@/lib/admin-access-context'
 import { PageAccessGuard } from '@/app/admin/PageAccessGuard'
+import { AdminPageHeader } from '@/app/admin/AdminPageHeader'
 
 const cards = [
   { href: '/admin/configuracoes', label: 'Ajustes do Site', icon: Settings, desc: 'Editar textos e menu do site', permission: 'configuracoes' },
@@ -24,8 +25,11 @@ export default function AdminPage() {
   return (
     <PageAccessGuard pageKey="dashboard">
       <div className="p-6 md:p-8">
-        <h1 className="text-2xl font-bold text-slate-900 mb-2">Painel administrativo</h1>
-        <p className="text-slate-600 mb-8">Selecione uma área para começar.</p>
+        <AdminPageHeader
+          icon={LayoutDashboard}
+          title="Painel administrativo"
+          subtitle="Selecione uma área para começar."
+        />
         {visibleCards.length > 0 ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {visibleCards.map(({ href, label, icon: Icon, desc }) => (

@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Image as ImageIcon } from 'lucide-react'
 import { PageAccessGuard } from '@/app/admin/PageAccessGuard'
 import { useAdminAccess } from '@/lib/admin-access-context'
 import { adminFetchJson } from '@/lib/admin-client'
@@ -301,17 +301,22 @@ export default function AdminGaleriaPage() {
   return (
     <PageAccessGuard pageKey="galeria">
       <div className="p-6 md:p-8 animate-fade-in">
-        <header className="mb-4">
-          <h1 className="text-2xl font-bold text-slate-900">Álbuns</h1>
-          <p className="text-slate-600 mt-1">
-            Encontre rapidamente um álbum por nome, tipo ou data.
-          </p>
-          {!error && (
-            <p className="text-slate-500 mt-1 text-sm">
-              {filteredAndSorted.length} álbum{filteredAndSorted.length !== 1 ? 's' : ''}
-            </p>
-          )}
-        </header>
+        <div className="mb-6">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-xl bg-[#c62737]/10 flex items-center justify-center shrink-0">
+              <ImageIcon className="text-[#c62737]" size={24} />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-slate-800">Álbuns</h1>
+              <p className="text-slate-500">
+                Encontre rapidamente um álbum por nome, tipo ou data.
+                {!error && filteredAndSorted.length > 0 && (
+                  <span className="ml-1">— {filteredAndSorted.length} álbum{filteredAndSorted.length !== 1 ? 's' : ''}</span>
+                )}
+              </p>
+            </div>
+          </div>
+        </div>
 
         <AlbumFilters
           state={filters}

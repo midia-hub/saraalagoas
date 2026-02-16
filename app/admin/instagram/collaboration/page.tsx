@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { PageAccessGuard } from '@/app/admin/PageAccessGuard'
+import { AdminPageHeader } from '@/app/admin/AdminPageHeader'
 import { adminFetchJson } from '@/lib/admin-client'
 import { Check, X, Users, Loader2, RefreshCw, ExternalLink } from 'lucide-react'
 import { CustomSelect } from '@/components/ui/CustomSelect'
@@ -125,8 +126,8 @@ export default function InstagramCollaborationPage() {
   if (loading) {
     return (
       <PageAccessGuard pageKey="instagram">
-        <div className="flex items-center justify-center min-h-[400px]">
-          <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+        <div className="p-6 md:p-8 flex items-center justify-center min-h-[320px]">
+          <Loader2 className="w-8 h-8 animate-spin text-[#c62737]" />
         </div>
       </PageAccessGuard>
     )
@@ -134,16 +135,12 @@ export default function InstagramCollaborationPage() {
 
   return (
     <PageAccessGuard pageKey="instagram">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-3">
-            <Users className="w-8 h-8" />
-            Convites de Colaboração
-          </h1>
-          <p className="mt-2 text-slate-600">
-            Gerencie convites de colaboração recebidos de outros usuários do Instagram.
-          </p>
-        </div>
+      <div className="p-6 md:p-8">
+        <AdminPageHeader
+          icon={Users}
+          title="Convites de colaboração"
+          subtitle="Gerencie convites recebidos de outros usuários do Instagram."
+        />
 
         {/* Seletor de conta */}
         {integrations.length > 0 && (
@@ -164,7 +161,7 @@ export default function InstagramCollaborationPage() {
               <button
                 onClick={loadInvites}
                 disabled={refreshing}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+                className="px-4 py-2 bg-[#c62737] text-white rounded-lg hover:bg-[#a61f2e] disabled:opacity-50 flex items-center gap-2"
               >
                 <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
                 Atualizar
@@ -189,7 +186,7 @@ export default function InstagramCollaborationPage() {
             </p>
             <a
               href="/admin/instancias"
-              className="mt-4 inline-block text-blue-600 hover:text-blue-800"
+              className="mt-4 inline-block text-[#c62737] hover:text-[#a61f2e]"
             >
               Conectar conta Instagram →
             </a>
