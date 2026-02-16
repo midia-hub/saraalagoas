@@ -1,15 +1,17 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import dynamic from 'next/dynamic'
 import { useRouter, usePathname } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import type { User } from '@supabase/supabase-js'
-import { AdminSidebar } from '@/app/admin/AdminSidebar'
 import { AdminAccessProvider } from '@/lib/admin-access-context'
 import { adminFetchJson } from '@/lib/admin-client'
 import type { PermissionMap } from '@/lib/rbac-types'
 import { clearSupabaseLocalSession, getSessionWithRecovery } from '@/lib/auth-recovery'
-import { PageLoading } from '@/components/ui/PageLoading'
+import { AdminLoadingScreen } from '@/app/admin/AdminLoadingScreen'
+
+const AdminSidebar = dynamic(() => import('@/app/admin/AdminSidebar').then((m) => ({ default: m.AdminSidebar })), { ssr: true })
 
 function hasAdminCookie(): boolean {
   if (typeof document === 'undefined') return false
@@ -128,11 +130,11 @@ export default function AdminLayout({
   if (isPublicAdminPage) return <>{children}</>
 
   if (loading) {
-    return <PageLoading message="Carregando..." fullScreen />
+    return <AdminLoadingScreen message="Carregando painel..." />
   }
 
   if (!user || !canAccessAdmin) {
-    return <PageLoading message="Redirecionando para o login..." fullScreen />
+    return <AdminLoadingScreen message="Redirecionando para o login..." />
   }
 
   return (

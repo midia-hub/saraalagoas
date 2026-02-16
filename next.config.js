@@ -5,9 +5,10 @@ import { fileURLToPath } from 'url'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 // Para GitHub Pages: https://midia-hub.github.io/saraalagoas/
-// Em Vercel/domínio próprio, mantenha vazio para evitar 404 em /_next/static.
+// Em desenvolvimento (npm run dev) basePath fica sempre vazio para evitar 404 em /_next/static.
+const isDev = process.env.NODE_ENV === 'development'
 const useGithubPagesBasePath =
-  process.env.NEXT_PUBLIC_USE_BASEPATH === 'true'
+  !isDev && process.env.NEXT_PUBLIC_USE_BASEPATH === 'true'
 const isStaticExport =
   process.env.NODE_ENV === 'production' && useGithubPagesBasePath
 
@@ -19,6 +20,9 @@ const nextConfig = {
   ...(isStaticExport ? { output: 'export' } : {}),
   basePath,
   assetPrefix,
+  experimental: {
+    optimizePackageImports: ['lucide-react', 'recharts'],
+  },
   images: {
     unoptimized: true,
     formats: ['image/avif', 'image/webp'],

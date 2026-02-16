@@ -1,9 +1,11 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { ArrowLeft, Save, Shield, AlertCircle, Loader2 } from 'lucide-react'
+import { Save, Shield, AlertCircle, Loader2 } from 'lucide-react'
 import { useRouter, useParams } from 'next/navigation'
 import { useRBAC } from '@/lib/hooks/useRBAC'
+import { PageAccessGuard } from '@/app/admin/PageAccessGuard'
+import { AdminPageHeader } from '@/app/admin/AdminPageHeader'
 import { adminFetchJson } from '@/lib/admin-client'
 import { Toast } from '@/components/Toast'
 import type { Role, Resource, Permission } from '@/lib/rbac-types'
@@ -182,190 +184,163 @@ export default function EditRolePage() {
 
   if (loading) {
     return (
-      <div className="p-8">
-        <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-gray-200 rounded w-1/4"></div>
-          <div className="h-96 bg-gray-200 rounded"></div>
+      <PageAccessGuard pageKey="roles">
+        <div className="p-6 md:p-8">
+          <div className="animate-pulse space-y-4">
+            <div className="h-8 bg-slate-200 rounded w-1/4" />
+            <div className="h-96 bg-slate-200 rounded" />
+          </div>
         </div>
-      </div>
+      </PageAccessGuard>
     )
   }
 
   if (!isNew && !role) {
     return (
-      <div className="p-8">
-        <div className="text-center">
-          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-          <p className="text-gray-600">Role não encontrada</p>
+      <PageAccessGuard pageKey="roles">
+        <div className="p-6 md:p-8">
+          <div className="text-center py-12">
+            <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+            <p className="text-slate-600">Função não encontrada</p>
+          </div>
         </div>
-      </div>
+      </PageAccessGuard>
     )
   }
 
   const canEditRole = isNew || !role?.is_system || canEdit('roles')
 
   return (
-    <div className="p-8 max-w-5xl mx-auto">
-      {/* Header */}
-      <div className="mb-8">
-        <button
-          onClick={() => router.back()}
-          className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4"
-        >
-          <ArrowLeft className="w-5 h-5" />
-          Voltar
-        </button>
-
-        <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-          <Shield className="w-8 h-8 text-blue-600" />
-          {isNew ? 'Nova função' : `Editar: ${role?.name}`}
-        </h1>
+    <PageAccessGuard pageKey="roles">
+      <div className="p-6 md:p-8">
+        <AdminPageHeader
+          icon={Shield}
+          title={isNew ? 'Nova função' : `Editar: ${role?.name}`}
+          subtitle="Informações e permissões da função."
+          backLink={{ href: '/admin/roles', label: 'Voltar às funções' }}
+        />
 
         {!isNew && role?.is_system && (
-          <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-            <p className="text-sm text-blue-800">
-              ⚠️ Esta é uma role do sistema. Apenas ordem e status podem ser alterados.
-            </p>
+          <div className="mb-6 p-3 bg-amber-50 border border-amber-200 rounded-xl">
+            <p className="text-sm text-amber-800">Esta é uma função do sistema. Apenas ordem e status podem ser alterados.</p>
           </div>
         )}
-      </div>
 
-      {/* Error Message */}
-      {error && (
-        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-          <div>
-            <p className="text-red-800 font-medium">Erro</p>
-            <p className="text-red-600 text-sm">{error}</p>
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-red-800 font-medium">Erro</p>
+              <p className="text-red-600 text-sm">{error}</p>
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Form */}
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Informações Básicas */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Informações Básicas</h2>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+            <h2 className="text-lg font-semibold text-slate-800 mb-4">Informações básicas</h2>
 
-          <div className="space-y-4">
-            {isNew && (
+            <div className="space-y-4">
+              {isNew && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Chave da função * (ex: editor_conteudo)</label>
+                  <input
+                    type="text"
+                    value={formData.key}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        key: e.target.value.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, ''),
+                      })
+                    }
+                    placeholder="editor_conteudo"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#c62737] focus:border-[#c62737]"
+                    required
+                  />
+                </div>
+              )}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Chave da função * (ex: editor_conteudo)
-                </label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Nome da função *</label>
                 <input
                   type="text"
-                  value={formData.key}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      key: e.target.value.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, ''),
-                    })
-                  }
-                  placeholder="editor_conteudo"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  disabled={!isNew && role?.is_system}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#c62737] focus:border-[#c62737] disabled:bg-slate-100"
                   required
                 />
               </div>
-            )}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Nome da função *
-              </label>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                disabled={!isNew && role?.is_system}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
-                required
-              />
-            </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
-              <textarea
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                disabled={!isNew && role?.is_system}
-                rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
-              />
-            </div>
-
-            <div className="flex items-center gap-4">
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={formData.is_admin}
-                  onChange={(e) => setFormData({ ...formData, is_admin: e.target.checked })}
-                  disabled={!isNew && !!role?.is_system}
-                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 disabled:bg-gray-100"
-                />
-                <span className="text-sm font-medium text-gray-700">
-                  Role de Administrador (acesso total)
-                </span>
-              </label>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Ordem</label>
-                <input
-                  type="number"
-                  value={formData.sort_order}
-                  onChange={(e) =>
-                    setFormData({ ...formData, sort_order: parseInt(e.target.value) || 0 })
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                <label className="block text-sm font-medium text-slate-700 mb-1">Descrição</label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  disabled={!isNew && role?.is_system}
+                  rows={3}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#c62737] focus:border-[#c62737] disabled:bg-slate-100"
                 />
               </div>
 
-              <div className="flex items-end">
+              <div className="flex items-center gap-4">
                 <label className="flex items-center gap-2">
                   <input
                     type="checkbox"
+                    checked={formData.is_admin}
+                    onChange={(e) => setFormData({ ...formData, is_admin: e.target.checked })}
+                    disabled={!isNew && !!role?.is_system}
+                    className="w-4 h-4 text-[#c62737] border-slate-300 rounded focus:ring-[#c62737] disabled:bg-slate-100"
+                  />
+                  <span className="text-sm font-medium text-slate-700">Função de administrador (acesso total)</span>
+                </label>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Ordem</label>
+                  <input
+                    type="number"
+                    value={formData.sort_order}
+                    onChange={(e) =>
+                      setFormData({ ...formData, sort_order: parseInt(e.target.value) || 0 })
+                    }
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#c62737] focus:border-[#c62737]"
+                  />
+                </div>
+
+                <div className="flex items-end">
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
                     checked={formData.is_active}
                     onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    className="w-4 h-4 text-[#c62737] border-slate-300 rounded focus:ring-[#c62737]"
                   />
-                  <span className="text-sm font-medium text-gray-700">Role Ativa</span>
+                  <span className="text-sm font-medium text-slate-700">Função ativa</span>
                 </label>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Permissões */}
         {!formData.is_admin && (isNew || !role?.is_system) && (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Permissões</h2>
-
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+            <h2 className="text-lg font-semibold text-slate-800 mb-4">Permissões</h2>
             <div className="space-y-4">
               {resources.map((resource) => (
-                <div key={resource.id} className="border border-gray-200 rounded-lg p-4">
-                  <h3 className="font-medium text-gray-900 mb-3">{resource.name}</h3>
-                  {resource.description && (
-                    <p className="text-sm text-gray-500 mb-3">{resource.description}</p>
-                  )}
-
+                <div key={resource.id} className="border border-slate-200 rounded-lg p-4">
+                  <h3 className="font-medium text-slate-800 mb-3">{resource.name}</h3>
+                  {resource.description && <p className="text-sm text-slate-500 mb-3">{resource.description}</p>}
                   <div className="flex flex-wrap gap-3">
                     {permissions.map((permission) => (
-                      <label
-                        key={permission.id}
-                        className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer"
-                      >
+                      <label key={permission.id} className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-lg hover:bg-slate-100 cursor-pointer">
                         <input
                           type="checkbox"
-                          checked={
-                            selectedPermissions[resource.id]?.[permission.id] || false
-                          }
+                          checked={selectedPermissions[resource.id]?.[permission.id] || false}
                           onChange={() => togglePermission(resource.id, permission.id)}
-                          className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                          className="w-4 h-4 text-[#c62737] border-slate-300 rounded focus:ring-[#c62737]"
                         />
-                        <span className="text-sm font-medium text-gray-700">
-                          {permission.name}
-                        </span>
+                        <span className="text-sm font-medium text-slate-700">{permission.name}</span>
                       </label>
                     ))}
                   </div>
@@ -376,28 +351,19 @@ export default function EditRolePage() {
         )}
 
         {formData.is_admin && (isNew || !role?.is_system) && (
-          <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-            <p className="text-sm text-purple-800">
-              ℹ️ Roles de administrador têm acesso completo a todos os recursos
-              automaticamente.
-            </p>
+          <div className="bg-[#c62737]/5 border border-[#c62737]/20 rounded-xl p-4">
+            <p className="text-sm text-slate-700">Funções de administrador têm acesso completo a todos os recursos automaticamente.</p>
           </div>
         )}
 
-        {/* Actions */}
         <div className="flex items-center justify-end gap-3">
-          <button
-            type="button"
-            onClick={() => router.back()}
-            className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
-          >
+          <button type="button" onClick={() => router.back()} className="px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50 transition">
             Cancelar
           </button>
-
           <button
             type="submit"
             disabled={saving || !canEditRole}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 px-4 py-2 bg-[#c62737] text-white rounded-lg hover:bg-[#a61f2e] transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Save className="w-5 h-5" />
             {saving ? 'Salvando...' : isNew ? 'Criar função' : 'Salvar alterações'}
@@ -405,12 +371,8 @@ export default function EditRolePage() {
         </div>
       </form>
 
-      <Toast
-        visible={!!toast}
-        message={toast?.text ?? ''}
-        type={toast?.type ?? 'err'}
-        onClose={() => setToast(null)}
-      />
-    </div>
+        <Toast visible={!!toast} message={toast?.text ?? ''} type={toast?.type ?? 'err'} onClose={() => setToast(null)} />
+      </div>
+    </PageAccessGuard>
   )
 }

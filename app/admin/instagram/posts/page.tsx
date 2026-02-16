@@ -1,8 +1,10 @@
 'use client'
 
 import { useEffect, useState, useMemo } from 'react'
+import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import { PageAccessGuard } from '@/app/admin/PageAccessGuard'
+import { AdminPageHeader } from '@/app/admin/AdminPageHeader'
 import { adminFetchJson } from '@/lib/admin-client'
 import {
   CheckCircle2,
@@ -21,12 +23,14 @@ import {
   RefreshCw,
 } from 'lucide-react'
 import { Toast } from '@/components/Toast'
-import { PostFilters, type PostFiltersState } from './_components/PostFilters'
 import { PostCard } from './_components/PostCard'
-import { PostsCalendar } from './_components/PostsCalendar'
-import { WorkflowStepsFlow } from './_components/WorkflowStepsFlow'
 import type { ScheduledItem, LegacyPostItem, MetaIntegrationOption } from './_components/types'
 import type { DateRangeKey } from './_components/types'
+import type { PostFiltersState } from './_components/PostFilters'
+
+const PostFilters = dynamic(() => import('./_components/PostFilters').then((m) => ({ default: m.PostFilters })), { ssr: false })
+const PostsCalendar = dynamic(() => import('./_components/PostsCalendar').then((m) => ({ default: m.PostsCalendar })), { ssr: false })
+const WorkflowStepsFlow = dynamic(() => import('./_components/WorkflowStepsFlow').then((m) => ({ default: m.WorkflowStepsFlow })), { ssr: false })
 
 const LEGACY_STATUS_CONFIG: Record<
   string,
@@ -224,39 +228,38 @@ export default function AdminInstagramPostsPage() {
   return (
     <PageAccessGuard pageKey="instagram">
       <div className="p-6 md:p-8">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900">Painel de publicações</h1>
-            <p className="mt-1 text-slate-600">
-              Acompanhe postagens conectadas ao Instagram e Facebook, métricas e programação.
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            {hasPending && (
-              <button
-                type="button"
-                onClick={handleRunQueue}
-                disabled={runningQueue}
-                className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-800 hover:bg-amber-100 disabled:opacity-50"
+        <AdminPageHeader
+          icon={Instagram}
+          title="Painel de publicações"
+          subtitle="Acompanhe postagens conectadas ao Instagram e Facebook, métricas e programação."
+          actions={
+            <div className="flex flex-wrap items-center gap-2">
+              {hasPending && (
+                <button
+                  type="button"
+                  onClick={handleRunQueue}
+                  disabled={runningQueue}
+                  className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-800 hover:bg-amber-100 disabled:opacity-50"
+                >
+                  {runningQueue ? (
+                    <>
+                      <Loader2 className="mr-2 inline h-4 w-4 animate-spin" />
+                      Processando…
+                    </>
+                  ) : (
+                    'Processar fila agora'
+                  )}
+                </button>
+              )}
+              <Link
+                href="/admin/galeria"
+                className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
               >
-                {runningQueue ? (
-                  <>
-                    <Loader2 className="mr-2 inline h-4 w-4 animate-spin" />
-                    Processando…
-                  </>
-                ) : (
-                  'Processar fila agora'
-                )}
-              </button>
-            )}
-            <Link
-              href="/admin/galeria"
-              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-            >
-              Nova postagem
-            </Link>
-          </div>
-        </div>
+                Nova postagem
+              </Link>
+            </div>
+          }
+        />
 
         {error && (
           <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-red-700">

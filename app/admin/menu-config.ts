@@ -14,6 +14,11 @@ import {
     UsersRound,
     Trophy,
     UserCog,
+    BookOpen,
+    Package,
+    ArrowLeftRight,
+    FileSpreadsheet,
+    BarChart3,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
@@ -119,6 +124,44 @@ export const menuModules: MenuModule[] = [
                 label: 'Cadastros',
                 icon: BookUser,
                 permission: 'consolidacao'
+            },
+        ],
+    },
+
+    // Módulo Livraria
+    {
+        title: 'Livraria',
+        permission: 'livraria_produtos',
+        items: [
+            {
+                href: '/admin/livraria/produtos',
+                label: 'Produtos',
+                icon: BookOpen,
+                permission: 'livraria_produtos'
+            },
+            {
+                href: '/admin/livraria/estoque',
+                label: 'Estoque',
+                icon: Package,
+                permission: 'livraria_estoque'
+            },
+            {
+                href: '/admin/livraria/movimentacoes',
+                label: 'Movimentações',
+                icon: ArrowLeftRight,
+                permission: 'livraria_movimentacoes'
+            },
+            {
+                href: '/admin/livraria/importacao',
+                label: 'Importação/Exportação',
+                icon: FileSpreadsheet,
+                permission: 'livraria_importacao'
+            },
+            {
+                href: '/admin/livraria/dashboard',
+                label: 'Dashboard',
+                icon: BarChart3,
+                permission: 'livraria_dashboard'
             },
         ],
     },

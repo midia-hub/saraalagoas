@@ -29,8 +29,16 @@ function applySecurityHeaders(response: NextResponse): NextResponse {
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
-  // Nunca aplicar regras de admin a estáticos (favicon, _next, public)
-  if (pathname.startsWith('/_next') || pathname.startsWith('/favicon') || pathname === '/robots.txt' || pathname === '/manifest.json') {
+  // Nunca aplicar regras a estáticos: _next (CSS, JS, chunks), favicon, etc.
+  if (
+    pathname.startsWith('/_next') ||
+    pathname.startsWith('/favicon') ||
+    pathname === '/robots.txt' ||
+    pathname === '/manifest.json' ||
+    pathname.startsWith('/brand/') ||
+    pathname.includes('.png') ||
+    pathname.includes('.ico')
+  ) {
     return applySecurityHeaders(NextResponse.next())
   }
   const normalizedPath =

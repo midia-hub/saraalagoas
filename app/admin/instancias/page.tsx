@@ -3,8 +3,9 @@
 import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { PageAccessGuard } from '@/app/admin/PageAccessGuard'
+import { AdminPageHeader } from '@/app/admin/AdminPageHeader'
 import { adminFetchJson } from '@/lib/admin-client'
-import { Facebook, Instagram, CheckCircle, XCircle, AlertCircle, Loader2, Unlink } from 'lucide-react'
+import { Facebook, Instagram, CheckCircle, XCircle, AlertCircle, Loader2, Unlink, Link2 } from 'lucide-react'
 
 type MetaIntegration = {
   id: string
@@ -303,12 +304,11 @@ export default function AdminInstanciasPage() {
   return (
     <PageAccessGuard pageKey="instagram">
       <div className="p-6 md:p-8">
-        <header className="mb-6">
-          <h1 className="text-2xl font-bold text-slate-900">Configurações do Instagram/Facebook</h1>
-          <p className="text-slate-600 mt-1">
-            Conecte aqui sua conta do Facebook/Instagram para liberar as postagens no Instagram. Faça o login com a conta que administra a página e o perfil do Instagram.
-          </p>
-        </header>
+        <AdminPageHeader
+          icon={Link2}
+          title="Configurações do Instagram/Facebook"
+          subtitle="Conecte sua conta do Facebook/Instagram para liberar as postagens. Use a conta que administra a página e o perfil do Instagram."
+        />
 
         {/* Mensagens de sucesso/erro */}
         {success && (
