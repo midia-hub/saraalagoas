@@ -322,6 +322,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Erro ao registrar conversão' }, { status: 500 })
     }
 
+    const telefoneFinal = (conversaoPayload.telefone as string) || (person?.mobile_phone as string) || ''
+    if (telefoneFinal) {
+      const { data: settings } = await supabase.from('consolidation_settings').select('disparos_api_enabled').eq('id', 1).single()
+      if (settings?.disparos_api_enabled) {
+        const { callDisparosWebhook } = await import('@/lib/disparos-webhook')
+        const tipo = (conversionType === 'reconciled' ? 'reconciled' : 'accepted') as 'accepted' | 'reconciled'
+        callDisparosWebhook({
+          phone: telefoneFinal,
+          nome: (conversaoPayload.nome as string) || (person?.full_name as string) || '',
+          conversionType: tipo,
+        }).catch(() => {})
+      }
+    }
+
     return NextResponse.json({ person, conversion })
   } catch (err) {
     console.error('Erro em upsert-person-and-conversion:', err)
