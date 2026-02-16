@@ -218,8 +218,9 @@ export default function LivrariaProdutosPage() {
     setBarcodeScannerError(null)
     let Quagga: { init: (c: object, cb: (err: unknown) => void) => void; start: () => void; stop: () => void; onDetected: (h: (r: unknown) => void) => void; offDetected: (h?: (r: unknown) => void) => void }
     const target = barcodeScannerRef.current
-    const onDetected = (result: { codeResult?: { code?: string } }) => {
-      const code = result?.codeResult?.code
+    const onDetected = (result: unknown) => {
+      const r = result as { codeResult?: { code?: string } }
+      const code = r?.codeResult?.code
       if (code) {
         setForm((f) => ({ ...f, barcode: code }))
         quaggaRef.current?.stop()
