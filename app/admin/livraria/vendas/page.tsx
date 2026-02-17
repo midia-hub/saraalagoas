@@ -52,7 +52,7 @@ export default function PdvPage() {
       if (search) params.set('search', search)
       if (category) params.set('category', category)
       params.set('active', 'true')
-      const data = await adminFetchJson<{ items: PdvProduct[] }>(`/api/admin/livraria/pdv/produtos?${params}`)
+      const data = await adminFetchJson<{ items: PdvProduct[] }>(`/api/admin/livraria/pdv/produtos/?${params}`)
       setProducts(data.items ?? [])
     } catch {
       setToast({ type: 'err', message: 'Erro ao carregar produtos.' })
@@ -66,13 +66,13 @@ export default function PdvPage() {
   }, [loadProducts])
 
   useEffect(() => {
-    adminFetchJson<{ items: Array<{ id: string; name: string }> }>('/api/admin/livraria/categorias')
+    adminFetchJson<{ items: Array<{ id: string; name: string }> }>('/api/admin/livraria/categorias/')
       .then((d) => setCategories(d.items ?? []))
       .catch(() => {})
   }, [])
 
   useEffect(() => {
-    adminFetchJson<Array<{ id: string; name: string; external_id: string }>>('/api/admin/livraria/mercadopago/caixas')
+    adminFetchJson<Array<{ id: string; name: string; external_id: string }>>('/api/admin/livraria/mercadopago/caixas/')
       .then((list) => setPosList(Array.isArray(list) ? list : []))
       .catch(() => setPosList([]))
   }, [])
@@ -128,7 +128,7 @@ export default function PdvPage() {
 
   function handleBarcodeDetected(code: string) {
     setBarcodeOpen(false)
-    adminFetchJson<PdvProduct>(`/api/admin/livraria/pdv/barcode?code=${encodeURIComponent(code)}`)
+    adminFetchJson<PdvProduct>(`/api/admin/livraria/pdv/barcode/?code=${encodeURIComponent(code)}`)
       .then((product) => {
         if (product.current_stock > 0) {
           openQuantity(product, 'SALE')
@@ -178,7 +178,7 @@ export default function PdvPage() {
     if (payload.discount_type) body.discount_type = payload.discount_type
     if (payload.discount_value != null) body.discount_value = payload.discount_value
     getAccessTokenOrThrow().then((token) =>
-      fetch('/api/admin/livraria/pdv/vendas', {
+      fetch('/api/admin/livraria/pdv/vendas/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(body),
@@ -204,7 +204,7 @@ export default function PdvPage() {
             }
             try {
               const token = await getAccessTokenOrThrow()
-              const res = await fetch('/api/admin/livraria/mercadopago/orders', {
+              const res = await fetch('/api/admin/livraria/mercadopago/orders/', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
                 body: JSON.stringify({
@@ -216,8 +216,17 @@ export default function PdvPage() {
                   idempotency_key: crypto.randomUUID(),
                 }),
               })
-              const resData = await res.json()
-              if (!res.ok || resData.error) throw new Error(resData.error || 'Erro ao criar order no caixa')
+              const text = await res.text()
+              let resData: { error?: string; message?: string; type_response?: { qr_data?: string }; id?: string } = {}
+              try {
+                resData = text ? JSON.parse(text) : {}
+              } catch {
+                resData = { error: res.status === 308 ? 'Redirecionamento (308). Verifique a URL da API.' : `Resposta inválida (${res.status}).` }
+              }
+              if (!res.ok || resData.error) {
+                const msg = resData.error || resData.message || `Erro ${res.status} ao criar order no caixa.`
+                throw new Error(msg)
+              }
               setOrderModal({
                 saleId: data.sale_id,
                 saleNumber: data.sale_number ?? undefined,
@@ -226,16 +235,17 @@ export default function PdvPage() {
               })
               setToast({ type: 'ok', message: 'Order criada. O cliente pode escanear o QR do caixa ou o QR exibido.' })
             } catch (err) {
+              const message = err instanceof Error ? err.message : 'Não foi possível criar pagamento no caixa.'
               setToast({
                 type: 'err',
-                message: err instanceof Error ? err.message : 'Não foi possível criar pagamento no caixa. Verifique a venda no histórico.',
+                message: `${message} A venda foi registrada; você pode abrir o recibo pelo histórico.`,
               })
-              window.location.href = `/admin/livraria/vendas/${data.sale_id}/recibo`
+              // Não redireciona: usuário permanece no PDV para ver o erro e tentar de novo ou abrir o recibo manualmente
             }
           } else if (deveAbrirMercadoPago) {
             try {
               const token = await getAccessTokenOrThrow()
-              const res = await fetch('/api/admin/livraria/pdv/pagamentos/mercadopago', {
+              const res = await fetch('/api/admin/livraria/pdv/pagamentos/mercadopago/', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
                 body: JSON.stringify({ sale_id: data.sale_id }),

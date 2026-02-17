@@ -50,11 +50,13 @@ Configure as notificações em **modo produção** na sua conta real e informe u
 
 1. Acesse [Suas integrações](https://www.mercadopago.com.br/developers/panel/app) → sua aplicação.
 2. Menu **Webhooks** → **Configurar notificações**.
-3. Aba **Modo de produção**: informe a URL que receberá os webhooks, por exemplo:
+3. Aba **Modo de produção**: informe a URL que receberá os webhooks **com barra no final** (obrigatório quando o projeto usa `trailingSlash: true`), por exemplo:
 
 ```text
-https://seu-dominio.com/api/webhooks/mercadopago
+https://seu-dominio.com/api/webhooks/mercadopago/
 ```
+
+Se informar sem a barra final, o servidor pode responder 308 e o Mercado Pago pode não entregar o webhook corretamente; assim a venda não é marcada como paga.
 
 4. Selecione o evento **Order (Mercado Pago)** para receber `order.processed`, `order.expired`, `order.canceled`, `order.refunded`.
 5. Clique em **Salvar configuração**. Opcional: use a **assinatura secreta** e defina no `.env`:

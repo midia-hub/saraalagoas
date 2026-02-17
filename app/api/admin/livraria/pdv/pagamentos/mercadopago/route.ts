@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
 
     const base = baseUrl()
     const notificationUrlRaw =
-      process.env.MERCADOPAGO_WEBHOOK_URL || `${base}/api/webhooks/mercadopago`
+      process.env.MERCADOPAGO_WEBHOOK_URL || `${base}/api/webhooks/mercadopago/`
     const notificationUrl =
       notificationUrlRaw.startsWith('https://') ? notificationUrlRaw : undefined
     const amount = Number(row.total_amount)

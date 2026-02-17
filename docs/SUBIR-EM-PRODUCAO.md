@@ -66,11 +66,7 @@ Não use mais o token de **teste** (`TEST-...`) em produção.
 ### 4.3 Webhook (notificações)
 
 1. [Suas integrações](https://www.mercadopago.com.br/developers/panel/app) → sua aplicação → **Webhooks** → **Configurar notificações**.
-2. **Modo de produção**: URL de notificação em HTTPS, por exemplo:
-
-```text
-https://seu-dominio.com/api/webhooks/mercadopago
-```
+2. **Modo de produção**: URL de notificação em HTTPS **com barra no final** (ex.: `https://seu-dominio.com/api/webhooks/mercadopago/`), para evitar 308 e garantir que o webhook seja recebido e a venda marcada como paga.
 
 3. Marque o evento **Order (Mercado Pago)**.
 4. Salve. Opcional: copie a **assinatura secreta** e defina no `.env` de produção:

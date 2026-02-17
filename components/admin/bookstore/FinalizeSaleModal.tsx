@@ -81,7 +81,7 @@ export function FinalizeSaleModal({
     setCouponLoading(true)
     try {
       const res = await adminFetchJson<{ valid: boolean; code: string; discount_amount: number }>(
-        `/api/admin/livraria/cupons/validar?code=${encodeURIComponent(code)}&subtotal=${total}`
+        `/api/admin/livraria/cupons/validar/?code=${encodeURIComponent(code)}&subtotal=${total}`
       )
       if (res.valid && res.discount_amount > 0) {
         setAppliedCoupon({ code: res.code, discount_amount: res.discount_amount })

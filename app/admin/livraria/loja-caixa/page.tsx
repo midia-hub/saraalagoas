@@ -85,10 +85,10 @@ export default function LivrariaLojaCaixaPage() {
     setLoading(true)
     try {
       const [config, s, p, sess] = await Promise.all([
-        adminFetchJson<{ collector_id_configured: boolean }>('/api/admin/livraria/mercadopago/config').catch(() => null),
-        adminFetchJson<Store[]>('/api/admin/livraria/mercadopago/lojas'),
-        adminFetchJson<Pos[]>('/api/admin/livraria/mercadopago/caixas'),
-        adminFetchJson<Sessao[]>('/api/admin/livraria/mercadopago/sessoes'),
+        adminFetchJson<{ collector_id_configured: boolean }>('/api/admin/livraria/mercadopago/config/').catch(() => null),
+        adminFetchJson<Store[]>('/api/admin/livraria/mercadopago/lojas/'),
+        adminFetchJson<Pos[]>('/api/admin/livraria/mercadopago/caixas/'),
+        adminFetchJson<Sessao[]>('/api/admin/livraria/mercadopago/sessoes/'),
       ])
       setMpConfig(config)
       const storeList = Array.isArray(s) ? s : []
@@ -181,7 +181,7 @@ export default function LivrariaLojaCaixaPage() {
     setStoreDeletingId(id)
     try {
       const token = await getAccessTokenOrThrow()
-      const res = await fetch(`/api/admin/livraria/mercadopago/lojas/${id}`, {
+      const res = await fetch(`/api/admin/livraria/mercadopago/lojas/${id}/`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       })
@@ -210,7 +210,7 @@ export default function LivrariaLojaCaixaPage() {
         const token = await getAccessTokenOrThrow()
         const lat = parseFloat(storeForm.latitude)
         const lng = parseFloat(storeForm.longitude)
-        const res = await fetch(`/api/admin/livraria/mercadopago/lojas/${editingStoreId}`, {
+        const res = await fetch(`/api/admin/livraria/mercadopago/lojas/${editingStoreId}/`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify({
@@ -254,7 +254,7 @@ export default function LivrariaLojaCaixaPage() {
     setStoreSaving(true)
     try {
       const token = await getAccessTokenOrThrow()
-      const res = await fetch('/api/admin/livraria/mercadopago/lojas', {
+      const res = await fetch('/api/admin/livraria/mercadopago/lojas/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
@@ -298,7 +298,7 @@ export default function LivrariaLojaCaixaPage() {
     setPosSaving(true)
     try {
       const token = await getAccessTokenOrThrow()
-      const res = await fetch('/api/admin/livraria/mercadopago/caixas', {
+      const res = await fetch('/api/admin/livraria/mercadopago/caixas/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
@@ -326,7 +326,7 @@ export default function LivrariaLojaCaixaPage() {
     setAbrirLoading(true)
     try {
       const token = await getAccessTokenOrThrow()
-      const res = await fetch('/api/admin/livraria/mercadopago/sessoes', {
+      const res = await fetch('/api/admin/livraria/mercadopago/sessoes/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
@@ -351,7 +351,7 @@ export default function LivrariaLojaCaixaPage() {
     setFecharLoading(true)
     try {
       const token = await getAccessTokenOrThrow()
-      const res = await fetch(`/api/admin/livraria/mercadopago/sessoes/${fecharSessaoId}`, {
+      const res = await fetch(`/api/admin/livraria/mercadopago/sessoes/${fecharSessaoId}/`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
