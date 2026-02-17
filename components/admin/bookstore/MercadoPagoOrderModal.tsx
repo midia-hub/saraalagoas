@@ -39,7 +39,7 @@ export function MercadoPagoOrderModal({
     const check = async () => {
       try {
         const data = await adminFetchJson<{ status: string }>(
-          `/api/admin/livraria/pdv/pagamentos/status?sale_id=${encodeURIComponent(saleId)}`
+          `/api/admin/livraria/pdv/pagamentos/status/?sale_id=${encodeURIComponent(saleId)}`
         )
         consecutiveErrors = 0
         if (data?.status === 'PAID') {
