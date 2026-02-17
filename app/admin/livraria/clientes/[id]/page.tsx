@@ -58,7 +58,7 @@ const TABS = [
 
 export default function ClienteDetailPage() {
   const params = useParams()
-  const id = params.id as string
+  const id = (params?.id as string) ?? ''
   const [customer, setCustomer] = useState<CustomerDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<(typeof TABS)[number]['key']>('compras')

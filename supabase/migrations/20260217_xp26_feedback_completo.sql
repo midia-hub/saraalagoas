@@ -69,7 +69,10 @@ CREATE TABLE IF NOT EXISTS public.xp26_feedback (
   superou_expectativa text,
   nps integer CHECK (nps >= 0 AND nps <= 10),
   melhorias text,
-  mensagem_final text
+  mensagem_final text,
+  contato_whatsapp_autorizado boolean,
+  nome_contato text,
+  whatsapp_contato text
 );
 
 -- Índices
@@ -121,4 +124,7 @@ ALTER TABLE public.xp26_feedback
   ADD COLUMN IF NOT EXISTS indicacao_banda_xp27 text,
   ADD COLUMN IF NOT EXISTS tema_preferido_xp27 text[],
   ADD COLUMN IF NOT EXISTS tema_preferido_xp27_outro text,
-  ADD COLUMN IF NOT EXISTS sugestao_xp27 text;
+  ADD COLUMN IF NOT EXISTS sugestao_xp27 text,
+  ADD COLUMN IF NOT EXISTS contato_whatsapp_autorizado boolean,
+  ADD COLUMN IF NOT EXISTS nome_contato text,
+  ADD COLUMN IF NOT EXISTS whatsapp_contato text;

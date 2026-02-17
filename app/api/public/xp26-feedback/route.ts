@@ -40,16 +40,10 @@ export async function POST(request: NextRequest) {
     const organizacao = body.organizacao != null ? String(body.organizacao).trim() : ''
     const nps = body.nps != null ? Number(body.nps) : null
 
-    if (perfil == null || perfil === '' || !PERFIS.includes(perfil)) {
-      return NextResponse.json({ error: 'Perfil é obrigatório. Selecione como você veio.' }, { status: 400 })
-    }
-    if (nota_evento == null || Number.isNaN(nota_evento) || nota_evento < 0 || nota_evento > 10) {
-      return NextResponse.json({ error: 'Nota do evento é obrigatória (0 a 10).' }, { status: 400 })
-    }
+    const perfilValido = perfil && PERFIS.includes(perfil) ? perfil : null
+    const notaValida = nota_evento != null && !Number.isNaN(nota_evento) && nota_evento >= 0 && nota_evento <= 10 ? Math.round(nota_evento) : null
     const organizacaoValida = organizacao && ORGANIZACAO_OPCOES.includes(organizacao) ? organizacao : null
-    if (nps == null || Number.isNaN(nps) || nps < 0 || nps > 10) {
-      return NextResponse.json({ error: 'NPS é obrigatório (0 a 10).' }, { status: 400 })
-    }
+    const npsValido = nps != null && !Number.isNaN(nps) && nps >= 0 && nps <= 10 ? Math.round(nps) : null
 
     const impactoRaw = body.impacto_principal
     let impacto_principal: string[] | null = null
@@ -74,10 +68,14 @@ export async function POST(request: NextRequest) {
     const acompanhou_instagram = body.acompanhou_instagram === true || body.acompanhou_instagram === 'true' ? true : body.acompanhou_instagram === false || body.acompanhou_instagram === 'false' ? false : null
     const falhas_area = body.falhas_area === true || body.falhas_area === 'true' ? true : body.falhas_area === false || body.falhas_area === 'false' ? false : null
 
+    const contato_whatsapp_autorizado = body.contato_whatsapp_autorizado === true || body.contato_whatsapp_autorizado === 'true'
+    const nome_contato = truncate(body.nome_contato, 120)
+    const whatsapp_contato = truncate(body.whatsapp_contato, 20)
+
     const payload = {
       arena: arena ?? null,
-      perfil,
-      nota_evento: Math.round(nota_evento),
+      perfil: perfilValido,
+      nota_evento: notaValida,
       impacto_principal: impacto_principal ?? [],
       impacto_outro: impacto_outro ?? null,
       fortalecer_fe: truncate(body.fortalecer_fe, MAX_TEXT),
@@ -123,9 +121,12 @@ export async function POST(request: NextRequest) {
       teve_problema,
       descricao_problema,
       superou_expectativa,
-      nps: Math.round(nps),
+      nps: npsValido,
       melhorias,
       mensagem_final,
+      contato_whatsapp_autorizado,
+      nome_contato,
+      whatsapp_contato,
     }
 
     const { data, error } = await supabase.from('xp26_feedback').insert(payload).select('id').single()

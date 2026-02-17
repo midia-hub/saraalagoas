@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
             .eq('sale_id', saleId)
             .eq('payment_id', String(paymentId))
             .maybeSingle()
-          if (!(existingTx as { status?: string } | null)?.id) {
+          if (!(existingTx as { id?: string; status?: string } | null)?.id) {
             await supabase.from('bookstore_payment_transactions').insert({
               sale_id: saleId,
               provider: 'MERCADOPAGO',
@@ -127,7 +127,7 @@ export async function POST(request: NextRequest) {
               amount: parseFloat(order.total_amount || '0'),
               currency: 'BRL',
               external_reference: saleId,
-              raw_notification,
+              raw_notification: rawNotification,
               raw_payment: order as unknown as Record<string, unknown>,
             })
           }
@@ -252,7 +252,7 @@ export async function POST(request: NextRequest) {
         .update({
           payment_id: paymentId,
           status: txStatus,
-          raw_notification,
+          raw_notification: rawNotification,
           raw_payment: payment as unknown as Record<string, unknown>,
           updated_at: new Date().toISOString(),
         })

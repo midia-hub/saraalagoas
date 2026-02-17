@@ -16,13 +16,13 @@ type StatusState = 'success' | 'pending' | 'failure'
 
 export default function MercadoPagoRetornoPage() {
   const searchParams = useSearchParams()
-  const statusParam = (searchParams.get('status') ?? '').toLowerCase() as StatusState
+  const statusParam = (searchParams?.get('status') ?? '').toLowerCase() as StatusState
   const status: StatusState =
     statusParam === 'success' || statusParam === 'pending' || statusParam === 'failure'
       ? statusParam
       : 'pending'
 
-  const saleIdFromQuery = searchParams.get('sale_id')
+  const saleIdFromQuery = searchParams?.get('sale_id') ?? null
   const [saleId, setSaleId] = useState<string | null>(saleIdFromQuery)
   const [pollStatus, setPollStatus] = useState<{
     status: string
@@ -48,7 +48,8 @@ export default function MercadoPagoRetornoPage() {
       const data = await adminFetchJson<{ status: string; paid_at?: string | null }>(
         `/api/admin/livraria/pdv/pagamentos/status?sale_id=${encodeURIComponent(saleId)}`
       )
-      if (data && typeof (data as { error?: string }).error === 'string') throw new Error((data as { error: string }).error)
+      const err = data && (data as { error?: string }).error
+      if (typeof err === 'string') throw new Error(err)
       return { status: (data as { status: string }).status, paid_at: (data as { paid_at?: string | null }).paid_at ?? null }
     } catch {
       return null
@@ -156,9 +157,12 @@ export default function MercadoPagoRetornoPage() {
           </div>
 
           <div className="mt-6 flex justify-center">
-            <Button asChild variant="secondary">
-              <Link href="/admin/livraria/vendas">Ir para o PDV</Link>
-            </Button>
+            <Link
+              href="/admin/livraria/vendas"
+              className="inline-flex items-center justify-center gap-2 font-medium rounded-lg px-4 py-2 text-sm bg-white text-slate-700 border border-slate-300 hover:bg-slate-50"
+            >
+              Ir para o PDV
+            </Link>
           </div>
         </div>
       </div>
