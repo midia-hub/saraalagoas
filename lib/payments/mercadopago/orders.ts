@@ -85,23 +85,40 @@ export type OrderResponse = {
   discounts?: unknown
 }
 
-function parseError(data: unknown): string {
-  if (data && typeof data === 'object') {
-    const o = data as Record<string, unknown>
-    const msg = (o.message ?? o.error ?? o.description) as string | undefined
-    if (typeof msg === 'string') return msg
-    if (Array.isArray(o.cause)) {
-      const parts = o.cause
-        .map((c: unknown) => {
-          if (c && typeof c === 'object' && typeof (c as { description?: string }).description === 'string')
-            return (c as { description: string }).description
-          return null
-        })
-        .filter(Boolean)
-      if (parts.length) return parts.join('; ')
-    }
+const MP_ERROR_MESSAGES: Record<string, string> = {
+  pos_not_found:
+    'O caixa (external_pos_id) não existe no Mercado Pago. Confira em Loja e Caixa se o external_id do caixa está correto e vinculado ao MP.',
+  bad_request: 'Requisição inválida ao Mercado Pago. Verifique os dados da venda e do caixa.',
+  unauthorized: 'Token do Mercado Pago inválido ou expirado.',
+  marketplace_not_valid: 'Token não é do tipo OAuth. Use as credenciais de produção do vendedor.',
+}
+
+function parseError(data: unknown, status?: number): string {
+  const fallback = status != null
+    ? `Erro na API do Mercado Pago (HTTP ${status}).`
+    : 'Erro na API do Mercado Pago.'
+  if (!data || typeof data !== 'object') return fallback
+  const o = data as Record<string, unknown>
+  const errCode = (o.error as string | undefined)?.trim()
+  if (errCode && MP_ERROR_MESSAGES[errCode]) return MP_ERROR_MESSAGES[errCode]
+  const msg = (o.message ?? o.error ?? o.description) as string | undefined
+  if (typeof msg === 'string' && msg.trim()) return msg.trim()
+  if (Array.isArray(o.cause) && o.cause.length > 0) {
+    const parts = o.cause
+      .map((c: unknown) => {
+        if (!c || typeof c !== 'object') return null
+        const co = c as Record<string, unknown>
+        const desc = co.description as string | undefined
+        const code = co.code as string | undefined
+        if (typeof desc === 'string' && desc.trim()) return code ? `${code}: ${desc}` : desc
+        if (typeof code === 'string') return code
+        return null
+      })
+      .filter(Boolean)
+    if (parts.length) return (parts as string[]).join('; ')
   }
-  return 'Erro na API do Mercado Pago.'
+  if (errCode) return errCode
+  return fallback
 }
 
 /**
@@ -155,8 +172,8 @@ export async function createOrder(payload: CreateOrderPayload): Promise<OrderRes
 
   const data = await res.json().catch(() => ({}))
   if (!res.ok) {
-    const msg = parseError(data)
-    console.error('[mercadopago createOrder]', res.status, msg, data)
+    const msg = parseError(data, res.status)
+    console.error('[mercadopago createOrder]', res.status, msg, JSON.stringify(data))
     throw new Error(msg)
   }
   return data as OrderResponse
