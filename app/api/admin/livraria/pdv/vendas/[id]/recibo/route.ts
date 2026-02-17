@@ -14,7 +14,7 @@ export async function GET(
     const supabase = createSupabaseAdminClient(request)
     const { data: sale, error: saleErr } = await supabase
       .from('bookstore_sales')
-      .select('id, sale_number, customer_name, customer_phone, payment_method, total_amount, discount_amount, notes, status, receipt_json, created_at, created_by')
+      .select('id, sale_number, customer_name, customer_phone, payment_method, payment_provider, total_amount, discount_amount, notes, status, receipt_json, created_at, created_by')
       .eq('id', id)
       .single()
 
@@ -56,12 +56,15 @@ export async function GET(
     const receipt = (sale as { receipt_json?: Record<string, unknown> }).receipt_json
     const subtotal = receipt && typeof receipt.subtotal === 'number' ? receipt.subtotal : (sale as { total_amount: number }).total_amount + Number((sale as { discount_amount?: number }).discount_amount ?? 0)
 
+    const rawPaymentMethod = (sale as { payment_method: string | null }).payment_method
+    const paymentMethodDisplay = rawPaymentMethod === 'Mercado Pago' ? 'Pix' : rawPaymentMethod
+
     return NextResponse.json({
       id: (sale as { id: string }).id,
       sale_number: (sale as { sale_number: string }).sale_number,
       customer_name: (sale as { customer_name: string | null }).customer_name,
       customer_phone: (sale as { customer_phone: string | null }).customer_phone,
-      payment_method: (sale as { payment_method: string | null }).payment_method,
+      payment_method: paymentMethodDisplay,
       subtotal,
       discount_amount: Number((sale as { discount_amount?: number }).discount_amount ?? 0),
       total_amount: Number((sale as { total_amount: number }).total_amount),
