@@ -2,20 +2,40 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAccess } from '@/lib/admin-api'
 import { createSupabaseAdminClient } from '@/lib/supabase-server'
 
-/** GET - Lista sessões de caixa (abertas e fechadas). ?pos_id= para filtrar por caixa. */
+/** GET - Lista sessões de caixa (abertas e fechadas). ?pos_id= para filtrar por caixa. ?aberta_por_mim=1 retorna só a sessão aberta pelo usuário atual (para PDV). */
 export async function GET(request: NextRequest) {
   const access = await requireAccess(request, { pageKey: 'livraria_pdv', action: 'view' })
   if (!access.ok) return access.response
   const supabase = createSupabaseAdminClient(request)
   const { searchParams } = new URL(request.url)
   const posId = searchParams.get('pos_id')
+  const abertaPorMim = searchParams.get('aberta_por_mim') === '1' || searchParams.get('aberta_por_mim') === 'true'
+  const userId = access.snapshot?.userId ?? null
+
+  const selectFields = `
+    id, pos_id, opened_at, closed_at, opening_balance, closing_balance, status, notes, opened_by, opened_by_name, created_at,
+    pos:livraria_mp_pos(id, name, external_id, store:livraria_mp_store(name))
+  `
+
+  if (abertaPorMim && userId) {
+    const { data: row, error } = await supabase
+      .from('livraria_caixa_sessao')
+      .select(selectFields)
+      .eq('opened_by', userId)
+      .eq('status', 'OPENED')
+      .order('opened_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    if (error) {
+      console.error('GET livraria/mercadopago/sessoes (aberta_por_mim):', error)
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+    return NextResponse.json(row ?? null)
+  }
 
   let query = supabase
     .from('livraria_caixa_sessao')
-    .select(`
-      id, pos_id, opened_at, closed_at, opening_balance, closing_balance, status, notes, created_at,
-      pos:livraria_mp_pos(id, name, external_id, store:livraria_mp_store(name))
-    `)
+    .select(selectFields)
     .order('opened_at', { ascending: false })
 
   if (posId) query = query.eq('pos_id', posId)
@@ -57,15 +77,19 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const userId = access.snapshot?.userId ?? null
+    const openedByName = body.opened_by_name != null ? String(body.opened_by_name).trim() || null : null
     const { data: row, error: insertError } = await supabase
       .from('livraria_caixa_sessao')
       .insert({
         pos_id,
         opening_balance,
         status: 'OPENED',
+        ...(userId && { opened_by: userId }),
+        ...(openedByName && { opened_by_name: openedByName }),
       })
       .select(`
-        id, pos_id, opened_at, opening_balance, status,
+        id, pos_id, opened_at, opening_balance, status, opened_by, opened_by_name,
         pos:livraria_mp_pos(id, name, external_id)
       `)
       .single()

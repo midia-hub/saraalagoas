@@ -46,12 +46,20 @@ export async function GET(request: NextRequest) {
     if (tx) providerStatus = (tx as { status: string }).status
   }
 
-  return NextResponse.json({
-    sale_id: row.id,
-    sale_number: row.sale_number,
-    status: row.status,
-    paid_at: row.paid_at ?? null,
-    payment_provider: row.payment_provider ?? null,
-    provider_status: providerStatus ?? null,
-  })
+  return NextResponse.json(
+    {
+      sale_id: row.id,
+      sale_number: row.sale_number,
+      status: row.status,
+      paid_at: row.paid_at ?? null,
+      payment_provider: row.payment_provider ?? null,
+      provider_status: providerStatus ?? null,
+    },
+    {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+        Pragma: 'no-cache',
+      },
+    }
+  )
 }

@@ -39,6 +39,7 @@ type Sessao = {
   closing_balance: number | null
   status: string
   notes: string | null
+  opened_by_name?: string | null
   pos?: { id: string; name: string; external_id: string }
 }
 
@@ -332,6 +333,7 @@ export default function LivrariaLojaCaixaPage() {
         body: JSON.stringify({
           pos_id: posId,
           opening_balance: parseFloat(balance) || 0,
+          opened_by_name: currentUserName || undefined,
         }),
       })
       const data = await res.json()
@@ -638,6 +640,9 @@ export default function LivrariaLojaCaixaPage() {
                       <div className="rounded-lg border border-amber-200 bg-amber-50/50 p-3 mb-3">
                         <span className="text-sm text-slate-600">
                           Sessão aberta em {new Date(sessaoAberta.opened_at).toLocaleString('pt-BR')} — Abertura: R$ {Number(sessaoAberta.opening_balance).toFixed(2)}
+                          {sessaoAberta.opened_by_name && (
+                            <span className="block mt-1 text-slate-500">Operador: {sessaoAberta.opened_by_name}</span>
+                          )}
                         </span>
                         {fecharSessaoId === sessaoAberta.id ? (
                           <div className="flex flex-wrap items-center gap-2 mt-2">

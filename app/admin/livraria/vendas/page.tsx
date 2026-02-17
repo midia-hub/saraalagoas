@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import { ShoppingCart, ArrowLeft, Search, LayoutGrid, List, Camera } from 'lucide-react'
 import { PageAccessGuard } from '@/app/admin/PageAccessGuard'
@@ -44,6 +44,12 @@ export default function PdvPage() {
     orderId: string | null
   } | null>(null)
   const [posList, setPosList] = useState<Array<{ id: string; name: string; external_id: string }>>([])
+  const [sessaoAberta, setSessaoAberta] = useState<{
+    id: string
+    pos_id: string
+    pos?: { id: string; name: string; external_id: string }
+  } | null>(null)
+  const tokenRef = useRef<string | null>(null)
 
   const loadProducts = useCallback(async () => {
     setLoading(true)
@@ -75,6 +81,35 @@ export default function PdvPage() {
     adminFetchJson<Array<{ id: string; name: string; external_id: string }>>('/api/admin/livraria/mercadopago/caixas/')
       .then((list) => setPosList(Array.isArray(list) ? list : []))
       .catch(() => setPosList([]))
+  }, [])
+
+  useEffect(() => {
+    adminFetchJson<{ id: string; pos_id: string; pos?: { id: string; name: string; external_id: string } } | null>(
+      '/api/admin/livraria/mercadopago/sessoes/?aberta_por_mim=1'
+    )
+      .then((s) => setSessaoAberta(s && typeof s === 'object' && s.id ? s : null))
+      .catch(() => setSessaoAberta(null))
+  }, [])
+
+  useEffect(() => {
+    getAccessTokenOrThrow()
+      .then((t) => { tokenRef.current = t })
+      .catch(() => { tokenRef.current = null })
+  }, [])
+
+  useEffect(() => {
+    const closeMinhaSessao = () => {
+      const t = tokenRef.current
+      if (t)
+        fetch('/api/admin/livraria/mercadopago/sessoes/close-mine/', {
+          method: 'POST',
+          keepalive: true,
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` },
+          body: JSON.stringify({ notes: 'Fechamento automático ao sair da plataforma.' }),
+        }).catch(() => {})
+    }
+    window.addEventListener('beforeunload', closeMinhaSessao)
+    return () => window.removeEventListener('beforeunload', closeMinhaSessao)
   }, [])
 
   const saleItems = cart.filter((i) => i.mode === 'SALE')
@@ -162,6 +197,13 @@ export default function PdvPage() {
     coupon_code?: string | null
     paid_amount?: number
   }) {
+    if (!sessaoAberta) {
+      setToast({
+        type: 'err',
+        message: 'Abra um caixa em Livraria → Loja e Caixa (MP) para realizar vendas.',
+      })
+      return
+    }
     setFinalizeLoading(true)
     const body: Record<string, unknown> = {
       customer_id: payload.customer_id || null,
@@ -172,6 +214,7 @@ export default function PdvPage() {
       discount_amount: payload.discount_amount,
       notes: payload.notes || null,
       paid_amount: payload.paid_amount ?? 0,
+      caixa_sessao_id: sessaoAberta.id,
       items: saleItems.map((i) => ({ product_id: i.product_id, quantity: i.quantity })),
     }
     if (payload.coupon_code) body.coupon_code = payload.coupon_code
@@ -197,8 +240,9 @@ export default function PdvPage() {
             (data.needs_qr_order === true || payload.payment_method === 'QR no caixa')
 
           if (deveAbrirQrNoCaixa) {
-            if (posList.length === 0) {
-              setToast({ type: 'err', message: 'Nenhum caixa cadastrado. Cadastre em Loja e Caixa (MP).' })
+            const posIdParaOrder = sessaoAberta?.pos_id ?? posList[0]?.id
+            if (!posIdParaOrder) {
+              setToast({ type: 'err', message: 'Nenhum caixa vinculado à sessão. Cadastre em Loja e Caixa (MP).' })
               window.location.href = `/admin/livraria/vendas/${data.sale_id}/recibo`
               return
             }
@@ -208,7 +252,7 @@ export default function PdvPage() {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
                 body: JSON.stringify({
-                  pos_id: posList[0].id,
+                  pos_id: posIdParaOrder,
                   total_amount: data.total_amount ?? 0,
                   external_reference: data.sale_id,
                   description: `Venda ${data.sale_number ?? data.sale_id}`,
@@ -279,6 +323,19 @@ export default function PdvPage() {
 
   return (
     <PageAccessGuard pageKey="livraria_pdv">
+      {!sessaoAberta && (
+        <div className="bg-amber-100 border-b border-amber-300 px-4 py-2 flex items-center justify-between gap-2 flex-wrap">
+          <p className="text-sm text-amber-900">
+            <strong>Caixa fechado.</strong> Abra um caixa em Loja e Caixa (MP) para realizar vendas.
+          </p>
+          <Link
+            href="/admin/livraria/loja-caixa"
+            className="text-sm font-medium text-amber-900 underline hover:no-underline"
+          >
+            Abrir caixa →
+          </Link>
+        </div>
+      )}
       <div className="flex flex-col h-full md:flex-row">
         {/* Coluna esquerda: busca + produtos */}
         <div className="flex-1 min-w-0 flex flex-col p-3 md:p-4 lg:w-[65%]">
@@ -411,6 +468,7 @@ export default function PdvPage() {
               onFinalize={handleFinalize}
               finalizeLoading={finalizeLoading}
               hasReserveItems={hasReserveInCart}
+              caixaAberto={!!sessaoAberta}
             />
           </div>
         </div>
@@ -438,6 +496,7 @@ export default function PdvPage() {
                   }}
                   finalizeLoading={finalizeLoading}
                   hasReserveItems={hasReserveInCart}
+                  caixaAberto={!!sessaoAberta}
                 />
               </div>
             </div>

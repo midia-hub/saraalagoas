@@ -99,6 +99,21 @@ function parseError(data: unknown, status?: number): string {
     : 'Erro na API do Mercado Pago.'
   if (!data || typeof data !== 'object') return fallback
   const o = data as Record<string, unknown>
+
+  // Formato do MP: { errors: [{ code, message, details }] }
+  if (Array.isArray(o.errors) && o.errors.length > 0) {
+    const first = o.errors[0] as Record<string, unknown>
+    const code = (first.code as string)?.trim()
+    const friendly = code ? MP_ERROR_MESSAGES[code] : undefined
+    if (friendly) {
+      const detail = Array.isArray(first.details) && first.details[0]
+      return typeof detail === 'string' ? `${friendly} (${detail})` : friendly
+    }
+    const msg = first.message as string | undefined
+    if (typeof msg === 'string' && msg.trim()) return msg.trim()
+    if (code) return code
+  }
+
   const errCode = (o.error as string | undefined)?.trim()
   if (errCode && MP_ERROR_MESSAGES[errCode]) return MP_ERROR_MESSAGES[errCode]
   const msg = (o.message ?? o.error ?? o.description) as string | undefined

@@ -55,13 +55,42 @@ export async function POST(request: NextRequest) {
     const couponCode = (body.coupon_code && String(body.coupon_code).trim()) || null
     const notes = body.notes ? String(body.notes).trim() || null : null
     const items = Array.isArray(body.items) ? body.items : []
+    const caixaSessaoId = body.caixa_sessao_id ? String(body.caixa_sessao_id).trim() || null : null
 
     if (items.length === 0) {
       return NextResponse.json({ error: 'Adicione ao menos um item para finalizar a venda.' }, { status: 400 })
     }
+    if (!caixaSessaoId) {
+      return NextResponse.json(
+        { error: 'Caixa não está aberto. Abra um caixa em Livraria → Loja e Caixa (MP) para realizar vendas.' },
+        { status: 400 }
+      )
+    }
 
     const supabase = createSupabaseAdminClient(request)
     const userId = access.snapshot?.userId ?? null
+
+    const { data: sessao, error: errSessao } = await supabase
+      .from('livraria_caixa_sessao')
+      .select('id, status, opened_by')
+      .eq('id', caixaSessaoId)
+      .single()
+    if (errSessao || !sessao) {
+      return NextResponse.json({ error: 'Sessão de caixa não encontrada.' }, { status: 404 })
+    }
+    const sessaoRow = sessao as { id: string; status: string; opened_by: string | null }
+    if (sessaoRow.status !== 'OPENED') {
+      return NextResponse.json(
+        { error: 'Esta sessão de caixa está fechada. Abra um caixa em Loja e Caixa para vender.' },
+        { status: 400 }
+      )
+    }
+    if (sessaoRow.opened_by && userId && sessaoRow.opened_by !== userId) {
+      return NextResponse.json(
+        { error: 'Esta sessão foi aberta por outro usuário. Use seu próprio caixa aberto para vender.' },
+        { status: 403 }
+      )
+    }
 
     let finalCustomerId: string | null = customerId
     let finalCustomerName = customerName
@@ -260,6 +289,7 @@ export async function POST(request: NextRequest) {
       status: isMercadoPago || isQrNoCaixa ? 'PENDING' : 'PAID',
       receipt_json: receiptJson,
       created_by: userId,
+      caixa_sessao_id: caixaSessaoId,
     }
     if (isMercadoPago || isQrNoCaixa) {
       insertSale.payment_provider = 'MERCADOPAGO'
