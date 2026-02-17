@@ -182,7 +182,7 @@ const PRELETORES = [
   'Pastor Theo Hayashi',
   'Pastora Sarah Nobre',
   'Pastor Rhandolfo',
-  'Pastor Nikolas Ferreira',
+  'Nikolas Ferreira',
 ]
 const AVALIACAO_MINISTRACOES_GERAL = ['Impactantes', 'Muito boas', 'Boas', 'Regulares', 'Fracas']
 const BANDAS = ['Banda Wilsong', 'Ungidos 4', 'DD Júnior', 'Jadson Nascimento']
@@ -204,9 +204,9 @@ const TEMAS_XP27 = [
   'Outro',
 ]
 
-const PROFILE_STEPS_PARTICIPANTE = 2
-const PROFILE_STEPS_VOLUNTARIO = 2
-const MINISTRACOES_XP27_STEPS = 4
+const PROFILE_STEPS_PARTICIPANTE = 0  // bloco perfil na mesma página que perfil+nota
+const PROFILE_STEPS_VOLUNTARIO = 0
+const MINISTRACOES_XP27_STEPS = 1     // todas ministrações em 1 página
 const MAX_TEXT = 500
 const MAX_MOTIVO_MINISTRACAO = 400
 const MAX_INDICACAO_PRELETOR = 300
@@ -543,10 +543,9 @@ export default function Xp26PesquisaPage() {
   }, [])
 
   const profileStepsCount = form.perfil === 'Participante' ? PROFILE_STEPS_PARTICIPANTE : form.perfil === 'Voluntário' ? PROFILE_STEPS_VOLUNTARIO : 0
-  const ministracoesStartStep = 2 + profileStepsCount
-  const orgStep = ministracoesStartStep + MINISTRACOES_XP27_STEPS
-  const melhoriasStep = orgStep + 1
-  const totalSteps = melhoriasStep + 1
+  const ministracoesStartStep = 1 + profileStepsCount
+  const finalStep = ministracoesStartStep + MINISTRACOES_XP27_STEPS
+  const totalSteps = finalStep + 1
 
   const canProceed = (): boolean => true // Todos os campos opcionais — pode avançar e enviar a qualquer momento
 
@@ -727,7 +726,7 @@ export default function Xp26PesquisaPage() {
 
         <div className="mt-8 min-h-[320px]">
           <AnimatePresence mode="wait">
-            {/* Etapa 1 — Identificação */}
+            {/* Página 1 — Perfil + Nota + Bloco por perfil (Participante ou Voluntário) */}
             {step === 0 && (
               <motion.div
                 key="step0"
@@ -735,334 +734,153 @@ export default function Xp26PesquisaPage() {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
                 transition={{ duration: 0.3 }}
-                className="space-y-8"
+                className="space-y-5"
               >
                 <div>
-                  <label className="block text-sm font-semibold mb-3" style={{ color: TEXT_WHITE }}>
-                    1. Você veio como:
-                  </label>
-                  <OptionButtons
-                    options={PERFIS}
-                    value={form.perfil}
-                    onChange={(v) => set('perfil', v as string)}
-                  />
+                  <label className="block text-sm font-semibold mb-2" style={{ color: TEXT_WHITE }}>1. Você veio como:</label>
+                  <OptionButtons options={PERFIS} value={form.perfil} onChange={(v) => set('perfil', v as string)} />
                 </div>
-              </motion.div>
-            )}
-
-            {/* Etapa 2 — Experiência geral */}
-            {step === 1 && (
-              <motion.div
-                key="step1"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.3 }}
-                className="space-y-8"
-              >
                 <div>
-                  <label className="block text-sm font-semibold mb-4 text-center" style={{ color: TEXT_WHITE }}>
-                    2. De 0 a 10, qual nota você dá ao evento?
-                  </label>
+                  <label className="block text-sm font-semibold mb-3 text-center" style={{ color: TEXT_WHITE }}>2. De 0 a 10, qual nota você dá ao evento?</label>
                   <RatingCircles value={form.nota_evento} onChange={(n) => set('nota_evento', n)} />
                 </div>
-                <div>
-                  <label className="block text-sm font-semibold mb-3" style={{ color: TEXT_WHITE }}>
-                    3. O que mais te impactou?
-                  </label>
-                  <OptionButtons
-                    options={IMPACTO_OPCOES}
-                    value={form.impacto}
-                    onChange={(v) => set('impacto', v as string[])}
-                    multi
-                  />
-                  {form.impacto.includes('Outro') && (
-                    <div className="mt-3">
-                      <input
-                        type="text"
-                        value={form.impacto_outro}
-                        onChange={(e) => set('impacto_outro', e.target.value.slice(0, MAX_TEXT))}
-                        placeholder="Descreva o que mais te impactou..."
-                        className="w-full rounded-xl px-4 py-3 mt-2 focus:outline-none"
-                        style={{
-                          background: 'rgba(255,255,255,0.06)',
-                          border: '2px solid rgba(255,255,255,0.2)',
-                          color: TEXT_WHITE,
-                        }}
-                      />
+                {form.perfil === 'Participante' && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-semibold mb-2" style={{ color: TEXT_WHITE }}>3. O XP26 fortaleceu sua fé?</label>
+                      <OptionButtons options={FORTALECER_FE} value={form.fortalecer_fe} onChange={(v) => set('fortalecer_fe', v as string)} />
                     </div>
-                  )}
-                </div>
+                    <div>
+                      <label className="block text-sm font-semibold mb-2" style={{ color: TEXT_WHITE }}>4. Você tomou alguma decisão importante?</label>
+                      <OptionButtons options={['Sim', 'Não']} value={form.decisao_importante === null ? '' : form.decisao_importante ? 'Sim' : 'Não'} onChange={(v) => set('decisao_importante', v === 'Sim')} />
+                      {form.decisao_importante === true && (
+                        <input type="text" value={form.decisao_qual} onChange={(e) => set('decisao_qual', e.target.value.slice(0, MAX_TEXT))} placeholder="Qual decisão? (opcional)" className="w-full rounded-xl px-4 py-3 mt-2 focus:outline-none" style={{ background: 'rgba(255,255,255,0.06)', border: '2px solid rgba(255,255,255,0.2)', color: TEXT_WHITE }} />
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold mb-2" style={{ color: TEXT_WHITE }}>5. Acompanhou pelo Instagram oficial?</label>
+                      <OptionButtons options={['Sim', 'Não']} value={form.acompanhou_instagram === null ? '' : form.acompanhou_instagram ? 'Sim' : 'Não'} onChange={(v) => set('acompanhou_instagram', v === 'Sim')} />
+                      {form.acompanhou_instagram === true && (
+                        <div className="mt-2">
+                          <label className="block text-sm font-medium mb-1" style={{ color: TEXT_GRAY }}>Como avalia a comunicação digital?</label>
+                          <OptionButtons options={COMUNICACAO_DIGITAL} value={form.comunicacao_digital} onChange={(v) => set('comunicacao_digital', v as string)} />
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+                {form.perfil === 'Voluntário' && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-semibold mb-2" style={{ color: TEXT_WHITE }}>3. Sua escala foi organizada com antecedência?</label>
+                      <OptionButtons options={ESCALA_ORGANIZADA} value={form.escala_organizada} onChange={(v) => set('escala_organizada', v as string)} />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold mb-2" style={{ color: TEXT_WHITE }}>4. Recebeu instruções claras sobre sua função?</label>
+                      <OptionButtons options={INSTRUCOES_CLARAS} value={form.instrucoes_claras} onChange={(v) => set('instrucoes_claras', v as string)} />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold mb-2" style={{ color: TEXT_WHITE }}>5. Seu líder estava acessível?</label>
+                      <OptionButtons options={LIDER_ACESSIVEL} value={form.lider_acessivel} onChange={(v) => set('lider_acessivel', v as string)} />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold mb-2" style={{ color: TEXT_WHITE }}>6. Teve tempo adequado para descanso?</label>
+                      <OptionButtons options={TEMPO_DESCANSO} value={form.tempo_descanso} onChange={(v) => set('tempo_descanso', v as string)} />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold mb-2" style={{ color: TEXT_WHITE }}>7. Houve falhas na sua área?</label>
+                      <OptionButtons options={['Não', 'Sim']} value={form.falhas_area === null ? '' : form.falhas_area ? 'Sim' : 'Não'} onChange={(v) => set('falhas_area', v === 'Sim')} />
+                      {form.falhas_area === true && (
+                        <div className="mt-2">
+                          <TextareaNeon value={form.falhas_descricao} onChange={(s) => set('falhas_descricao', s)} placeholder="Descreva e como melhorar" />
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
               </motion.div>
             )}
 
-            {/* Bloco PARTICIPANTE */}
-            {form.perfil === 'Participante' && step === 2 && (
-              <motion.div key="part2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }} className="space-y-8">
-                <div>
-                  <label className="block text-sm font-semibold mb-3" style={{ color: TEXT_WHITE }}>1. O XP26 fortaleceu sua fé?</label>
-                  <OptionButtons options={FORTALECER_FE} value={form.fortalecer_fe} onChange={(v) => set('fortalecer_fe', v as string)} />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold mb-3" style={{ color: TEXT_WHITE }}>2. Você tomou alguma decisão importante durante o evento?</label>
-                  <OptionButtons options={['Sim', 'Não']} value={form.decisao_importante === null ? '' : form.decisao_importante ? 'Sim' : 'Não'} onChange={(v) => set('decisao_importante', v === 'Sim')} />
-                  {form.decisao_importante === true && (
-                    <div className="mt-3">
-                      <input type="text" value={form.decisao_qual} onChange={(e) => set('decisao_qual', e.target.value.slice(0, MAX_TEXT))} placeholder="Você gostaria de compartilhar qual decisão tomou? (opcional)" className="w-full rounded-xl px-4 py-3 mt-2 focus:outline-none" style={{ background: 'rgba(255,255,255,0.06)', border: '2px solid rgba(255,255,255,0.2)', color: TEXT_WHITE }} />
-                    </div>
-                  )}
-                </div>
-              </motion.div>
-            )}
-            {form.perfil === 'Participante' && step === 3 && (
-              <motion.div key="part5" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }} className="space-y-8">
-                <div>
-                  <label className="block text-sm font-semibold mb-3" style={{ color: TEXT_WHITE }}>3. Você recebeu informações suficientes antes do evento?</label>
-                  <OptionButtons options={INFO_ANTES} value={form.info_antes_evento} onChange={(v) => set('info_antes_evento', v as string)} />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold mb-3" style={{ color: TEXT_WHITE }}>4. Você acompanhou pelo Instagram oficial?</label>
-                  <OptionButtons options={['Sim', 'Não']} value={form.acompanhou_instagram === null ? '' : form.acompanhou_instagram ? 'Sim' : 'Não'} onChange={(v) => set('acompanhou_instagram', v === 'Sim')} />
-                  {form.acompanhou_instagram === true && (
-                    <div className="mt-3">
-                      <label className="block text-sm font-medium mb-2" style={{ color: TEXT_GRAY }}>Como avalia a comunicação digital?</label>
-                      <OptionButtons options={COMUNICACAO_DIGITAL} value={form.comunicacao_digital} onChange={(v) => set('comunicacao_digital', v as string)} />
-                    </div>
-                  )}
-                </div>
-              </motion.div>
-            )}
-            {/* Bloco VOLUNTÁRIO (2 páginas) */}
-            {form.perfil === 'Voluntário' && step === 2 && (
-              <motion.div key="vol2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }} className="space-y-6">
-                <div>
-                  <label className="block text-sm font-semibold mb-2" style={{ color: TEXT_WHITE }}>1. Sua escala foi organizada com antecedência?</label>
-                  <OptionButtons options={ESCALA_ORGANIZADA} value={form.escala_organizada} onChange={(v) => set('escala_organizada', v as string)} />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold mb-2" style={{ color: TEXT_WHITE }}>2. Você recebeu instruções claras sobre sua função?</label>
-                  <OptionButtons options={INSTRUCOES_CLARAS} value={form.instrucoes_claras} onChange={(v) => set('instrucoes_claras', v as string)} />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold mb-2" style={{ color: TEXT_WHITE }}>3. Seu líder estava acessível durante o evento?</label>
-                  <OptionButtons options={LIDER_ACESSIVEL} value={form.lider_acessivel} onChange={(v) => set('lider_acessivel', v as string)} />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold mb-2" style={{ color: TEXT_WHITE }}>4. A carga horária foi:</label>
-                  <OptionButtons options={CARGA_HORARIA} value={form.carga_horaria} onChange={(v) => set('carga_horaria', v as string)} />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold mb-2" style={{ color: TEXT_WHITE }}>5. Você teve tempo adequado para descanso?</label>
-                  <OptionButtons options={TEMPO_DESCANSO} value={form.tempo_descanso} onChange={(v) => set('tempo_descanso', v as string)} />
-                </div>
-              </motion.div>
-            )}
-            {form.perfil === 'Voluntário' && step === 3 && (
-              <motion.div key="vol4" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }} className="space-y-6">
-                <div>
-                  <label className="block text-sm font-semibold mb-2" style={{ color: TEXT_WHITE }}>6. Houve falhas na sua área?</label>
-                  <OptionButtons options={['Não', 'Sim']} value={form.falhas_area === null ? '' : form.falhas_area ? 'Sim' : 'Não'} onChange={(v) => set('falhas_area', v === 'Sim')} />
-                  {form.falhas_area === true && (
-                    <div className="mt-3">
-                      <TextareaNeon value={form.falhas_descricao} onChange={(s) => set('falhas_descricao', s)} placeholder="Descreva o que aconteceu e como poderia melhorar" />
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold mb-2" style={{ color: TEXT_WHITE }}>7. Você se sentiu valorizado(a)?</label>
-                  <OptionButtons options={VALORIZADO} value={form.valorizado} onChange={(v) => set('valorizado', v as string)} />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold mb-2" style={{ color: TEXT_WHITE }}>8. Você gostaria de servir novamente?</label>
-                  <OptionButtons options={SERVIR_NOVAMENTE} value={form.servir_novamente} onChange={(v) => set('servir_novamente', v as string)} />
-                  {['Não', 'Talvez'].includes(form.servir_novamente) && (
-                    <div className="mt-3">
-                      <TextareaNeon value={form.servir_melhorar} onChange={(s) => set('servir_melhorar', s)} placeholder="O que precisa melhorar para você servir novamente?" />
-                    </div>
-                  )}
-                </div>
-              </motion.div>
-            )}
-
-            {/* Bloco Ministrações, Bandas e XP27 — para todos */}
+            {/* Página 2 — Ministrações, Bandas e XP27 (tudo em 1 página) */}
             {step === ministracoesStartStep && (
-              <motion.div key="min1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }} className="space-y-8">
+              <motion.div key="min" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-semibold mb-3" style={{ color: TEXT_WHITE }}>1. Qual foi a melhor ministração para você?</label>
+                  <label className="block text-sm font-semibold mb-2" style={{ color: TEXT_WHITE }}>1. Melhor ministração?</label>
                   <OptionButtons options={PRELETORES} value={form.melhor_ministracao} onChange={(v) => set('melhor_ministracao', v as string)} />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold mb-2" style={{ color: TEXT_WHITE }}>2. Por que essa ministração foi marcante?</label>
-                  <TextareaNeon value={form.motivo_ministracao} onChange={(s) => set('motivo_ministracao', s)} placeholder="O que mais falou ao seu coração?" maxLength={MAX_MOTIVO_MINISTRACAO} />
-                </div>
-              </motion.div>
-            )}
-            {step === ministracoesStartStep + 1 && (
-              <motion.div key="min2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }} className="space-y-8">
-                <div>
-                  <label className="block text-sm font-semibold mb-3" style={{ color: TEXT_WHITE }}>4. Qual foi a melhor banda para você?</label>
+                  <label className="block text-sm font-semibold mb-2" style={{ color: TEXT_WHITE }}>2. Melhor banda?</label>
                   <OptionButtons options={BANDAS} value={form.melhor_banda} onChange={(v) => set('melhor_banda', v as string)} />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold mb-3" style={{ color: TEXT_WHITE }}>5. O momento de louvor foi:</label>
+                  <label className="block text-sm font-semibold mb-2" style={{ color: TEXT_WHITE }}>3. O momento de louvor foi:</label>
                   <OptionButtons options={AVALIACAO_LOUVOR} value={form.avaliacao_louvor_geral} onChange={(v) => set('avaliacao_louvor_geral', v as string)} />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold mb-2" style={{ color: TEXT_WHITE }}>6. Avaliação técnica do louvor</label>
-                  <p className="text-xs mb-2" style={{ color: TEXT_GRAY }}>Som:</p>
-                  <OptionButtons options={SOM_LOUVOR} value={form.avaliacao_som_louvor} onChange={(v) => set('avaliacao_som_louvor', v as string)} />
-                  <p className="text-xs mt-3 mb-2" style={{ color: TEXT_GRAY }}>Energia da banda:</p>
-                  <OptionButtons options={ENERGIA_BANDA} value={form.avaliacao_energia_banda} onChange={(v) => set('avaliacao_energia_banda', v as string)} />
-                  <p className="text-xs mt-3 mb-2" style={{ color: TEXT_GRAY }}>Conexão espiritual:</p>
-                  <OptionButtons options={CONEXAO_LOUVOR} value={form.avaliacao_conexao_louvor} onChange={(v) => set('avaliacao_conexao_louvor', v as string)} />
-                </div>
-              </motion.div>
-            )}
-            {step === ministracoesStartStep + 2 && (
-              <motion.div key="min3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }} className="space-y-8">
-                <div>
-                  <label className="block text-sm font-semibold mb-3" style={{ color: TEXT_WHITE }}>7. Você participaria do XP27?</label>
+                  <label className="block text-sm font-semibold mb-2" style={{ color: TEXT_WHITE }}>4. Você participaria do XP27?</label>
                   <OptionButtons options={PARTICIPARA_XP27} value={form.participara_xp27} onChange={(v) => set('participara_xp27', v as string)} />
                 </div>
-              </motion.div>
-            )}
-            {step === ministracoesStartStep + 3 && (
-              <motion.div key="min4" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }} className="space-y-6">
                 <div>
-                  <label className="block text-sm font-semibold mb-2" style={{ color: TEXT_WHITE }}>9. Você indicaria algum preletor para o XP27?</label>
+                  <label className="block text-sm font-semibold mb-2" style={{ color: TEXT_WHITE }}>5. Indicaria algum preletor para o XP27?</label>
                   <div className="relative">
-                    <textarea value={form.indicacao_preletor_xp27} onChange={(e) => set('indicacao_preletor_xp27', e.target.value.slice(0, MAX_INDICACAO_PRELETOR))} placeholder="Nome do preletor e por que você indicaria" rows={2} className="w-full rounded-xl px-4 py-3 resize-none focus:outline-none" style={{ background: 'rgba(255,255,255,0.06)', border: '2px solid rgba(255,255,255,0.2)', color: TEXT_WHITE }} />
+                    <textarea value={form.indicacao_preletor_xp27} onChange={(e) => set('indicacao_preletor_xp27', e.target.value.slice(0, MAX_INDICACAO_PRELETOR))} placeholder="Nome e por quê" rows={2} className="w-full rounded-xl px-4 py-3 resize-none focus:outline-none" style={{ background: 'rgba(255,255,255,0.06)', border: '2px solid rgba(255,255,255,0.2)', color: TEXT_WHITE }} />
                     <span className="absolute bottom-2 right-3 text-xs" style={{ color: TEXT_GRAY }}>{form.indicacao_preletor_xp27.length}/{MAX_INDICACAO_PRELETOR}</span>
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold mb-2" style={{ color: TEXT_WHITE }}>10. Você indicaria alguma banda para o XP27?</label>
-                  <input type="text" value={form.indicacao_banda_xp27} onChange={(e) => set('indicacao_banda_xp27', e.target.value.slice(0, MAX_TEXT))} placeholder="Nome da banda e estilo musical" className="w-full rounded-xl px-4 py-3 focus:outline-none" style={{ background: 'rgba(255,255,255,0.06)', border: '2px solid rgba(255,255,255,0.2)', color: TEXT_WHITE }} />
+                  <label className="block text-sm font-semibold mb-2" style={{ color: TEXT_WHITE }}>6. Indicaria alguma banda para o XP27?</label>
+                  <input type="text" value={form.indicacao_banda_xp27} onChange={(e) => set('indicacao_banda_xp27', e.target.value.slice(0, MAX_TEXT))} placeholder="Nome e estilo" className="w-full rounded-xl px-4 py-3 focus:outline-none" style={{ background: 'rgba(255,255,255,0.06)', border: '2px solid rgba(255,255,255,0.2)', color: TEXT_WHITE }} />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold mb-2" style={{ color: TEXT_WHITE }}>11. Que tipo de ministração você gostaria de ver no XP27?</label>
-                  <OptionButtons options={TEMAS_XP27} value={form.tema_preferido_xp27} onChange={(v) => set('tema_preferido_xp27', v as string[])} multi />
-                  {form.tema_preferido_xp27.includes('Outro') && (
-                    <input type="text" value={form.tema_preferido_xp27_outro} onChange={(e) => set('tema_preferido_xp27_outro', e.target.value.slice(0, MAX_TEXT))} placeholder="Qual outro tema?" className="w-full rounded-xl px-4 py-3 mt-3 focus:outline-none" style={{ background: 'rgba(255,255,255,0.06)', border: '2px solid rgba(255,255,255,0.2)', color: TEXT_WHITE }} />
-                  )}
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold mb-2" style={{ color: TEXT_WHITE }}>12. O que não pode faltar no XP27?</label>
+                  <label className="block text-sm font-semibold mb-2" style={{ color: TEXT_WHITE }}>7. O que não pode faltar no XP27?</label>
                   <TextareaNeon value={form.sugestao_xp27} onChange={(s) => set('sugestao_xp27', s)} placeholder="Sua sugestão..." />
                 </div>
               </motion.div>
             )}
 
-            {/* Etapa — Problema + Impacto (comum, uma página) */}
-            {step === orgStep && (
+            {/* Página final — Problema + Superou + Melhorias + Mensagem + Contato WhatsApp */}
+            {step === finalStep && (
               <motion.div
-                key="org"
+                key="final"
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
                 transition={{ duration: 0.3 }}
-                className="space-y-8"
+                className="space-y-5"
               >
                 <div>
-                  <label className="block text-sm font-semibold mb-3" style={{ color: TEXT_WHITE }}>
-                    Você enfrentou algum problema?
-                  </label>
-                  <OptionButtons
-                    options={['Não', 'Sim']}
-                    value={form.teve_problema === null ? '' : form.teve_problema ? 'Sim' : 'Não'}
-                    onChange={(v) => set('teve_problema', v === 'Sim')}
-                  />
+                  <label className="block text-sm font-semibold mb-2" style={{ color: TEXT_WHITE }}>Você enfrentou algum problema?</label>
+                  <OptionButtons options={['Não', 'Sim']} value={form.teve_problema === null ? '' : form.teve_problema ? 'Sim' : 'Não'} onChange={(v) => set('teve_problema', v === 'Sim')} />
                   {form.teve_problema === true && (
-                    <div className="mt-4">
-                      <TextareaNeon
-                        value={form.descricao_problema}
-                        onChange={(s) => set('descricao_problema', s)}
-                        placeholder="Descreva o que aconteceu..."
-                      />
+                    <div className="mt-3">
+                      <TextareaNeon value={form.descricao_problema} onChange={(s) => set('descricao_problema', s)} placeholder="Descreva o que aconteceu..." />
                     </div>
                   )}
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold mb-3" style={{ color: TEXT_WHITE }}>
-                    O evento superou suas expectativas?
-                  </label>
-                  <OptionButtons
-                    options={SUPEROU}
-                    value={form.superou_expectativa}
-                    onChange={(v) => set('superou_expectativa', v as string)}
-                  />
+                  <label className="block text-sm font-semibold mb-2" style={{ color: TEXT_WHITE }}>O evento superou suas expectativas?</label>
+                  <OptionButtons options={SUPEROU} value={form.superou_expectativa} onChange={(v) => set('superou_expectativa', v as string)} />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold mb-4 text-center" style={{ color: TEXT_WHITE }}>
-                    Você indicaria para outras pessoas? (NPS 0 a 10)
-                  </label>
-                  <NpsScale value={form.nps} onChange={(n) => set('nps', n)} />
-                </div>
-              </motion.div>
-            )}
-
-            {/* Etapa — Feedback aberto (comum) */}
-            {step === melhoriasStep && (
-              <motion.div
-                key="melhorias"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.3 }}
-                className="space-y-8"
-              >
-                <div>
-                  <label className="block text-sm font-semibold mb-2" style={{ color: TEXT_WHITE }}>
-                    8. O que podemos melhorar para a próxima edição?
-                  </label>
-                  <TextareaNeon
-                    value={form.melhorias}
-                    onChange={(s) => set('melhorias', s)}
-                    placeholder="Sua sugestão..."
-                  />
+                  <label className="block text-sm font-semibold mb-2" style={{ color: TEXT_WHITE }}>O que podemos melhorar para a próxima edição?</label>
+                  <TextareaNeon value={form.melhorias} onChange={(s) => set('melhorias', s)} placeholder="Sua sugestão..." />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold mb-2" style={{ color: TEXT_WHITE }}>
-                    9. Deixe uma mensagem para a equipe XP26:
-                  </label>
-                  <TextareaNeon
-                    value={form.mensagem_final}
-                    onChange={(s) => set('mensagem_final', s)}
-                    placeholder="Sua mensagem..."
-                  />
+                  <label className="block text-sm font-semibold mb-2" style={{ color: TEXT_WHITE }}>Deixe uma mensagem para a equipe XP26:</label>
+                  <TextareaNeon value={form.mensagem_final} onChange={(s) => set('mensagem_final', s)} placeholder="Sua mensagem..." />
                 </div>
-                <div className="pt-6 border-t border-white/10 space-y-4">
-                  <label className="block text-sm font-semibold mb-2" style={{ color: TEXT_WHITE }}>
-                    Podemos entrar em contato pelo WhatsApp para divulgação ou pesquisas para outros eventos?
-                  </label>
-                  <OptionButtons
-                    options={['Sim', 'Não']}
-                    value={form.contato_whatsapp_autorizado === null ? '' : form.contato_whatsapp_autorizado ? 'Sim' : 'Não'}
-                    onChange={(v) => set('contato_whatsapp_autorizado', v === 'Sim')}
-                  />
+                <div className="pt-4 border-t border-white/10 space-y-3">
+                  <label className="block text-sm font-semibold mb-2" style={{ color: TEXT_WHITE }}>Podemos entrar em contato pelo WhatsApp para divulgação ou pesquisas?</label>
+                  <OptionButtons options={['Sim', 'Não']} value={form.contato_whatsapp_autorizado === null ? '' : form.contato_whatsapp_autorizado ? 'Sim' : 'Não'} onChange={(v) => set('contato_whatsapp_autorizado', v === 'Sim')} />
                   {form.contato_whatsapp_autorizado === true && (
-                    <div className="space-y-3 mt-4">
+                    <div className="space-y-3 mt-3">
                       <div>
                         <label className="block text-sm font-medium mb-1" style={{ color: TEXT_GRAY }}>Nome</label>
-                        <input
-                          type="text"
-                          value={form.nome_contato}
-                          onChange={(e) => set('nome_contato', e.target.value.slice(0, 120))}
-                          placeholder="Seu nome"
-                          className="w-full rounded-xl px-4 py-3 focus:outline-none"
-                          style={{ background: 'rgba(255,255,255,0.06)', border: '2px solid rgba(255,255,255,0.2)', color: TEXT_WHITE }}
-                        />
+                        <input type="text" value={form.nome_contato} onChange={(e) => set('nome_contato', e.target.value.slice(0, 120))} placeholder="Seu nome" className="w-full rounded-xl px-4 py-3 focus:outline-none" style={{ background: 'rgba(255,255,255,0.06)', border: '2px solid rgba(255,255,255,0.2)', color: TEXT_WHITE }} />
                       </div>
                       <div>
                         <label className="block text-sm font-medium mb-1" style={{ color: TEXT_GRAY }}>WhatsApp</label>
-                        <input
-                          type="tel"
-                          value={form.whatsapp_contato}
-                          onChange={(e) => set('whatsapp_contato', e.target.value.replace(/\D/g, '').slice(0, 15))}
-                          placeholder="(00) 00000-0000"
-                          className="w-full rounded-xl px-4 py-3 focus:outline-none"
-                          style={{ background: 'rgba(255,255,255,0.06)', border: '2px solid rgba(255,255,255,0.2)', color: TEXT_WHITE }}
-                        />
+                        <input type="tel" value={form.whatsapp_contato} onChange={(e) => set('whatsapp_contato', e.target.value.replace(/\D/g, '').slice(0, 15))} placeholder="(00) 00000-0000" className="w-full rounded-xl px-4 py-3 focus:outline-none" style={{ background: 'rgba(255,255,255,0.06)', border: '2px solid rgba(255,255,255,0.2)', color: TEXT_WHITE }} />
                       </div>
                     </div>
                   )}

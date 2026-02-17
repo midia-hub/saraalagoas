@@ -46,7 +46,7 @@ export default function MercadoPagoRetornoPage() {
     if (!saleId) return null
     try {
       const data = await adminFetchJson<{ status: string; paid_at?: string | null }>(
-        `/api/admin/livraria/pdv/pagamentos/status?sale_id=${encodeURIComponent(saleId)}`
+        `/api/admin/livraria/pdv/pagamentos/status/?sale_id=${encodeURIComponent(saleId)}`
       )
       const err = data && (data as { error?: string }).error
       if (typeof err === 'string') throw new Error(err)
