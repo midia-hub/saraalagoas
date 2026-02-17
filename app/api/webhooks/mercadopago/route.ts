@@ -62,6 +62,8 @@ export async function POST(request: NextRequest) {
     const dataId = (body.data?.id ?? dataIdFromQuery) as string | undefined
     const rawNotification = { ...body, _received_at: new Date().toISOString() }
 
+    console.log('[webhook mercadopago]', { type, dataId })
+
     if (!dataId) {
       return NextResponse.json({ ok: true, message: 'Evento sem id' })
     }

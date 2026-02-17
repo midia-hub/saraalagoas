@@ -58,7 +58,7 @@ https://seu-dominio.com/api/webhooks/mercadopago/
 
 Se informar sem a barra final, o servidor pode responder 308 e o Mercado Pago pode não entregar o webhook corretamente; assim a venda não é marcada como paga.
 
-4. Selecione o evento **Order (Mercado Pago)** para receber `order.processed`, `order.expired`, `order.canceled`, `order.refunded`.
+4. **Importante:** Selecione o evento **Order (Mercado Pago)** para receber `order.processed`, `order.expired`, `order.canceled`, `order.refunded`. Sem esse evento, quando o cliente pagar via **QR no caixa** a tela não atualizará para "Pagamento confirmado" (o webhook é quem marca a venda como paga). Se usar **Pix (link/checkout)** também, mantenha o evento **Payment** ativo.
 5. Clique em **Salvar configuração**. Opcional: use a **assinatura secreta** e defina no `.env`:
 
 ```env

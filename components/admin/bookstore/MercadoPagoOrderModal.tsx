@@ -3,7 +3,9 @@
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { adminFetchJson } from '@/lib/admin-client'
-import { CheckCircle2, Loader2 } from 'lucide-react'
+import { CheckCircle2 } from 'lucide-react'
+
+const REDIRECT_DELAY_SEC = 5
 
 interface MercadoPagoOrderModalProps {
   open: boolean
@@ -68,13 +70,24 @@ export function MercadoPagoOrderModal({
     return () => clearInterval(id)
   }, [open, saleId])
 
+  const [countdown, setCountdown] = useState(REDIRECT_DELAY_SEC)
   useEffect(() => {
     if (paymentStatus !== 'paid') return
-    const t = setTimeout(() => {
-      window.location.href = `/admin/livraria/vendas/${saleId}/recibo`
-    }, 1800)
-    return () => clearTimeout(t)
-  }, [paymentStatus, saleId])
+    setCountdown(REDIRECT_DELAY_SEC)
+  }, [paymentStatus])
+  useEffect(() => {
+    if (paymentStatus !== 'paid' || countdown <= 0) return
+    const t = setInterval(() => {
+      setCountdown((c) => {
+        if (c <= 1) {
+          window.location.href = `/admin/livraria/vendas/${saleId}/recibo`
+          return 0
+        }
+        return c - 1
+      })
+    }, 1000)
+    return () => clearInterval(t)
+  }, [paymentStatus, saleId, countdown])
 
   if (!open) return null
 
@@ -86,17 +99,21 @@ export function MercadoPagoOrderModal({
         aria-modal="true"
         aria-labelledby="mp-order-title"
       >
-        <div className="absolute inset-0 bg-black/50" aria-hidden />
-        <div className="relative w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-xl text-center">
-          <CheckCircle2 className="w-14 h-14 text-emerald-500 mx-auto mb-4" />
-          <h2 id="mp-order-title" className="text-lg font-semibold text-slate-800 mb-2">
+        <div className="absolute inset-0 bg-emerald-950/30 backdrop-blur-sm" aria-hidden />
+        <div className="relative w-full max-w-sm rounded-2xl border-2 border-emerald-200 bg-white p-8 shadow-2xl text-center">
+          <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100">
+            <CheckCircle2 className="h-10 w-10 text-emerald-600" strokeWidth={2.5} />
+          </div>
+          <h2 id="mp-order-title" className="text-xl font-bold text-slate-800 mb-1">
             Pagamento confirmado!
           </h2>
-          <p className="text-sm text-slate-600 mb-4">
-            Redirecionando para o recibo...
+          <p className="text-sm text-slate-600 mb-6">
+            Obrigado. Em instantes você verá o recibo da venda.
           </p>
-          <div className="flex justify-center">
-            <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
+          <div className="rounded-xl bg-slate-100 px-4 py-3">
+            <p className="text-sm font-medium text-slate-700">
+              Redirecionando para o recibo em <span className="text-lg font-bold text-emerald-600 tabular-nums">{countdown}</span> {countdown === 1 ? 'segundo' : 'segundos'}
+            </p>
           </div>
         </div>
       </div>

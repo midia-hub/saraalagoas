@@ -21,6 +21,8 @@ interface CartPanelProps {
   finalizeLoading?: boolean
   /** Bloqueia finalizar se houver itens RESERVE na sacola de venda */
   hasReserveItems?: boolean
+  /** false = caixa não aberto; desabilita finalizar e exibe aviso */
+  caixaAberto?: boolean
 }
 
 export function CartPanel({
@@ -31,12 +33,13 @@ export function CartPanel({
   onFinalize,
   finalizeLoading = false,
   hasReserveItems = false,
+  caixaAberto = true,
 }: CartPanelProps) {
   const saleItems = items.filter((i) => i.mode === 'SALE')
   const reserveItems = items.filter((i) => i.mode === 'RESERVE')
   const subtotal = saleItems.reduce((s, i) => s + i.unit_price * i.quantity, 0)
   const total = Math.max(0, subtotal - discountAmount)
-  const canFinalize = saleItems.length > 0 && !hasReserveItems
+  const canFinalize = saleItems.length > 0 && !hasReserveItems && caixaAberto
 
   return (
     <div className="flex flex-col h-full bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
@@ -128,6 +131,11 @@ export function CartPanel({
         >
           Finalizar compra
         </Button>
+        {!caixaAberto && saleItems.length > 0 && (
+          <p className="text-xs text-amber-700 mt-2">
+            Abra um caixa em Livraria → Loja e Caixa (MP) para realizar vendas.
+          </p>
+        )}
         {hasReserveItems && saleItems.length > 0 && (
           <p className="text-xs text-amber-700 mt-2">
             Você tem itens reservados. Finalize apenas com itens em estoque ou mova para Reservas.

@@ -14,7 +14,7 @@ export async function GET(
     const supabase = createSupabaseAdminClient(request)
     const { data: sale, error: saleErr } = await supabase
       .from('bookstore_sales')
-      .select('id, sale_number, customer_name, customer_phone, payment_method, payment_provider, total_amount, discount_amount, notes, status, receipt_json, created_at, created_by')
+      .select('id, sale_number, customer_name, customer_phone, payment_method, payment_provider, total_amount, discount_amount, notes, status, paid_at, receipt_json, created_at, created_by')
       .eq('id', id)
       .single()
 
@@ -70,6 +70,7 @@ export async function GET(
       total_amount: Number((sale as { total_amount: number }).total_amount),
       notes: (sale as { notes: string | null }).notes,
       status: (sale as { status: string }).status,
+      paid_at: (sale as { paid_at: string | null }).paid_at ?? null,
       created_at: (sale as { created_at: string }).created_at,
       operator_name: operatorName,
       items: itemsWithName,
