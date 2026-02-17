@@ -27,13 +27,13 @@ Acesse **http://localhost:3000**
 
 ## Painel administrativo
 
-- **Login:** `/admin/login` — com modais **Primeiro login** (magic link) e **Redefinir senha** na própria tela. Páginas separadas: `/admin/criar-acesso`, `/admin/reset-senha`, `/admin/completar-cadastro`.
-- **Início:** `/admin`
-- **Galeria:** `/admin/galeria` — álbuns e fotos (Drive).
-- **Upload:** `/admin/upload` — fluxo em 3 etapas (informações, imagens, confirmação).
-- **Consolidação:** `/admin/consolidacao/lista` (lista de convertidos), `/admin/consolidacao/conversoes` (formulário de conversão).
-- **Publicações:** `/admin/instagram/posts` — painel de postagens (Instagram/Facebook).
-- **Instâncias (Meta):** `/admin/instancias` — conectar contas Instagram/Facebook via OAuth.
+- **Login:** `/admin/login` — modais **Primeiro login** (magic link) e **Redefinir senha**. Páginas: `/admin/criar-acesso`, `/admin/reset-senha`, `/admin/completar-cadastro`.
+- **Início:** `/admin` · **Ajustes do site:** `/admin/configuracoes`
+- **Pessoas / Usuários / Permissões:** `/admin/pessoas`, `/admin/usuarios`, `/admin/roles`
+- **Mídia:** `/admin/upload` (fluxo em 3 etapas), `/admin/galeria` (álbuns e fotos via Google Drive).
+- **Consolidação:** `/admin/consolidacao/conversoes` (formulário de conversão), `/admin/consolidacao/lista` (lista de convertidos), `/admin/consolidacao/cadastros` (igrejas, arenas, células, equipes, pessoas; API de disparos; mensagens de conversão).
+- **Livraria:** `/admin/livraria/produtos` (cadastro com fotos, código de barras, desconto, estoque), `/admin/livraria/estoque`, `/admin/livraria/movimentacoes`, `/admin/livraria/importacao`, `/admin/livraria/dashboard`.
+- **Instagram/Meta:** `/admin/instancias` (conectar contas), `/admin/instagram/posts` (publicações), `/admin/instagram/collaboration` (convites).
 
 ### Fluxo de publicação (Instagram/Facebook)
 
@@ -50,6 +50,19 @@ Acesse **http://localhost:3000**
 - **Processar fila agora** no painel dispara a publicação das programadas em atraso.
 - Para publicação automática no horário: configure um cron (ex.: Vercel Cron) chamando `POST /api/social/run-scheduled` com header `x-cron-secret: <CRON_SECRET>`. Defina `CRON_SECRET` nas variáveis de ambiente.
 
+### Consolidação e API de disparos
+
+- Em **Cadastros** (Consolidação) estão: Igrejas, Arenas, Células, Equipes, Pessoas; **API de disparos** (ativação e log); **Mensagens de conversão**.
+- Se a API de disparos estiver ativa e `DISPAROS_WEBHOOK_URL` / `DISPAROS_WEBHOOK_BEARER` definidos, ao finalizar o formulário de conversão (público ou admin) o sistema chama o webhook com telefone (prefixo 55), nome e `message_id` (aceitou/reconciliou).
+
+### Módulo Livraria
+
+- **Produtos:** cadastro com múltiplas fotos (enviar ou câmera), código de barras (digitar ou ler com câmera), categoria digitável (cria nova se não existir), desconto (valor ou %), estoque inicial/ajuste no próprio formulário. SKU opcional (gerado automaticamente se vazio).
+- **Estoque:** movimentação individual (entrada/saída) e atualização em lote (manual ou XLSX).
+- **Movimentações:** histórico de entradas e saídas com filtros (data, tipo).
+- **Importação/Exportação:** modelos XLSX para produtos e estoque; exportação de produtos, movimentações e estoque baixo.
+- **Dashboard:** indicadores (produtos ativos, estoque baixo, entradas/saídas/perdas nos últimos 30 dias) e listas (movimentações por dia, top produtos, estoque baixo, perdas).
+
 ## Scripts
 
 | Comando        | Descrição                    |
@@ -62,22 +75,25 @@ Acesse **http://localhost:3000**
 ## Estrutura principal
 
 ```
-├── app/           # Páginas e layout (Next.js App Router)
-│   └── admin/    # Painel (galeria, publicações, instâncias Meta, usuários, roles)
-├── components/    # Componentes React
-├── config/       # Dados do site (site.ts)
-├── lib/          # Utilitários e integrações (meta, drive, publish-meta, etc.)
-├── public/       # Imagens e estáticos
-└── supabase/     # Migrations e Edge Functions
+├── app/                    # Next.js App Router
+│   ├── admin/             # Painel (configurações, pessoas, usuários, roles, mídia,
+│   │                       # consolidação, livraria, Instagram/Meta)
+│   │   └── livraria/       # Produtos, estoque, movimentações, importação, dashboard
+│   └── api/                # Rotas API (admin, public, gallery, meta, social)
+├── components/             # Componentes React
+├── config/                 # Dados do site (site.ts)
+├── lib/                    # Utilitários (admin-client, rbac, storage-url, disparos-webhook, etc.)
+├── public/                 # Imagens e estáticos
+└── supabase/               # Migrations e email-templates
 ```
 
 ## Variáveis de ambiente (resumo)
 
-Além das variáveis do Supabase e do Google Drive (galeria), para **publicações no Meta** (Instagram/Facebook):
-
-- **META_APP_ID**, **META_APP_SECRET** — App Meta (developers.facebook.com).
-- **NEXT_PUBLIC_META_REDIRECT_URI** — URL de callback OAuth (ex.: `https://seu-dominio.com/admin/instancias/oauth-done`).
-- **CRON_SECRET** (opcional) — Para o cron de postagens programadas (`/api/social/run-scheduled`).
+- **Supabase:** `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
+- **Google Drive (galeria/upload):** `GOOGLE_DRIVE_ROOT_FOLDER_ID`, `GOOGLE_SERVICE_ACCOUNT_JSON` (ou credenciais alternativas)
+- **Meta (Instagram/Facebook):** `META_APP_ID`, `META_APP_SECRET`, `NEXT_PUBLIC_META_REDIRECT_URI` (ou `META_REDIRECT_URI` em dev)
+- **Postagens programadas:** `CRON_SECRET` — para o cron que chama `POST /api/social/run-scheduled`
+- **API de disparos (consolidação):** `DISPAROS_WEBHOOK_URL`, `DISPAROS_WEBHOOK_BEARER` — opcional; ativado em Cadastros → API de disparos
 
 Consulte `.env.example` para a lista completa.
 
@@ -99,18 +115,18 @@ Antes do primeiro push, confira que variáveis sensíveis (Supabase, Meta, Googl
 
 ## Deploy (Vercel)
 
-Configure no painel da Vercel (Settings → Environment Variables) as mesmas variáveis do `.env.example`.
+Configure no painel da Vercel (Settings → Environment Variables) as variáveis necessárias:
 
-- **Galeria (Google Drive):** `GOOGLE_DRIVE_ROOT_FOLDER_ID` e `GOOGLE_SERVICE_ACCOUNT_JSON`. Sem elas, `/api/gallery/image` retorna 503.
-- **Publicações Meta:** `META_APP_ID`, `META_APP_SECRET`, `NEXT_PUBLIC_META_REDIRECT_URI`.
-- **Postagens programadas (cron):** defina `CRON_SECRET` e configure um Cron Job para `POST /api/social/run-scheduled` com header `x-cron-secret`.
+- **Supabase:** URL, anon key e service role key.
+- **Galeria (Google Drive):** `GOOGLE_DRIVE_ROOT_FOLDER_ID` e `GOOGLE_SERVICE_ACCOUNT_JSON`. Sem elas, `/api/gallery/image` pode retornar 503.
+- **Meta (Instagram/Facebook):** `META_APP_ID`, `META_APP_SECRET`, `NEXT_PUBLIC_META_REDIRECT_URI`.
+- **Postagens programadas:** `CRON_SECRET` e Cron Job para `POST /api/social/run-scheduled` com header `x-cron-secret`.
+- **API de disparos (opcional):** `DISPAROS_WEBHOOK_URL`, `DISPAROS_WEBHOOK_BEARER` para webhook da consolidação.
 
 ## Documentação adicional
 
-- **Documentação completa da plataforma:** `DOCUMENTACAO_PLATAFORMA.md` — tecnologias, funcionalidades, autenticação (login, primeiro login, redefinir senha, completar cadastro), menu modular, consolidação, integrações, APIs, banco e variáveis de ambiente.
-- **Menu admin:** `app/admin/README_MENU_MODULAR.md` e `app/admin/menu-config.ts`.
-- **Consolidação:** `app/admin/IMPLEMENTACAO_CONSOLIDACAO.md` (se existir).
-- **Módulo de postagem:** `app/admin/galeria/[id]/post/README.md` e `FLUXO_POSTAGEM.md`.
+- **Documentação geral da plataforma:** `DOCUMENTACAO_PLATAFORMA.md` — funcionalidades, páginas, APIs, tabelas do banco, bibliotecas (quando são chamadas), fluxos (conversão, publicação Meta, livraria) e variáveis de ambiente.
+- **Menu admin:** configuração em `app/admin/menu-config.ts` (módulos: Principal, Usuários, Mídia, Consolidação, Livraria, Instagram). Permissões e RBAC em `lib/rbac.ts`.
 - **Templates de e-mail:** `supabase/email-templates/README.md`.
 
 ## Licença

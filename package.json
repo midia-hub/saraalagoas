@@ -9,7 +9,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "upload:imagens": "node scripts/upload-imagens-bucket.mjs"
+    "upload:imagens": "node scripts/upload-imagens-bucket.mjs",
+    "ngrok": "ngrok http 3000"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -22,6 +23,7 @@
     "framer-motion": "^12.34.0",
     "googleapis": "^171.4.0",
     "lucide-react": "^0.323.0",
+    "mercadopago": "^2.12.0",
     "next": "14.2.18",
     "react": "^18.2.0",
     "react-calendar": "^6.0.0",

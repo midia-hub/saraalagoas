@@ -19,6 +19,13 @@ import {
     ArrowLeftRight,
     FileSpreadsheet,
     BarChart3,
+    ShoppingCart,
+    History,
+    Bookmark,
+    UserCheck,
+    CreditCard,
+    Ticket,
+    Store,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
@@ -134,6 +141,42 @@ export const menuModules: MenuModule[] = [
         permission: 'livraria_produtos',
         items: [
             {
+                href: '/admin/livraria/vendas',
+                label: 'Vendas (PDV)',
+                icon: ShoppingCart,
+                permission: 'livraria_pdv'
+            },
+            {
+                href: '/admin/livraria/vendas/historico',
+                label: 'Histórico de vendas',
+                icon: History,
+                permission: 'livraria_vendas'
+            },
+            {
+                href: '/admin/livraria/vendas/reservas',
+                label: 'Reservas',
+                icon: Bookmark,
+                permission: 'livraria_reservas'
+            },
+            {
+                href: '/admin/livraria/clientes',
+                label: 'Clientes',
+                icon: UserCheck,
+                permission: 'livraria_clientes'
+            },
+            {
+                href: '/admin/livraria/fiado',
+                label: 'Fiado',
+                icon: CreditCard,
+                permission: 'livraria_fiado'
+            },
+            {
+                href: '/admin/livraria/cupons',
+                label: 'Cupons',
+                icon: Ticket,
+                permission: 'livraria_cupons'
+            },
+            {
                 href: '/admin/livraria/produtos',
                 label: 'Produtos',
                 icon: BookOpen,
@@ -162,6 +205,12 @@ export const menuModules: MenuModule[] = [
                 label: 'Dashboard',
                 icon: BarChart3,
                 permission: 'livraria_dashboard'
+            },
+            {
+                href: '/admin/livraria/loja-caixa',
+                label: 'Loja e Caixa (MP)',
+                icon: Store,
+                permission: 'livraria_pdv'
             },
         ],
     },
