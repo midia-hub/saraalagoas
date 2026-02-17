@@ -274,3 +274,15 @@
 .admin-loading-bar {
   animation: admin-loading-bar 1.2s ease-in-out infinite;
 }
+
+/* XP26 pesquisa — fundo glitch/scanline */
+.xp26-glitch-bg {
+  opacity: 0.035;
+  mix-blend-mode: screen;
+}
+@keyframes xp26-glitch {
+  0%, 100% { opacity: 0.03; transform: translateX(0); }
+  25% { opacity: 0.05; transform: translateX(-1px); }
+  50% { opacity: 0.02; transform: translateX(1px); }
+  75% { opacity: 0.04; transform: translateX(0); }
+}

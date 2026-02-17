@@ -26,6 +26,8 @@ export async function adminFetchJson<T = unknown>(
     headers.set('Content-Type', 'application/json')
   }
   headers.set('Authorization', `Bearer ${token}`)
+  // Evita 308 do ngrok (plano gratuito): página intersticial não é retornada quando o header está presente
+  headers.set('ngrok-skip-browser-warning', 'true')
   const response = await fetch(input, { ...init, headers })
   const payload = await response.json().catch(() => ({}))
   if (!response.ok) {

@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { Settings, Users, Upload, Image as ImageIcon, Instagram, Link2, LayoutDashboard } from 'lucide-react'
+import { Settings, Users, Upload, Image as ImageIcon, Instagram, Link2, LayoutDashboard, ClipboardList } from 'lucide-react'
 import { useAdminAccess } from '@/lib/admin-access-context'
 import { PageAccessGuard } from '@/app/admin/PageAccessGuard'
 import { AdminPageHeader } from '@/app/admin/AdminPageHeader'
@@ -11,6 +11,7 @@ const cards = [
   { href: '/admin/usuarios', label: 'Usuários', icon: Users, desc: 'Convidar e gerenciar acessos', permission: 'usuarios' },
   { href: '/admin/upload', label: 'Upload Cultos/Eventos', icon: Upload, desc: 'Fluxo em etapas + Google Drive', permission: 'upload' },
   { href: '/admin/galeria', label: 'Galerias', icon: ImageIcon, desc: 'Lista e filtros de galerias', permission: 'galeria' },
+  { href: '/xp26-pesquisa', label: 'Pesquisa XP26 Alagoas', icon: ClipboardList, desc: 'Formulário pós-evento (abre em nova aba)', permission: 'dashboard', external: true },
   { href: '/admin/instancias', label: 'Configurações do Instagram/Facebook', icon: Link2, desc: 'Conectar Facebook/Instagram', permission: 'instagram' },
   { href: '/admin/instagram/posts', label: 'Publicações Instagram', icon: Instagram, desc: 'Acompanhar fila e posts', permission: 'instagram' },
 ]
@@ -32,10 +33,12 @@ export default function AdminPage() {
         />
         {visibleCards.length > 0 ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {visibleCards.map(({ href, label, icon: Icon, desc }) => (
+            {visibleCards.map(({ href, label, icon: Icon, desc, external }) => (
               <Link
                 key={href}
                 href={href}
+                target={external ? '_blank' : undefined}
+                rel={external ? 'noopener noreferrer' : undefined}
                 className="bg-white rounded-xl p-6 shadow-sm border border-slate-200 hover:border-[#c62737]/40 hover:shadow-md transition-all flex flex-col"
               >
                 <div className="w-11 h-11 rounded-lg bg-[#c62737]/10 flex items-center justify-center mb-4">

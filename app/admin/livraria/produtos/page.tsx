@@ -3,7 +3,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { BookOpen, Plus, Pencil, Trash2, ArrowLeft, Download, Camera, Upload, X, ScanBarcode, AlertTriangle } from 'lucide-react'
+import Cropper from 'cropperjs'
+import 'cropperjs/dist/cropper.css'
+import { BookOpen, Plus, Pencil, Trash2, ArrowLeft, Download, Camera, Upload, X, ScanBarcode, AlertTriangle, Crop, Check, RotateCcw } from 'lucide-react'
 import { PageAccessGuard } from '@/app/admin/PageAccessGuard'
 import { Button } from '@/components/ui/Button'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
@@ -51,12 +53,16 @@ export default function LivrariaProdutosPage() {
   const [uploadingImage, setUploadingImage] = useState(false)
   const [barcodeScannerOpen, setBarcodeScannerOpen] = useState(false)
   const [barcodeScannerError, setBarcodeScannerError] = useState<string | null>(null)
+  const [capturedPhotoPreview, setCapturedPhotoPreview] = useState<string | null>(null)
+  const [photoCropMode, setPhotoCropMode] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const barcodeScannerRef = useRef<HTMLDivElement>(null)
   const quaggaRef = useRef<{ stop: () => void; offDetected: (h: (r: unknown) => void) => void } | null>(null)
   const onDetectedRef = useRef<((r: unknown) => void) | null>(null)
+  const photoCropperRef = useRef<HTMLImageElement>(null)
+  const photoCropperInstanceRef = useRef<Cropper | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -83,7 +89,11 @@ export default function LivrariaProdutosPage() {
 
   useEffect(() => { load() }, [load])
   useEffect(() => {
-    if (!modalOpen) setBarcodeScannerOpen(false)
+    if (!modalOpen) {
+      setBarcodeScannerOpen(false)
+      setCapturedPhotoPreview(null)
+      setPhotoCropMode(false)
+    }
   }, [modalOpen])
 
   const openCreate = () => {
@@ -93,6 +103,8 @@ export default function LivrariaProdutosPage() {
     setPendingFiles([])
     setCameraOpen(false)
     setCameraError(null)
+    setCapturedPhotoPreview(null)
+    setPhotoCropMode(false)
     setModalOpen(true)
   }
   const openEdit = (row: Product) => {
@@ -119,6 +131,8 @@ export default function LivrariaProdutosPage() {
     setPendingFiles([])
     setCameraOpen(false)
     setCameraError(null)
+    setCapturedPhotoPreview(null)
+    setPhotoCropMode(false)
     setModalOpen(true)
   }
 
@@ -182,12 +196,16 @@ export default function LivrariaProdutosPage() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
       streamRef.current = stream
-      if (videoRef.current) videoRef.current.srcObject = stream
       setCameraOpen(true)
     } catch (err) {
       setCameraError('Não foi possível acessar a câmera. Verifique as permissões.')
     }
   }, [])
+
+  useEffect(() => {
+    if (!cameraOpen || !streamRef.current || !videoRef.current) return
+    videoRef.current.srcObject = streamRef.current
+  }, [cameraOpen])
   const capturePhoto = useCallback(() => {
     const video = videoRef.current
     if (!video || !video.videoWidth) return
@@ -197,21 +215,44 @@ export default function LivrariaProdutosPage() {
     const ctx = canvas.getContext('2d')
     if (!ctx) return
     ctx.drawImage(video, 0, 0)
-    canvas.toBlob(
-      (blob) => {
-        if (streamRef.current) {
-          streamRef.current.getTracks().forEach((t) => t.stop())
-          streamRef.current = null
-        }
-        setCameraOpen(false)
-        if (!blob) return
-        const f = new File([blob], 'foto.jpg', { type: 'image/jpeg' })
-        addPendingFromCamera(f)
-      },
-      'image/jpeg',
-      0.9
-    )
-  }, [addPendingFromCamera])
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop())
+      streamRef.current = null
+    }
+    setCameraOpen(false)
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.9)
+    setCapturedPhotoPreview(dataUrl)
+  }, [])
+
+  const dataURLToFile = useCallback((dataUrl: string, filename: string): File => {
+    const arr = dataUrl.split(',')
+    const mime = (arr[0].match(/:(.*?);/)?.[1] || 'image/jpeg') as string
+    const bstr = atob(arr[1])
+    const u8arr = new Uint8Array(bstr.length)
+    for (let i = 0; i < bstr.length; i++) u8arr[i] = bstr.charCodeAt(i)
+    return new File([u8arr], filename, { type: mime })
+  }, [])
+
+  const confirmCapturedPhoto = useCallback(
+    (file: File) => {
+      addPendingFromCamera(file)
+      setCapturedPhotoPreview(null)
+      setPhotoCropMode(false)
+    },
+    [addPendingFromCamera]
+  )
+
+  const usePhotoAsIs = useCallback(() => {
+    if (!capturedPhotoPreview) return
+    const file = dataURLToFile(capturedPhotoPreview, 'foto.jpg')
+    confirmCapturedPhoto(file)
+  }, [capturedPhotoPreview, dataURLToFile, confirmCapturedPhoto])
+
+  const retakePhoto = useCallback(() => {
+    setCapturedPhotoPreview(null)
+    setPhotoCropMode(false)
+    startCamera()
+  }, [startCamera])
 
   useEffect(() => {
     if (!barcodeScannerOpen || !barcodeScannerRef.current) return
@@ -234,15 +275,24 @@ export default function LivrariaProdutosPage() {
       Quagga.init(
         {
           locate: true,
+          numOfWorkers: typeof navigator !== 'undefined' && navigator.hardwareConcurrency ? Math.min(4, navigator.hardwareConcurrency) : 4,
+          locator: {
+            patchSize: 'large',
+            halfSample: true,
+          },
           inputStream: {
             name: 'Live',
             type: 'LiveStream',
             target,
+            size: 640,
             constraints: { width: 640, height: 480, facingMode: 'environment' },
-            area: { top: '15%', right: '15%', bottom: '15%', left: '15%' },
+            area: { top: '12%', right: '12%', bottom: '12%', left: '12%' },
           },
           decoder: {
             readers: ['ean_reader', 'ean_8_reader', 'code_128_reader', 'upc_reader', 'upc_e_reader', 'code_39_reader'],
+          },
+          canvas: {
+            createOverlay: false,
           },
         },
         (err: unknown) => {
@@ -266,6 +316,46 @@ export default function LivrariaProdutosPage() {
       onDetectedRef.current = null
     }
   }, [barcodeScannerOpen])
+
+  useEffect(() => {
+    if (!photoCropMode || !capturedPhotoPreview || !photoCropperRef.current) return
+    if (photoCropperInstanceRef.current) {
+      photoCropperInstanceRef.current.destroy()
+      photoCropperInstanceRef.current = null
+    }
+    const img = photoCropperRef.current
+    const cropper = new Cropper(img, {
+      aspectRatio: NaN,
+      viewMode: 1,
+      autoCropArea: 0.9,
+      movable: true,
+      zoomable: true,
+      rotatable: false,
+      scalable: true,
+      responsive: true,
+    })
+    photoCropperInstanceRef.current = cropper
+    return () => {
+      cropper.destroy()
+      photoCropperInstanceRef.current = null
+    }
+  }, [photoCropMode, capturedPhotoPreview])
+
+  const applyPhotoCrop = useCallback(() => {
+    const cropper = photoCropperInstanceRef.current
+    if (!cropper) return
+    const canvas = cropper.getCroppedCanvas()
+    if (!canvas) return
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) return
+        const file = new File([blob], 'foto.jpg', { type: 'image/jpeg' })
+        confirmCapturedPhoto(file)
+      },
+      'image/jpeg',
+      0.9
+    )
+  }, [confirmCapturedPhoto])
 
   const resolveCategoryId = useCallback(async (): Promise<string | null> => {
     if (form.category_id) return form.category_id
@@ -684,26 +774,123 @@ export default function LivrariaProdutosPage() {
                     <Camera size={14} className="mr-1" /> Tirar foto
                   </Button>
                 </div>
-                {cameraOpen && (
-                  <div className="mt-3 p-3 border border-slate-200 rounded-lg bg-slate-50">
-                    {cameraError ? (
-                      <p className="text-sm text-red-600">{cameraError}</p>
-                    ) : (
-                      <>
-                        <video ref={videoRef} autoPlay playsInline muted className="w-full max-h-32 rounded object-cover" />
-                        <div className="flex gap-2 mt-2">
-                          <Button type="button" size="sm" onClick={capturePhoto}>Capturar</Button>
-                          <Button type="button" variant="secondary" size="sm" onClick={() => { setCameraOpen(false); streamRef.current?.getTracks().forEach((t) => t.stop()); streamRef.current = null; }}>Cancelar</Button>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                )}
               </div>
               </div>
               <div className="p-4 sm:p-6 pt-4 border-t border-slate-200 flex flex-col-reverse sm:flex-row justify-end gap-2 flex-shrink-0">
                 <Button variant="secondary" onClick={() => setModalOpen(false)} className="w-full sm:w-auto touch-manipulation">Cancelar</Button>
                 <Button onClick={handleSave} loading={saveLoading} className="w-full sm:w-auto touch-manipulation">Salvar</Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {cameraOpen && (
+          <div className="fixed inset-0 z-[57] flex flex-col bg-black" style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)', paddingLeft: 'env(safe-area-inset-left)', paddingRight: 'env(safe-area-inset-right)' }}>
+            <div className="absolute inset-0 flex flex-col">
+              {cameraError ? (
+                <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
+                  <p className="text-red-400 mb-4">{cameraError}</p>
+                  <Button type="button" variant="secondary" onClick={() => { setCameraOpen(false); setCameraError(null); }}>Fechar</Button>
+                </div>
+              ) : (
+                <>
+                  <div className="absolute top-0 left-0 right-0 flex justify-end p-3 sm:p-4 z-10">
+                    <button
+                      type="button"
+                      onClick={() => { setCameraOpen(false); streamRef.current?.getTracks().forEach((t) => t.stop()); streamRef.current = null; }}
+                      className="p-3 rounded-full bg-black/50 hover:bg-black/70 text-white touch-manipulation min-w-[48px] min-h-[48px] flex items-center justify-center"
+                      aria-label="Fechar câmera"
+                    >
+                      <X size={24} />
+                    </button>
+                  </div>
+                  <div className="flex-1 min-h-0 relative">
+                    <video
+                      ref={videoRef}
+                      autoPlay
+                      playsInline
+                      muted
+                      className="absolute inset-0 w-full h-full object-cover"
+                    />
+                  </div>
+                  <div className="flex-shrink-0 px-4 pb-6 pt-4 bg-gradient-to-t from-black/80 to-transparent">
+                    <div className="flex flex-col sm:flex-row gap-3 justify-center items-center max-w-sm mx-auto">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        className="w-full sm:w-auto min-h-[48px] px-6 touch-manipulation"
+                        onClick={() => { setCameraOpen(false); streamRef.current?.getTracks().forEach((t) => t.stop()); streamRef.current = null; }}
+                      >
+                        Cancelar
+                      </Button>
+                      <Button
+                        type="button"
+                        className="w-full sm:w-auto min-h-[48px] px-8 touch-manipulation bg-white text-black hover:bg-slate-200 border-0"
+                        onClick={capturePhoto}
+                      >
+                        <Camera size={22} className="mr-2" />
+                        Capturar
+                      </Button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
+        {capturedPhotoPreview && !photoCropMode && (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[55] p-4" onClick={(e) => e.target === e.currentTarget && retakePhoto()}>
+            <div className="bg-white rounded-xl shadow-xl max-w-md w-full overflow-hidden flex flex-col max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
+              <div className="p-4 border-b border-slate-200 flex items-center justify-between flex-shrink-0">
+                <span className="font-medium text-slate-800">Verificar foto</span>
+                <button type="button" onClick={retakePhoto} className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg" aria-label="Fechar">
+                  <X size={20} />
+                </button>
+              </div>
+              <div className="p-4 flex-1 min-h-0 flex flex-col items-center">
+                <p className="text-sm text-slate-600 mb-3 text-center">Confira a imagem. Você pode usar assim, recortar as bordas ou tirar outra.</p>
+                <div className="w-full aspect-square max-h-[50vh] rounded-lg border border-slate-200 overflow-hidden bg-slate-100 flex items-center justify-center">
+                  <img src={capturedPhotoPreview} alt="Preview da foto" className="max-w-full max-h-full object-contain" />
+                </div>
+                <div className="flex flex-wrap gap-2 justify-center mt-4">
+                  <Button type="button" size="sm" onClick={usePhotoAsIs} className="touch-manipulation">
+                    <Check size={16} className="mr-1.5" />
+                    Usar esta foto
+                  </Button>
+                  <Button type="button" variant="secondary" size="sm" onClick={() => setPhotoCropMode(true)} className="touch-manipulation">
+                    <Crop size={16} className="mr-1.5" />
+                    Recortar bordas
+                  </Button>
+                  <Button type="button" variant="secondary" size="sm" onClick={retakePhoto} className="touch-manipulation">
+                    <RotateCcw size={16} className="mr-1.5" />
+                    Tirar de novo
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {photoCropMode && capturedPhotoPreview && (
+          <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[56] p-4" onClick={(e) => e.target === e.currentTarget && setPhotoCropMode(false)}>
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+              <div className="p-4 border-b border-slate-200 flex items-center justify-between flex-shrink-0">
+                <span className="font-medium text-slate-800">Recortar bordas</span>
+                <div className="flex gap-2">
+                  <Button type="button" variant="secondary" size="sm" onClick={() => setPhotoCropMode(false)}>Cancelar</Button>
+                  <Button type="button" size="sm" onClick={applyPhotoCrop}>Aplicar e usar</Button>
+                </div>
+              </div>
+              <div className="p-4 flex-1 min-h-0 overflow-hidden">
+                <div className="w-full h-[50vh] min-h-[260px] max-h-[420px] bg-slate-900 rounded-lg overflow-hidden">
+                  <img
+                    ref={photoCropperRef}
+                    src={capturedPhotoPreview}
+                    alt="Recorte"
+                    className="block max-w-full max-h-full"
+                  />
+                </div>
               </div>
             </div>
           </div>
