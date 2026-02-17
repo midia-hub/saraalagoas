@@ -11,6 +11,8 @@ Passos gerais para colocar o projeto no ar (app Next.js + Supabase + Mercado Pag
 - **Start:** `npm run start` (ou o comando que seu host usar para produção).
 - Configure o **domínio** (ex.: `https://seu-dominio.com`) no painel do provedor.
 
+**Vercel:** Não defina `NEXT_PUBLIC_USE_BASEPATH=true` nas variáveis de ambiente. Esse flag ativa export estático (GitHub Pages) e desativa as API routes; na Vercel o app deve rodar em modo Node (serverless) para as rotas `/api/*` funcionarem.
+
 ---
 
 ## 2. Variáveis de ambiente em produção

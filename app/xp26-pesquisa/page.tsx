@@ -266,6 +266,9 @@ type FormState = {
   nps: number | null
   melhorias: string
   mensagem_final: string
+  contato_whatsapp_autorizado: boolean | null
+  nome_contato: string
+  whatsapp_contato: string
 }
 
 const initialForm: FormState = {
@@ -319,6 +322,9 @@ const initialForm: FormState = {
   nps: null,
   melhorias: '',
   mensagem_final: '',
+  contato_whatsapp_autorizado: null,
+  nome_contato: '',
+  whatsapp_contato: '',
 }
 
 function ProgressBar({ step, total }: { step: number; total: number }) {
@@ -542,44 +548,7 @@ export default function Xp26PesquisaPage() {
   const melhoriasStep = orgStep + 1
   const totalSteps = melhoriasStep + 1
 
-  const canProceed = (): boolean => {
-    if (step === 0) return !!form.perfil
-    if (step === 1) return form.nota_evento != null
-    // Bloco Participante (steps 2..3) — "Participaria XP27?" fica só no bloco Ministrações/XP27
-    if (form.perfil === 'Participante') {
-      if (step === 2) return !!form.fortalecer_fe && form.decisao_importante !== null
-      if (step === 3) {
-        const okInfo = !!form.info_antes_evento && form.acompanhou_instagram !== null
-        return okInfo && (form.acompanhou_instagram !== true || !!form.comunicacao_digital)
-      }
-    }
-    // Bloco Voluntário (steps 2..3 — agrupado)
-    if (form.perfil === 'Voluntário') {
-      if (step === 2) return !!form.escala_organizada && !!form.instrucoes_claras && !!form.lider_acessivel && !!form.carga_horaria && !!form.tempo_descanso
-      if (step === 3) {
-        const okFalhas = form.falhas_area !== null
-        const okVal = okFalhas && (form.falhas_area !== true || !!form.falhas_descricao.trim()) && !!form.valorizado
-        const okServir = !!form.servir_novamente
-        const precisaMelhorar = ['Não', 'Talvez'].includes(form.servir_novamente)
-        return okVal && okServir && (!precisaMelhorar || !!form.servir_melhorar.trim())
-      }
-    }
-    // Bloco Ministrações, Bandas e XP27 (steps ministracoesStartStep .. +4)
-    if (step === ministracoesStartStep) {
-      return !!form.melhor_ministracao
-    }
-    if (step === ministracoesStartStep + 1) {
-      return !!form.melhor_banda && !!form.avaliacao_louvor_geral && !!form.avaliacao_som_louvor && !!form.avaliacao_energia_banda && !!form.avaliacao_conexao_louvor
-    }
-    if (step === ministracoesStartStep + 2) {
-      return !!form.participara_xp27
-    }
-    if (step === ministracoesStartStep + 3) {
-      return true // indicações e sugestões opcionais
-    }
-    if (step === orgStep) return form.teve_problema !== null && !!form.superou_expectativa && form.nps != null
-    return true
-  }
+  const canProceed = (): boolean => true // Todos os campos opcionais — pode avançar e enviar a qualquer momento
 
   const handleNext = () => {
     if (step < totalSteps - 1) setStep((s) => s + 1)
@@ -642,6 +611,9 @@ export default function Xp26PesquisaPage() {
           nps: form.nps,
           melhorias: form.melhorias.trim() || null,
           mensagem_final: form.mensagem_final.trim() || null,
+          contato_whatsapp_autorizado: form.contato_whatsapp_autorizado,
+          nome_contato: form.nome_contato.trim() || null,
+          whatsapp_contato: form.whatsapp_contato.trim() || null,
         }),
       })
       const data = await res.json().catch(() => ({}))
@@ -1059,6 +1031,42 @@ export default function Xp26PesquisaPage() {
                     placeholder="Sua mensagem..."
                   />
                 </div>
+                <div className="pt-6 border-t border-white/10 space-y-4">
+                  <label className="block text-sm font-semibold mb-2" style={{ color: TEXT_WHITE }}>
+                    Podemos entrar em contato pelo WhatsApp para divulgação ou pesquisas para outros eventos?
+                  </label>
+                  <OptionButtons
+                    options={['Sim', 'Não']}
+                    value={form.contato_whatsapp_autorizado === null ? '' : form.contato_whatsapp_autorizado ? 'Sim' : 'Não'}
+                    onChange={(v) => set('contato_whatsapp_autorizado', v === 'Sim')}
+                  />
+                  {form.contato_whatsapp_autorizado === true && (
+                    <div className="space-y-3 mt-4">
+                      <div>
+                        <label className="block text-sm font-medium mb-1" style={{ color: TEXT_GRAY }}>Nome</label>
+                        <input
+                          type="text"
+                          value={form.nome_contato}
+                          onChange={(e) => set('nome_contato', e.target.value.slice(0, 120))}
+                          placeholder="Seu nome"
+                          className="w-full rounded-xl px-4 py-3 focus:outline-none"
+                          style={{ background: 'rgba(255,255,255,0.06)', border: '2px solid rgba(255,255,255,0.2)', color: TEXT_WHITE }}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-1" style={{ color: TEXT_GRAY }}>WhatsApp</label>
+                        <input
+                          type="tel"
+                          value={form.whatsapp_contato}
+                          onChange={(e) => set('whatsapp_contato', e.target.value.replace(/\D/g, '').slice(0, 15))}
+                          placeholder="(00) 00000-0000"
+                          className="w-full rounded-xl px-4 py-3 focus:outline-none"
+                          style={{ background: 'rgba(255,255,255,0.06)', border: '2px solid rgba(255,255,255,0.2)', color: TEXT_WHITE }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
@@ -1073,7 +1081,7 @@ export default function Xp26PesquisaPage() {
         <div className="mt-8 flex justify-end">
           <NeonButton
             onClick={handleNext}
-            disabled={!canProceed() || loading}
+            disabled={loading}
           >
             {loading ? 'Enviando...' : step === totalSteps - 1 ? 'Enviar' : 'Próxima →'}
           </NeonButton>

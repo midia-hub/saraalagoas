@@ -233,7 +233,7 @@ export async function GET(request: NextRequest) {
         .order('created_at', { ascending: false })
         .limit(20)
       const txList = (txRows ?? []) as Array<{ sale_id: string; status: string; amount: number; created_at: string }>
-      const saleIds = [...new Set(txList.map((t) => t.sale_id))]
+      const saleIds = Array.from(new Set(txList.map((t) => t.sale_id)))
       const { data: salesForTx } = await supabase
         .from('bookstore_sales')
         .select('id, sale_number')
