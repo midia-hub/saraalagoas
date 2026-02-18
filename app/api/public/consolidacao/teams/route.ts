@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServiceClient } from '@/lib/supabase-server'
 
+export const dynamic = 'force-dynamic'
+
 /** GET - lista equipes (público). Opcional: ?church_id= para filtrar por igreja */
 export async function GET(request: NextRequest) {
   try {
