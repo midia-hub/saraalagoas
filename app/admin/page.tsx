@@ -12,7 +12,7 @@ const cards = [
   { href: '/admin/upload', label: 'Upload Cultos/Eventos', icon: Upload, desc: 'Fluxo em etapas + Google Drive', permission: 'upload' },
   { href: '/admin/galeria', label: 'Galerias', icon: ImageIcon, desc: 'Lista e filtros de galerias', permission: 'galeria' },
   { href: '/xp26-pesquisa', label: 'Pesquisa XP26 Alagoas', icon: ClipboardList, desc: 'Formulário pós-evento (abre em nova aba)', permission: 'dashboard', external: true },
-  { href: '/admin/xp26-pesquisa-resultados', label: 'Resultados Pesquisa XP26', icon: BarChart3, desc: 'Dashboard com resultados da pesquisa pós-evento', permission: 'dashboard' },
+  { href: '/xp26-resultados', label: 'Resultados Pesquisa XP26', icon: BarChart3, desc: 'Dashboard público com resultados da pesquisa (abre em nova aba)', permission: 'dashboard', external: true },
   { href: '/admin/instancias', label: 'Configurações do Instagram/Facebook', icon: Link2, desc: 'Conectar Facebook/Instagram', permission: 'instagram' },
   { href: '/admin/instagram/posts', label: 'Publicações Instagram', icon: Instagram, desc: 'Acompanhar fila e posts', permission: 'instagram' },
 ]
