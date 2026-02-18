@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { Orbitron } from 'next/font/google'
+import type { LucideIcon } from 'lucide-react'
 import { ArrowLeft, BarChart3, Users, MessageSquare, Star, TrendingUp, Target } from 'lucide-react'
 import { PageAccessGuard } from '@/app/admin/PageAccessGuard'
 import { adminFetchJson } from '@/lib/admin-client'
@@ -178,7 +179,7 @@ function SectionCard({
   children,
 }: {
   title: string
-  icon: React.ComponentType<{ size?: number; className?: string }>
+  icon: LucideIcon
   children: React.ReactNode
 }) {
   return (
@@ -189,8 +190,8 @@ function SectionCard({
         border: '1px solid rgba(255,255,255,0.12)',
       }}
     >
-      <div className="flex items-center gap-2 mb-4">
-        <Icon size={20} style={{ color: NEON }} />
+      <div className="flex items-center gap-2 mb-4" style={{ color: NEON }}>
+        <Icon size={20} />
         <h2 className={`${orbitron.className} text-lg font-semibold uppercase`} style={{ color: NEON }}>
           {title}
         </h2>
@@ -211,7 +212,7 @@ function MetricCard({
   label: string
   value: string | number
   subtext?: string
-  icon: React.ComponentType<{ size?: number; className?: string }>
+  icon: LucideIcon
   highlight?: boolean
 }) {
   return (
@@ -226,7 +227,9 @@ function MetricCard({
         <span className="text-xs font-medium uppercase tracking-wider" style={{ color: TEXT_GRAY }}>
           {label}
         </span>
-        <Icon size={18} style={{ color: highlight ? NEON : TEXT_GRAY }} />
+        <span style={{ color: highlight ? NEON : TEXT_GRAY }}>
+          <Icon size={18} />
+        </span>
       </div>
       <p className={`text-2xl md:text-3xl font-bold ${orbitron.className}`} style={{ color: highlight ? NEON : TEXT_WHITE }}>
         {value}
