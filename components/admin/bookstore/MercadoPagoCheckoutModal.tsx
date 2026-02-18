@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { adminFetchJson } from '@/lib/admin-client'
-import { CheckCircle2 } from 'lucide-react'
+import { CheckCircle2, Loader2 } from 'lucide-react'
 
 const REDIRECT_DELAY_SEC = 5
 
