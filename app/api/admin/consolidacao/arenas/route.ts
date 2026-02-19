@@ -9,7 +9,14 @@ export async function GET(request: NextRequest) {
   try {
     const q = (request.nextUrl.searchParams.get('q') ?? '').trim()
     const supabase = createSupabaseAdminClient(request)
-    let query = supabase.from('arenas').select('id, name, church_id, day_of_week, time_of_day').order('name')
+    let query = supabase.from('arenas').select(`
+      id, 
+      name, 
+      church_id, 
+      day_of_week, 
+      time_of_day,
+      leaders:arena_leaders(person_id, person:people(full_name))
+    `).order('name')
     if (q) query = query.ilike('name', `%${q}%`)
     const { data, error } = await query
     if (error) return NextResponse.json({ error: 'Erro ao listar arenas' }, { status: 500 })

@@ -3,6 +3,7 @@ import { requireAccess } from '@/lib/admin-api'
 import { createSupabaseAdminClient } from '@/lib/supabase-server'
 import { personCreateSchema } from '@/lib/validators/person'
 import { normalizeCpf, normalizePhone, normalizeDate } from '@/lib/validators/person'
+import { normalizeForSearch } from '@/lib/normalize-text'
 
 const isDev = process.env.NODE_ENV === 'development'
 
@@ -39,8 +40,9 @@ export async function GET(request: NextRequest) {
 
     if (q) {
       const digits = q.replace(/\D/g, '')
+      const qNorm = normalizeForSearch(q)
       const orParts = [
-        `full_name.ilike.%${q}%`,
+        `full_name_normalized.ilike.%${qNorm}%`,
         `email.ilike.%${q}%`,
         `mobile_phone.ilike.%${q}%`,
         `phone.ilike.%${q}%`,
@@ -99,6 +101,7 @@ export async function POST(request: NextRequest) {
 
     const row = parsed.data
     const payload = {
+      leader_person_id: row.leader_person_id ?? null,
       full_name: row.full_name,
       church_profile: row.church_profile,
       church_situation: row.church_situation,

@@ -37,23 +37,34 @@ type ProfileRow = {
   email?: string | null
   access_profile_id?: string | null
   role_id?: string | null
+  person_id?: string | null
+  avatar_url?: string | null
+  people?: {
+    id: string
+    full_name: string
+    avatar_url?: string | null
+  } | {
+    id: string
+    full_name: string
+    avatar_url?: string | null
+  }[] | null
   roles?: Role | Role[] | null
   access_profiles?:
-    | {
-        id: string
-        name: string
-        description: string | null
-        is_admin: boolean
-        access_profile_permissions?: PermissionRow[] | null
-      }
-    | {
-        id: string
-        name: string
-        description: string | null
-        is_admin: boolean
-        access_profile_permissions?: PermissionRow[] | null
-      }[]
-    | null
+  | {
+    id: string
+    name: string
+    description: string | null
+    is_admin: boolean
+    access_profile_permissions?: PermissionRow[] | null
+  }
+  | {
+    id: string
+    name: string
+    description: string | null
+    is_admin: boolean
+    access_profile_permissions?: PermissionRow[] | null
+  }[]
+  | null
 }
 
 const ADMIN_PAGE_KEYS = [
@@ -144,6 +155,9 @@ const APP_PERMISSION_TO_RESOURCE_ACTION: Record<string, { resource_key: string; 
   [APP_PERMISSION_CODES.VIEW_META]: { resource_key: 'meta', action: 'view' },
   [APP_PERMISSION_CODES.VIEW_CULTOS]: { resource_key: 'cultos', action: 'view' },
   [APP_PERMISSION_CODES.MANAGE_CULTOS]: { resource_key: 'cultos', action: 'manage' },
+  [APP_PERMISSION_CODES.CELLS_APPROVE_EDIT]: { resource_key: 'celulas', action: 'edit' },
+  [APP_PERMISSION_CODES.CELLS_APPROVE_PD]: { resource_key: 'celulas', action: 'edit' },
+  [APP_PERMISSION_CODES.CELLS_MANAGE]: { resource_key: 'celulas', action: 'manage' },
 }
 
 function getAccessTokenFromRequest(request: NextRequest): string {
@@ -247,7 +261,7 @@ async function getProfileRowWithUserToken(
   })
   const { data, error } = await client
     .from('profiles')
-    .select('role, email, access_profile_id')
+    .select('role, email, access_profile_id, person_id')
     .eq('id', userId)
     .maybeSingle()
   if (error) return null
@@ -264,6 +278,11 @@ async function getProfileRow(userId: string, accessToken?: string): Promise<Prof
       email,
       access_profile_id,
       role_id,
+      person_id,
+      people (
+        id,
+        full_name
+      ),
       roles (
         id,
         key,
@@ -306,6 +325,11 @@ async function getProfileRow(userId: string, accessToken?: string): Promise<Prof
       role,
       email,
       access_profile_id,
+      person_id,
+      people (
+        id,
+        full_name
+      ),
       access_profiles (
         id,
         name,
@@ -330,7 +354,7 @@ async function getProfileRow(userId: string, accessToken?: string): Promise<Prof
 
   const { data: fallback, error: fallbackError } = await supabaseServer
     .from('profiles')
-    .select('role, email, access_profile_id, role_id')
+    .select('role, email, access_profile_id, role_id, person_id')
     .eq('id', userId)
     .maybeSingle()
 
@@ -418,8 +442,11 @@ export async function getAccessSnapshotByToken(accessToken: string): Promise<Acc
   const profileRow = await getProfileRow(user.id, accessToken)
   const legacyRole = profileRow?.role ?? null
 
-  const displayName =
-    (user.user_metadata?.full_name as string | undefined)?.trim() || user.email || null
+  // Dados da pessoa vinculada
+  const person = Array.isArray(profileRow?.people) ? profileRow?.people[0] : profileRow?.people
+  const personId = profileRow?.person_id || person?.id || null
+  const avatarUrl = profileRow?.avatar_url || person?.avatar_url || (user.user_metadata?.avatar_url as string | undefined) || null
+  const displayName = person?.full_name || (user.user_metadata?.full_name as string | undefined)?.trim() || user.email || null
 
   // ============================================================
   // NOVO SISTEMA RBAC (priority)
@@ -441,6 +468,9 @@ export async function getAccessSnapshotByToken(accessToken: string): Promise<Acc
         canAccessAdmin: true,
         isAdmin: true,
         legacyRole,
+        personId,
+        avatarUrl,
+        source: 'rbac-admin',
       }
     }
 
@@ -460,6 +490,9 @@ export async function getAccessSnapshotByToken(accessToken: string): Promise<Acc
       canAccessAdmin,
       isAdmin: false,
       legacyRole,
+      personId,
+      avatarUrl,
+      source: 'rbac-user',
     }
   }
 
@@ -479,6 +512,9 @@ export async function getAccessSnapshotByToken(accessToken: string): Promise<Acc
       isAdmin: true,
       legacyRole,
       legacyProfile,
+      personId,
+      avatarUrl,
+      source: 'legacy-admin',
     }
   }
 
@@ -501,6 +537,9 @@ export async function getAccessSnapshotByToken(accessToken: string): Promise<Acc
     isAdmin: false,
     legacyRole,
     legacyProfile,
+    personId,
+    avatarUrl,
+    source: 'legacy-snapshot',
   }
 }
 
@@ -515,10 +554,10 @@ export function hasPermission(
   action: PermissionAction
 ): boolean {
   if (snapshot.isAdmin) return true
-  
+
   // Se tem manage, tem todas as permissões
   if (snapshot.permissions[pageKey]?.manage) return true
-  
+
   return !!snapshot.permissions[pageKey]?.[action]
 }
 

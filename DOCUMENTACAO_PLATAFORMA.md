@@ -4,6 +4,20 @@ Documento de referência com funcionalidades, páginas, APIs, tabelas, funções
 
 ---
 
+## 1.1 Últimas atualizações (Changelog)
+
+### Fevereiro 2026 – Sistema de convite e pré-preenchimento de cadastro
+
+- ✅ **Novo endpoint:** POST `/api/admin/pessoas/[id]/send-invite` – envia email de convite com link mágico incluindo person_id.
+- ✅ **Novo endpoint:** GET `/api/admin/pessoas/[id]/conversao` – busca dados de conversão para pré-preenchimento de formulário de pessoa.
+- ✅ **Novo endpoint:** GET `/api/admin/pessoas/[id]/cells` – lista células relacionadas à pessoa (como líder, co-líder ou membro).
+- ✅ **Fluxo completo:** Consolidador envia convite → Novo usuário completa cadastro → Formulário de pessoa pré-preenchido com dados de conversão.
+- ✅ **Página `/admin/completar-cadastro`:** Suporta parâmetro `?person_id={id}` para pré-preenchimento automático e redirecionamento.
+- ✅ **Validação simplificada:** Campo telefone no formulário de consolidação deixa de ser obrigatório.
+- ✅ **Menu de configurações:** Removido item "Usuários e Perfis"; menu agora exibe apenas: Ajustes do Site, Gerenciar Permissões, API de Disparos, Mensagens de Conversão.
+
+---
+
 ## 1. Visão geral e tecnologias
 
 - **Stack:** Next.js (App Router), React, TypeScript, Supabase (Auth + Postgres + Storage).
@@ -96,7 +110,7 @@ Documento de referência com funcionalidades, páginas, APIs, tabelas, funções
 | Rota | Permissão | Descrição |
 |------|-----------|-----------|
 | `/admin` | dashboard | Início do painel. |
-| `/admin/configuracoes` | configuracoes | Ajustes do site (API `site-config`, `settings`). |
+| `/admin/configuracoes` | configuracoes | Ajustes do site (API `site-config`, `settings`). Inclui: Ajustes do Site, Gerenciar Permissões, API de Disparos, Mensagens de Conversão. |
 
 ### 4.3 Admin – Usuários e pessoas
 
@@ -123,7 +137,7 @@ Documento de referência com funcionalidades, páginas, APIs, tabelas, funções
 
 | Rota | Permissão | Descrição |
 |------|-----------|-----------|
-| `/admin/consolidacao/conversoes` | consolidacao | Formulário de conversão (admin); mesmo fluxo de dados que o público. |
+| `/admin/consolidacao/conversoes` | consolidacao | Formulário de conversão (admin); mesmo fluxo de dados que o público. Campo **telefone não é obrigatório**. |
 | `/admin/consolidacao/conversoes/sucesso` | consolidacao | Sucesso após conversão (admin). |
 | `/admin/consolidacao/lista` | consolidacao | Lista de convertidos (conversões + pessoas); gráficos. |
 | `/admin/consolidacao/cadastros` | consolidacao | Menu de cadastros (igrejas, arenas, células, equipes, pessoas, API disparos, mensagens). |
@@ -160,7 +174,7 @@ Documento de referência com funcionalidades, páginas, APIs, tabelas, funções
 | Rota | Descrição |
 |------|-----------|
 | `/admin/login` | Login. |
-| `/admin/completar-cadastro` | Completar cadastro (senha). |
+| `/admin/completar-cadastro` | Completar cadastro (senha). Suporta `?person_id={id}` para pré-preenchimento e redirecionamento automático. |
 | `/admin/criar-acesso` | Criar acesso (admin). |
 | `/admin/reset-senha` | Redefinir senha (com hash). |
 | `/admin/conta` | Conta do usuário logado. |
@@ -194,9 +208,12 @@ Todas as rotas admin que usam `requireAccess` ou `requireAdmin` esperam `Authori
 | GET/PATCH/DELETE | `/api/admin/roles/[id]` | roles | Uma role. |
 | GET/PATCH | `/api/admin/users/[id]` | usuarios | Usuário. |
 | POST | `/api/admin/users/[id]/assign-role` | usuarios | Atribuir role. |
-| POST | `/api/admin/users/[id]/send-reset-password` | usuarios | Enviar link redefinir senha. |
+| POST | `/api/admin/pessoas/[id]/send-invite` | Envia email de convite para completar cadastro (link mágico com person_id como parâmetro). |
 | GET/POST | `/api/admin/people` | pessoas | Lista/cria pessoas. |
-| GET/PATCH/DELETE | `/api/admin/people/[id]` | pessoas | Uma pessoa. |
+| GET | `/api/admin/people/[id]` | pessoas | Uma pessoa. Carrega dados de conversão associada (se existir) para pré-preenchimento. |
+| POST | `/api/admin/people/[id]/send-invite` | pessoas | Envia email de convite para completar cadastro (link mágico com person_id). |
+| GET | `/api/admin/pessoas/[id]/conversao` | pessoas | Busca dados da conversão mais recente; retorna para pré-preenchimento (nome, email, telefone, endereco, conversao_date, gender, etc.). |
+| GET | `/api/admin/pessoas/[id]/cells` | pessoas | Lista células relacionadas (líder, co-líder, membro); retorna com role e labels (dia, horário, igreja). |
 
 ### 5.3 Galeria (Drive + Supabase)
 
@@ -266,6 +283,9 @@ Todas as rotas admin que usam `requireAccess` ou `requireAdmin` esperam `Authori
 | GET/POST | `/api/admin/consolidacao/people` | Pessoas (consolidação). |
 | GET/PATCH/DELETE | `/api/admin/consolidacao/people/[id]` | Uma pessoa. |
 | GET | `/api/admin/consolidacao/conversoes` | Lista conversões. |
+| GET | `/api/admin/consolidacao/conversoes/[id]` | Uma conversão. |
+| GET | `/api/admin/pessoas/[id]/conversao` | Busca dados da conversão mais recente para uma pessoa; usado para pré-preenchimento. |
+| GET | `/api/admin/pessoas/[id]/cells` | Lista células relacionadas à pessoa (como líder, co-líder ou membro); retorna enriquecidas com role e labels. |
 | POST | `/api/admin/consolidacao/upsert-person-and-conversion` | Upsert pessoa + conversão (formulário admin). |
 | GET/PATCH | `/api/admin/consolidacao/disparos-settings` | consolidation_settings.disparos_api_enabled. |
 | GET | `/api/admin/consolidacao/conversion-messages` | Templates de mensagem (aceitou/reconciliou). |
@@ -326,7 +346,7 @@ Todas as rotas admin que usam `requireAccess` ou `requireAdmin` esperam `Authori
 
 ---
 
-## 6. Tabelas do banco de dados (Supabase / Postgres)
+## 8. Tabelas do banco de dados (Supabase / Postgres)
 
 Tabelas referenciadas no código e nas migrations (schema `public`, salvo menção).
 
@@ -394,7 +414,7 @@ Função de banco (livraria): **get_next_product_sku** – gera próximo SKU qua
 
 ---
 
-## 7. Bibliotecas (lib) – quando são usadas
+## 9. Bibliotecas (lib) – quando são usadas
 
 | Arquivo | Uso |
 |---------|-----|
@@ -418,9 +438,9 @@ Função de banco (livraria): **get_next_product_sku** – gera próximo SKU qua
 
 ---
 
-## 8. Fluxos principais
+## 12. Fluxos principais
 
-### 8.1 Conversão (público ou admin)
+### 12.1 Conversão (público ou admin)
 
 1. Usuário preenche formulário (nome, telefone, e-mail, data conversão, culto, igreja, aceitou/reconciliou, gênero, etc.).
 2. Front chama `POST /api/public/consolidacao/conversao` (público) ou usa fluxo admin que chama `POST /api/admin/consolidacao/upsert-person-and-conversion`.
@@ -428,7 +448,7 @@ Função de banco (livraria): **get_next_product_sku** – gera próximo SKU qua
 4. Se **consolidation_settings.disparos_api_enabled** e DISPAROS_WEBHOOK_* estão configurados, chama `callDisparosWebhook(phone, nome, conversionType)` e registra em **disparos_log** (se tabela existir).
 5. Retorno: sucesso + message_id para exibir mensagem de template (aceitou/reconciliou) na página de sucesso.
 
-### 8.2 Publicação no Instagram / Meta
+### 12.2 Publicação no Instagram / Meta
 
 1. Admin cria álbum na Galeria (ou usa existente); sobe fotos (Drive ou Storage).
 2. Em “Criar post”, seleciona álbum e fotos → cria rascunho (instagram_post_drafts ou scheduled_social_posts conforme fluxo).
@@ -437,7 +457,7 @@ Função de banco (livraria): **get_next_product_sku** – gera próximo SKU qua
 5. Publicar agora: chama `POST /api/social/publish` ou `/api/meta/instagram/publish`; usa **meta_integrations** (token da página/Instagram).
 6. Cron (ou botão “Processar fila”) chama `POST /api/social/run-scheduled` com header `x-cron-secret`; processa scheduled_social_posts com status pending e scheduled_at <= now.
 
-### 8.3 Livraria – produto e estoque
+### 12.3 Livraria – produto e estoque
 
 1. **Produto:** POST em `/api/admin/livraria/produtos` (e PATCH em `/api/admin/livraria/produtos/[id]`); SKU opcional (get_next_product_sku). Fotos: POST em upload-image; DELETE em images/[imageId]. Categoria: GET/POST categorias; pode criar categoria nova no cadastro. Desconto: discount_type (valor/%), discount_value; aviso se preço final < custo. Estoque inicial no formulário gera movimentação de ajuste ao salvar.
 2. **Movimentação:** POST `/api/admin/livraria/estoque/movimentar` (tipo, product_id, quantity, reason) → atualiza **bookstore_products.current_stock** e insere **bookstore_stock_movements**.
@@ -446,7 +466,56 @@ Função de banco (livraria): **get_next_product_sku** – gera próximo SKU qua
 
 ---
 
-## 9. Variáveis de ambiente
+## 9. Fluxos de pré-preenchimento de cadastro (novo – fevereiro 2026)
+
+### 9.1 Fluxo de convite e completar cadastro
+
+1. **Envio de Convite**: consolidador visualiza pessoa em `/admin/pessoas/[id]`.
+2. Clica "Enviar convite" → abre modal com campo de email.
+3. POST `/api/admin/pessoas/{id}/send-invite` com email → Supabase envia email mágico com link incluindo `person_id` como parâmetro.
+4. **Acesso de novo usuário**: clica no link → `/admin/completar-cadastro?person_id={id}` → preenchimento de senha.
+5. Após senha, POST `/api/auth/update-user-password` → redireciona para `/admin/pessoas/{id}` (com person_id da URL).
+6. **Pré-preenchimento automático**:
+   - Frontend chama GET `/api/admin/pessoas/{id}/conversao` → retorna dados da conversão mais recente.
+   - `PersonForm` recebe `initial` que é merge de `people` + `conversao`; campos vazios de `people` são preenchidos com dados de `conversao`.
+   - Mapeamento: conversao.genero (M/F) → people.sex (Masculino/Feminino).
+7. Usuário completa ou valida dados e salva.
+
+### 9.2 Dados utilizados no pré-preenchimento
+
+GET `/api/admin/pessoas/{id}/conversao` retorna:
+
+```json
+{
+  "item": {
+    "nome": "...",
+    "email": "...",
+    "telefone": "...",
+    "data_nascimento": "...",
+    "genero": "M|F",
+    "instagram": "...",
+    "endereco": "...",
+    "bairro": "...",
+    "cidade": "...",
+    "estado": "...",
+    "cep": "...",
+    "culto": "...",
+    "data_conversao": "...",
+    "observacoes": "...",
+    "conversion_type": "accepted|reconciled",
+    "consolidator_person_id": "...",
+    "consolidador_pessoa": { "id": "...", "full_name": "..." },
+    "cell_id": "...",
+    "celula_data": { "id": "...", "name": "..." },
+    "church_id": "...",
+    "team_id": "..."
+  }
+}
+```
+
+---
+
+## 10. Variáveis de ambiente
 
 - **Supabase:** NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY.
 - **Google Drive:** GOOGLE_DRIVE_ROOT_FOLDER_ID, GOOGLE_SERVICE_ACCOUNT_JSON (ou credenciais alternativas).
@@ -458,28 +527,78 @@ Consulte `.env.example` para a lista completa e valores de exemplo.
 
 ---
 
-## 10. Migrations (Supabase)
+## 11. Migrations (Supabase)
 
-Ordem aproximada das migrations em `supabase/migrations/`:
+### 11.1 Migrações Consolidadas (2026-02-19)
 
-- create_consolidacao_module.sql – conversoes (inicial).
-- 20260210_instagram.sql – instagram_instances, drafts, assets, jobs.
-- 20260210_meta_integrations_rls.sql – meta_integrations.
-- 20260210_instagram_rls_fix.sql, 20260210_galeria_*, 20260210_meta_* – ajustes.
-- 20260211_rbac_complete_system.sql – resources, permissions, roles, role_permissions, profiles.role_id.
-- 20260211_app_permissions_named_functions.sql – app_permissions, get_user_permissions.
-- 20260211_scheduled_social_posts.sql – scheduled_social_posts.
-- 20260211_gallery_files_uploaded_by.sql – gallery_files.uploaded_by_*.
-- 20260211_temp_gallery_uploads_bucket.sql – Storage.
-- 20260212_social_post_demands_workflow.sql – social_post_demands.
-- 20260214_01_create_people_and_link_consolidacao.sql – people, conversoes.person_id, RLS.
-- 20260214_000001_consolidacao_cadastros.sql – churches, cells, arenas, teams, church_pastors, cell_lt_members, arena_leaders, conversoes (novos campos).
-- 20260214_02_backfill_profiles_person_id.sql – profiles.person_id.
-- 20260214_03 a 20260214_10 – cells/teams/conversoes (church_id, team_id, gender, etc.), conversion_message_templates.
-- 20260215_fix_conversoes_columns.sql – ajustes em conversoes.
+As migrações foram **consolidadas em 5 arquivos organizados** para facilitar implantação em novos ambientes. As 52 migrações antigas foram movidas para `supabase/migrations/_old/` como backup histórico.
 
-As tabelas da **livraria** (bookstore_*) podem ter sido criadas em migrations removidas ou em outro repositório; o código atual espera que existam no banco. Em ambiente novo, é necessário criar essas tabelas (e a função get_next_product_sku) conforme o uso nas APIs acima.
+**Ordem de execução obrigatória:**
+
+#### 1️⃣ `001_base_schema.sql` - Schema Base
+- Tabelas: `people`, `profiles`, `resources`, `permissions`, `roles`, `role_permissions`, `app_permissions`
+- Função: `get_user_permissions(user_id)` para consulta de permissões do usuário
+- Storage: Bucket `avatars` com políticas de acesso
+- Seeds: Permissions básicas (view, create, edit, delete, manage), Resources principais, Role Admin
+
+#### 2️⃣ `002_consolidacao_module.sql` - Módulo de Consolidação
+- Tabelas: `churches`, `cells`, `cell_members`, `teams`, `arenas`, `conversoes`, `consolidation_messages`, `cell_realizations`, `cell_attendances`
+- Seeds: Churches (Sede, Expansionista, Zona Oeste), Teams (A, B, C), Arenas, Messages
+- RLS: Políticas de segurança para todas as tabelas
+
+#### 3️⃣ `003_livraria_module.sql` - Módulo Livraria/PDV
+- Tabelas: `product_categories`, `products`, `stock_movements`, `sales`, `sale_items`, `mercadopago_webhooks`
+- Funções: `generate_sale_number()` para gerar número de venda automaticamente
+- Triggers: `set_sale_number()`, `update_stock_on_sale()` para gestão automática de estoque
+- Seeds: Categorias de produtos (Livros, Bíblias, DVDs, Camisetas, etc.)
+
+#### 4️⃣ `004_gallery_social_module.sql` - Galeria e Redes Sociais
+- Tabelas: `galleries`, `gallery_files`, `instagram_accounts`, `instagram_posts`, `social_posts`, `meta_tokens`
+- Storage: Buckets `gallery-images` e `social-media` com políticas de acesso
+- RLS: Políticas para visualização pública de galerias ativas e posts visíveis
+
+#### 5️⃣ `005_auxiliary_modules.sql` - Módulos Auxiliares
+- Tabelas: `xp26_feedback`, `site_config`, `disparos_webhook`, `offerings`, `prayer_requests`
+- Função: `update_updated_at_column()` para atualizar automaticamente campo updated_at
+- Extensão: `unaccent` para buscas normalizadas sem acentos
+- Seeds: Configurações básicas do site (nome, contato, redes sociais, horários)
+- Triggers: `updated_at` aplicado em todas as tabelas principais
+
+### 11.2 Como Executar
+
+**Via Supabase CLI (recomendado):**
+```bash
+supabase db push
+```
+
+**Ou manualmente:**
+```bash
+supabase db execute --file supabase/migrations/001_base_schema.sql
+supabase db execute --file supabase/migrations/002_consolidacao_module.sql
+supabase db execute --file supabase/migrations/003_livraria_module.sql
+supabase db execute --file supabase/migrations/004_gallery_social_module.sql
+supabase db execute --file supabase/migrations/005_auxiliary_modules.sql
+```
+
+**Via Script PowerShell:**
+```powershell
+.\scripts\run-migrations.ps1
+```
+
+**Documentação completa:** `supabase/migrations/README.md`
+
+### 11.3 Verificação Pós-Migração
+
+Após executar as migrações, verifique:
+- ✅ 40+ tabelas criadas no schema `public`
+- ✅ Buckets do Storage: `avatars`, `gallery-images`, `social-media`
+- ✅ Funções: `get_user_permissions`, `generate_sale_number`, `update_updated_at_column`
+- ✅ Seeds populados: Churches, Teams, Arenas, Messages, Product Categories, Site Config
+
+### 11.4 Migrações Antigas
+
+As 52 migrações originais (fevereiro 2026) foram arquivadas em `supabase/migrations/_old/` e **NÃO devem ser executadas**. Elas são mantidas apenas para referência histórica.
 
 ---
 
-*Documento gerado a partir do código e das migrations do projeto. Última atualização: fevereiro 2025.*
+*Documento gerado a partir do código e das migrations do projeto. Última atualização: 19 de fevereiro de 2026.*

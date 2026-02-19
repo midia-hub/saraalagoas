@@ -86,6 +86,8 @@ export async function GET(request: NextRequest) {
       role,
       access_profile_id,
       role_id,
+      person_id,
+      avatar_url,
       created_at,
       access_profiles (
         id,

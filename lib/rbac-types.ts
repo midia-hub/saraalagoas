@@ -12,7 +12,7 @@
 /**
  * Ações que podem ser realizadas em um recurso
  */
-export type PermissionAction = 
+export type PermissionAction =
   | 'view'     // Visualizar
   | 'create'   // Criar
   | 'edit'     // Editar
@@ -129,17 +129,22 @@ export interface AccessSnapshot {
   userId: string
   email: string | null
   displayName: string | null
-  
+
   // Role atual do usuário
   role: Role | null
-  
+
   // Permissões consolidadas por recurso
   permissions: PermissionMap
-  
+
   // Flags de acesso rápido
   canAccessAdmin: boolean
   isAdmin: boolean
-  
+
+  // Dados do usuário
+  personId?: string | null
+  avatarUrl?: string | null
+  source?: string // Debug
+
   // Compatibilidade com sistema legado
   legacyRole?: string | null
   legacyProfile?: {
@@ -299,6 +304,9 @@ export const APP_PERMISSION_CODES = {
   VIEW_META: 'view_meta',
   VIEW_CULTOS: 'view_cultos',
   MANAGE_CULTOS: 'manage_cultos',
+  CELLS_APPROVE_EDIT: 'cells_approve_edit',
+  CELLS_APPROVE_PD: 'cells_approve_pd',
+  CELLS_MANAGE: 'cells_manage',
 } as const
 
 export type AppPermissionCode = (typeof APP_PERMISSION_CODES)[keyof typeof APP_PERMISSION_CODES]
@@ -314,7 +322,7 @@ export interface AccessContextValue {
   snapshot: AccessSnapshot | null
   loading: boolean
   error: Error | null
-  
+
   // Métodos auxiliares
   hasPermission: (resourceKey: string, action: PermissionAction) => boolean
   canView: (resourceKey: string) => boolean
@@ -322,7 +330,7 @@ export interface AccessContextValue {
   canEdit: (resourceKey: string) => boolean
   canDelete: (resourceKey: string) => boolean
   canManage: (resourceKey: string) => boolean
-  
+
   // Refresh
   refresh: () => Promise<void>
 }

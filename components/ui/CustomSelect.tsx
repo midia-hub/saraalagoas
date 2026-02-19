@@ -12,6 +12,7 @@ type CustomSelectProps = {
   placeholder?: string
   disabled?: boolean
   allowEmpty?: boolean
+  required?: boolean
   id?: string
   'aria-label'?: string
 }

@@ -322,7 +322,7 @@ export default function FormularioConversaoPage() {
 
                             <div>
                                 <label htmlFor="telefone" className="block text-sm font-semibold text-slate-800 mb-2">
-                                    Telefone *
+                                    Telefone
                                 </label>
                                 <div className="relative">
                                     <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
@@ -332,7 +332,6 @@ export default function FormularioConversaoPage() {
                                         name="telefone"
                                         value={formData.telefone}
                                         onChange={handleChange}
-                                        required
                                         className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-300 focus:border-red-600 focus:ring-2 focus:ring-red-600/20 outline-none transition-all duration-200"
                                         placeholder="(00) 00000-0000"
                                     />

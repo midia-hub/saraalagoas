@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import { Loader2, User, Lock } from 'lucide-react'
@@ -24,6 +24,8 @@ function mensagemErroAmigavel(message: string): string {
 
 export default function CompletarCadastroPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const personId = searchParams.get('person_id')
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -124,7 +126,13 @@ export default function CompletarCadastroPage() {
         setSubmitting(false)
         return
       }
-      router.replace(`${basePath}/admin`)
+      // Se houver person_id na URL, redireciona para a página da pessoa para completar cadastro
+      // Caso contrário, vai para o dashboard
+      if (personId) {
+        router.replace(`${basePath}/admin/pessoas/${personId}`)
+      } else {
+        router.replace(`${basePath}/admin`)
+      }
     } catch (e) {
       const msg = e instanceof Error ? e.message : ''
       setError(mensagemErroAmigavel(msg))

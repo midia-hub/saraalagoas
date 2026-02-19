@@ -11,6 +11,8 @@ export interface GaleriaLoadingProps {
   gridCount?: number
   /** Classes do container (ex.: para fundo da página pública) */
   className?: string
+  /** Variante visual */
+  variant?: 'default' | 'dark'
 }
 
 export function GaleriaLoading({
@@ -19,18 +21,22 @@ export function GaleriaLoading({
   showGrid = false,
   gridCount = 8,
   className = '',
+  variant = 'default',
 }: GaleriaLoadingProps) {
+  const isDark = variant === 'dark'
+
   return (
     <div className={`flex flex-col min-h-[40vh] ${className}`.trim()}>
       <div className="flex items-center gap-3 mb-6">
         <div
-          className="h-8 w-8 shrink-0 rounded-full border-2 border-[#c62737] border-t-transparent animate-spin"
+          className={`h-8 w-8 shrink-0 rounded-full border-2 animate-spin ${isDark ? 'border-[#B6FF3B]' : 'border-[#c62737]'
+            } border-t-transparent`}
           aria-hidden
         />
         <div>
-          <p className="text-slate-800 font-medium">{title}</p>
+          <p className={`font-medium ${isDark ? 'text-white' : 'text-slate-800'}`}>{title}</p>
           {subtitle && (
-            <p className="text-slate-500 text-sm">{subtitle}</p>
+            <p className={`${isDark ? 'text-gray-400' : 'text-slate-500'} text-sm`}>{subtitle}</p>
           )}
         </div>
       </div>
@@ -40,13 +46,16 @@ export function GaleriaLoading({
             {Array.from({ length: gridCount }, (_, i) => (
               <div
                 key={i}
-                className="bg-white border border-slate-200 rounded-xl overflow-hidden animate-pulse"
+                className={`${isDark
+                    ? 'bg-white/5 border-white/10'
+                    : 'bg-white border-slate-200'
+                  } border rounded-xl overflow-hidden animate-pulse`}
               >
-                <div className="aspect-[4/3] bg-slate-200" />
+                <div className={`aspect-[4/3] ${isDark ? 'bg-white/10' : 'bg-slate-200'}`} />
                 <div className="p-3 space-y-2">
-                  <div className="h-4 w-16 rounded bg-slate-200" />
-                  <div className="h-5 w-full rounded bg-slate-200" />
-                  <div className="h-4 w-24 rounded bg-slate-200" />
+                  <div className={`h-4 w-16 rounded ${isDark ? 'bg-white/10' : 'bg-slate-200'}`} />
+                  <div className={`h-5 w-full rounded ${isDark ? 'bg-white/10' : 'bg-slate-200'}`} />
+                  <div className={`h-4 w-24 rounded ${isDark ? 'bg-white/10' : 'bg-slate-200'}`} />
                 </div>
               </div>
             ))}
@@ -56,3 +65,4 @@ export function GaleriaLoading({
     </div>
   )
 }
+

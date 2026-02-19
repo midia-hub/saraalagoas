@@ -10,8 +10,6 @@ import {
     UserPlus,
     ClipboardList,
     BookUser,
-    Building2,
-    UsersRound,
     Trophy,
     UserCog,
     BookOpen,
@@ -26,18 +24,26 @@ import {
     CreditCard,
     Ticket,
     Store,
+    LayoutGrid,
+    MessageSquare,
+    Link2,
+    Building2,
+    UsersRound,
+    DollarSign,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
 export interface MenuItem {
     href: string
     label: string
-    icon: LucideIcon
+    icon?: LucideIcon
     permission?: string
 }
 
 export interface MenuModule {
+    id: string
     title: string
+    icon: LucideIcon
     permission?: string
     items: MenuItem[]
 }
@@ -46,72 +52,26 @@ export interface MenuModule {
  * Configuração modular dos menus do painel administrativo
  */
 export const menuModules: MenuModule[] = [
-    // Módulo Principal
+    // Dashboard - Sempre visível ou com permissão específica
     {
-        title: 'Menu Principal',
+        id: 'dashboard',
+        title: 'Painel Geral',
+        icon: LayoutDashboard,
         items: [
             {
                 href: '/admin',
                 label: 'Início',
                 icon: LayoutDashboard,
                 permission: 'dashboard'
-            },
-            {
-                href: '/admin/configuracoes',
-                label: 'Ajustes do Site',
-                icon: Settings,
-                permission: 'configuracoes'
-            },
-        ],
-    },
-
-    // Módulo de Usuários e Permissões
-    {
-        title: 'Usuários',
-        items: [
-            {
-                href: '/admin/pessoas',
-                label: 'Pessoas',
-                icon: UserCircle,
-                permission: 'pessoas'
-            },
-            {
-                href: '/admin/usuarios',
-                label: 'Usuários e perfis',
-                icon: Users,
-                permission: 'usuarios'
-            },
-            {
-                href: '/admin/roles',
-                label: 'Gerenciar Permissões',
-                icon: Shield,
-                permission: 'roles'
-            },
-        ],
-    },
-
-    // Módulo de Mídia
-    {
-        title: 'Mídia',
-        items: [
-            {
-                href: '/admin/upload',
-                label: 'Upload',
-                icon: Upload,
-                permission: 'upload'
-            },
-            {
-                href: '/admin/galeria',
-                label: 'Galeria',
-                icon: ImageIcon,
-                permission: 'galeria'
-            },
+            }
         ],
     },
 
     // Módulo de Consolidação
     {
+        id: 'consolidacao',
         title: 'Consolidação',
+        icon: UserPlus,
         permission: 'consolidacao',
         items: [
             {
@@ -126,18 +86,14 @@ export const menuModules: MenuModule[] = [
                 icon: ClipboardList,
                 permission: 'consolidacao'
             },
-            {
-                href: '/admin/consolidacao/cadastros',
-                label: 'Cadastros',
-                icon: BookUser,
-                permission: 'consolidacao'
-            },
         ],
     },
 
     // Módulo Livraria
     {
+        id: 'livraria',
         title: 'Livraria',
+        icon: BookOpen,
         permission: 'livraria_produtos',
         items: [
             {
@@ -147,8 +103,14 @@ export const menuModules: MenuModule[] = [
                 permission: 'livraria_pdv'
             },
             {
+                href: '/admin/livraria/loja-caixa',
+                label: 'Loja e Caixa',
+                icon: Store,
+                permission: 'livraria_pdv'
+            },
+            {
                 href: '/admin/livraria/vendas/historico',
-                label: 'Histórico de vendas',
+                label: 'Histórico de Vendas',
                 icon: History,
                 permission: 'livraria_vendas'
             },
@@ -159,40 +121,40 @@ export const menuModules: MenuModule[] = [
                 permission: 'livraria_reservas'
             },
             {
+                href: '/admin/livraria/produtos',
+                label: 'Catálogo de Produtos',
+                icon: Package,
+                permission: 'livraria_produtos'
+            },
+            {
+                href: '/admin/livraria/estoque',
+                label: 'Gestão de Estoque',
+                icon: ArrowLeftRight,
+                permission: 'livraria_estoque'
+            },
+            {
                 href: '/admin/livraria/clientes',
-                label: 'Clientes',
+                label: 'Gestão de Clientes',
                 icon: UserCheck,
                 permission: 'livraria_clientes'
             },
             {
                 href: '/admin/livraria/fiado',
-                label: 'Fiado',
+                label: 'Controle de Fiado',
                 icon: CreditCard,
                 permission: 'livraria_fiado'
             },
             {
                 href: '/admin/livraria/cupons',
-                label: 'Cupons',
+                label: 'Cupons de Desconto',
                 icon: Ticket,
                 permission: 'livraria_cupons'
             },
             {
-                href: '/admin/livraria/produtos',
-                label: 'Produtos',
-                icon: BookOpen,
-                permission: 'livraria_produtos'
-            },
-            {
-                href: '/admin/livraria/estoque',
-                label: 'Estoque',
-                icon: Package,
-                permission: 'livraria_estoque'
-            },
-            {
-                href: '/admin/livraria/movimentacoes',
-                label: 'Movimentações',
-                icon: ArrowLeftRight,
-                permission: 'livraria_movimentacoes'
+                href: '/admin/livraria/dashboard',
+                label: 'Relatórios e BI',
+                icon: BarChart3,
+                permission: 'livraria_dashboard'
             },
             {
                 href: '/admin/livraria/importacao',
@@ -200,43 +162,147 @@ export const menuModules: MenuModule[] = [
                 icon: FileSpreadsheet,
                 permission: 'livraria_importacao'
             },
+        ],
+    },
+
+    // Módulo Células
+    {
+        id: 'celulas',
+        title: 'Células',
+        icon: UsersRound,
+        permission: 'celulas',
+        items: [
             {
-                href: '/admin/livraria/dashboard',
-                label: 'Dashboard',
-                icon: BarChart3,
-                permission: 'livraria_dashboard'
+                href: '/admin/celulas',
+                label: 'Gerenciar Células',
+                icon: UsersRound,
+                permission: 'celulas'
             },
             {
-                href: '/admin/livraria/loja-caixa',
-                label: 'Loja e Caixa (MP)',
-                icon: Store,
-                permission: 'livraria_pdv'
+                href: '/admin/celulas/dashboard',
+                label: 'Dashboard',
+                icon: BarChart3,
+                permission: 'celulas'
+            },
+            {
+                href: '/admin/celulas/pd-management',
+                label: 'Gerenciar PD',
+                icon: DollarSign,
+                permission: 'celulas'
             },
         ],
     },
 
-    // Módulo Instagram
+    // Módulo de Mídia e Social
     {
-        title: 'Instagram',
-        permission: 'instagram',
+        id: 'midia',
+        title: 'Mídia e Social',
+        icon: ImageIcon,
+        permission: 'galeria',
         items: [
             {
-                href: '/admin/instancias',
-                label: 'Configurações do Instagram/Facebook',
-                icon: Instagram,
-                permission: 'instagram'
+                href: '/admin/galeria',
+                label: 'Galeria de Fotos',
+                icon: ImageIcon,
+                permission: 'galeria'
+            },
+            {
+                href: '/admin/upload',
+                label: 'Upload de Arquivos',
+                icon: Upload,
+                permission: 'upload'
             },
             {
                 href: '/admin/instagram/posts',
-                label: 'Painel de publicações',
+                label: 'Posts Instagram',
                 icon: Instagram,
                 permission: 'instagram'
             },
             {
                 href: '/admin/instagram/collaboration',
-                label: 'Convites de Colaboração',
-                icon: Instagram,
+                label: 'Colaboradores',
+                icon: MessageSquare,
                 permission: 'instagram'
+            },
+            {
+                href: '/admin/instancias',
+                label: 'Configurar Instagram',
+                icon: Settings,
+                permission: 'instagram'
+            },
+        ],
+    },
+
+    // Módulo de Cadastros
+    {
+        id: 'cadastros',
+        title: 'Cadastros',
+        icon: UserCircle,
+        permission: 'pessoas',
+        items: [
+            {
+                href: '/admin/pessoas',
+                label: 'Pessoas',
+                icon: UserCircle,
+                permission: 'pessoas'
+            },
+            {
+                href: '/admin/cadastros/lideranca',
+                label: 'Liderança',
+                icon: UsersRound,
+                permission: 'pessoas'
+            },
+            {
+                href: '/admin/consolidacao/cadastros/igrejas',
+                label: 'Igrejas',
+                icon: Building2,
+                permission: 'consolidacao'
+            },
+            {
+                href: '/admin/consolidacao/cadastros/arenas',
+                label: 'Arenas',
+                icon: Trophy,
+                permission: 'consolidacao'
+            },
+            {
+                href: '/admin/consolidacao/cadastros/equipes',
+                label: 'Equipes',
+                icon: UserCog,
+                permission: 'consolidacao'
+            },
+        ],
+    },
+
+    // Módulo de Configurações
+    {
+        id: 'configuracoes',
+        title: 'Configurações',
+        icon: Settings,
+        permission: 'configuracoes',
+        items: [
+            {
+                href: '/admin/configuracoes',
+                label: 'Ajustes do Site',
+                icon: LayoutGrid,
+                permission: 'configuracoes'
+            },
+            {
+                href: '/admin/roles',
+                label: 'Gerenciar Permissões',
+                icon: Shield,
+                permission: 'roles'
+            },
+            {
+                href: '/admin/consolidacao/cadastros/api-disparos',
+                label: 'API de Disparos',
+                icon: Link2,
+                permission: 'usuarios'
+            },
+            {
+                href: '/admin/consolidacao/cadastros/mensagens-conversao',
+                label: 'Mensagens de Conversão',
+                icon: MessageSquare,
+                permission: 'consolidacao'
             },
         ],
     },

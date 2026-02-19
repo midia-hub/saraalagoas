@@ -1,31 +1,227 @@
-# Sara Sede Alagoas - Site Institucional
+# Sara Nossa Terra Alagoas - Plataforma de Gestão
 
-Site institucional da Igreja Sara Nossa Terra - Sede Alagoas. Next.js 14, TypeScript e TailwindCSS.
+Plataforma completa de gestão para igrejas com módulos de consolidação, livraria, células, galeria e redes sociais.
 
-## Tecnologias
+## 🚀 Tecnologias
 
-- Next.js 14 (App Router)
-- TypeScript
-- TailwindCSS
-- Supabase (auth, storage, banco)
-- Lucide React (ícones)
-- Integração Meta (Instagram e Facebook) para publicações
+- **Framework**: Next.js 14 (App Router)
+- **Linguagem**: TypeScript
+- **Estilização**: Tailwind CSS
+- **Backend**: Supabase (Auth + Postgres + Storage)
+- **Integrações**: Google Drive, Meta (Instagram/Facebook), Mercado Pago
 
-## Como rodar
+## 📋 Pré-requisitos
+
+- Node.js 18+ 
+- Conta Supabase (https://supabase.com)
+- Conta Google Cloud (para Drive API)
+- Conta Meta Developer (opcional - para Instagram)
+- Conta Mercado Pago (opcional - para PDV)
+
+## 🛠️ Instalação e Desenvolvimento
 
 ```bash
+# Clone o repositório
+git clone <seu-repositorio>
+cd midia_igreja
+
+# Instale as dependências
 npm install
+
+# Configure as variáveis de ambiente
+cp .env.example .env.local
+
+# Execute as migrações do Supabase (na ordem)
+supabase db push
+# Ou manualmente via SQL Editor do Supabase Dashboard:
+# 001_base_schema.sql
+# 002_consolidacao_module.sql
+# 003_livraria_module.sql
+# 004_gallery_social_module.sql
+# 005_auxiliary_modules.sql
+# Documentação completa: supabase/migrations/README.md
+
+# Inicie o servidor de desenvolvimento
 npm run dev
 ```
 
 Acesse **http://localhost:3000**
 
-## Configuração
+## 🗄️ Banco de Dados (Migrations)
+
+O projeto utiliza **5 migrações consolidadas** que devem ser executadas na ordem:
+
+1. **001_base_schema.sql** - People, Profiles, RBAC (40+ tabelas base)
+2. **002_consolidacao_module.sql** - Conversões, Células, Churches, Teams
+3. **003_livraria_module.sql** - Produtos, Estoque, Vendas, MercadoPago
+4. **004_gallery_social_module.sql** - Galeria, Instagram, Meta, Social Posts
+5. **005_auxiliary_modules.sql** - XP26, Site Config, Ofertas, Oração
+
+**Executar via CLI:**
+```bash
+supabase db push
+```
+
+**Ou via Script PowerShell:**
+```bash
+.\scripts\run-migrations.ps1
+```
+
+**Documentação completa:** [supabase/migrations/README.md](supabase/migrations/README.md)
+
+✅ As 52 migrações antigas foram arquivadas em `supabase/migrations/_old/`
+
+## 📦 Deploy na Vercel
+
+### Preparação
+
+1. Faça push do código para o GitHub
+2. Certifique-se de que `.env` está no `.gitignore`
+3. Minifique o JSON do Google Service Account em uma linha
+
+### Deploy Automático
+
+1. Acesse https://vercel.com
+2. Importe seu repositório do GitHub
+3. Configure as variáveis de ambiente:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - `SUPABASE_SERVICE_ROLE_KEY`
+   - `GOOGLE_SERVICE_ACCOUNT_JSON` (minificado)
+   - `GOOGLE_DRIVE_ROOT_FOLDER_ID`
+   - `NEXT_PUBLIC_APP_URL` (seu domínio Vercel)
+
+### Configurações Importantes
+
+- ✅ Build ignora erros TypeScript temporários (`next.config.js`)
+- ✅ Otimização de imagens habilitada
+- ✅ Middleware de autenticação ativo
+- ✅ RLS (Row Level Security) no Supabase
+
+## ⚙️ Configuração
 
 1. **Dados do site:** edite `config/site.ts` (WhatsApp, redes sociais, endereço, textos).
-2. **Variáveis de ambiente:** copie `.env.example` para `.env` e preencha (Supabase, Meta, Google, etc.).
+2. **Variáveis de ambiente**: copie `.env.example` para `.env.local` e preencha as credenciais.
+3. **Migrations**: execute os arquivos de `supabase/migrations/` no SQL Editor do Supabase.
+4. **Permissões**: acesse `/admin/roles` para configurar o sistema RBAC.
 
-## Painel administrativo
+## 📚 Módulos da Plataforma
+
+### 📊 Dashboard
+- Visão geral da plataforma
+- Indicadores e métricas principais
+
+### 👥 Consolidação
+- **Cadastro de conversões** com formulário completo
+- **Lista de convertidos** com gráficos
+- **Envio de convites** para cadastro com pré-preenchimento automático
+- **Gestão** de igrejas, arenas, células e equipes
+- **API de Disparos** para mensagens automatizadas
+
+### 📚 Livraria (PDV)
+- **Ponto de venda** integrado com Mercado Pago
+- **Gestão de produtos** com fotos e código de barras
+- **Controle de estoque** com movimentações
+- **Controle de fiado** e cupons de desconto
+- **Relatórios e BI** completos
+
+### 🙏 Células
+- Gerenciamento de células
+- Dashboard com métricas
+- Controle de PD (Plano de Discipulado)
+
+### 🖼️ Mídia e Social
+- **Galeria** de fotos integrada com Google Drive
+- **Publicação no Instagram** com agendamento
+- **Upload de arquivos** com preview
+- **Colaboradores** do Instagram
+
+### 🔐 Cadastros
+- **Pessoas** (cadastro central unificado)
+- **Liderança** e hierarquia
+- **Envio de convites** com magic link
+- **Pré-preenchimento automático** de dados da conversão
+
+### ⚙️ Configurações
+- **Ajustes do Site** (informações institucionais)
+- **Gerenciar Permissões** (sistema RBAC completo)
+- **API de Disparos** (webhook de mensagens)
+- **Mensagens de Conversão** (templates personalizados)
+
+## 🔑 Rotas do Painel Admin
+
+- **Login**: `/admin/login` - Magic link e redefinição de senha
+- **Dashboard**: `/admin` - Visão geral
+- **Pessoas**: `/admin/pessoas` - Cadastro central com envio de convites
+- **Consolidação**: `/admin/consolidacao/conversoes` - Formulário e lista
+- **Livraria**: `/admin/livraria/*` - PDV, produtos, estoque, BI
+- **Células**: `/admin/celulas` - Gestão e dashboard
+- **Mídia**: `/admin/galeria`, `/admin/upload` - Google Drive
+- **Instagram**: `/admin/instagram/posts` - Publicações e agendamento
+- **Configurações**: `/admin/configuracoes`, `/admin/roles` - RBAC
+
+## 📖 Documentação Completa
+
+Para informações detalhadas sobre arquitetura, APIs, banco de dados e fluxos:
+
+- [**Documentação da Plataforma**](DOCUMENTACAO_PLATAFORMA.md) - Referência completa
+- [Mercado Pago - Produção](docs/MERCADOPAGO-PRODUCAO.md)
+- [Webhook Mercado Pago com ngrok](docs/MERCADOPAGO-WEBHOOK-NGROK.md)
+- [Como Subir em Produção](docs/SUBIR-EM-PRODUCAO.md)
+
+## 🔧 Scripts Disponíveis
+
+```bash
+# Desenvolvimento
+npm run dev              # Iniciar servidor de desenvolvimento
+npm run dev:clean        # Limpar cache e iniciar dev
+
+# Produção
+npm run build            # Build para produção
+npm run start            # Iniciar servidor de produção
+
+# Utilitários
+npm run lint             # Executar ESLint
+npm run upload:imagens   # Script auxiliar de upload
+npm run ngrok            # Túnel HTTP para webhooks locais
+```
+
+## 🐛 Troubleshooting
+
+### Build com erro TypeScript
+O projeto está configurado para ignorar erros TS durante build. Para corrigir:
+```bash
+npm run lint
+npx tsc --noEmit
+```
+
+### Erro 404 nas imagens
+- Verifique `GOOGLE_DRIVE_ROOT_FOLDER_ID`
+- Verifique permissões da Service Account no Drive
+- Certifique-se que `GOOGLE_SERVICE_ACCOUNT_JSON` está minificado
+
+### Erro de autenticação Supabase
+- Verifique URLs e keys do Supabase
+- Execute todas as migrations em ordem
+- Verifique RLS no painel do Supabase
+
+## 🔒 Segurança
+
+- ✅ Credenciais no `.gitignore`
+- ✅ RLS habilitado no Supabase
+- ✅ Middleware de autenticação
+- ✅ Sistema RBAC completo
+- ✅ Service Account Keys protegidas
+
+## 📝 Licença
+
+Proprietary - Sara Nossa Terra Alagoas
+
+---
+
+**Última atualização**: 19 de fevereiro de 2026  
+**Versão**: 1.0.0
+
 
 - **Login:** `/admin/login` — modais **Primeiro login** (magic link) e **Redefinir senha**. Páginas: `/admin/criar-acesso`, `/admin/reset-senha`, `/admin/completar-cadastro`.
 - **Início:** `/admin` · **Ajustes do site:** `/admin/configuracoes`
