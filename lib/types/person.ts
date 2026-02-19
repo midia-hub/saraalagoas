@@ -4,7 +4,7 @@
 
 export const CHURCH_PROFILE_VALUES = ['Membro', 'Frequentador', 'Visitante'] as const
 export const CHURCH_SITUATION_VALUES = ['Ativo', 'Inativo'] as const
-export const CHURCH_ROLE_VALUES = ['Nenhum', 'Obreiro', 'Voluntário', 'Diácono', 'Cooperador', 'Missionário', 'Pastor'] as const
+export const CHURCH_ROLE_VALUES = ['Nenhum', 'Obreiro', 'Voluntário', 'Diácono', 'Cooperador', 'Missionário', 'Pastor', 'Bispo'] as const
 export const SEX_VALUES = ['Masculino', 'Feminino'] as const
 export const MARITAL_STATUS_VALUES = ['Solteiro(a)', 'Casado(a)', 'Divorciado(a)', 'Viúvo(a)'] as const
 export const ENTRY_BY_VALUES = ['Batismo', 'Reconciliação', 'Transferência', 'Conversão', 'Outro'] as const
@@ -31,6 +31,8 @@ export interface Person {
   created_at: string
   updated_at: string
   metadata: Record<string, unknown>
+  leader_person_id: string | null
+  spouse_person_id: string | null
 
   full_name: string
   church_profile: ChurchProfile
@@ -51,6 +53,8 @@ export interface Person {
   state: string | null
   neighborhood: string | null
   address_line: string | null
+  address_number: string | null
+  address_complement: string | null
   email: string | null
   mobile_phone: string | null
   phone: string | null
@@ -71,6 +75,7 @@ export interface Person {
   interviewed_by: string | null
   registered_by: string | null
   blood_type: BloodType | null
+  avatar_url?: string | null
 }
 
 export type PersonCreate = Omit<Person, 'id' | 'created_at' | 'updated_at'> & {
@@ -92,5 +97,7 @@ export interface PersonUpsertFromConversion {
   state?: string | null
   neighborhood?: string | null
   address_line?: string | null
+  address_number?: string | null
+  address_complement?: string | null
   conversion_date?: string | null
 }

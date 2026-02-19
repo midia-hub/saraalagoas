@@ -60,16 +60,19 @@ export function formatDateDisplay(isoDate: string | null | undefined): string {
 const optionalString = z.string().trim().nullable().optional()
 const optionalDate = z.string().nullable().optional()
 const optionalBoolean = z.boolean().nullable().optional()
+const optionalUuid = z.string().uuid().nullable().optional()
 
 /** Schema base sem refinements — .partial() no Zod v4 só pode ser usado em schemas sem refinements */
 const personBaseSchema = z.object({
+  leader_person_id: optionalUuid,
+  spouse_person_id: optionalUuid,
   full_name: z.string().min(1, 'Nome é obrigatório').trim(),
   church_profile: z.enum(CHURCH_PROFILE_VALUES as unknown as [string, ...string[]]),
   church_situation: z.enum(CHURCH_SITUATION_VALUES as unknown as [string, ...string[]]),
 
   church_role: z.enum(CHURCH_ROLE_VALUES as unknown as [string, ...string[]]).nullable().optional(),
 
-  sex: z.enum(SEX_VALUES as unknown as [string, ...string[]]).nullable().optional(),
+  sex: z.enum(SEX_VALUES as unknown as [string, ...string[]], { message: 'Sexo é obrigatório' }),
   birth_date: optionalDate,
   marital_status: z.enum(MARITAL_STATUS_VALUES as unknown as [string, ...string[]]).nullable().optional(),
   marriage_date: optionalDate,
@@ -82,6 +85,8 @@ const personBaseSchema = z.object({
   state: optionalString,
   neighborhood: optionalString,
   address_line: optionalString,
+  address_number: optionalString,
+  address_complement: optionalString,
   email: z.string().email().nullable().optional().or(z.literal('')),
   mobile_phone: optionalString,
   phone: optionalString,

@@ -16,9 +16,14 @@ export async function POST(request: NextRequest) {
       canAccessAdmin: snapshot.canAccessAdmin,
       profile: snapshot.legacyProfile,
       legacyProfile: snapshot.legacyProfile,
+      role: snapshot.role,
+      displayName: snapshot.displayName,
+      personId: snapshot.personId,
+      avatarUrl: snapshot.avatarUrl,
       permissions: snapshot.permissions,
       userId: snapshot.userId,
       email: snapshot.email,
+      _debug_person_id: snapshot.personId, // Temporário para diagnóstico
     })
   } catch (e) {
     const message = e instanceof Error ? e.message : 'Erro interno.'

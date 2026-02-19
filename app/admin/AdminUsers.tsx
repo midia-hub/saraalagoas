@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { UserPlus, Mail, Pencil, KeyRound, Trash2, Loader2 } from 'lucide-react'
+import { UserPlus, Mail, Pencil, KeyRound, Trash2, Loader2, UserCheck, UserMinus } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { adminFetchJson } from '@/lib/admin-client'
 import { Toast } from '@/components/Toast'
@@ -24,6 +24,8 @@ interface UserProfile {
   id: string
   email: string | null
   full_name?: string | null
+  person_id?: string | null
+  avatar_url?: string | null
   role: string | null
   access_profile_id: string | null
   role_id: string | null
@@ -281,11 +283,24 @@ export function AdminUsers() {
               const isAssigning = assigningRoleUserId === user.id
               return (
                 <li key={user.id} className="py-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-gray-900 font-medium">
-                      {user.full_name || user.email || user.id}
-                    </p>
-                    <p className="text-sm text-gray-500">{user.email}</p>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="text-gray-900 font-bold">
+                        {user.full_name || user.email || user.id}
+                      </p>
+                      {user.person_id ? (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-green-50 text-green-600 px-2 py-0.5 rounded-full border border-green-100 uppercase tracking-wider" title="Vinculado ao Cadastro Central">
+                          <UserCheck size={12} />
+                          Vinculado
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-amber-50 text-amber-600 px-2 py-0.5 rounded-full border border-amber-100 uppercase tracking-wider" title="Não vinculado a uma Pessoa">
+                          <UserMinus size={12} />
+                          Sem Vínculo
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-500">{user.email}</p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <label className="text-sm text-gray-600 whitespace-nowrap sr-only md:not-sr-only">Função</label>

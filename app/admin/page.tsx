@@ -29,8 +29,8 @@ export default function AdminPage() {
       <div className="p-6 md:p-8">
         <AdminPageHeader
           icon={LayoutDashboard}
-          title="Painel administrativo"
-          subtitle="Selecione uma área para começar."
+          title="Gestão Sara Sede Alagoas"
+          subtitle="Escolha uma área abaixo para gerenciar."
         />
         {visibleCards.length > 0 ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

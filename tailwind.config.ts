@@ -7,16 +7,22 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        outfit: ['var(--font-outfit)', 'sans-serif'],
+        inter: ['var(--font-inter)', 'sans-serif'],
+      },
       colors: {
         'sara-gray-light': '#B6B8BA',
         'sara-gray-dark': '#252525',
         'sara-white': '#FFFFFF',
         'sara-red': '#c62737',
+        'sara-red-dark': '#9e1f2e',
       },
       backgroundImage: {
-        'sara-page': 'linear-gradient(160deg, #e8e9ea 0%, #B6B8BA 25%, #252525 60%, #1a1a1a 100%)',
-        'sara-header': 'linear-gradient(90deg, #c62737 0%, #9e1f2e 35%, #252525 100%)',
-        'sara-cta': 'linear-gradient(135deg, #c62737 0%, #252525 100%)',
+        'sara-page': 'linear-gradient(160deg, #f8fafc 0%, #f1f5f9 100%)',
+        'sara-header': 'linear-gradient(90deg, #c62737 0%, #9e1f2e 100%)',
+        'sara-cta': 'linear-gradient(135deg, #c62737 0%, #fa1f32 100%)',
+        'sara-cta-dark': 'linear-gradient(135deg, #252525 0%, #1a1a1a 100%)',
         'sara-success': 'linear-gradient(135deg, #4CAF50 0%, #45a049 100%)',
       },
       boxShadow: {

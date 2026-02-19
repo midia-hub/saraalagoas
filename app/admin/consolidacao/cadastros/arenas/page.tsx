@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
-import { Trophy, Plus, Pencil, Trash2, ArrowLeft } from 'lucide-react'
+import { Trophy, Plus, Pencil, Trash2, ArrowLeft, Users, UserMinus } from 'lucide-react'
 import { PageAccessGuard } from '@/app/admin/PageAccessGuard'
 import { Button } from '@/components/ui/Button'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
@@ -10,7 +10,16 @@ import { TableSkeleton } from '@/components/ui/TableSkeleton'
 import { CustomSelect } from '@/components/ui/CustomSelect'
 import { adminFetchJson } from '@/lib/admin-client'
 
-type Arena = { id: string; name: string; church_id: string; day_of_week: string; time_of_day: string }
+type Arena = { 
+  id: string; 
+  name: string; 
+  church_id: string; 
+  day_of_week: string; 
+  time_of_day: string;
+  leaders?: { person_id: string; person: { full_name: string } }[]
+}
+
+type LeaderItem = { id: string; label: string }
 
 const DAY_OPTIONS = [
   { value: 'mon', label: 'Segunda' }, { value: 'tue', label: 'Terça' }, { value: 'wed', label: 'Quarta' },
@@ -28,6 +37,12 @@ export default function ArenasPage() {
   const [churchId, setChurchId] = useState('')
   const [dayOfWeek, setDayOfWeek] = useState('sun')
   const [timeOfDay, setTimeOfDay] = useState('19:00')
+  
+  const [leaders, setLeaders] = useState<LeaderItem[]>([])
+  const [leaderSearch, setLeaderSearch] = useState('')
+  const [leaderSearchResults, setLeaderSearchResults] = useState<LeaderItem[]>([])
+  const [leaderSearchLoading, setLeaderSearchLoading] = useState(false)
+
   const [saveLoading, setSaveLoading] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<Arena | null>(null)
   const [deleteLoading, setDeleteLoading] = useState(false)
@@ -57,6 +72,9 @@ export default function ArenasPage() {
     setChurchId(churches[0]?.id ?? '')
     setDayOfWeek('sun')
     setTimeOfDay('19:00')
+    setLeaders([])
+    setLeaderSearch('')
+    setLeaderSearchResults([])
     setModalOpen(true)
   }
   const openEdit = (row: Arena) => {
@@ -65,13 +83,54 @@ export default function ArenasPage() {
     setChurchId(row.church_id)
     setDayOfWeek(row.day_of_week)
     setTimeOfDay(String(row.time_of_day).slice(0, 5))
+    setLeaders((row.leaders ?? []).map(l => ({ id: l.person_id, label: l.person.full_name })))
+    setLeaderSearch('')
+    setLeaderSearchResults([])
     setModalOpen(true)
   }
+
+  const searchLeaders = useCallback(async () => {
+    const term = leaderSearch.trim()
+    if (!term) {
+      setLeaderSearchResults([])
+      return
+    }
+    setLeaderSearchLoading(true)
+    try {
+      const data = await adminFetchJson<{ items: { id: string; label: string }[] }>(`/api/admin/consolidacao/lookups/people?q=${encodeURIComponent(term)}`)
+      const list = data.items ?? []
+      setLeaderSearchResults(list.filter((p) => !leaders.some((x) => x.id === p.id)))
+    } catch {
+      setLeaderSearchResults([])
+    } finally {
+      setLeaderSearchLoading(false)
+    }
+  }, [leaderSearch, leaders])
+
+  useEffect(() => {
+    const t = setTimeout(searchLeaders, 300)
+    return () => clearTimeout(t)
+  }, [leaderSearch, searchLeaders])
+
+  const addLeader = (p: LeaderItem) => {
+    if (leaders.some((x) => x.id === p.id)) return
+    setLeaders((prev) => [...prev, p])
+    setLeaderSearch('')
+    setLeaderSearchResults([])
+  }
+  const removeLeader = (id: string) => setLeaders((prev) => prev.filter((x) => x.id !== id))
+
   const handleSave = async () => {
     if (!churchId) return
     setSaveLoading(true)
     try {
-      const payload = { name: name.trim() || 'Arena', church_id: churchId, day_of_week: dayOfWeek, time_of_day: timeOfDay }
+      const payload = { 
+        name: name.trim() || 'Arena', 
+        church_id: churchId, 
+        day_of_week: dayOfWeek, 
+        time_of_day: timeOfDay,
+        leader_person_ids: leaders.map(l => l.id)
+      }
       if (editing) {
         await adminFetchJson(`/api/admin/consolidacao/arenas/${editing.id}`, { method: 'PATCH', body: JSON.stringify(payload) })
       } else {
@@ -125,6 +184,7 @@ export default function ArenasPage() {
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase">Nome</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase">Líderes</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase">Igreja</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase">Dia / Horário</th>
                   <th className="px-6 py-4 text-right text-xs font-semibold text-slate-700 uppercase">Ações</th>
@@ -134,6 +194,20 @@ export default function ArenasPage() {
                 {items.map((row) => (
                   <tr key={row.id} className="hover:bg-slate-50">
                     <td className="px-6 py-4 font-medium text-slate-800">{row.name}</td>
+                    <td className="px-6 py-4 text-sm text-slate-600">
+                      {row.leaders && row.leaders.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {row.leaders.map(l => (
+                            <span key={l.person_id} className="inline-flex items-center gap-1 bg-slate-100 px-2 py-0.5 rounded text-xs">
+                              <Users size={12} className="text-slate-400" />
+                              {l.person.full_name}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-slate-400 italic">Sem líderes</span>
+                      )}
+                    </td>
                     <td className="px-6 py-4 text-slate-600">{churches.find((c) => c.id === row.church_id)?.name ?? row.church_id}</td>
                     <td className="px-6 py-4 text-slate-600">{DAY_OPTIONS.find((d) => d.value === row.day_of_week)?.label ?? row.day_of_week} {String(row.time_of_day).slice(0, 5)}</td>
                     <td className="px-6 py-4 text-right">
@@ -153,6 +227,60 @@ export default function ArenasPage() {
               <h2 className="text-lg font-bold text-slate-800 mb-4">{editing ? 'Editar arena' : 'Nova arena'}</h2>
               <div className="space-y-4">
                 <div><label className="block text-sm font-medium text-slate-700 mb-1">Nome</label><input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full rounded-xl border-2 border-slate-200 px-4 py-2 outline-none focus:border-[#c62737] focus:shadow-[0_0_0_3px_rgba(198,39,55,0.12)]" /></div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Bispos / Pastores (Líderes)</label>
+                  <div className="space-y-2">
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={leaderSearch}
+                        onChange={(e) => setLeaderSearch(e.target.value)}
+                        placeholder="Buscar pessoa..."
+                        className="w-full rounded-xl border-2 border-slate-200 px-4 py-2 outline-none focus:border-[#c62737] focus:shadow-[0_0_0_3px_rgba(198,39,55,0.12)]"
+                      />
+                      {leaderSearchLoading && (
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">Buscando...</span>
+                      )}
+                      {leaderSearchResults.length > 0 && (
+                        <ul className="absolute z-10 mt-1 w-full bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-auto py-1">
+                          {leaderSearchResults.map((p) => (
+                            <li key={p.id}>
+                              <button
+                                type="button"
+                                className="w-full text-left px-4 py-2 hover:bg-slate-50 text-slate-700 text-sm"
+                                onMouseDown={(e) => { e.preventDefault(); addLeader(p); }}
+                              >
+                                {p.label}
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                    {leaders.length > 0 && (
+                      <ul className="flex flex-wrap gap-2 pt-1">
+                        {leaders.map((p) => (
+                          <li
+                            key={p.id}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#c62737]/10 text-[#c62737] text-sm font-medium"
+                          >
+                            {p.label}
+                            <button
+                              type="button"
+                              onClick={() => removeLeader(p.id)}
+                              className="p-0.5 rounded-full hover:bg-white/50"
+                              title="Remover"
+                            >
+                              <UserMinus size={14} />
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </div>
+
                 <div><label className="block text-sm font-medium text-slate-700 mb-1">Igreja *</label><CustomSelect value={churchId} onChange={setChurchId} options={churches.map((c) => ({ value: c.id, label: c.name }))} placeholder="Selecione" /></div>
                 <div><label className="block text-sm font-medium text-slate-700 mb-1">Dia</label><CustomSelect value={dayOfWeek} onChange={setDayOfWeek} options={DAY_OPTIONS} placeholder="Selecione o dia" allowEmpty={false} /></div>
                 <div><label className="block text-sm font-medium text-slate-700 mb-1">Horário</label><input type="time" value={timeOfDay} onChange={(e) => setTimeOfDay(e.target.value)} className="w-full rounded-xl border-2 border-slate-200 px-4 py-2 outline-none focus:border-[#c62737] focus:shadow-[0_0_0_3px_rgba(198,39,55,0.12)]" /></div>

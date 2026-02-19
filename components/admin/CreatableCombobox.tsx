@@ -30,7 +30,7 @@ export interface CreatableComboboxProps {
   createOptionLabel?: string
 }
 
-const DEBOUNCE_MS = 300
+const DEBOUNCE_MS = 100
 
 export function CreatableCombobox({
   fetchUrl,
@@ -64,9 +64,13 @@ export function CreatableCombobox({
         return
       }
       if (fetchUrl) {
-        const url = `${fetchUrl}${fetchUrl.includes('?') ? '&' : '?'}q=${encodeURIComponent(q.trim())}`
+        const url = `${fetchUrl}${fetchUrl.includes('?') ? '&' : '?'}q=${encodeURIComponent(q)}`
         const res = await fetch(url, { credentials: 'same-origin', headers: { Accept: 'application/json' } })
         const data = await res.json().catch(() => ({}))
+        if (!res.ok) {
+          setItems([])
+          return
+        }
         setItems(Array.isArray(data.items) ? data.items : [])
       } else {
         setItems([])
@@ -88,20 +92,32 @@ export function CreatableCombobox({
     }
   }, [inputValue])
 
-  // Buscar e mostrar opções só depois que o usuário começar a digitar
+  // Buscar ao abrir (lista inicial) e ao digitar (filtro)
   useEffect(() => {
     if (!open) return
-    if (!query.trim()) {
-      setItems([])
-      return
-    }
-    fetchItems(query)
+    fetchItems(query.trim())
   }, [open, query, fetchItems])
 
   useEffect(() => {
     if (selectedId && selectedLabel !== undefined) setInputValue(selectedLabel)
     else if (selectedId === undefined && freeText !== undefined) setInputValue(freeText)
   }, [selectedId, selectedLabel, freeText])
+
+  // Garantir que o item selecionado sempre apareça na lista (mesmo ao filtrar)
+  useEffect(() => {
+    if (!open || !selectedId || !selectedLabel) return
+    
+    // Verificar se o item selecionado já está na lista
+    const isSelected = items.some((item) => item.id === selectedId)
+    
+    // Se não estiver, adicionar no início da lista
+    if (!isSelected) {
+      setItems((prev) => [
+        { id: selectedId, label: selectedLabel },
+        ...prev,
+      ])
+    }
+  }, [open, selectedId, selectedLabel, items])
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {

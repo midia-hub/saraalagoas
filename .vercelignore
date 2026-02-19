@@ -1,0 +1,28 @@
+# Arquivos para ignorar no deploy da Vercel
+# (complementa o .gitignore)
+
+# Scripts e ferramentas locais
+scripts/
+*.mjs
+
+# Documentação
+docs/
+DOCUMENTACAO_PLATAFORMA.md
+
+# Configuração local do Supabase
+supabase/.env
+supabase/.temp
+
+# Backups
+*.backup
+*.vite-backup
+
+# Testes
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+__tests__/
+
+# SQL files (já deve estar no banco)
+*.sql

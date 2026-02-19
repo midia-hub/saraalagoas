@@ -196,7 +196,8 @@ begin
   select public.user_has_permission(user_id, res_key, perm_action) into has_perm;
   return coalesce(has_perm, false);
 end;
-$$ language plpgsql security definer stable;
+$$ language plpgsql security definer stable
+set search_path = public;
 
 comment on function public.user_has_app_permission is 'Verifica se o usuário tem a função nomeada (ex: view_gallery, create_post).';
 
@@ -219,7 +220,8 @@ begin
     and public.user_has_permission(user_id, res.key, perm.action)
   order by ap.sort_order, ap.code;
 end;
-$$ language plpgsql security definer stable;
+$$ language plpgsql security definer stable
+set search_path = public;
 
 comment on function public.get_user_app_permissions is 'Retorna todas as funções nomeadas que o usuário possui.';
 

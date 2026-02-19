@@ -46,6 +46,38 @@ export async function deletePerson(id: string): Promise<void> {
   await adminFetchJson(`/api/admin/people/${id}`, { method: 'DELETE' })
 }
 
+export type PeopleLookupItem = {
+  id: string
+  full_name: string
+}
+
+export async function fetchPeopleLookup(q: string): Promise<PeopleLookupItem[]> {
+  const sp = new URLSearchParams()
+  if (q.trim()) sp.set('q', q.trim())
+  const data = await adminFetchJson<{ items: PeopleLookupItem[] }>(
+    `/api/admin/consolidacao/lookups/people${sp.toString() ? `?${sp.toString()}` : ''}`
+  )
+  return data.items || []
+}
+
+export type LeadershipTreeItem = {
+  id: string
+  full_name: string
+  leader_person_id: string | null
+  level: number
+}
+
+export async function fetchLeadershipTree(rootPersonId?: string): Promise<{
+  rootPersonId: string
+  tree: LeadershipTreeItem[]
+}> {
+  const sp = new URLSearchParams()
+  if (rootPersonId) sp.set('rootPersonId', rootPersonId)
+  return adminFetchJson<{ rootPersonId: string; tree: LeadershipTreeItem[] }>(
+    `/api/admin/people/leadership-tree${sp.toString() ? `?${sp.toString()}` : ''}`
+  )
+}
+
 export type ConversionType = 'accepted' | 'reconciled'
 
 export async function upsertPersonAndConversion(payload: {

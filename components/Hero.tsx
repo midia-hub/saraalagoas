@@ -2,6 +2,7 @@
 
 import React from 'react'
 import { ChevronDown, Instagram, Youtube } from 'lucide-react'
+import { motion } from 'framer-motion'
 import Button from './Button'
 import { useSiteConfig } from '@/lib/site-config-context'
 import { getWhatsAppUrl } from '@/lib/whatsapp'
@@ -17,7 +18,7 @@ export default function Hero() {
       element.scrollIntoView({ behavior: 'smooth' })
     }
   }
-  
+
   return (
     <section className="relative h-screen min-h-[600px] flex items-center justify-center overflow-hidden">
       {/* Vídeo de fundo */}
@@ -27,25 +28,35 @@ export default function Hero() {
           muted
           loop
           playsInline
+          poster={getStorageUrl('hero-poster.jpg')}
           className="absolute inset-0 w-full h-full object-cover"
           aria-label="Vídeo de boas-vindas Sara Sede Alagoas"
-          src={getStorageUrl(HERO_VIDEO_PATH)}
         >
           <source src={getStorageUrl(HERO_VIDEO_PATH)} type="video/mp4" />
         </video>
         {/* Overlay */}
         <div className="absolute inset-0 bg-sara-gray-dark/60" />
       </div>
-      
+
       {/* Conteúdo */}
-      <div className="relative z-10 text-center px-4 max-w-4xl mx-auto animate-fade-in">
-        <h1 className="text-5xl md:text-7xl font-bold text-white mb-6 uppercase tracking-[2px]">
-          SEJA BEM-VINDO(A)
-        </h1>
-        <p className="text-2xl md:text-3xl text-white/90 mb-12 font-extralight">
+      <div className="relative z-10 text-center px-4 max-w-5xl mx-auto">
+        <motion.h1
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, ease: 'easeOut' }}
+          className="text-6xl md:text-8xl font-black text-white mb-6 uppercase tracking-[-0.02em] leading-tight"
+        >
+          SEJA <span className="text-sara-red">BEM-VINDO</span>
+        </motion.h1>
+        <motion.p
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 0.2, ease: 'easeOut' }}
+          className="text-xl md:text-2xl text-white/80 mb-12 font-medium tracking-widest uppercase"
+        >
           Sara Sede Alagoas
-        </p>
-        
+        </motion.p>
+
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
           <Button
             variant="primary"
@@ -56,7 +67,7 @@ export default function Hero() {
             FALE CONOSCO
           </Button>
         </div>
-        
+
         {/* Botões Sociais */}
         <div className="flex items-center justify-center gap-4">
           <a
@@ -81,7 +92,7 @@ export default function Hero() {
           </a>
         </div>
       </div>
-      
+
       {/* Scroll Indicator */}
       <button
         onClick={scrollToContent}

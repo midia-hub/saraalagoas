@@ -334,7 +334,8 @@ begin
   
   return coalesce(has_perm, false);
 end;
-$$ language plpgsql security definer stable;
+$$ language plpgsql security definer stable
+set search_path = public;
 
 comment on function public.user_has_permission is 'Verifica se um usuário tem uma permissão específica em um recurso';
 
@@ -363,7 +364,8 @@ begin
     and r.is_active = true
   order by res.sort_order, perm.action;
 end;
-$$ language plpgsql security definer stable;
+$$ language plpgsql security definer stable
+set search_path = public;
 
 comment on function public.get_user_permissions is 'Retorna todas as permissões de um usuário';
 
@@ -396,7 +398,8 @@ returns boolean as $$
 begin
   return public.user_has_permission(auth.uid(), resource_key, permission_action);
 end;
-$$ language plpgsql security definer stable;
+$$ language plpgsql security definer stable
+set search_path = public;
 
 comment on function public.current_user_can is 'Verifica se o usuário autenticado tem uma permissão específica';
 
@@ -501,7 +504,8 @@ begin
   new.updated_at = now();
   return new;
 end;
-$$ language plpgsql;
+$$ language plpgsql
+set search_path = public;
 
 drop trigger if exists update_resources_updated_at on public.resources;
 create trigger update_resources_updated_at

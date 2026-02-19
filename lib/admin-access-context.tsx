@@ -7,16 +7,28 @@ export type AdminAccessContextValue = {
   loading: boolean
   canAccessAdmin: boolean
   isAdmin: boolean
+  userId: string | null
   profileName: string
+  roleName: string
+  personId: string | null
+  avatarUrl: string | null
+  source?: string
   permissions: PermissionMap
+  refresh: () => Promise<void>
 }
 
 const AdminAccessContext = createContext<AdminAccessContextValue>({
   loading: true,
   canAccessAdmin: false,
   isAdmin: false,
+  userId: null,
   profileName: '',
+  roleName: '',
+  personId: null,
+  avatarUrl: null,
+  source: '',
   permissions: {},
+  refresh: async () => { },
 })
 
 export function AdminAccessProvider({

@@ -9,6 +9,7 @@ import { AdminPageHeader } from '@/app/admin/AdminPageHeader'
 import { adminFetchJson } from '@/lib/admin-client'
 import { Toast } from '@/components/Toast'
 import type { Role, Resource, Permission } from '@/lib/rbac-types'
+import { menuModules } from '../../menu-config'
 
 interface RoleWithPermissions extends Role {
   role_permissions?: Array<{
@@ -312,64 +313,157 @@ export default function EditRolePage() {
                   <label className="flex items-center gap-2">
                     <input
                       type="checkbox"
-                    checked={formData.is_active}
-                    onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-                    className="w-4 h-4 text-[#c62737] border-slate-300 rounded focus:ring-[#c62737]"
-                  />
-                  <span className="text-sm font-medium text-slate-700">Função ativa</span>
-                </label>
+                      checked={formData.is_active}
+                      onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
+                      className="w-4 h-4 text-[#c62737] border-slate-300 rounded focus:ring-[#c62737]"
+                    />
+                    <span className="text-sm font-medium text-slate-700">Função ativa</span>
+                  </label>
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        {!formData.is_admin && (isNew || !role?.is_system) && (
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-            <h2 className="text-lg font-semibold text-slate-800 mb-4">Permissões</h2>
-            <div className="space-y-4">
-              {resources.map((resource) => (
-                <div key={resource.id} className="border border-slate-200 rounded-lg p-4">
-                  <h3 className="font-medium text-slate-800 mb-3">{resource.name}</h3>
-                  {resource.description && <p className="text-sm text-slate-500 mb-3">{resource.description}</p>}
-                  <div className="flex flex-wrap gap-3">
-                    {permissions.map((permission) => (
-                      <label key={permission.id} className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-lg hover:bg-slate-100 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={selectedPermissions[resource.id]?.[permission.id] || false}
-                          onChange={() => togglePermission(resource.id, permission.id)}
-                          className="w-4 h-4 text-[#c62737] border-slate-300 rounded focus:ring-[#c62737]"
-                        />
-                        <span className="text-sm font-medium text-slate-700">{permission.name}</span>
-                      </label>
-                    ))}
+          {!formData.is_admin && (isNew || !role?.is_system) && (
+            <div className="space-y-6">
+              <h2 className="text-xl font-bold text-slate-800 px-1">Permissões por Módulo</h2>
+
+              {menuModules.filter(m => m.id !== 'dashboard').map((module) => {
+                // Pegar recursos que pertencem a este módulo
+                const moduleResources = resources.filter(res =>
+                  res.key === module.permission ||
+                  module.items.some(item => item.permission === res.key)
+                )
+
+                if (moduleResources.length === 0) return null
+
+                return (
+                  <div key={module.id} className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 flex items-center gap-3">
+                      <div className="p-2 bg-white rounded-lg shadow-sm">
+                        <module.icon size={20} className="text-red-600" />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-slate-800">{module.title}</h3>
+                        <p className="text-xs text-slate-500">Gerenciar acessos deste módulo</p>
+                      </div>
+                    </div>
+
+                    <div className="p-6 space-y-6">
+                      {moduleResources.map((resource) => (
+                        <div key={resource.id} className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h4 className="font-semibold text-slate-700">{resource.name}</h4>
+                              {resource.description && <p className="text-xs text-slate-500">{resource.description}</p>}
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const managePerm = permissions.find(p => p.action === 'manage')
+                                  if (managePerm) togglePermission(resource.id, managePerm.id)
+                                }}
+                                className={`text-[10px] font-bold px-2 py-1 rounded border transition-colors ${permissions.find(p => p.action === 'manage') && selectedPermissions[resource.id]?.[permissions.find(p => p.action === 'manage')!.id]
+                                  ? 'bg-red-600 border-red-600 text-white'
+                                  : 'bg-white border-slate-200 text-slate-400 hover:border-red-600 hover:text-red-600'
+                                  }`}
+                              >
+                                ACESSO TOTAL
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                            {permissions.map((permission) => (
+                              <label
+                                key={permission.id}
+                                className={`flex items-center gap-2 px-3 py-2 rounded-xl border transition-all cursor-pointer ${selectedPermissions[resource.id]?.[permission.id]
+                                  ? 'bg-red-50 border-red-200 text-red-700 shadow-sm'
+                                  : 'bg-slate-50 border-transparent text-slate-500 hover:bg-slate-100'
+                                  }`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={selectedPermissions[resource.id]?.[permission.id] || false}
+                                  onChange={() => togglePermission(resource.id, permission.id)}
+                                  className="w-4 h-4 text-red-600 border-slate-300 rounded focus:ring-red-600"
+                                />
+                                <span className="text-xs font-bold uppercase tracking-wider">{permission.name}</span>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
+
+              {/* Recursos órfãos (que não estão em nenhum módulo definido) */}
+              {resources.filter(res =>
+                res.key !== 'dashboard' &&
+                !menuModules.some(m =>
+                  res.key === m.permission ||
+                  m.items.some(item => item.permission === res.key)
+                )
+              ).length > 0 && (
+                  <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div className="bg-slate-50 px-6 py-4 border-b border-slate-200">
+                      <h3 className="font-bold text-slate-800">Outros Recursos</h3>
+                    </div>
+                    <div className="p-6 space-y-6">
+                      {resources.filter(res =>
+                        res.key !== 'dashboard' &&
+                        !menuModules.some(m =>
+                          res.key === m.permission ||
+                          m.items.some(item => item.permission === res.key)
+                        )
+                      ).map((resource) => (
+                        <div key={resource.id} className="space-y-3">
+                          <h4 className="font-semibold text-slate-700">{resource.name}</h4>
+                          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                            {permissions.map((permission) => (
+                              <label key={permission.id} className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-xl hover:bg-slate-100 cursor-pointer border border-transparent transition-all">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedPermissions[resource.id]?.[permission.id] || false}
+                                  onChange={() => togglePermission(resource.id, permission.id)}
+                                  className="w-4 h-4 text-red-600 border-slate-300 rounded focus:ring-red-600"
+                                />
+                                <span className="text-xs font-bold uppercase tracking-wider">{permission.name}</span>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
             </div>
-          </div>
-        )}
+          )}
 
-        {formData.is_admin && (isNew || !role?.is_system) && (
-          <div className="bg-[#c62737]/5 border border-[#c62737]/20 rounded-xl p-4">
-            <p className="text-sm text-slate-700">Funções de administrador têm acesso completo a todos os recursos automaticamente.</p>
-          </div>
-        )}
+          {formData.is_admin && (isNew || !role?.is_system) && (
+            <div className="bg-[#c62737]/5 border border-[#c62737]/20 rounded-xl p-4">
+              <p className="text-sm text-slate-700">Funções de administrador têm acesso completo a todos os recursos automaticamente.</p>
+            </div>
+          )}
 
-        <div className="flex items-center justify-end gap-3">
-          <button type="button" onClick={() => router.back()} className="px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50 transition">
-            Cancelar
-          </button>
-          <button
-            type="submit"
-            disabled={saving || !canEditRole}
-            className="flex items-center gap-2 px-4 py-2 bg-[#c62737] text-white rounded-lg hover:bg-[#a61f2e] transition disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Save className="w-5 h-5" />
-            {saving ? 'Salvando...' : isNew ? 'Criar função' : 'Salvar alterações'}
-          </button>
-        </div>
-      </form>
+          <div className="flex items-center justify-end gap-3">
+            <button type="button" onClick={() => router.back()} className="px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50 transition">
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={saving || !canEditRole}
+              className="flex items-center gap-2 px-4 py-2 bg-[#c62737] text-white rounded-lg hover:bg-[#a61f2e] transition disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Save className="w-5 h-5" />
+              {saving ? 'Salvando...' : isNew ? 'Criar função' : 'Salvar alterações'}
+            </button>
+          </div>
+        </form>
 
         <Toast visible={!!toast} message={toast?.text ?? ''} type={toast?.type ?? 'err'} onClose={() => setToast(null)} />
       </div>

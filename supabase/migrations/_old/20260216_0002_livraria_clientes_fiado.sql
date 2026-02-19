@@ -86,7 +86,10 @@ CREATE INDEX IF NOT EXISTS idx_bookstore_payment_allocations_payment ON public.b
 CREATE INDEX IF NOT EXISTS idx_bookstore_payment_allocations_sale ON public.bookstore_payment_allocations(sale_id);
 
 -- 5) View: saldo por venda (total, pago, pendente)
-CREATE OR REPLACE VIEW public.bookstore_sales_balance_view AS
+-- Definida com security_invoker = true para respeitar as políticas de RLS
+CREATE OR REPLACE VIEW public.bookstore_sales_balance_view
+WITH (security_invoker = true)
+AS
 SELECT
   s.id,
   s.sale_number,
@@ -103,7 +106,10 @@ FROM public.bookstore_sales s
 WHERE s.status <> 'CANCELLED';
 
 -- 6) View: saldo consolidado por cliente
-CREATE OR REPLACE VIEW public.bookstore_customer_balance_view AS
+-- Definida com security_invoker = true para respeitar as políticas de RLS
+CREATE OR REPLACE VIEW public.bookstore_customer_balance_view
+WITH (security_invoker = true)
+AS
 SELECT
   c.id AS customer_id,
   c.name,

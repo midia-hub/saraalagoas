@@ -1,13 +1,19 @@
+import { Outfit, Inter } from 'next/font/google'
 import type { Metadata, Viewport } from 'next'
-import { Poppins } from 'next/font/google'
 import './globals.css'
 import { siteConfig } from '@/config/site'
 import { SiteConfigProvider } from '@/lib/site-config-context'
 
-const poppins = Poppins({
-  weight: ['200', '400', '500', '600', '700'],
+const outfit = Outfit({
   subsets: ['latin'],
   display: 'swap',
+  variable: '--font-outfit',
+})
+
+const inter = Inter({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-inter',
 })
 
 const supabaseOrigin = (() => {
@@ -70,7 +76,7 @@ export default function RootLayout({
           <link rel="preconnect" href={supabaseOrigin} crossOrigin="" />
         ) : null}
       </head>
-      <body className={poppins.className}>
+      <body className={`${outfit.variable} ${inter.variable} antialiased`}>
         <SiteConfigProvider>
           {children}
         </SiteConfigProvider>

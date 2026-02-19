@@ -140,31 +140,28 @@ function GaleriaContent() {
           <div className="flex flex-wrap gap-2 mb-6 justify-center">
             <Link
               href="/galeria"
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                !typeFilter
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${!typeFilter
                   ? 'bg-sara-red text-white'
                   : 'bg-white text-sara-gray-dark border border-gray-200 hover:border-sara-red/40'
-              }`}
+                }`}
             >
               Todos
             </Link>
             <Link
               href="/galeria?type=culto"
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                typeFilter === 'culto'
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${typeFilter === 'culto'
                   ? 'bg-sara-red text-white'
                   : 'bg-white text-sara-gray-dark border border-gray-200 hover:border-sara-red/40'
-              }`}
+                }`}
             >
               Cultos
             </Link>
             <Link
               href="/galeria?type=evento"
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                typeFilter === 'evento'
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${typeFilter === 'evento'
                   ? 'bg-sara-red text-white'
                   : 'bg-white text-sara-gray-dark border border-gray-200 hover:border-sara-red/40'
-              }`}
+                }`}
             >
               Eventos
             </Link>
@@ -173,28 +170,36 @@ function GaleriaContent() {
 
         {!loading && filtered.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {filtered.map((item) => (
-              <Link
-                key={item.id}
-                href={`/galeria/${item.type}/${item.slug}/${item.date}`}
-                className="block bg-white rounded-xl border border-gray-200 overflow-hidden hover:border-sara-red/40 hover:shadow-md transition-all"
-              >
-                <AlbumThumbnails fileIds={albumFiles[item.id] ?? []} />
-                <div className="p-4">
-                  <span className="inline-block px-2 py-0.5 text-xs font-medium rounded bg-sara-red/10 text-sara-red mb-2">
-                    {item.type === 'culto' ? 'Culto' : 'Evento'}
-                  </span>
-                  <h2 className="font-semibold text-sara-gray-dark line-clamp-2">
-                    {item.title}
-                  </h2>
-                  <p className="text-sm text-sara-gray-light mt-1">
-                    {formatDatePtBr(item.date)}
-                  </p>
-                </div>
-              </Link>
-            ))}
+            {filtered.map((item) => {
+              const isXp26 = item.slug === 'xp26-alagoas'
+              return (
+                <Link
+                  key={item.id}
+                  href={`/galeria/${item.type}/${item.slug}/${item.date}`}
+                  className={`block rounded-xl border overflow-hidden transition-all duration-300 ${isXp26
+                      ? 'bg-slate-900 border-[#B6FF3B] shadow-[0_0_15px_rgba(182,255,59,0.2)] hover:shadow-[0_0_25px_rgba(182,255,59,0.4)]'
+                      : 'bg-white border-gray-200 hover:border-sara-red/40 hover:shadow-md'
+                    }`}
+                >
+                  <AlbumThumbnails fileIds={albumFiles[item.id] ?? []} />
+                  <div className="p-4">
+                    <span className={`inline-block px-2 py-0.5 text-xs font-medium rounded mb-2 ${isXp26 ? 'bg-[#B6FF3B]/10 text-[#B6FF3B]' : 'bg-sara-red/10 text-sara-red'
+                      }`}>
+                      {item.type === 'culto' ? 'Culto' : 'Evento'}
+                    </span>
+                    <h2 className={`font-semibold line-clamp-2 ${isXp26 ? 'text-white' : 'text-sara-gray-dark'}`}>
+                      {item.title}
+                    </h2>
+                    <p className={`text-sm mt-1 ${isXp26 ? 'text-gray-400' : 'text-sara-gray-light'}`}>
+                      {formatDatePtBr(item.date)}
+                    </p>
+                  </div>
+                </Link>
+              )
+            })}
           </div>
         )}
+
 
         <div className="mt-10 text-center">
           <Link

@@ -1,12 +1,13 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { UserCircle, Search } from 'lucide-react'
+import { UserCircle, Search, UserPlus } from 'lucide-react'
 import { PageAccessGuard } from '@/app/admin/PageAccessGuard'
 import { CustomSelect } from '@/components/ui/CustomSelect'
 import { PeopleTable } from '@/components/admin/people/PeopleTable'
 import { fetchPeople } from '@/lib/people'
 import type { Person } from '@/lib/types/person'
+import Link from 'next/link'
 
 export default function PessoasPage() {
   const [people, setPeople] = useState<Person[]>([])
@@ -43,8 +44,8 @@ export default function PessoasPage() {
   return (
     <PageAccessGuard pageKey="pessoas">
       <div className="p-6 md:p-8">
-        <div className="mb-8">
-          <div className="flex items-center gap-3 mb-2">
+        <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-xl bg-[#c62737]/10 flex items-center justify-center">
               <UserCircle className="text-[#c62737]" size={24} />
             </div>
@@ -53,6 +54,14 @@ export default function PessoasPage() {
               <p className="text-slate-500">Cadastro central de pessoas</p>
             </div>
           </div>
+
+          <Link
+            href="/admin/pessoas/novo"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#c62737] text-white font-semibold hover:bg-[#a62030] transition-all shadow-lg shadow-[#c62737]/20 active:scale-[0.98]"
+          >
+            <UserPlus size={20} />
+            Cadastrar Pessoa
+          </Link>
         </div>
 
         <div className="bg-white rounded-xl border border-slate-200 p-6 mb-6">
@@ -88,7 +97,7 @@ export default function PessoasPage() {
                 placeholder="Todas"
                 options={[
                   { value: 'Nenhum', label: 'Nenhum' }, { value: 'Obreiro', label: 'Obreiro' }, { value: 'Voluntário', label: 'Voluntário' },
-                  { value: 'Diácono', label: 'Diácono' }, { value: 'Cooperador', label: 'Cooperador' }, { value: 'Missionário', label: 'Missionário' }, { value: 'Pastor', label: 'Pastor' },
+                  { value: 'Diácono', label: 'Diácono' }, { value: 'Cooperador', label: 'Cooperador' }, { value: 'Missionário', label: 'Missionário' }, { value: 'Pastor', label: 'Pastor' }, { value: 'Bispo', label: 'Bispo' },
                 ]}
               />
             </div>

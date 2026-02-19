@@ -128,3 +128,28 @@ ALTER TABLE public.xp26_feedback
   ADD COLUMN IF NOT EXISTS contato_whatsapp_autorizado boolean,
   ADD COLUMN IF NOT EXISTS nome_contato text,
   ADD COLUMN IF NOT EXISTS whatsapp_contato text;
+
+-- ============================================================
+-- RLS - SEGURANÇA POR LINHA
+-- ============================================================
+
+-- 1) Habilitar RLS
+ALTER TABLE public.xp26_feedback ENABLE ROW LEVEL SECURITY;
+
+-- 2) Política para INSERÇÃO: Qualquer pessoa (anônima ou autenticada) pode enviar feedback
+DROP POLICY IF EXISTS "xp26_feedback_insert_anon" ON public.xp26_feedback;
+CREATE POLICY "xp26_feedback_insert_anon" ON public.xp26_feedback
+  FOR INSERT TO anon, authenticated
+  WITH CHECK (true);
+
+-- 3) Política para LEITURA/GESTÃO: Apenas administradores podem ver ou gerenciar os resultados
+DROP POLICY IF EXISTS "xp26_feedback_admin_all" ON public.xp26_feedback;
+CREATE POLICY "xp26_feedback_admin_all" ON public.xp26_feedback
+  FOR ALL TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.profiles p
+      JOIN public.roles r ON r.id = p.role_id
+      WHERE p.id = auth.uid() AND r.is_admin = true
+    )
+  );
