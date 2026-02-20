@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, Check, Search, X } from 'lucide-react'
 
 export type SearchableSelectOption = { value: string; label: string }
 
@@ -52,72 +52,82 @@ export function SearchableSelect({
     function handleClickOutside(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) {
         setOpen(false)
-        if (!selected && filter.trim()) {
-          setFilter('')
-        } else if (selected) {
-          setFilter(selected.label)
-        }
       }
     }
     if (open) {
       document.addEventListener('mousedown', handleClickOutside)
       return () => document.removeEventListener('mousedown', handleClickOutside)
     }
-  }, [open, selected])
+  }, [open])
 
   const handleSelect = (opt: SearchableSelectOption) => {
     onChange(opt.value)
-    setFilter(opt.label)
     setOpen(false)
+    setFilter('')
   }
 
-  const handleBlur = () => {
-    if (!open) return
-    const match = options.find((o) => o.label.toLowerCase() === filter.trim().toLowerCase())
-    if (match) {
-      onChange(match.value)
-      setFilter(match.label)
-    } else if (selected) {
-      setFilter(selected.label)
-    } else {
-      setFilter('')
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && filteredOptions.length > 0) {
+      e.preventDefault()
+      handleSelect(filteredOptions[0])
+    } else if (e.key === 'Escape') {
+      setOpen(false)
     }
+  }
+
+  if (!selected && filter.trim()) {
+    if (filteredOptions.length === 0) {
+      // Sem opção selecionada = pode permitir custom
+    } else if (filteredOptions.length === 1) {
+      // Auto-select primeira opção se digita algo sem "enter"
+    }
+  } else if (selected) {
+    setFilter(selected.label)
   }
 
   return (
     <div ref={ref} className="relative w-full">
-      <div
-        role="combobox"
+      <button
+        type="button"
+        id={id}
+        aria-label={ariaLabel}
         aria-expanded={open}
         aria-haspopup="listbox"
-        aria-controls={open ? `${id ?? 'searchable'}-listbox` : undefined}
-        aria-label={ariaLabel}
-        className="flex w-full items-center gap-2 rounded-xl border-2 border-slate-200 bg-white px-4 py-2.5 text-left outline-none transition-all hover:border-slate-300 focus-within:border-[#c62737] focus-within:shadow-[0_0_0_3px_rgba(198,39,55,0.12)] disabled:cursor-not-allowed disabled:bg-slate-50 disabled:opacity-60"
-        onClick={() => !disabled && setOpen(true)}
+        aria-controls={open ? `${id}-listbox` : undefined}
+        role="combobox"
+        disabled={disabled}
+        onClick={() => !disabled && setOpen((v) => !v)}
+        className="hidden"
+      />
+
+      <div
+        className={`flex w-full items-center gap-3 rounded-xl border-2 border-slate-200 bg-white px-4 py-2.5 text-left outline-none transition-all hover:border-slate-300 focus-within:border-[#c62737] focus-within:shadow-[0_0_0_3px_rgba(198,39,55,0.12)] disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400 ${open ? 'border-[#c62737] shadow-[0_0_0_3px_rgba(198,39,55,0.12)]' : ''}`}
+        role="presentation"
       >
+        <Search size={16} className="text-slate-400 shrink-0" />
         <input
           ref={inputRef}
           type="text"
-          id={id}
-          value={open ? filter : displayLabel}
+          value={filter}
           onChange={(e) => setFilter(e.target.value)}
-          onFocus={() => !disabled && setOpen(true)}
-          onBlur={handleBlur}
-          onKeyDown={(e) => {
-            if (e.key === 'Escape') {
-              setOpen(false)
-              setFilter(displayLabel)
-              inputRef.current?.blur()
-            }
-            if (e.key === 'Enter' && filteredOptions.length === 1) {
-              e.preventDefault()
-              handleSelect(filteredOptions[0])
-            }
-          }}
-          disabled={disabled}
+          onKeyDown={handleKeyDown}
+          onFocus={() => setOpen(true)}
           placeholder={placeholder}
-          className="min-w-0 flex-1 bg-transparent text-slate-800 outline-none placeholder:text-slate-400 disabled:cursor-not-allowed"
+          disabled={disabled}
+          className="flex-1 bg-transparent text-sm text-slate-800 outline-none placeholder:text-slate-400 disabled:cursor-not-allowed disabled:opacity-50"
         />
+        {filter && (
+          <button
+            type="button"
+            onClick={() => {
+              setFilter('')
+              inputRef.current?.focus()
+            }}
+            className="p-1 text-slate-300 hover:text-slate-400 transition-colors"
+          >
+            <X size={16} />
+          </button>
+        )}
         <ChevronDown size={18} className={`shrink-0 text-slate-500 transition-transform ${open ? 'rotate-180' : ''}`} />
       </div>
 
@@ -125,47 +135,48 @@ export function SearchableSelect({
         <ul
           id={id ? `${id}-listbox` : undefined}
           role="listbox"
-          className="absolute z-50 mt-1.5 max-h-52 w-full overflow-auto rounded-xl border-2 border-slate-200 bg-white shadow-xl"
-          style={{ maxHeight: '13rem' }}
+          className="absolute z-50 mt-2 w-full overflow-hidden rounded-xl border-2 border-slate-200 bg-white shadow-lg"
+          style={{ maxHeight: '13rem', overflowY: 'auto' }}
         >
           {allowEmpty && (
-            <li role="option">
+            <li role="option" className="border-b border-slate-100">
               <button
                 type="button"
-                className="w-full px-4 py-2.5 text-left text-sm text-slate-800 transition-colors hover:bg-[#c62737]/10 hover:text-[#c62737]"
-                onMouseDown={(e) => {
-                  e.preventDefault()
+                className="w-full px-4 py-3 text-left text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 active:bg-slate-100 flex items-center justify-between"
+                onClick={() => {
                   onChange('')
-                  setFilter('')
                   setOpen(false)
+                  setFilter('')
                 }}
               >
                 {placeholder}
               </button>
             </li>
           )}
-          {filteredOptions.length === 0 ? (
-            <li className="px-4 py-3 text-sm text-slate-500">Nenhuma opção encontrada</li>
+          {filteredOptions.length > 0 ? (
+            filteredOptions.map((opt, idx) => {
+              const isSelected = value === opt.value
+              return (
+                <li key={opt.value} role="option" className={allowEmpty || idx > 0 ? 'border-t border-slate-100' : ''}>
+                  <button
+                    type="button"
+                    className={`w-full px-4 py-3 text-left text-sm transition-colors flex items-center justify-between ${
+                      isSelected
+                        ? 'bg-[#c62737]/10 text-[#c62737] font-semibold'
+                        : 'bg-white text-slate-800 hover:bg-slate-50 active:bg-slate-100'
+                    }`}
+                    onClick={() => handleSelect(opt)}
+                  >
+                    <span className="truncate">{opt.label}</span>
+                    {isSelected && <Check size={16} className="shrink-0 ml-2" />}
+                  </button>
+                </li>
+              )
+            })
           ) : (
-            filteredOptions.map((opt) => (
-              <li
-                key={opt.value}
-                role="option"
-                aria-selected={value === opt.value}
-                className={allowEmpty || filteredOptions.indexOf(opt) > 0 ? 'border-t border-slate-100' : ''}
-              >
-                <button
-                  type="button"
-                  className={`w-full px-4 py-2.5 text-left text-sm transition-colors hover:bg-[#c62737]/10 hover:text-[#c62737] ${value === opt.value ? 'bg-[#c62737]/10 text-[#c62737]' : 'text-slate-800'}`}
-                  onMouseDown={(e) => {
-                    e.preventDefault()
-                    handleSelect(opt)
-                  }}
-                >
-                  {opt.label}
-                </button>
-              </li>
-            ))
+            <li className="border-t border-slate-100">
+              <div className="px-4 py-3 text-sm text-slate-400 text-center">Nenhuma opção encontrada</div>
+            </li>
           )}
         </ul>
       )}

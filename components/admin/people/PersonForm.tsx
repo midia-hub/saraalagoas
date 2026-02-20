@@ -286,7 +286,7 @@ export function PersonForm({ initial, onSubmit, loading = false, readOnlyMetadat
                   )}
                   {initial?.id && (
                     <a
-                      href={`/admin/cadastros/lideranca?rootPersonId=${initial.id}`}
+                      href={`/admin/lideranca/estrutura?rootPersonId=${initial.id}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-[#c62737] hover:underline font-medium flex items-center gap-1"

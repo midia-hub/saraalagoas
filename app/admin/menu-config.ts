@@ -30,6 +30,7 @@ import {
     Building2,
     UsersRound,
     DollarSign,
+    Heart,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
@@ -67,6 +68,34 @@ export const menuModules: MenuModule[] = [
         ],
     },
 
+    // Módulo de Liderança
+    {
+        id: 'lideranca',
+        title: 'Liderança',
+        icon: UsersRound,
+        permission: 'pessoas',
+        items: [
+            {
+                href: '/admin/lideranca/estrutura',
+                label: 'Estrutura de Liderança',
+                icon: UsersRound,
+                permission: 'pessoas'
+            },
+            {
+                href: '/admin/lideranca/meu-discipulado',
+                label: 'Meu Discipulado',
+                icon: UsersRound,
+                permission: 'consolidacao'
+            },
+            {
+                href: '/admin/lideranca/rede-completa',
+                label: 'Rede Completa',
+                icon: UsersRound,
+                permission: 'consolidacao'
+            },
+        ],
+    },
+
     // Módulo de Consolidação
     {
         id: 'consolidacao',
@@ -85,6 +114,40 @@ export const menuModules: MenuModule[] = [
                 label: 'Lista de Convertidos',
                 icon: ClipboardList,
                 permission: 'consolidacao'
+            },
+            {
+                href: '/admin/consolidacao/acompanhamento',
+                label: 'Acompanhamento',
+                icon: BookUser,
+                permission: 'consolidacao'
+            },
+            {
+                href: '/admin/consolidacao/relatorios',
+                label: 'Relatórios',
+                icon: BarChart3,
+                permission: 'consolidacao'
+            },
+        ],
+    },
+
+    // Módulo Revisão de Vidas
+    {
+        id: 'revisao-vidas',
+        title: 'Revisão de Vidas',
+        icon: Heart,
+        permission: 'revisao_vidas',
+        items: [
+            {
+                href: '/admin/revisao-vidas',
+                label: 'Eventos',
+                icon: Heart,
+                permission: 'revisao_vidas'
+            },
+            {
+                href: '/admin/revisao-vidas/inscritos',
+                label: 'Inscritos',
+                icon: ClipboardList,
+                permission: 'revisao_vidas'
             },
         ],
     },
@@ -244,12 +307,6 @@ export const menuModules: MenuModule[] = [
                 href: '/admin/pessoas',
                 label: 'Pessoas',
                 icon: UserCircle,
-                permission: 'pessoas'
-            },
-            {
-                href: '/admin/cadastros/lideranca',
-                label: 'Liderança',
-                icon: UsersRound,
                 permission: 'pessoas'
             },
             {

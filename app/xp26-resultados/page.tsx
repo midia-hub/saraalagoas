@@ -72,6 +72,24 @@ type FeedbackRow = {
   teve_problema: boolean | null
   contato_whatsapp_autorizado: boolean | null
   mensagem_final: string | null
+  impacto_outro: string | null
+  decisao_qual: string | null
+  falhas_descricao: string | null
+  motivo_ministracao: string | null
+  indicacao_preletor_xp27: string | null
+  indicacao_banda_xp27: string | null
+  tema_preferido_xp27_outro: string | null
+  sugestao_xp27: string | null
+  descricao_problema: string | null
+  melhorias: string | null
+  servir_melhorar: string | null
+}
+
+type OpenFieldItem = {
+  rowId: string
+  created_at: string
+  perfil: string | null
+  text: string
 }
 
 function countBy<T>(items: T[], key: (x: T) => string | null | undefined): Record<string, number> {
@@ -298,6 +316,50 @@ export default function Xp26ResultadosPage() {
     }
   }, [items])
 
+  const openTextSections = useMemo(() => {
+    const trim = (value: string | null | undefined) => {
+      const text = String(value ?? '').trim()
+      return text.length > 0 ? text : null
+    }
+
+    const fields: Array<{ key: keyof FeedbackRow; label: string }> = [
+      { key: 'impacto_outro', label: 'Impacto principal (Outro)' },
+      { key: 'decisao_qual', label: 'Decisão importante (qual)' },
+      { key: 'falhas_descricao', label: 'Falhas na área (descrição)' },
+      { key: 'motivo_ministracao', label: 'Melhor ministração (motivo)' },
+      { key: 'indicacao_preletor_xp27', label: 'Indicação de preletor XP27' },
+      { key: 'indicacao_banda_xp27', label: 'Indicação de banda XP27' },
+      { key: 'tema_preferido_xp27_outro', label: 'Tema XP27 (Outro)' },
+      { key: 'sugestao_xp27', label: 'Sugestões para XP27' },
+      { key: 'descricao_problema', label: 'Descrição de problema' },
+      { key: 'melhorias', label: 'Melhorias para próxima edição' },
+      { key: 'servir_melhorar', label: 'Para servir melhor (voluntários)' },
+      { key: 'mensagem_final', label: 'Mensagem final para equipe' },
+    ]
+
+    const sections = fields
+      .map(({ key, label }) => {
+        const responses: OpenFieldItem[] = items
+          .map((row) => ({
+            rowId: row.id,
+            created_at: row.created_at,
+            perfil: row.perfil,
+            text: trim(row[key] as string | null) ?? '',
+          }))
+          .filter((entry) => entry.text.length > 0)
+
+        return {
+          key: String(key),
+          label,
+          count: responses.length,
+          responses,
+        }
+      })
+      .filter((section) => section.count > 0)
+
+    return sections
+  }, [items])
+
   return (
     <div className="min-h-screen flex flex-col items-center py-8 px-4 md:py-12 relative">
       <Xp26Background />
@@ -440,6 +502,30 @@ export default function Xp26ResultadosPage() {
               <p className="text-sm mb-2" style={{ color: TEXT_WHITE }}>Autorizou contato WhatsApp?</p>
               <p className="text-sm mb-4" style={{ color: TEXT_GRAY }}>Sim: {stats.contatoWhatsSim}</p>
             </SectionCard>
+
+            {openTextSections.length > 0 && (
+              <SectionCard title="Campos com respostas escritas" icon={Users}>
+                <div className="space-y-5">
+                  {openTextSections.map((section) => (
+                    <div key={section.key} className="rounded-xl p-4" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.10)' }}>
+                      <p className="text-sm font-semibold mb-3" style={{ color: TEXT_WHITE }}>
+                        {section.label} <span style={{ color: NEON }}>({section.count})</span>
+                      </p>
+                      <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                        {section.responses.map((entry) => (
+                          <div key={`${section.key}-${entry.rowId}`} className="rounded-lg p-3" style={{ background: 'rgba(255,255,255,0.04)' }}>
+                            <p className="text-sm leading-relaxed" style={{ color: TEXT_WHITE }}>{entry.text}</p>
+                            <p className="text-xs mt-1" style={{ color: TEXT_GRAY }}>
+                              {entry.perfil ?? '—'} • {new Date(entry.created_at).toLocaleDateString('pt-BR')}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </SectionCard>
+            )}
           </>
         )}
 

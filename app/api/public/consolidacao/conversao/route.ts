@@ -301,6 +301,34 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Criar followup automático para acompanhamento
+    try {
+      const personIdFinal = (person as { id: string }).id
+      const conversionIdFinal = (conversion as { id: string }).id
+      // Buscar líder da célula se houver cell_id
+      let leaderPersonId: string | null = null
+      if (cellId) {
+        const { data: cell } = await supabase.from('cells').select('leader_person_id').eq('id', cellId).single()
+        leaderPersonId = cell?.leader_person_id ?? null
+      }
+      const { data: existingFollowup } = await supabase
+        .from('consolidation_followups')
+        .select('id')
+        .eq('person_id', personIdFinal)
+        .maybeSingle()
+      if (!existingFollowup) {
+        await supabase.from('consolidation_followups').insert({
+          person_id: personIdFinal,
+          conversion_id: conversionIdFinal,
+          consolidator_person_id: consolidatorPersonId ?? null,
+          leader_person_id: leaderPersonId,
+          status: 'em_acompanhamento',
+        })
+      }
+    } catch (followupErr) {
+      console.error('Erro ao criar followup automático (public):', followupErr)
+    }
+
     return NextResponse.json({ person, conversion })
   } catch (err) {
     console.error('Erro em public conversao:', err)
