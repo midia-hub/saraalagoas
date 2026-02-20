@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
       console.error('GET consolidacao/churches:', error)
       return NextResponse.json({ error: 'Erro ao listar igrejas' }, { status: 500 })
     }
-    return NextResponse.json({ items: data ?? [] })
+    return NextResponse.json({ items: data ?? [], churches: data ?? [] })
   } catch (err) {
     console.error('GET consolidacao/churches:', err)
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 })

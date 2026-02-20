@@ -43,6 +43,13 @@ export function middleware(request: NextRequest) {
   }
   const normalizedPath =
     pathname.length > 1 && pathname.endsWith('/') ? pathname.slice(0, -1) : pathname
+  const isXp26ResultadosPage = normalizedPath === '/xp26-resultados'
+  const isXp26ResultadosApi = normalizedPath === '/api/public/xp26-resultados'
+
+  if (isXp26ResultadosPage || isXp26ResultadosApi) {
+    return applySecurityHeaders(NextResponse.next())
+  }
+
   const isAdminPage = normalizedPath.startsWith('/admin')
   const isAdminApi = normalizedPath.startsWith('/api/admin')
   const isLoginPage = normalizedPath === '/admin/login'

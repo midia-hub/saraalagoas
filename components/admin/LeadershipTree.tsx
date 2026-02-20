@@ -155,7 +155,7 @@ function TreeNode({ node, defaultOpen = true }: { node: NestedNode; defaultOpen?
                             <>
                                 <span className="w-1 h-1 rounded-full bg-slate-300" />
                                 <Link
-                                    href={`/admin/cadastros/lideranca?rootPersonId=${node.id}`}
+                                    href={`/admin/lideranca/estrutura?rootPersonId=${node.id}`}
                                     className="text-slate-500 hover:text-[#c62737] hover:underline flex items-center gap-1 font-medium"
                                     title="Focar nesta rede"
                                 >

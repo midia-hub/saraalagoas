@@ -9,7 +9,7 @@ import { useRBAC } from '@/lib/hooks/useRBAC'
 import { adminFetchJson } from '@/lib/admin-client'
 import { Loader2 } from 'lucide-react'
 
-export default function LeadershipPage() {
+export default function EstruturadeLiderancaPage() {
     const router = useRouter()
     const searchParams = useSearchParams()
     const { isAdmin } = useRBAC()
@@ -61,10 +61,10 @@ export default function LeadershipPage() {
 
     const handleRootChange = (id: string | undefined, text: string, label?: string) => {
         if (id) {
-            router.push(`/admin/cadastros/lideranca?rootPersonId=${id}`)
+            router.push(`/admin/lideranca/estrutura?rootPersonId=${id}`)
             setSelectedRootLabel(label || text)
         } else {
-            router.push(`/admin/cadastros/lideranca`)
+            router.push(`/admin/lideranca/estrutura`)
             setSelectedRootLabel('')
         }
     }

@@ -175,8 +175,11 @@ export default function IgrejasPage() {
                 {items.map((row) => (
                   <tr key={row.id} className="hover:bg-slate-50">
                     <td className="px-6 py-4 font-medium text-slate-800">{row.name}</td>
-                    <td className="px-6 py-4 text-right">
-                      <button type="button" onClick={() => openEdit(row)} className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg mr-1" title="Editar">
+                    <td className="px-6 py-4 text-right flex items-center justify-end gap-2">
+                      <Link href={`/admin/consolidacao/cadastros/igrejas/${row.id}`} className="px-3 py-1.5 text-xs font-medium text-white bg-[#c62737] hover:bg-[#a81f2c] rounded-lg transition" title="Gerenciar cultos">
+                        Cultos
+                      </Link>
+                      <button type="button" onClick={() => openEdit(row)} className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg" title="Editar">
                         <Pencil size={18} />
                       </button>
                       <button type="button" onClick={() => setDeleteTarget(row)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg" title="Excluir">
