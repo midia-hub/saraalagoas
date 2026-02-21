@@ -3,9 +3,12 @@
 import { useState, useEffect, useCallback } from 'react'
 import { adminFetchJson } from '@/lib/admin-client'
 import type { ReviewEvent } from '@/lib/consolidacao-types'
-import { Loader2, Plus, RefreshCw, Calendar, Users, ChevronRight, BookOpen, X, Clock } from 'lucide-react'
+import { Loader2, Plus, RefreshCw, Calendar, Users, ChevronRight, BookOpen, X, Clock, Edit, ClipboardList } from 'lucide-react'
 import Link from 'next/link'
 import { AdminPageHeader } from '@/app/admin/AdminPageHeader'
+import { CustomSelect } from '@/components/ui/CustomSelect'
+import { CustomSearchSelect } from '@/components/ui/CustomSearchSelect'
+import { EditEventModal } from './EditEventModal'
 
 const fieldCls = 'w-full rounded-xl border-2 border-slate-200 px-3.5 py-2.5 text-sm font-medium bg-white text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-400 transition-all hover:border-slate-300'
 
@@ -19,8 +22,16 @@ function CreateEventModal({ churches, onClose, onCreated }: {
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [description, setDescription] = useState('')
+  const [secretaryPersonId, setSecretaryPersonId] = useState('')
+  const [people, setPeople] = useState<any[]>([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    adminFetchJson('/api/admin/consolidacao/pessoas?limit=500')
+      .then(d => setPeople(d.pessoas ?? []))
+      .catch(() => setPeople([]))
+  }, [])
 
   async function handleSave() {
     if (!name.trim()) { setError('Informe o nome do evento'); return }
@@ -31,7 +42,14 @@ function CreateEventModal({ churches, onClose, onCreated }: {
     try {
       await adminFetchJson('/api/admin/consolidacao/revisao/events', {
         method: 'POST',
-        body: JSON.stringify({ name, church_id: churchId, start_date: startDate, end_date: endDate || undefined, description: description || undefined }),
+        body: JSON.stringify({ 
+          name, 
+          church_id: churchId, 
+          start_date: startDate, 
+          end_date: endDate || undefined, 
+          description: description || undefined,
+          secretary_person_id: secretaryPersonId || null,
+        }),
       })
       onCreated()
     } catch (e: any) {
@@ -49,7 +67,7 @@ function CreateEventModal({ churches, onClose, onCreated }: {
             <div className="w-9 h-9 rounded-xl bg-purple-50 flex items-center justify-center">
               <BookOpen className="w-4.5 h-4.5 text-purple-600" />
             </div>
-            <h2 className="text-base font-bold text-slate-800">Novo Evento — O Revisão de Vidas</h2>
+            <h2 className="text-base font-bold text-slate-800">Novo Evento — Revisão de Vidas</h2>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors">
             <X className="w-4 h-4" />
@@ -64,19 +82,31 @@ function CreateEventModal({ churches, onClose, onCreated }: {
           {churches.length > 1 && (
             <div>
               <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Congregação *</label>
-              <select value={churchId} onChange={e => setChurchId(e.target.value)} className={fieldCls}>
-                {churches.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
+              <CustomSelect
+                value={churchId}
+                onChange={setChurchId}
+                options={churches.map((c) => ({ value: c.id, label: c.name }))}
+                placeholder="Selecione a congregação"
+                allowEmpty={false}
+              />
             </div>
           )}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Início *</label>
-              <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className={fieldCls} />
+              <DatePickerInput
+                value={startDate}
+                onChange={setStartDate}
+                placeholder="dd/mm/aaaa"
+              />
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Término</label>
-              <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className={fieldCls} />
+              <DatePickerInput
+                value={endDate}
+                onChange={setEndDate}
+                placeholder="dd/mm/aaaa"
+              />
             </div>
           </div>
           <div>
@@ -84,6 +114,16 @@ function CreateEventModal({ churches, onClose, onCreated }: {
             <textarea value={description} onChange={e => setDescription(e.target.value)} rows={2}
               placeholder="Detalhes do evento..."
               className={`${fieldCls} resize-none`} />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Secretário Responsável (validação de pagamentos)</label>
+            <CustomSearchSelect
+              value={secretaryPersonId}
+              onChange={setSecretaryPersonId}
+              options={people.map((p) => ({ value: p.id, label: p.full_name }))}
+              placeholder="Digite para buscar..."
+              allowEmpty={true}
+            />
           </div>
           {error && (
             <p className="text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">{error}</p>
@@ -102,7 +142,7 @@ function CreateEventModal({ churches, onClose, onCreated }: {
   )
 }
 
-function EventCard({ ev }: { ev: ReviewEvent }) {
+function EventCard({ ev, onEdit }: { ev: ReviewEvent; onEdit?: (event: ReviewEvent) => void }) {
   const start = new Date(ev.start_date)
   const end = ev.end_date ? new Date(ev.end_date) : null
   const duration = end ? Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1 : null
@@ -146,17 +186,35 @@ function EventCard({ ev }: { ev: ReviewEvent }) {
           )}
         </div>
 
-        {/* Action */}
-        <Link
-          href={`/admin/revisao-vidas/${ev.id}`}
-          className="mt-auto flex items-center justify-between px-4 py-2.5 rounded-xl bg-purple-50 text-purple-700 text-sm font-semibold hover:bg-purple-100 transition-colors"
-        >
-          <span className="flex items-center gap-2">
-            <Users className="w-4 h-4" />
-            Ver inscritos
-          </span>
-          <ChevronRight className="w-4 h-4" />
-        </Link>
+        {/* Actions */}
+        <div className="mt-auto flex items-center gap-2">
+          {onEdit && (
+            <button
+              onClick={() => onEdit(ev)}
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-sm font-semibold hover:bg-slate-50 hover:border-purple-200 transition-colors"
+            >
+              <Edit className="w-4 h-4" />
+              Editar
+            </button>
+          )}
+          <Link
+            href={`/admin/revisao-vidas/${ev.id}`}
+            className="flex-1 flex items-center justify-between px-4 py-2.5 rounded-xl bg-purple-50 text-purple-700 text-sm font-semibold hover:bg-purple-100 transition-colors"
+          >
+            <span className="flex items-center gap-2">
+              <Users className="w-4 h-4" />
+              Inscritos
+            </span>
+            <ChevronRight className="w-4 h-4" />
+          </Link>
+          <Link
+            href={`/admin/revisao-vidas/${ev.id}/anamneses`}
+            className="flex items-center justify-center p-2.5 rounded-xl border border-slate-200 bg-white text-slate-500 hover:text-purple-600 hover:border-purple-200 hover:bg-purple-50 transition-colors"
+            title="Ver anamneses deste evento"
+          >
+            <ClipboardList className="w-4 h-4" />
+          </Link>
+        </div>
       </div>
     </div>
   )
@@ -167,6 +225,7 @@ export default function RevisaoVidasPage() {
   const [churches, setChurches] = useState<{ id: string; name: string }[]>([])
   const [loading, setLoading] = useState(true)
   const [showCreate, setShowCreate] = useState(false)
+  const [editingEvent, setEditingEvent] = useState<ReviewEvent | null>(null)
 
   const load = useCallback(() => {
     setLoading(true)
@@ -188,7 +247,7 @@ export default function RevisaoVidasPage() {
     <div className="p-6 md:p-8 space-y-6">
       <AdminPageHeader
         icon={BookOpen}
-        title="O Revisão de Vidas"
+        title="Revisão de Vidas"
         subtitle="Gerencie eventos e acompanhe as inscrições"
         actions={
           <div className="flex items-center gap-2">
@@ -235,7 +294,7 @@ export default function RevisaoVidasPage() {
             <section>
               <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Ativos ({ativos.length})</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-                {ativos.map(ev => <EventCard key={ev.id} ev={ev} />)}
+                {ativos.map(ev => <EventCard key={ev.id} ev={ev} onEdit={setEditingEvent} />)}
               </div>
             </section>
           )}
@@ -243,7 +302,7 @@ export default function RevisaoVidasPage() {
             <section>
               <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Encerrados ({encerrados.length})</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 opacity-70">
-                {encerrados.map(ev => <EventCard key={ev.id} ev={ev} />)}
+                {encerrados.map(ev => <EventCard key={ev.id} ev={ev} onEdit={setEditingEvent} />)}
               </div>
             </section>
           )}
@@ -255,6 +314,15 @@ export default function RevisaoVidasPage() {
           churches={churches}
           onClose={() => setShowCreate(false)}
           onCreated={() => { setShowCreate(false); load() }}
+        />
+      )}
+
+      {editingEvent && (
+        <EditEventModal
+          isOpen={!!editingEvent}
+          eventData={editingEvent}
+          onClose={() => setEditingEvent(null)}
+          onSaved={() => { setEditingEvent(null); load() }}
         />
       )}
     </div>

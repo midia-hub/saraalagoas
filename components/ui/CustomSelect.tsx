@@ -64,14 +64,14 @@ export function CustomSelect({
         <ul
           id={id ? `${id}-listbox` : undefined}
           role="listbox"
-          className="absolute z-50 mt-2 w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg"
-          style={{ maxHeight: '13rem', overflowY: 'auto' }}
+          className="absolute z-50 mt-2 w-full overflow-hidden rounded-2xl border border-slate-200/90 bg-white/95 shadow-[0_16px_40px_-18px_rgba(15,23,42,0.45)] backdrop-blur-sm"
+          style={{ maxHeight: '16rem', overflowY: 'auto' }}
         >
           {allowEmpty && (
-            <li role="option" className="border-b border-slate-100 last:border-b-0">
+            <li role="option" className="border-b border-slate-100/80 last:border-b-0">
               <button
                 type="button"
-                className="w-full px-4 py-3 text-left text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 active:bg-slate-100 flex items-center justify-between"
+                className="w-full px-4 py-3 text-left text-sm font-medium text-slate-500 transition-colors hover:bg-slate-50 active:bg-slate-100 flex items-center justify-between"
                 onClick={() => {
                   onChange('')
                   setOpen(false)
@@ -84,13 +84,13 @@ export function CustomSelect({
           {options.map((opt, idx) => {
             const isSelected = value === opt.value
             return (
-              <li key={opt.value} role="option" className={allowEmpty || idx > 0 ? 'border-t border-slate-100' : ''}>
+              <li key={opt.value} role="option" className={allowEmpty || idx > 0 ? 'border-t border-slate-100/80' : ''}>
                 <button
                   type="button"
-                  className={`w-full px-4 py-3 text-left text-sm transition-colors flex items-center justify-between ${
+                  className={`w-full px-4 py-3 text-left text-sm transition-all duration-150 flex items-center justify-between ${
                     isSelected
                       ? 'bg-[#c62737]/10 text-[#c62737] font-semibold'
-                      : 'bg-white text-slate-800 hover:bg-slate-50 active:bg-slate-100'
+                      : 'bg-white text-slate-700 hover:bg-slate-50 active:bg-slate-100'
                   }`}
                   onClick={() => {
                     onChange(opt.value)
@@ -98,7 +98,7 @@ export function CustomSelect({
                   }}
                 >
                   <span className="truncate">{opt.label}</span>
-                  {isSelected && <Check size={16} className="shrink-0 ml-2" />}
+                  {isSelected && <Check size={16} className="shrink-0 ml-2 text-[#c62737]" />}
                 </button>
               </li>
             )

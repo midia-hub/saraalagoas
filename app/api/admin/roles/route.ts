@@ -3,6 +3,8 @@ import { getAccessSnapshotFromRequest, hasPermission } from '@/lib/rbac'
 import { supabaseServer } from '@/lib/supabase-server'
 import type { Role, RoleFormData } from '@/lib/rbac-types'
 
+const ROLE_SELECT = 'id, key, name, description, is_admin, is_system, sort_order, is_active, created_at, updated_at'
+
 /**
  * GET /api/admin/roles
  * Lista todas as roles do sistema
@@ -21,7 +23,7 @@ export async function GET(request: NextRequest) {
     // Buscar roles (tabela pode não existir se a migration RBAC não foi aplicada)
     const { data: roles, error } = await supabaseServer
       .from('roles')
-      .select('*')
+      .select(ROLE_SELECT)
       .order('sort_order', { ascending: true })
 
     if (error) {
@@ -115,7 +117,7 @@ export async function POST(request: NextRequest) {
         sort_order: body.sort_order || 999,
         is_active: body.is_active !== false,
       })
-      .select()
+      .select(ROLE_SELECT)
       .single()
 
     if (roleError) {

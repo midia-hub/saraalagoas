@@ -484,7 +484,7 @@ export function ReportsOverview({ churchId }: Props) {
             <div className="w-7 h-7 rounded-lg bg-purple-50 flex items-center justify-center">
               <BookOpen className="w-4 h-4 text-purple-600" />
             </div>
-            <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wider">O Revisão de Vidas</h2>
+            <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wider">Revisão de Vidas</h2>
           </div>
           <div className="space-y-3">
             {[

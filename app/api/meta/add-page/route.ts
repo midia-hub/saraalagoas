@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
 
   const { data: source, error: fetchError } = await db
     .from('meta_integrations')
-    .select('*')
+    .select('id, created_by, facebook_user_id, facebook_user_name, access_token, token_expires_at')
     .eq('id', integrationId)
     .eq('created_by', access.snapshot.userId)
     .single()
@@ -98,7 +98,7 @@ export async function POST(request: NextRequest) {
       created_at: now,
       updated_at: now,
     })
-    .select()
+    .select('id, page_id, page_name, instagram_username, is_active, created_at, updated_at')
     .single()
 
   if (insertError) {

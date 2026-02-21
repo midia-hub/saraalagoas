@@ -7,9 +7,12 @@ import { DiscipuladoFilters, type FilterParams } from '@/components/admin/lidera
 import { DiscipuladoTable, type AttendanceItem } from '@/components/admin/lideranca/DiscipuladoTable'
 import { CustomSelect } from '@/components/ui/CustomSelect'
 import { DatePickerInput } from '@/components/ui/DatePickerInput'
+import { MergePeopleModal } from '@/components/admin/lideranca/MergePeopleModal'
 import { AdminPageHeader } from '@/app/admin/AdminPageHeader'
-import { RefreshCw, Network, Info, CheckCircle2 } from 'lucide-react'
+import { RefreshCw, Network, Info, CheckCircle2, ExternalLink } from 'lucide-react'
 import { getTodayBrasilia } from '@/lib/date-utils'
+import type { Person } from '@/lib/types/person'
+import Link from 'next/link'
 
 type ServiceItem = { id: string; name: string; day_of_week?: number | string | null }
 
@@ -98,6 +101,10 @@ export default function RedeCompletaPage() {
   const [attendanceDate, setAttendanceDate] = useState(todayStr)
   const [savingAttendance, setSavingAttendance] = useState(false)
   const [saveMessage, setSaveMessage] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
+  const [mergePeople, setMergePeople] = useState<{ left: Person; right: Person } | null>(null)
+  const [mergeLoading, setMergeLoading] = useState(false)
+  const [mergeError, setMergeError] = useState('')
+  const [mergeSaving, setMergeSaving] = useState(false)
   const [filters, setFilters] = useState<FilterParams>({
     start: firstDayOfMonth,
     end: todayStr,
@@ -219,6 +226,51 @@ export default function RedeCompletaPage() {
     }
   }
 
+  const openMergeModal = async () => {
+    if (selectedIds.length !== 2) return
+    setMergeLoading(true)
+    setMergeError('')
+    try {
+      const [aId, bId] = selectedIds
+      const [a, b] = await Promise.all([
+        adminFetchJson<{ person: Person }>(`/api/admin/people/${aId}`),
+        adminFetchJson<{ person: Person }>(`/api/admin/people/${bId}`),
+      ])
+      const p1 = a.person
+      const p2 = b.person
+      const left = p1.updated_at >= p2.updated_at ? p1 : p2
+      const right = left.id === p1.id ? p2 : p1
+      setMergePeople({ left, right })
+    } catch (err) {
+      setMergeError(err instanceof Error ? err.message : 'Erro ao carregar pessoas para mescla.')
+    } finally {
+      setMergeLoading(false)
+    }
+  }
+
+  const handleConfirmMerge = async (choices: Record<string, 'left' | 'right'>) => {
+    if (!mergePeople) return
+    setMergeSaving(true)
+    setMergeError('')
+    try {
+      await adminFetchJson('/api/admin/people/merge', {
+        method: 'POST',
+        body: JSON.stringify({
+          target_id: mergePeople.left.id,
+          source_id: mergePeople.right.id,
+          field_choices: choices,
+        }),
+      })
+      setMergePeople(null)
+      setSelectedIds([])
+      await load()
+    } catch (err) {
+      setMergeError(err instanceof Error ? err.message : 'Erro ao mesclar cadastros.')
+    } finally {
+      setMergeSaving(false)
+    }
+  }
+
   const selectedService = services.find((service) => service.id === filters.service_id)
   const selectedServiceDay = normalizeServiceDay(selectedService?.day_of_week)
   const todayDate = parseYmd(getTodayBrasilia())
@@ -248,14 +300,25 @@ export default function RedeCompletaPage() {
         subtitle="Frequência de toda a sua rede de liderança: 12, 144, 1728... todos os níveis"
         backLink={{ href: '/admin/lideranca', label: 'Liderança' }}
         actions={
-          <button
-            onClick={() => load()}
-            disabled={loading}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-600 hover:text-[#c62737] hover:border-[#c62737]/30 hover:bg-[#c62737]/5 transition-all disabled:opacity-50"
-          >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            {loading ? 'Atualizando...' : 'Atualizar'}
-          </button>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/lideranca/presenca-culto"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-600 hover:text-[#c62737] hover:border-[#c62737]/30 hover:bg-[#c62737]/5 transition-all"
+            >
+              <ExternalLink className="w-4 h-4" />
+              Registro externo
+            </Link>
+            <button
+              onClick={() => load()}
+              disabled={loading}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-600 hover:text-[#c62737] hover:border-[#c62737]/30 hover:bg-[#c62737]/5 transition-all disabled:opacity-50"
+            >
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              {loading ? 'Atualizando...' : 'Atualizar'}
+            </button>
+          </div>
         }
       />
 
@@ -277,8 +340,16 @@ export default function RedeCompletaPage() {
             <p className="text-sm font-semibold text-slate-800">Preenchimento de presença</p>
             <p className="text-xs text-slate-500">Selecione os discípulos na tabela e registre presença para o culto escolhido.</p>
           </div>
-          <div className="text-xs text-slate-600 font-medium">
-            Selecionados: <span className="text-slate-800">{selectedIds.length}</span>
+          <div className="flex items-center gap-3 text-xs text-slate-600 font-medium">
+            <span>Selecionados: <span className="text-slate-800">{selectedIds.length}</span></span>
+            <button
+              type="button"
+              onClick={openMergeModal}
+              disabled={selectedIds.length !== 2 || mergeLoading}
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:border-[#c62737]/40 hover:text-[#c62737] transition disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {mergeLoading ? 'Carregando...' : 'Mesclar selecionados'}
+            </button>
           </div>
         </div>
 
@@ -349,6 +420,17 @@ export default function RedeCompletaPage() {
           Frequência abaixo de <strong className="text-slate-700">50%</strong> pode indicar necessidade de acompanhamento personalizado.
         </p>
       </div>
+
+      {mergePeople && (
+        <MergePeopleModal
+          left={mergePeople.left}
+          right={mergePeople.right}
+          onClose={() => setMergePeople(null)}
+          onConfirm={handleConfirmMerge}
+          submitting={mergeSaving}
+          error={mergeError}
+        />
+      )}
     </div>
   )
 }

@@ -4,6 +4,8 @@ import { personUpsertFromConversionSchema } from '@/lib/validators/person'
 import { normalizePhone, normalizeDate } from '@/lib/validators/person'
 import { getTodayBrasilia } from '@/lib/date-utils'
 
+const PERSON_MINIMAL_SELECT = 'id, full_name, mobile_phone'
+
 /** Em desenvolvimento, retorna a mensagem real do Supabase para debug. */
 function apiError(message: string, supabaseError?: { message?: string; details?: string } | null): string {
   if (process.env.NODE_ENV === 'development' && supabaseError?.message) {
@@ -90,7 +92,7 @@ export async function POST(request: NextRequest) {
     let person: Record<string, unknown>
 
     if (cpf && cpf.length >= 11) {
-      const { data: existing } = await supabase.from('people').select('*').eq('cpf', cpf).maybeSingle()
+      const { data: existing } = await supabase.from('people').select('id').eq('cpf', cpf).maybeSingle()
       if (existing) {
         personId = existing.id
         const updatePayload: Record<string, unknown> = {
@@ -106,7 +108,12 @@ export async function POST(request: NextRequest) {
         if (p.neighborhood != null) updatePayload.neighborhood = p.neighborhood
         if (p.address_line != null) updatePayload.address_line = p.address_line
         if (p.conversion_date != null) updatePayload.conversion_date = normalizeDate(p.conversion_date)
-        const { data: updated, error: errUpdate } = await supabase.from('people').update(updatePayload).eq('id', personId).select().single()
+        const { data: updated, error: errUpdate } = await supabase
+          .from('people')
+          .update(updatePayload)
+          .eq('id', personId)
+          .select(PERSON_MINIMAL_SELECT)
+          .single()
         if (errUpdate) {
           console.error('Erro ao atualizar pessoa (cpf):', errUpdate)
           return NextResponse.json({ error: apiError('Erro ao atualizar pessoa', errUpdate) }, { status: 500 })
@@ -128,7 +135,11 @@ export async function POST(request: NextRequest) {
           address_line: p.address_line ?? null,
           conversion_date: normalizeDate(p.conversion_date) ?? null,
         }
-        const { data: created, error: errInsert } = await supabase.from('people').insert(insertPayload).select().single()
+        const { data: created, error: errInsert } = await supabase
+          .from('people')
+          .insert(insertPayload)
+          .select(PERSON_MINIMAL_SELECT)
+          .single()
         if (errInsert) {
           console.error('Erro ao criar pessoa (cpf):', errInsert)
           return NextResponse.json({ error: apiError('Erro ao criar pessoa', errInsert) }, { status: 500 })
@@ -137,7 +148,7 @@ export async function POST(request: NextRequest) {
         personId = (created as { id: string }).id
       }
     } else if (email) {
-      const { data: existing } = await supabase.from('people').select('*').eq('email', email).maybeSingle()
+      const { data: existing } = await supabase.from('people').select('id').eq('email', email).maybeSingle()
       if (existing) {
         personId = existing.id
         const updatePayload: Record<string, unknown> = { full_name: p.full_name, updated_at: new Date().toISOString() }
@@ -149,7 +160,12 @@ export async function POST(request: NextRequest) {
         if (p.neighborhood != null) updatePayload.neighborhood = p.neighborhood
         if (p.address_line != null) updatePayload.address_line = p.address_line
         if (p.conversion_date != null) updatePayload.conversion_date = normalizeDate(p.conversion_date)
-        const { data: updated, error: errUpdate } = await supabase.from('people').update(updatePayload).eq('id', personId).select().single()
+        const { data: updated, error: errUpdate } = await supabase
+          .from('people')
+          .update(updatePayload)
+          .eq('id', personId)
+          .select(PERSON_MINIMAL_SELECT)
+          .single()
         if (errUpdate) {
           console.error('Erro ao atualizar pessoa (email):', errUpdate)
           return NextResponse.json({ error: apiError('Erro ao atualizar pessoa', errUpdate) }, { status: 500 })
@@ -170,7 +186,11 @@ export async function POST(request: NextRequest) {
           address_line: p.address_line ?? null,
           conversion_date: normalizeDate(p.conversion_date) ?? null,
         }
-        const { data: created, error: errInsert } = await supabase.from('people').insert(insertPayload).select().single()
+        const { data: created, error: errInsert } = await supabase
+          .from('people')
+          .insert(insertPayload)
+          .select(PERSON_MINIMAL_SELECT)
+          .single()
         if (errInsert) {
           console.error('Erro ao criar pessoa (email):', errInsert)
           return NextResponse.json({ error: apiError('Erro ao criar pessoa', errInsert) }, { status: 500 })
@@ -179,7 +199,7 @@ export async function POST(request: NextRequest) {
         personId = (created as { id: string }).id
       }
     } else if (mobile) {
-      const { data: existing } = await supabase.from('people').select('*').eq('mobile_phone', mobile).maybeSingle()
+      const { data: existing } = await supabase.from('people').select('id').eq('mobile_phone', mobile).maybeSingle()
       if (existing) {
         personId = existing.id
         const updatePayload: Record<string, unknown> = { full_name: p.full_name, updated_at: new Date().toISOString() }
@@ -191,7 +211,12 @@ export async function POST(request: NextRequest) {
         if (p.neighborhood != null) updatePayload.neighborhood = p.neighborhood
         if (p.address_line != null) updatePayload.address_line = p.address_line
         if (p.conversion_date != null) updatePayload.conversion_date = normalizeDate(p.conversion_date)
-        const { data: updated, error: errUpdate } = await supabase.from('people').update(updatePayload).eq('id', personId).select().single()
+        const { data: updated, error: errUpdate } = await supabase
+          .from('people')
+          .update(updatePayload)
+          .eq('id', personId)
+          .select(PERSON_MINIMAL_SELECT)
+          .single()
         if (errUpdate) {
           console.error('Erro ao atualizar pessoa (mobile):', errUpdate)
           return NextResponse.json({ error: apiError('Erro ao atualizar pessoa', errUpdate) }, { status: 500 })
@@ -212,7 +237,11 @@ export async function POST(request: NextRequest) {
           address_line: p.address_line ?? null,
           conversion_date: normalizeDate(p.conversion_date) ?? null,
         }
-        const { data: created, error: errInsert } = await supabase.from('people').insert(insertPayload).select().single()
+        const { data: created, error: errInsert } = await supabase
+          .from('people')
+          .insert(insertPayload)
+          .select(PERSON_MINIMAL_SELECT)
+          .single()
         if (errInsert) {
           console.error('Erro ao criar pessoa (mobile):', errInsert)
           return NextResponse.json({ error: apiError('Erro ao criar pessoa', errInsert) }, { status: 500 })
@@ -235,7 +264,11 @@ export async function POST(request: NextRequest) {
         address_line: p.address_line ?? null,
         conversion_date: normalizeDate(p.conversion_date) ?? null,
       }
-      const { data: created, error: errInsert } = await supabase.from('people').insert(insertPayload).select().single()
+      const { data: created, error: errInsert } = await supabase
+        .from('people')
+        .insert(insertPayload)
+        .select(PERSON_MINIMAL_SELECT)
+        .single()
       if (errInsert) {
         console.error('Erro ao criar pessoa (sem cpf/email/mobile):', errInsert)
         return NextResponse.json({ error: apiError('Erro ao criar pessoa', errInsert) }, { status: 500 })
@@ -274,7 +307,11 @@ export async function POST(request: NextRequest) {
     if (teamId) conversaoPayload.team_id = teamId
     conversaoPayload.gender = gender
 
-    const { data: conversion, error: errConv } = await supabase.from('conversoes').insert(conversaoPayload).select().single()
+    const { data: conversion, error: errConv } = await supabase
+      .from('conversoes')
+      .insert(conversaoPayload)
+      .select('id, nome, telefone')
+      .single()
     if (errConv) {
       console.error('Erro ao criar conversão (público):', errConv)
       return NextResponse.json({ error: apiError('Erro ao registrar conversão', errConv) }, { status: 500 })

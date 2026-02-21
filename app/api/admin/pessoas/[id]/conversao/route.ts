@@ -20,7 +20,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     // Buscar a conversão mais recente para essa pessoa
     const { data: conversao, error } = await supabase
       .from('conversoes')
-      .select('*')
+      .select('id, person_id, nome, email, telefone, data_nascimento, gender, instagram, endereco, bairro, cidade, estado, cep, culto, data_conversao, observacoes, conversion_type, consolidator_person_id, cell_id, church_id, team_id, created_at')
       .eq('person_id', id)
       .order('created_at', { ascending: false })
       .limit(1)

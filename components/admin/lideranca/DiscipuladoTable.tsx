@@ -7,10 +7,13 @@ export type AttendanceItem = {
   disciple_name: string
   email?: string
   phone?: string
+  followup_id?: string | null
+  followup_status?: string | null
   attended: number
   total: number
   percent: number
   last_date?: string
+  completed_review_date?: string | null
 }
 
 function AttendanceBar({ percent }: { percent: number }) {
@@ -61,10 +64,19 @@ interface TableProps {
   selectedIds?: string[]
   onToggleSelect?: (discipleId: string) => void
   onToggleSelectAll?: () => void
+  onEnrollReview?: (item: AttendanceItem) => void
 }
 
-export function DiscipuladoTable({ items, loading, selectedIds = [], onToggleSelect, onToggleSelectAll }: TableProps) {
+export function DiscipuladoTable({
+  items,
+  loading,
+  selectedIds = [],
+  onToggleSelect,
+  onToggleSelectAll,
+  onEnrollReview,
+}: TableProps) {
   const selectionEnabled = typeof onToggleSelect === 'function'
+  const reviewActionsEnabled = typeof onEnrollReview === 'function'
   const selectedSet = new Set(selectedIds)
   const allSelected = items.length > 0 && items.every((item) => selectedSet.has(item.disciple_id))
 
@@ -112,7 +124,7 @@ export function DiscipuladoTable({ items, loading, selectedIds = [], onToggleSel
   return (
     <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
       {/* Cabeçalho da tabela */}
-      <div className={`border-b border-slate-100 bg-slate-50/60 px-5 py-3 hidden sm:grid ${selectionEnabled ? 'grid-cols-[auto_2fr_1fr_2fr_1fr]' : 'grid-cols-[2fr_1fr_2fr_1fr]'} gap-4`}>
+      <div className={`border-b border-slate-100 bg-slate-50/60 px-5 py-3 hidden sm:grid ${selectionEnabled ? (reviewActionsEnabled ? 'grid-cols-[auto_2fr_1fr_2fr_1fr_auto]' : 'grid-cols-[auto_2fr_1fr_2fr_1fr]') : (reviewActionsEnabled ? 'grid-cols-[2fr_1fr_2fr_1fr_auto]' : 'grid-cols-[2fr_1fr_2fr_1fr]')} gap-4`}>
         {selectionEnabled && (
           <div className="flex items-center justify-center">
             <input
@@ -128,13 +140,16 @@ export function DiscipuladoTable({ items, loading, selectedIds = [], onToggleSel
         <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider text-center">Presenças</span>
         <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Frequência</span>
         <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider text-center">Status</span>
+        {reviewActionsEnabled && (
+          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider text-center">Revisão</span>
+        )}
       </div>
 
       <div className="divide-y divide-slate-100">
         {items.map((item, idx) => (
           <div
             key={item.disciple_id}
-            className={`group flex flex-col sm:grid ${selectionEnabled ? 'sm:grid-cols-[auto_2fr_1fr_2fr_1fr]' : 'sm:grid-cols-[2fr_1fr_2fr_1fr]'} gap-3 sm:gap-4 items-start sm:items-center px-5 py-4 hover:bg-slate-50/70 transition-colors`}
+            className={`group flex flex-col sm:grid ${selectionEnabled ? (reviewActionsEnabled ? 'sm:grid-cols-[auto_2fr_1fr_2fr_1fr_auto]' : 'sm:grid-cols-[auto_2fr_1fr_2fr_1fr]') : (reviewActionsEnabled ? 'sm:grid-cols-[2fr_1fr_2fr_1fr_auto]' : 'sm:grid-cols-[2fr_1fr_2fr_1fr]')} gap-3 sm:gap-4 items-start sm:items-center px-5 py-4 hover:bg-slate-50/70 transition-colors`}
           >
             {selectionEnabled && (
               <div className="flex items-center justify-center pt-1 sm:pt-0">
@@ -182,6 +197,21 @@ export function DiscipuladoTable({ items, loading, selectedIds = [], onToggleSel
             <div className="flex justify-center">
               <StatusPill percent={item.percent} />
             </div>
+
+            {reviewActionsEnabled && (
+              <div className="flex items-center justify-center gap-2 w-full sm:w-auto">
+                {onEnrollReview && (
+                  <button
+                    type="button"
+                    onClick={() => onEnrollReview(item)}
+                    disabled={(item.followup_status ?? '') !== 'direcionado_revisao' || !!item.completed_review_date}
+                    className="text-xs px-2.5 py-1.5 rounded-md bg-[#c62737] text-white hover:bg-[#b42332] transition disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    Inscrever
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         ))}
       </div>

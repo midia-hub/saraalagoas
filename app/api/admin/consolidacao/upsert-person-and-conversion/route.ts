@@ -5,6 +5,8 @@ import { personUpsertFromConversionSchema } from '@/lib/validators/person'
 import { normalizePhone, normalizeDate } from '@/lib/validators/person'
 import { getTodayBrasilia } from '@/lib/date-utils'
 
+const PERSON_MINIMAL_SELECT = 'id, full_name, mobile_phone'
+
 /**
  * POST /api/admin/consolidacao/upsert-person-and-conversion
  * 1) Upsert pessoa (busca por CPF → email → mobile_phone; senão cria nova)
@@ -82,7 +84,7 @@ export async function POST(request: NextRequest) {
     if (cpf && cpf.length >= 11) {
       const { data: existing } = await supabase
         .from('people')
-        .select('*')
+        .select('id')
         .eq('cpf', cpf)
         .maybeSingle()
       if (existing) {
@@ -104,7 +106,7 @@ export async function POST(request: NextRequest) {
           .from('people')
           .update(updatePayload)
           .eq('id', personId)
-          .select()
+          .select(PERSON_MINIMAL_SELECT)
           .single()
         if (errUpdate) {
           console.error('Erro ao atualizar pessoa no upsert:', errUpdate)
@@ -130,7 +132,7 @@ export async function POST(request: NextRequest) {
         const { data: created, error: errInsert } = await supabase
           .from('people')
           .insert(insertPayload)
-          .select()
+          .select(PERSON_MINIMAL_SELECT)
           .single()
         if (errInsert) {
           console.error('Erro ao criar pessoa (por CPF):', errInsert)
@@ -142,7 +144,7 @@ export async function POST(request: NextRequest) {
     } else if (email) {
       const { data: existing } = await supabase
         .from('people')
-        .select('*')
+        .select('id')
         .eq('email', email)
         .maybeSingle()
       if (existing) {
@@ -163,7 +165,7 @@ export async function POST(request: NextRequest) {
           .from('people')
           .update(updatePayload)
           .eq('id', personId)
-          .select()
+          .select(PERSON_MINIMAL_SELECT)
           .single()
         if (errUpdate) {
           console.error('Erro ao atualizar pessoa no upsert:', errUpdate)
@@ -188,7 +190,7 @@ export async function POST(request: NextRequest) {
         const { data: created, error: errInsert } = await supabase
           .from('people')
           .insert(insertPayload)
-          .select()
+          .select(PERSON_MINIMAL_SELECT)
           .single()
         if (errInsert) {
           console.error('Erro ao criar pessoa (por email):', errInsert)
@@ -200,7 +202,7 @@ export async function POST(request: NextRequest) {
     } else if (mobile) {
       const { data: existing } = await supabase
         .from('people')
-        .select('*')
+        .select('id')
         .eq('mobile_phone', mobile)
         .maybeSingle()
       if (existing) {
@@ -221,7 +223,7 @@ export async function POST(request: NextRequest) {
           .from('people')
           .update(updatePayload)
           .eq('id', personId)
-          .select()
+          .select(PERSON_MINIMAL_SELECT)
           .single()
         if (errUpdate) {
           console.error('Erro ao atualizar pessoa no upsert:', errUpdate)
@@ -246,7 +248,7 @@ export async function POST(request: NextRequest) {
         const { data: created, error: errInsert } = await supabase
           .from('people')
           .insert(insertPayload)
-          .select()
+          .select(PERSON_MINIMAL_SELECT)
           .single()
         if (errInsert) {
           console.error('Erro ao criar pessoa (por telefone):', errInsert)
@@ -273,7 +275,7 @@ export async function POST(request: NextRequest) {
       const { data: created, error: errInsert } = await supabase
         .from('people')
         .insert(insertPayload)
-        .select()
+        .select(PERSON_MINIMAL_SELECT)
         .single()
       if (errInsert) {
         console.error('Erro ao criar pessoa:', errInsert)
@@ -314,7 +316,7 @@ export async function POST(request: NextRequest) {
     const { data: conversion, error: errConv } = await supabase
       .from('conversoes')
       .insert(conversaoPayload)
-      .select()
+      .select('id, nome, telefone')
       .single()
 
     if (errConv) {

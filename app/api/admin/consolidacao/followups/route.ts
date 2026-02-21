@@ -3,6 +3,8 @@ import { requireAccess } from '@/lib/admin-api'
 import { createSupabaseAdminClient } from '@/lib/supabase-server'
 import { getRealizedWorshipCount } from '@/lib/worship-utils'
 
+const FOLLOWUP_SELECT = 'id, person_id, conversion_id, consolidator_person_id, leader_person_id, contacted, contacted_at, contacted_channel, contacted_notes, fono_visit_done, fono_visit_date, visit_done, visit_date, status, next_review_event_id, next_review_date, notes, created_at, updated_at'
+
 /**
  * GET /api/admin/consolidacao/followups
  * Lista followups enriquecidos com dados da pessoa, conversão, líder e frequência.
@@ -29,7 +31,7 @@ export async function GET(request: NextRequest) {
     // 1) Busca followups com filtros
     let followupQuery = supabase
       .from('consolidation_followups')
-      .select('*')
+      .select(FOLLOWUP_SELECT)
       .order('created_at', { ascending: false })
 
     if (status) followupQuery = followupQuery.eq('status', status)
@@ -84,8 +86,24 @@ export async function GET(request: NextRequest) {
       .select('id, full_name, mobile_phone, email')
       .in('id', personIds)
 
-    // 4) Buscar conversões (já temos em allData, mas precisamos incluir o mapeamento)
-    const conversionMap = new Map()
+    // 4) Buscar conversões (necessário para followups com conversion_id)
+    const conversionMap = new Map<string, any>()
+    if (conversionIds.length > 0) {
+      const { data: conversions, error: conversionsError } = await supabase
+        .from('conversoes')
+        .select('id, person_id, data_conversao, conversion_type, culto, church_id, cell_id')
+        .in('id', conversionIds)
+
+      if (conversionsError) {
+        console.error('GET conversions for followups:', conversionsError)
+      }
+
+      for (const conv of conversions ?? []) {
+        conversionMap.set(conv.id, conv)
+      }
+    }
+
+    // Também mapear conversões que já vieram no allData (pendentes)
     for (const item of allData) {
       if (item.id && item.data_conversao) {
         conversionMap.set(item.id, item)
@@ -287,7 +305,7 @@ export async function POST(request: NextRequest) {
     // Verificar se já existe
     const { data: existing } = await supabase
       .from('consolidation_followups')
-      .select('*')
+      .select(FOLLOWUP_SELECT)
       .eq('person_id', personId)
       .order('created_at', { ascending: false })
       .limit(1)
@@ -306,7 +324,7 @@ export async function POST(request: NextRequest) {
     const { data: created, error } = await supabase
       .from('consolidation_followups')
       .insert(payload)
-      .select()
+      .select(FOLLOWUP_SELECT)
       .single()
 
     if (error) {

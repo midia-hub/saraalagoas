@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAccess } from '@/lib/admin-api'
 import { createSupabaseAdminClient } from '@/lib/supabase-server'
 
+const CELL_SELECT = 'id, name, church_id, arena_id, team_id, day_of_week, time_of_day, frequency, leader_person_id, co_leader_person_id, is_active, created_at, updated_at'
+
 const DAYS: Record<string, string> = { mon: 'Seg', tue: 'Ter', wed: 'Qua', thu: 'Qui', fri: 'Sex', sat: 'Sáb', sun: 'Dom' }
 const FREQ: Record<string, string> = { weekly: 'Semanal', biweekly: 'Quinzenal', monthly: 'Mensal' }
 
@@ -54,7 +56,7 @@ export async function POST(request: NextRequest) {
       co_leader_person_id: body.co_leader_person_id || null,
     }
     const supabase = createSupabaseAdminClient(request)
-    const { data: cell, error } = await supabase.from('cells').insert(payload).select().single()
+    const { data: cell, error } = await supabase.from('cells').insert(payload).select(CELL_SELECT).single()
     if (error) return NextResponse.json({ error: 'Erro ao criar célula' }, { status: 500 })
     const ltIds = Array.isArray(body.lt_person_ids) ? body.lt_person_ids : []
     if (ltIds.length > 0) {

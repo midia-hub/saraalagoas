@@ -41,10 +41,10 @@ export function SearchableSelect({
 
   useEffect(() => {
     if (open) {
-      setFilter(displayLabel)
+      setFilter('')
       inputRef.current?.focus()
     } else {
-      setFilter('')
+      setFilter(displayLabel)
     }
   }, [open, displayLabel])
 
@@ -81,8 +81,6 @@ export function SearchableSelect({
     } else if (filteredOptions.length === 1) {
       // Auto-select primeira opção se digita algo sem "enter"
     }
-  } else if (selected) {
-    setFilter(selected.label)
   }
 
   return (

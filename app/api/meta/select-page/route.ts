@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
     // Buscar integração
     const { data: integration, error: fetchError } = await db
       .from('meta_integrations')
-      .select('*')
+      .select('id, access_token, metadata')
       .eq('id', integration_id)
       .eq('created_by', access.snapshot.userId)
       .single()
@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
       })
       .eq('id', integration_id)
       .eq('created_by', access.snapshot.userId)
-      .select()
+      .select('id, page_id, page_name, instagram_username, is_active, updated_at')
       .single()
 
     if (updateError) {

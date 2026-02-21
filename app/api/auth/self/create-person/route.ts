@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
                 church_profile: 'Membro', // Default
                 church_situation: 'Ativo', // Default
             })
-            .select()
+            .select('id, full_name, email, church_profile, church_situation')
             .single()
 
         if (createError || !person) {

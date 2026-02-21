@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
     // Buscar integração
     const { data: integration, error } = await db
       .from('meta_integrations')
-      .select('*')
+      .select('id, access_token')
       .eq('id', integrationId)
       .eq('created_by', access.snapshot.userId)
       .single()

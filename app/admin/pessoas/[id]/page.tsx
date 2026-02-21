@@ -112,6 +112,12 @@ const TABS = [
 
 type TabId = (typeof TABS)[number]['id']
 
+type UserLinkState = {
+  linked: boolean
+  user: { id: string; email: string | null; full_name: string | null } | null
+  emailUser: { id: string; email: string | null; full_name: string | null; person_id: string | null } | null
+}
+
 function DataCard({
   label,
   value,
@@ -154,6 +160,16 @@ export default function PessoaDetalhePage() {
   const [inviteSending, setInviteSending] = useState(false)
   const [inviteMessage, setInviteMessage] = useState<{ type: 'ok' | 'err'; message: string } | null>(null)
   const [conversao, setConversao] = useState<Record<string, any> | null>(null)
+  const [userLink, setUserLink] = useState<UserLinkState | null>(null)
+
+  async function loadUserLink(personId: string) {
+    try {
+      const data = await adminFetchJson<UserLinkState>(`/api/admin/people/${personId}/user-link`)
+      setUserLink(data)
+    } catch {
+      setUserLink({ linked: false, user: null, emailUser: null })
+    }
+  }
 
   useEffect(() => {
     if (!id) return
@@ -188,6 +204,11 @@ export default function PessoaDetalhePage() {
       .catch(() => setConversao(null))
   }, [id])
 
+  useEffect(() => {
+    if (!id) return
+    loadUserLink(id)
+  }, [id])
+
   async function handleSubmit(data: PersonFormData) {
     if (!id) return
     setSaving(true)
@@ -217,15 +238,16 @@ export default function PessoaDetalhePage() {
     setInviteSending(true)
     setInviteMessage(null)
     try {
-      await adminFetchJson(`/api/admin/pessoas/${id}/send-invite`, {
+      const result = await adminFetchJson<{ message?: string }>(`/api/admin/pessoas/${id}/send-invite`, {
         method: 'POST',
         body: JSON.stringify({ email }),
       })
       setInviteMessage({
         type: 'ok',
-        message: `Convite enviado para ${email}. O usuário receberá um link para completar o cadastro.`,
+        message: result?.message || `Convite enviado para ${email}. O usuário receberá um link para completar o cadastro.`,
       })
       setInviteEmail('')
+      await loadUserLink(id)
       setTimeout(() => {
         setInviteModalOpen(false)
         setInviteMessage(null)
@@ -366,9 +388,9 @@ export default function PessoaDetalhePage() {
               <div className="flex-1 min-w-0">
                 <div className="flex flex-wrap items-center gap-3 mb-1">
                   <h1 className="text-2xl font-bold text-slate-800">{person.full_name}</h1>
-                  <span className="inline-flex items-center gap-1.5 text-sm text-emerald-600">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                    Usuário cadastrado
+                  <span className={`inline-flex items-center gap-1.5 text-sm ${userLink?.linked ? 'text-emerald-600' : 'text-amber-600'}`}>
+                    <span className={`w-2 h-2 rounded-full ${userLink?.linked ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                    {userLink?.linked ? 'Usuário vinculado' : 'Sem usuário vinculado'}
                   </span>
                 </div>
                 <p className="text-sm text-slate-500 mb-3">ID: {shortId}</p>
@@ -407,14 +429,16 @@ export default function PessoaDetalhePage() {
                   {isActive ? 'ATIVO' : 'INATIVO'}
                 </span>
                 <div className="flex gap-2 flex-wrap justify-end">
-                  <button
-                    type="button"
-                    onClick={() => setInviteModalOpen(true)}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-300 text-slate-700 text-sm font-medium hover:bg-slate-50 transition-colors"
-                    title="Enviar convite de cadastro"
-                  >
-                    <Send size={16} /> Enviar convite
-                  </button>
+                  {!userLink?.linked && (
+                    <button
+                      type="button"
+                      onClick={() => setInviteModalOpen(true)}
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-300 text-slate-700 text-sm font-medium hover:bg-slate-50 transition-colors"
+                      title="Enviar convite de cadastro"
+                    >
+                      <Send size={16} /> Enviar convite
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => setEditing(true)}
@@ -423,6 +447,12 @@ export default function PessoaDetalhePage() {
                     <Pencil size={16} /> Editar
                   </button>
                 </div>
+                {userLink?.linked && userLink.user?.email && (
+                  <p className="text-xs text-slate-500">Usuário: {userLink.user.email}</p>
+                )}
+                {!userLink?.linked && userLink?.emailUser?.email && (
+                  <p className="text-xs text-amber-600">Existe usuário com esse e-mail sem vínculo automático.</p>
+                )}
               </div>
             </div>
           </div>

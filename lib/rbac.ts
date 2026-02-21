@@ -158,6 +158,7 @@ const APP_PERMISSION_TO_RESOURCE_ACTION: Record<string, { resource_key: string; 
   [APP_PERMISSION_CODES.CELLS_APPROVE_EDIT]: { resource_key: 'celulas', action: 'edit' },
   [APP_PERMISSION_CODES.CELLS_APPROVE_PD]: { resource_key: 'celulas', action: 'edit' },
   [APP_PERMISSION_CODES.CELLS_MANAGE]: { resource_key: 'celulas', action: 'manage' },
+  [APP_PERMISSION_CODES.VALIDAR_PAGAMENTO_REVISAO]: { resource_key: 'consolidacao', action: 'edit' },
 }
 
 function getAccessTokenFromRequest(request: NextRequest): string {

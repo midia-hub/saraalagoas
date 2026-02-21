@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAccess } from '@/lib/admin-api'
 import { createSupabaseAdminClient } from '@/lib/supabase-server'
 
+const TEAM_SELECT = 'id, name, church_id, arena_id'
+
 /** GET - lista equipes */
 export async function GET(request: NextRequest) {
   const access = await requireAccess(request, { pageKey: 'consolidacao', action: 'view' })
@@ -53,7 +55,7 @@ export async function POST(request: NextRequest) {
       church_id: churchId,
       arena_id: arenaId,
     }
-    const { data, error } = await supabase.from('teams').insert(payload).select().single()
+    const { data, error } = await supabase.from('teams').insert(payload).select(TEAM_SELECT).single()
     if (error) return NextResponse.json({ error: 'Erro ao criar equipe' }, { status: 500 })
     const leaderIds = Array.isArray(body.leader_person_ids) ? body.leader_person_ids : []
     if (leaderIds.length > 0) {

@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAccess } from '@/lib/admin-api'
 import { createSupabaseAdminClient } from '@/lib/supabase-server'
+import { canAccessPerson } from '@/lib/people-access'
+
+const FOLLOWUP_SELECT = 'id, person_id, conversion_id, consolidator_person_id, leader_person_id, contacted, contacted_at, contacted_channel, contacted_notes, fono_visit_done, fono_visit_date, visit_done, visit_date, status, next_review_event_id, next_review_date, notes, created_at, updated_at'
 
 /**
  * GET /api/admin/consolidacao/followups/[id]
@@ -16,7 +19,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     const supabase = createSupabaseAdminClient(request)
     const { data, error } = await supabase
       .from('consolidation_followups')
-      .select('*')
+      .select(FOLLOWUP_SELECT)
       .eq('id', params.id)
       .single()
 
@@ -62,11 +65,40 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       return NextResponse.json({ error: 'Nenhum campo para atualizar' }, { status: 400 })
     }
 
+    const nextStatus = patch.status as string | undefined
+    if (nextStatus === 'inscrito_revisao') {
+      const leaderId = access.snapshot.personId
+      if (!leaderId) {
+        return NextResponse.json({ error: 'Líder responsável não identificado.' }, { status: 403 })
+      }
+
+      const { data: current, error: currentError } = await supabase
+        .from('consolidation_followups')
+        .select('status, leader_person_id, person_id')
+        .eq('id', params.id)
+        .single()
+
+      if (currentError || !current) {
+        return NextResponse.json({ error: 'Acompanhamento não encontrado' }, { status: 404 })
+      }
+
+      if (current.status !== 'direcionado_revisao') {
+        return NextResponse.json({
+          error: 'Pessoa precisa estar direcionada para o Revisão de Vidas antes da inscrição.'
+        }, { status: 400 })
+      }
+
+      const hasLeadershipAccess = await canAccessPerson(access.snapshot, current.person_id)
+      if (!hasLeadershipAccess) {
+        return NextResponse.json({ error: 'Somente líderes na linha de discipulado podem inscrever.' }, { status: 403 })
+      }
+    }
+
     const { data, error } = await supabase
       .from('consolidation_followups')
       .update(patch)
       .eq('id', params.id)
-      .select()
+      .select(FOLLOWUP_SELECT)
       .single()
 
     if (error) {

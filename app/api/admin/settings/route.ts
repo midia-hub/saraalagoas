@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
 
   const { data, error } = await supabaseServer
     .from('settings')
-    .select('*')
+    .select('id, home_route')
     .eq('id', 1)
     .single()
 
@@ -31,7 +31,7 @@ export async function PUT(request: NextRequest) {
   const { data, error } = await supabaseServer
     .from('settings')
     .upsert({ id: 1, home_route: homeRoute }, { onConflict: 'id' })
-    .select('*')
+    .select('id, home_route')
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

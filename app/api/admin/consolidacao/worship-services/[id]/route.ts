@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAccess } from '@/lib/admin-api'
 import { createSupabaseAdminClient } from '@/lib/supabase-server'
 
+const WORSHIP_SERVICE_SELECT = 'id, church_id, name, day_of_week, time_of_day, active, created_at, updated_at'
+
 /**
  * GET    /api/admin/consolidacao/worship-services/[id]
  * PATCH  /api/admin/consolidacao/worship-services/[id]
@@ -14,7 +16,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
   try {
     const supabase = createSupabaseAdminClient(request)
-    const { data, error } = await supabase.from('worship_services').select('*').eq('id', params.id).single()
+    const { data, error } = await supabase.from('worship_services').select(WORSHIP_SERVICE_SELECT).eq('id', params.id).single()
     if (error || !data) return NextResponse.json({ error: 'Culto não encontrado' }, { status: 404 })
     return NextResponse.json({ item: data })
   } catch (err) {
@@ -43,7 +45,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       .from('worship_services')
       .update(patch)
       .eq('id', params.id)
-      .select()
+      .select(WORSHIP_SERVICE_SELECT)
       .single()
 
     if (error) {

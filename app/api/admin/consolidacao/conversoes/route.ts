@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     const supabase = createSupabaseAdminClient(request)
     const { data: conversoes, error } = await supabase
       .from('conversoes')
-      .select('*')
+      .select('id, person_id, data_conversao, conversion_type, culto, church_id, team_id, cell_id, nome, email, telefone, cidade, estado, created_at, updated_at')
       .order('created_at', { ascending: false })
 
     if (error) {

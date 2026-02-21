@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAccess } from '@/lib/admin-api'
 import { createSupabaseAdminClient } from '@/lib/supabase-server'
 
+const TEAM_SELECT = 'id, name, church_id, arena_id'
+
 type Ctx = { params: Promise<{ id: string }> }
 
 /** GET - equipe com líderes (pessoas) */
@@ -12,7 +14,7 @@ export async function GET(request: NextRequest, ctx: Ctx) {
   if (!id) return NextResponse.json({ error: 'ID obrigatório' }, { status: 400 })
   try {
     const supabase = createSupabaseAdminClient(request)
-    const { data: team, error: errTeam } = await supabase.from('teams').select('*').eq('id', id).single()
+    const { data: team, error: errTeam } = await supabase.from('teams').select(TEAM_SELECT).eq('id', id).single()
     if (errTeam || !team) return NextResponse.json({ error: 'Equipe não encontrada' }, { status: 404 })
     const { data: leaderRows } = await supabase.from('team_leaders').select('person_id').eq('team_id', id)
     const personIds = (leaderRows ?? []).map((r: { person_id: string }) => r.person_id)
@@ -58,7 +60,7 @@ export async function PATCH(request: NextRequest, ctx: Ctx) {
         await supabase.from('team_leaders').insert(body.leader_person_ids.map((person_id: string) => ({ team_id: id, person_id })))
       }
     }
-    const { data } = await supabase.from('teams').select('*').eq('id', id).single()
+    const { data } = await supabase.from('teams').select(TEAM_SELECT).eq('id', id).single()
     return NextResponse.json({ item: data })
   } catch (err) {
     console.error('PATCH consolidacao/teams/[id]:', err)

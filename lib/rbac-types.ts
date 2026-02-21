@@ -307,6 +307,7 @@ export const APP_PERMISSION_CODES = {
   CELLS_APPROVE_EDIT: 'cells_approve_edit',
   CELLS_APPROVE_PD: 'cells_approve_pd',
   CELLS_MANAGE: 'cells_manage',
+  VALIDAR_PAGAMENTO_REVISAO: 'validar_pagamento_revisao',
 } as const
 
 export type AppPermissionCode = (typeof APP_PERMISSION_CODES)[keyof typeof APP_PERMISSION_CODES]

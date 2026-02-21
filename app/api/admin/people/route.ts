@@ -6,6 +6,7 @@ import { normalizeCpf, normalizePhone, normalizeDate } from '@/lib/validators/pe
 import { normalizeForSearch } from '@/lib/normalize-text'
 
 const isDev = process.env.NODE_ENV === 'development'
+const PEOPLE_LIST_SELECT = 'id, full_name, church_profile, church_situation, city, state, mobile_phone, email, updated_at'
 
 /**
  * GET /api/admin/people
@@ -25,7 +26,7 @@ export async function GET(request: NextRequest) {
     const supabase = createSupabaseAdminClient(request)
     let query = supabase
       .from('people')
-      .select('*')
+      .select(PEOPLE_LIST_SELECT)
       .order('updated_at', { ascending: false })
 
     if (churchProfile) {

@@ -74,32 +74,36 @@ export async function GET(
   try {
     const files = await listFolderImages(gallery.drive_folder_id)
 
-    for (const file of files) {
+    if (files.length > 0) {
+      const upsertPayload = files.map((file) => ({
+        gallery_id: gallery.id,
+        drive_file_id: file.id,
+        name: file.name,
+        web_view_link: file.webViewLink,
+        thumbnail_link: file.thumbnailLink,
+        mime_type: file.mimeType,
+        created_time: file.createdTime,
+      }))
       const { error: upsertError } = await supabaseServer
         .from('gallery_files')
-        .upsert(
-          {
-            gallery_id: gallery.id,
-            drive_file_id: file.id,
-            name: file.name,
-            web_view_link: file.webViewLink,
-            thumbnail_link: file.thumbnailLink,
-            mime_type: file.mimeType,
-            created_time: file.createdTime,
-          },
-          { onConflict: 'drive_file_id' }
-        )
+        .upsert(upsertPayload, { onConflict: 'drive_file_id' })
       if (upsertError) {
-        console.warn('[gallery/files] upsert error for', file.id, upsertError.message)
+        console.warn('[gallery/files] batch upsert error:', upsertError.message)
       }
     }
 
-    const { data: uploaderRows } = await supabaseServer
-      .from('gallery_files')
-      .select('drive_file_id, uploaded_by_name')
-      .eq('gallery_id', galleryId)
+    const driveFileIds = files.map((file) => file.id)
+    let uploaderRows: Array<{ drive_file_id: string; uploaded_by_name: string | null }> = []
+    if (driveFileIds.length > 0) {
+      const { data } = await supabaseServer
+        .from('gallery_files')
+        .select('drive_file_id, uploaded_by_name')
+        .eq('gallery_id', galleryId)
+        .in('drive_file_id', driveFileIds)
+      uploaderRows = data || []
+    }
     const uploaderByFileId = new Map<string, string | null>()
-    for (const r of uploaderRows || []) {
+    for (const r of uploaderRows) {
       uploaderByFileId.set(r.drive_file_id, r.uploaded_by_name ?? null)
     }
     const filesWithUploader: FileItem[] = files.map((f) => ({

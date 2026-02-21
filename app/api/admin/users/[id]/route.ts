@@ -77,7 +77,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
       .from('profiles')
       .update(updates)
       .eq('id', id)
-      .select()
+      .select('id, email, full_name, role_id, created_at')
       .single()
 
     if (error) {

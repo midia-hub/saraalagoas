@@ -3,6 +3,8 @@ import { getAccessSnapshotFromRequest, hasPermission } from '@/lib/rbac'
 import { supabaseServer } from '@/lib/supabase-server'
 import type { RoleFormData } from '@/lib/rbac-types'
 
+const ROLE_SELECT = 'id, key, name, description, is_admin, is_system, sort_order, is_active, created_at, updated_at'
+
 type RouteContext = {
   params: {
     id: string
@@ -35,7 +37,7 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
       .from('roles')
       .select(
         `
-        *,
+        ${ROLE_SELECT},
         role_permissions (
           id,
           resource_id,
@@ -99,7 +101,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
     // Buscar role atual
     const { data: currentRole, error: fetchError } = await supabaseServer
       .from('roles')
-      .select('*')
+      .select('id, is_system')
       .eq('id', id)
       .maybeSingle()
 
@@ -134,7 +136,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
       .from('roles')
       .update(updateData)
       .eq('id', id)
-      .select()
+      .select(ROLE_SELECT)
       .single()
 
     if (updateError) {
@@ -195,7 +197,7 @@ export async function DELETE(request: NextRequest, { params }: RouteContext) {
     // Buscar role
     const { data: role, error: fetchError } = await supabaseServer
       .from('roles')
-      .select('*')
+      .select('id, is_system')
       .eq('id', id)
       .maybeSingle()
 

@@ -5,10 +5,12 @@ import { useParams } from 'next/navigation'
 import { adminFetchJson } from '@/lib/admin-client'
 import type { ReviewEvent, ReviewRegistrationEnriched } from '@/lib/consolidacao-types'
 import { REVIEW_REG_STATUS_LABELS, REVIEW_REG_STATUS_COLORS } from '@/lib/consolidacao-types'
-import { Loader2, RefreshCw, CheckCircle2, XCircle, Check, Phone, BookOpen, Users, UserCheck, Calendar } from 'lucide-react'
+import { Loader2, RefreshCw, CheckCircle2, XCircle, Phone, BookOpen, Users, ExternalLink, Link2, ClipboardCheck, Edit2, ClipboardList } from 'lucide-react'
 import { AdminPageHeader } from '@/app/admin/AdminPageHeader'
+import { EditEventModal } from '../EditEventModal'
+import Link from 'next/link'
 
-const STATUS_ORDER = ['inscrito', 'participou', 'concluiu', 'cancelado']
+const STATUS_ORDER = ['inscrito', 'concluiu', 'cancelado']
 
 export default function RevisaoVidasEventPage() {
   const params = useParams<{ id: string }>()
@@ -17,6 +19,8 @@ export default function RevisaoVidasEventPage() {
   const [regs, setRegs] = useState<ReviewRegistrationEnriched[]>([])
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState<string | null>(null)
+  const [copiedRegId, setCopiedRegId] = useState<string | null>(null)
+  const [editModalOpen, setEditModalOpen] = useState(false)
 
   const load = useCallback(() => {
     setLoading(true)
@@ -59,31 +63,62 @@ export default function RevisaoVidasEventPage() {
     }
   }
 
-  const inscritos  = regs.filter(r => r.status === 'inscrito').length
-  const participou = regs.filter(r => r.status === 'participou').length
-  const concluiu   = regs.filter(r => r.status === 'concluiu').length
+  function getPublicFormLink(token: string | null | undefined) {
+    if (!token) return ''
+    if (typeof window === 'undefined') return `/revisao-vidas/anamnese/${token}`
+    return `${window.location.origin}/revisao-vidas/anamnese/${token}`
+  }
+
+  async function copyPublicFormLink(regId: string, token: string | null | undefined) {
+    const link = getPublicFormLink(token)
+    if (!link || typeof navigator?.clipboard?.writeText !== 'function') return
+    await navigator.clipboard.writeText(link)
+    setCopiedRegId(regId)
+    setTimeout(() => setCopiedRegId((prev) => (prev === regId ? null : prev)), 1800)
+  }
+
+  const inscritos = regs.filter(r => r.status === 'inscrito').length
+  const concluiu  = regs.filter(r => r.status === 'concluiu').length
   const cancelado  = regs.filter(r => r.status === 'cancelado').length
 
   return (
     <div className="p-6 md:p-8 space-y-6">
       <AdminPageHeader
         icon={BookOpen}
-        title={event?.name ?? 'O Revisão de Vidas'}
+        title={event?.name ?? 'Revisão de Vidas'}
         subtitle={event?.start_date
           ? `${new Date(event.start_date).toLocaleDateString('pt-BR')}${
               event.end_date ? ` — ${new Date(event.end_date).toLocaleDateString('pt-BR')}` : ''
             }`
           : 'Carregando...'}
-        backLink={{ href: '/admin/revisao-vidas', label: 'O Revisão de Vidas' }}
+        backLink={{ href: '/admin/revisao-vidas', label: 'Revisão de Vidas' }}
         actions={
-          <button
-            onClick={load}
-            disabled={loading}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-sm font-medium text-slate-600 hover:text-purple-600 hover:border-purple-200 hover:bg-purple-50 transition-all disabled:opacity-50"
-          >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            Atualizar
-          </button>
+          <div className="flex items-center gap-2">
+            {id && (
+              <Link
+                href={`/admin/revisao-vidas/${id}/anamneses`}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-sm font-medium text-slate-600 hover:text-purple-600 hover:border-purple-200 hover:bg-purple-50 transition-all"
+              >
+                <ClipboardList className="w-4 h-4" />
+                Anamneses
+              </Link>
+            )}
+            <button
+              onClick={() => setEditModalOpen(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-sm font-medium text-slate-600 hover:text-purple-600 hover:border-purple-200 hover:bg-purple-50 transition-all disabled:opacity-50"
+            >
+              <Edit2 className="w-4 h-4" />
+              Editar
+            </button>
+            <button
+              onClick={load}
+              disabled={loading}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-sm font-medium text-slate-600 hover:text-purple-600 hover:border-purple-200 hover:bg-purple-50 transition-all disabled:opacity-50"
+            >
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              Atualizar
+            </button>
+          </div>
         }
       />
 
@@ -91,10 +126,9 @@ export default function RevisaoVidasEventPage() {
       {!loading && regs.length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
-            { label: 'Inscritos',  value: inscritos,  icon: Users,       color: 'text-blue-600',   bg: 'bg-blue-50'   },
-            { label: 'Participou', value: participou, icon: UserCheck,    color: 'text-amber-600',  bg: 'bg-amber-50'  },
+            { label: 'Inscritos',  value: inscritos,  icon: Users,       color: 'text-blue-600',     bg: 'bg-blue-50'     },
             { label: 'Concluiu',   value: concluiu,   icon: CheckCircle2, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-            { label: 'Cancelado',  value: cancelado,  icon: XCircle,      color: 'text-slate-400',  bg: 'bg-slate-50'  },
+            { label: 'Cancelado',  value: cancelado,  icon: XCircle,      color: 'text-slate-400',   bg: 'bg-slate-50'   },
           ].map(({ label, value, icon: Icon, color, bg }) => (
             <div key={label} className="bg-white rounded-2xl border border-slate-200 p-4 flex items-center gap-3 shadow-sm">
               <div className={`w-9 h-9 rounded-xl ${bg} flex items-center justify-center shrink-0`}>
@@ -143,6 +177,7 @@ export default function RevisaoVidasEventPage() {
                 <tr className="border-b border-slate-100 bg-slate-50/60 text-slate-400 text-[11px] uppercase tracking-wider">
                   <th className="px-5 py-3 text-left font-semibold">Pessoa</th>
                   <th className="px-5 py-3 text-left font-semibold">Líder</th>
+                  <th className="px-5 py-3 text-left font-semibold">Anamnese</th>
                   <th className="px-5 py-3 text-center font-semibold">Status</th>
                   <th className="px-5 py-3 text-right font-semibold">Ações</th>
                 </tr>
@@ -160,6 +195,32 @@ export default function RevisaoVidasEventPage() {
                     </td>
                     <td className="px-5 py-3.5">
                       <span className="text-slate-500 text-sm">{r.leader?.full_name ?? <span className="text-slate-300">—</span>}</span>
+                    </td>
+                    <td className="px-5 py-3.5">
+                      <div className="flex items-center gap-2">
+                        <a
+                          href={getPublicFormLink(r.anamnese_token)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={`inline-flex items-center gap-1 text-xs font-medium rounded-md px-2 py-1 border ${r.anamnese_token ? 'text-blue-700 border-blue-200 bg-blue-50 hover:bg-blue-100' : 'text-slate-400 border-slate-200 bg-slate-50 pointer-events-none'}`}
+                          title="Abrir formulário externo"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                          Abrir
+                        </a>
+                        <button
+                          onClick={() => copyPublicFormLink(r.id, r.anamnese_token)}
+                          disabled={!r.anamnese_token}
+                          className={`inline-flex items-center gap-1 text-xs font-medium rounded-md px-2 py-1 border ${r.anamnese_token ? 'text-slate-700 border-slate-200 bg-white hover:bg-slate-50' : 'text-slate-300 border-slate-200 bg-slate-50 cursor-not-allowed'}`}
+                          title="Copiar link do formulário"
+                        >
+                          {copiedRegId === r.id ? <ClipboardCheck className="w-3.5 h-3.5 text-emerald-600" /> : <Link2 className="w-3.5 h-3.5" />}
+                          {copiedRegId === r.id ? 'Copiado' : 'Copiar'}
+                        </button>
+                      </div>
+                      {r.anamnese_completed_at && (
+                        <p className="mt-1 text-[11px] text-emerald-700">Preenchida</p>
+                      )}
                     </td>
                     <td className="px-5 py-3.5 text-center">
                       <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold ${
@@ -183,15 +244,6 @@ export default function RevisaoVidasEventPage() {
                                 <CheckCircle2 className="w-4 h-4" />
                               </button>
                             )}
-                            {r.status !== 'participou' && r.status !== 'concluiu' && (
-                              <button
-                                onClick={() => updateStatus(r.id, 'participou')}
-                                title="Marcar como Participou"
-                                className="p-1.5 rounded-lg text-blue-500 hover:bg-blue-50 transition-colors"
-                              >
-                                <Check className="w-4 h-4" />
-                              </button>
-                            )}
                             <button
                               onClick={() => remove(r.id)}
                               title="Remover inscrição"
@@ -210,6 +262,14 @@ export default function RevisaoVidasEventPage() {
           </div>
         )}
       </div>
+
+      <EditEventModal
+        isOpen={editModalOpen}
+        eventId={id}
+        eventData={event}
+        onClose={() => setEditModalOpen(false)}
+        onUpdated={load}
+      />
     </div>
   )
 }

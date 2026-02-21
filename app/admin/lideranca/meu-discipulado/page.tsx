@@ -7,9 +7,15 @@ import { DiscipuladoFilters, type FilterParams } from '@/components/admin/lidera
 import { DiscipuladoTable, type AttendanceItem } from '@/components/admin/lideranca/DiscipuladoTable'
 import { CustomSelect } from '@/components/ui/CustomSelect'
 import { DatePickerInput } from '@/components/ui/DatePickerInput'
+import { ReviewEnrollModal } from '@/components/consolidacao/ReviewEnrollModal'
+import { MergePeopleModal } from '@/components/admin/lideranca/MergePeopleModal'
 import { AdminPageHeader } from '@/app/admin/AdminPageHeader'
-import { RefreshCw, BookMarked, Info, CheckCircle2 } from 'lucide-react'
+import { RefreshCw, BookMarked, Info, CheckCircle2, ExternalLink } from 'lucide-react'
 import { getTodayBrasilia } from '@/lib/date-utils'
+import { useAdminAccess } from '@/lib/admin-access-context'
+import type { FollowupEnriched } from '@/lib/consolidacao-types'
+import type { Person } from '@/lib/types/person'
+import Link from 'next/link'
 
 type ServiceItem = { id: string; name: string; day_of_week?: number | string | null }
 
@@ -87,6 +93,7 @@ function weekdayLabel(day: number | null): string {
 }
 
 export default function MeuDiscipuladoPage() {
+  const { personId } = useAdminAccess()
   const today = new Date()
   const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0]
   const todayStr = today.toISOString().split('T')[0]
@@ -98,6 +105,11 @@ export default function MeuDiscipuladoPage() {
   const [attendanceDate, setAttendanceDate] = useState(todayStr)
   const [savingAttendance, setSavingAttendance] = useState(false)
   const [saveMessage, setSaveMessage] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
+  const [reviewTarget, setReviewTarget] = useState<AttendanceItem | null>(null)
+  const [mergePeople, setMergePeople] = useState<{ left: Person; right: Person } | null>(null)
+  const [mergeLoading, setMergeLoading] = useState(false)
+  const [mergeError, setMergeError] = useState('')
+  const [mergeSaving, setMergeSaving] = useState(false)
   const [filters, setFilters] = useState<FilterParams>({
     start: firstDayOfMonth,
     end: todayStr,
@@ -219,6 +231,90 @@ export default function MeuDiscipuladoPage() {
     }
   }
 
+  const handleEnrollReview = (item: AttendanceItem) => {
+    setReviewTarget(item)
+  }
+
+  const openMergeModal = async () => {
+    if (selectedIds.length !== 2) return
+    setMergeLoading(true)
+    setMergeError('')
+    try {
+      const [aId, bId] = selectedIds
+      const [a, b] = await Promise.all([
+        adminFetchJson<{ person: Person }>(`/api/admin/people/${aId}`),
+        adminFetchJson<{ person: Person }>(`/api/admin/people/${bId}`),
+      ])
+      const p1 = a.person
+      const p2 = b.person
+      const left = p1.updated_at >= p2.updated_at ? p1 : p2
+      const right = left.id === p1.id ? p2 : p1
+      setMergePeople({ left, right })
+    } catch (err) {
+      setMergeError(err instanceof Error ? err.message : 'Erro ao carregar pessoas para mescla.')
+    } finally {
+      setMergeLoading(false)
+    }
+  }
+
+  const handleConfirmMerge = async (choices: Record<string, 'left' | 'right'>) => {
+    if (!mergePeople) return
+    setMergeSaving(true)
+    setMergeError('')
+    try {
+      await adminFetchJson('/api/admin/people/merge', {
+        method: 'POST',
+        body: JSON.stringify({
+          target_id: mergePeople.left.id,
+          source_id: mergePeople.right.id,
+          field_choices: choices,
+        }),
+      })
+      setMergePeople(null)
+      setSelectedIds([])
+      await load()
+    } catch (err) {
+      setMergeError(err instanceof Error ? err.message : 'Erro ao mesclar cadastros.')
+    } finally {
+      setMergeSaving(false)
+    }
+  }
+
+  const buildReviewDisciple = (item: AttendanceItem): FollowupEnriched => ({
+    id: item.followup_id ?? `temp-${item.disciple_id}`,
+    person_id: item.disciple_id,
+    leader_person_id: personId ?? null,
+    consolidator_person_id: null,
+    contacted: false,
+    contacted_at: null,
+    contacted_channel: null,
+    contacted_notes: null,
+    fono_visit_done: false,
+    fono_visit_date: null,
+    visit_done: false,
+    visit_date: null,
+    status: (item.followup_status ?? 'em_acompanhamento') as any,
+    next_review_event_id: null,
+    next_review_date: null,
+    notes: null,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    person: {
+      id: item.disciple_id,
+      full_name: item.disciple_name,
+      mobile_phone: item.phone ?? null,
+      email: item.email ?? null,
+    },
+    leader: null,
+    consolidator: null,
+    conversion: null,
+    next_review_event: null,
+    attendance_summary: {
+      total_last30: 0,
+      last_dates: [],
+    },
+  })
+
   const selectedService = services.find((service) => service.id === filters.service_id)
   const selectedServiceDay = normalizeServiceDay(selectedService?.day_of_week)
   const todayDate = parseYmd(getTodayBrasilia())
@@ -248,14 +344,25 @@ export default function MeuDiscipuladoPage() {
         subtitle="Frequência e engajamento dos seus discípulos nos cultos da igreja"
         backLink={{ href: '/admin/lideranca', label: 'Liderança' }}
         actions={
-          <button
-            onClick={() => load()}
-            disabled={loading}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-600 hover:text-[#c62737] hover:border-[#c62737]/30 hover:bg-[#c62737]/5 transition-all disabled:opacity-50"
-          >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            {loading ? 'Atualizando...' : 'Atualizar'}
-          </button>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/lideranca/presenca-culto"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-600 hover:text-[#c62737] hover:border-[#c62737]/30 hover:bg-[#c62737]/5 transition-all"
+            >
+              <ExternalLink className="w-4 h-4" />
+              Registro externo
+            </Link>
+            <button
+              onClick={() => load()}
+              disabled={loading}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-600 hover:text-[#c62737] hover:border-[#c62737]/30 hover:bg-[#c62737]/5 transition-all disabled:opacity-50"
+            >
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              {loading ? 'Atualizando...' : 'Atualizar'}
+            </button>
+          </div>
         }
       />
 
@@ -277,8 +384,16 @@ export default function MeuDiscipuladoPage() {
             <p className="text-sm font-semibold text-slate-800">Preenchimento de presença</p>
             <p className="text-xs text-slate-500">Selecione os discípulos na tabela e registre presença para o culto escolhido.</p>
           </div>
-          <div className="text-xs text-slate-600 font-medium">
-            Selecionados: <span className="text-slate-800">{selectedIds.length}</span>
+          <div className="flex items-center gap-3 text-xs text-slate-600 font-medium">
+            <span>Selecionados: <span className="text-slate-800">{selectedIds.length}</span></span>
+            <button
+              type="button"
+              onClick={openMergeModal}
+              disabled={selectedIds.length !== 2 || mergeLoading}
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:border-[#c62737]/40 hover:text-[#c62737] transition disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {mergeLoading ? 'Carregando...' : 'Mesclar selecionados'}
+            </button>
           </div>
         </div>
 
@@ -340,6 +455,7 @@ export default function MeuDiscipuladoPage() {
         selectedIds={selectedIds}
         onToggleSelect={toggleSelect}
         onToggleSelectAll={toggleSelectAll}
+        onEnrollReview={handleEnrollReview}
       />
 
       <div className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
@@ -349,6 +465,28 @@ export default function MeuDiscipuladoPage() {
           Use os filtros de data para visualizar tendências ao longo do tempo.
         </p>
       </div>
+
+      {reviewTarget && (
+        <ReviewEnrollModal
+          disciple={buildReviewDisciple(reviewTarget)}
+          onClose={() => setReviewTarget(null)}
+          onSaved={async () => {
+            setReviewTarget(null)
+            await load()
+          }}
+        />
+      )}
+
+      {mergePeople && (
+        <MergePeopleModal
+          left={mergePeople.left}
+          right={mergePeople.right}
+          onClose={() => setMergePeople(null)}
+          onConfirm={handleConfirmMerge}
+          submitting={mergeSaving}
+          error={mergeError}
+        />
+      )}
     </div>
   )
 }

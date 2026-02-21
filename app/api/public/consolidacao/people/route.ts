@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServiceClient } from '@/lib/supabase-server'
 
 export const dynamic = 'force-dynamic'
+const PUBLIC_CACHE_HEADERS = {
+  'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',
+}
 
 const LIMIT = 30
 
@@ -39,7 +42,7 @@ export async function GET(request: NextRequest) {
       label: r.full_name,
     }))
 
-    return NextResponse.json({ items })
+    return NextResponse.json({ items }, { headers: PUBLIC_CACHE_HEADERS })
   } catch (err) {
     console.error('GET public people:', err)
     return NextResponse.json({ error: 'Erro ao carregar pessoas' }, { status: 500 })
