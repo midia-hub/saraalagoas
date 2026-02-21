@@ -42,7 +42,8 @@ Deno.serve(async (req) => {
       .from("profiles")
       .select("role")
       .eq("id", user.id)
-      .single();
+      .limit(1)
+      .maybeSingle();
     if (profile?.role !== "admin") {
       return new Response(
         JSON.stringify({ error: "Apenas admins podem convidar usuários" }),

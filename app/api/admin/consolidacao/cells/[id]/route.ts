@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAccess } from '@/lib/admin-api'
 import { createSupabaseAdminClient } from '@/lib/supabase-server'
 
+const CELL_SELECT = 'id, name, church_id, arena_id, team_id, day_of_week, time_of_day, frequency, leader_person_id, co_leader_person_id, is_active, created_at, updated_at'
+
 type Ctx = { params: Promise<{ id: string }> }
 
 /** GET - célula com líder, co-líder e LT */
@@ -12,7 +14,7 @@ export async function GET(request: NextRequest, ctx: Ctx) {
   if (!id) return NextResponse.json({ error: 'ID obrigatório' }, { status: 400 })
   try {
     const supabase = createSupabaseAdminClient(request)
-    const { data: cell, error: errCell } = await supabase.from('cells').select('*').eq('id', id).single()
+    const { data: cell, error: errCell } = await supabase.from('cells').select(CELL_SELECT).eq('id', id).single()
     if (errCell || !cell) return NextResponse.json({ error: 'Célula não encontrada' }, { status: 404 })
     const leaderId = (cell as { leader_person_id?: string }).leader_person_id
     const coLeaderId = (cell as { co_leader_person_id?: string }).co_leader_person_id
@@ -59,7 +61,7 @@ export async function PATCH(request: NextRequest, ctx: Ctx) {
     if (body.co_leader_person_id !== undefined) payload.co_leader_person_id = body.co_leader_person_id || null
     const supabase = createSupabaseAdminClient(request)
     if (Object.keys(payload).length > 0) {
-      const { data, error } = await supabase.from('cells').update(payload).eq('id', id).select().single()
+      const { data, error } = await supabase.from('cells').update(payload).eq('id', id).select(CELL_SELECT).single()
       if (error) return NextResponse.json({ error: 'Erro ao atualizar' }, { status: 500 })
     }
     if (Array.isArray(body.lt_person_ids)) {
@@ -68,7 +70,7 @@ export async function PATCH(request: NextRequest, ctx: Ctx) {
         await supabase.from('cell_lt_members').insert(body.lt_person_ids.map((person_id: string) => ({ cell_id: id, person_id })))
       }
     }
-    const { data } = await supabase.from('cells').select('*').eq('id', id).single()
+    const { data } = await supabase.from('cells').select(CELL_SELECT).eq('id', id).single()
     return NextResponse.json({ item: data })
   } catch (err) {
     console.error('PATCH consolidacao/cells/[id]:', err)

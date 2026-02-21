@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
 
     const { data: resources, error } = await supabaseServer
       .from('resources')
-      .select('*')
+      .select('id, key, name, description, category, sort_order, is_active, created_at, updated_at')
       .order('sort_order', { ascending: true })
 
     if (error) {

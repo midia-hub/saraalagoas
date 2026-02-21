@@ -12,7 +12,7 @@ export async function GET(
   if (!id) return NextResponse.json({ error: 'O ID é obrigatório. Por favor, informe-o.' }, { status: 400 })
   const { data, error } = await supabaseServer
     .from('galleries')
-    .select('*')
+    .select('id, type, title, slug, date, drive_folder_id, created_at')
     .eq('id', id)
     .single()
 

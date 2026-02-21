@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAccess } from '@/lib/admin-api'
 import { createSupabaseAdminClient } from '@/lib/supabase-server'
 
+const ARENA_SELECT = 'id, name, church_id, day_of_week, time_of_day'
+
 type Ctx = { params: Promise<{ id: string }> }
 
 export async function PATCH(request: NextRequest, ctx: Ctx) {
@@ -27,7 +29,7 @@ export async function PATCH(request: NextRequest, ctx: Ctx) {
         await supabase.from('arena_leaders').insert(body.leader_person_ids.map((person_id: string) => ({ arena_id: id, person_id })))
       }
     }
-    const { data } = await supabase.from('arenas').select('*').eq('id', id).single()
+    const { data } = await supabase.from('arenas').select(ARENA_SELECT).eq('id', id).single()
     return NextResponse.json({ item: data })
   } catch (err) {
     console.error('PATCH consolidacao/arenas/[id]:', err)

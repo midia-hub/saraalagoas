@@ -45,7 +45,7 @@ export async function PATCH(
       .update(updates)
       .eq('id', params.id)
       .eq('created_by', access.snapshot.userId)
-      .select()
+      .select('id, is_active, metadata, updated_at')
       .single()
 
     if (error) {

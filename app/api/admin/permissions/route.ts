@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
 
     const { data: permissions, error } = await supabaseServer
       .from('permissions')
-      .select('*')
+      .select('id, action, name, description, created_at')
       .order('action', { ascending: true })
 
     if (error) {

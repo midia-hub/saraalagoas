@@ -256,10 +256,10 @@ export function DatePickerInput({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 8, scale: 0.95 }}
             transition={{ duration: 0.15, ease: "easeOut" }}
-            className="absolute left-0 top-full z-[100] mt-2 w-full min-w-[300px] max-w-sm origin-top"
+            className="absolute left-0 top-full z-[100] mt-2 w-full min-w-0 sm:min-w-[300px] max-w-sm origin-top"
           >
-            <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl shadow-slate-200/50">
-              <div className="flex items-center justify-between px-5 pt-5 pb-3">
+            <div className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white/95 backdrop-blur-sm shadow-[0_18px_45px_-20px_rgba(15,23,42,0.45)]">
+              <div className="flex items-center justify-between px-5 pt-4 pb-3">
                 <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Calendário</span>
                 <button
                   onClick={() => setOpen(false)}
@@ -269,7 +269,7 @@ export function DatePickerInput({
                 </button>
               </div>
 
-              <div className="px-3 pb-3">
+              <div className="px-3 pb-2">
                 <Calendar
                   locale="pt-BR"
                   value={dateValue}
@@ -286,7 +286,7 @@ export function DatePickerInput({
                 />
               </div>
 
-              <div className="flex border-t border-slate-100 bg-slate-50 p-3 gap-2">
+              <div className="flex border-t border-slate-100 bg-slate-50/90 p-3 gap-2">
                 <button
                   type="button"
                   onClick={() => handleLimpar()}

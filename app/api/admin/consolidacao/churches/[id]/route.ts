@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAccess } from '@/lib/admin-api'
 import { createSupabaseAdminClient } from '@/lib/supabase-server'
 
+const CHURCH_SELECT = 'id, name, created_at'
+
 type Ctx = { params: Promise<{ id: string }> }
 
 /** GET /api/admin/consolidacao/churches/[id] - igreja com lista de pastores (ids e nomes) */
@@ -39,7 +41,7 @@ export async function PATCH(request: NextRequest, ctx: Ctx) {
     const name = (body.name ?? '').trim()
     if (!name) return NextResponse.json({ error: 'Nome é obrigatório' }, { status: 400 })
     const supabase = createSupabaseAdminClient(request)
-    const { data, error } = await supabase.from('churches').update({ name }).eq('id', id).select().single()
+    const { data, error } = await supabase.from('churches').update({ name }).eq('id', id).select(CHURCH_SELECT).single()
     if (error) return NextResponse.json({ error: 'Erro ao atualizar' }, { status: 500 })
     if (Array.isArray(body.pastor_ids)) {
       await supabase.from('church_pastors').delete().eq('church_id', id)

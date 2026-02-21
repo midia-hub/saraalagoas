@@ -40,6 +40,36 @@ export async function POST(request: NextRequest, context: RouteContext) {
       return NextResponse.json({ error: 'Pessoa não encontrada' }, { status: 404 })
     }
 
+    // Se já existir usuário com esse e-mail no profiles, vincular diretamente à pessoa
+    const { data: existingProfileByEmail } = await supabaseAdmin
+      .from('profiles')
+      .select('id, person_id, email')
+      .ilike('email', email)
+      .maybeSingle()
+
+    if (existingProfileByEmail?.id) {
+      if (existingProfileByEmail.person_id !== personId) {
+        const { error: linkError } = await supabaseAdmin
+          .from('profiles')
+          .update({ person_id: personId, updated_at: new Date().toISOString() })
+          .eq('id', existingProfileByEmail.id)
+
+        if (linkError) {
+          console.error('Erro ao vincular profile existente:', linkError)
+          return NextResponse.json(
+            { error: 'Usuário já existe, mas não foi possível vincular ao cadastro da pessoa.' },
+            { status: 500 }
+          )
+        }
+      }
+
+      return NextResponse.json({
+        ok: true,
+        linkedExisting: true,
+        message: `Usuário já existente para ${email} foi vinculado ao cadastro da pessoa.`,
+      })
+    }
+
     // Verificar se o email já está registrado em uma conta Supabase
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
     const redirectTo = `${appUrl.replace(/\/$/, '')}/admin/completar-cadastro?person_id=${personId}`

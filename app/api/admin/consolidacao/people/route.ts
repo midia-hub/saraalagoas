@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAccess } from '@/lib/admin-api'
 import { createSupabaseAdminClient } from '@/lib/supabase-server'
 
+const PERSON_SELECT = 'id, full_name, email, mobile_phone, phone'
+
 const LIMIT = 100
 
 /** GET - lista pessoas (cadastro consolidação: para líderes, pastores, etc.) - usa tabela public.people */
@@ -43,7 +45,7 @@ export async function POST(request: NextRequest) {
       phone: (body.phone ?? '').trim() || null,
     }
     const supabase = createSupabaseAdminClient(request)
-    const { data, error } = await supabase.from('people').insert(payload).select().single()
+    const { data, error } = await supabase.from('people').insert(payload).select(PERSON_SELECT).single()
     if (error) return NextResponse.json({ error: 'Erro ao criar pessoa' }, { status: 500 })
     return NextResponse.json({ item: data })
   } catch (err) {

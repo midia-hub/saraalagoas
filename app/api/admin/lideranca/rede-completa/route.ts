@@ -91,7 +91,7 @@ export async function GET(request: NextRequest) {
 
     // 2. Dados das Pessoas em Chunks
     const CHUNK_SIZE = 200
-    const peopleMap: Record<string, { full_name: string; mobile_phone?: string; email?: string }> = {}
+    const peopleMap: Record<string, { full_name: string; mobile_phone?: string; email?: string; completed_review_date?: string | null }> = {}
     
     // Inicia com nomes da árvore
     for (const node of leadershipTree) {
@@ -100,7 +100,7 @@ export async function GET(request: NextRequest) {
 
     for (let i = 0; i < discipleIds.length; i += CHUNK_SIZE) {
       const chunk = discipleIds.slice(i, i + CHUNK_SIZE)
-      const { data } = await supabase.from('people').select('id, full_name, mobile_phone, email').in('id', chunk)
+      const { data } = await supabase.from('people').select('id, full_name, mobile_phone, email, completed_review_date').in('id', chunk)
       for (const p of data ?? []) {
         peopleMap[p.id] = { ...peopleMap[p.id], ...p }
       }
@@ -199,7 +199,8 @@ export async function GET(request: NextRequest) {
         attended: a.count,
         total: a.total,
         percent,
-        last_date: a.lastDate
+        last_date: a.lastDate,
+        completed_review_date: p.completed_review_date ?? null
       }
     })
 

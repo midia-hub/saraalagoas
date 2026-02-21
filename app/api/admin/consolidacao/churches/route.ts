@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAccess } from '@/lib/admin-api'
 import { createSupabaseAdminClient } from '@/lib/supabase-server'
 
+const CHURCH_SELECT = 'id, name, created_at'
+
 /** GET /api/admin/consolidacao/churches - lista igrejas */
 export async function GET(request: NextRequest) {
   const access = await requireAccess(request, { pageKey: 'consolidacao', action: 'view' })
@@ -32,7 +34,7 @@ export async function POST(request: NextRequest) {
     const name = (body.name ?? '').trim()
     if (!name) return NextResponse.json({ error: 'Nome é obrigatório' }, { status: 400 })
     const supabase = createSupabaseAdminClient(request)
-    const { data, error } = await supabase.from('churches').insert({ name }).select().single()
+    const { data, error } = await supabase.from('churches').insert({ name }).select(CHURCH_SELECT).single()
     if (error) {
       if (error.code === '23505') return NextResponse.json({ error: 'Igreja com este nome já existe' }, { status: 409 })
       return NextResponse.json({ error: 'Erro ao criar igreja' }, { status: 500 })

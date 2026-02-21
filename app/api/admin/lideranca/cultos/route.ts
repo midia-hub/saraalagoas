@@ -86,7 +86,7 @@ export async function GET(request: NextRequest) {
     // 2. Listar cultos da igreja do líder
     const { data: churchCultos, error: churchCultosError } = await supabase
       .from('worship_services')
-      .select('*')
+      .select('id, name, day_of_week, time_of_day, church_id, active')
       .eq('church_id', churchId)
       .eq('active', true)
       .order('day_of_week')

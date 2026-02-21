@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAccess } from '@/lib/admin-api'
 import { createSupabaseAdminClient } from '@/lib/supabase-server'
 
+const WORSHIP_SERVICE_SELECT = 'id, church_id, name, day_of_week, time_of_day, active, created_at, updated_at'
+
 /**
  * GET  /api/admin/consolidacao/worship-services   ?church_id=
  * POST /api/admin/consolidacao/worship-services
@@ -17,7 +19,7 @@ export async function GET(request: NextRequest) {
 
     let query = supabase
       .from('worship_services')
-      .select('*')
+      .select(WORSHIP_SERVICE_SELECT)
       .order('day_of_week')
       .order('time_of_day')
 
@@ -70,7 +72,7 @@ export async function POST(request: NextRequest) {
         time_of_day: String(body.time_of_day),
         active: body.active !== false,
       })
-      .select()
+      .select(WORSHIP_SERVICE_SELECT)
       .single()
 
     if (error) {

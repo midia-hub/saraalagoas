@@ -61,7 +61,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       .from('profiles')
       .update({ role_id })
       .eq('id', userId)
-      .select()
+      .select('id, role_id')
       .single()
 
     if (updateError) {

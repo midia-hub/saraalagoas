@@ -24,20 +24,48 @@ export const FOLLOWUP_STATUS_COLORS: Record<FollowupStatus, string> = {
   encerrado: 'bg-gray-100 text-gray-500',
 }
 
-export type ReviewRegStatus = 'inscrito' | 'participou' | 'concluiu' | 'cancelado'
+export type ReviewRegStatus = 'inscrito' | 'concluiu' | 'cancelado'
 
 export const REVIEW_REG_STATUS_LABELS: Record<ReviewRegStatus, string> = {
   inscrito: 'Inscrito',
-  participou: 'Participou',
   concluiu: 'Concluiu',
-  cancelado: 'Cancelado',
+  cancelado: 'Cancelado (recusou)',
 }
 
 export const REVIEW_REG_STATUS_COLORS: Record<ReviewRegStatus, string> = {
   inscrito: 'bg-blue-100 text-blue-700',
-  participou: 'bg-yellow-100 text-yellow-700',
   concluiu: 'bg-green-100 text-green-700',
   cancelado: 'bg-gray-100 text-gray-500',
+}
+
+// Novo tipo para os status do fluxo Revisão de Vidas (flow-based)
+export type ReviewFlowStatus = 
+  | 'inscrito'
+  | 'aguardando_pre_revisao'
+  | 'aguardando_pagamento'
+  | 'aguardando_validacao'
+  | 'aguardando_anamnese'
+  | 'confirmado'
+  | 'bloqueado'
+
+export const REVIEW_FLOW_STATUS_LABELS: Record<ReviewFlowStatus, string> = {
+  inscrito: 'Inscrito',
+  aguardando_pre_revisao: 'Aguardando Pré-Revisão',
+  aguardando_pagamento: 'Aguardando Pagamento',
+  aguardando_validacao: 'Aguardando Validação',
+  aguardando_anamnese: 'Aguardando Anamnese',
+  confirmado: 'Confirmado',
+  bloqueado: 'Bloqueado',
+}
+
+export const REVIEW_FLOW_STATUS_COLORS: Record<ReviewFlowStatus, string> = {
+  inscrito: 'bg-slate-100 text-slate-600',
+  aguardando_pre_revisao: 'bg-amber-100 text-amber-700',
+  aguardando_pagamento: 'bg-amber-100 text-amber-700',
+  aguardando_validacao: 'bg-amber-100 text-amber-700',
+  aguardando_anamnese: 'bg-amber-100 text-amber-700',
+  confirmado: 'bg-emerald-100 text-emerald-700',
+  bloqueado: 'bg-rose-100 text-rose-700',
 }
 
 export type WorshipService = {
@@ -141,6 +169,8 @@ export type ReviewRegistration = {
   event_id: string
   person_id: string
   leader_person_id: string | null
+  anamnese_token: string | null
+  anamnese_completed_at: string | null
   status: ReviewRegStatus
   notes: string | null
   created_at: string
@@ -148,9 +178,12 @@ export type ReviewRegistration = {
 }
 
 export type ReviewRegistrationEnriched = ReviewRegistration & {
-  person?: { id: string; full_name: string; mobile_phone: string | null; email: string | null }
+  person?: { id: string; full_name: string; mobile_phone: string | null; email: string | null; avatar_url?: string | null }
   leader?: { id: string; full_name: string } | null
   event?: ReviewEvent
+  team_name?: string | null
+  anamnese_alert_count?: number
+  anamnese_photo_url?: string | null
 }
 
 export const ATTENDED_CHANNELS: { value: string; label: string }[] = [

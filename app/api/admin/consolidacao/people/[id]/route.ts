@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAccess } from '@/lib/admin-api'
 import { createSupabaseAdminClient } from '@/lib/supabase-server'
 
+const PERSON_SELECT = 'id, full_name, email, mobile_phone, phone'
+
 type Ctx = { params: Promise<{ id: string }> }
 
 /** PATCH - atualiza pessoa (campos simples para cadastro consolidação) */
@@ -19,11 +21,11 @@ export async function PATCH(request: NextRequest, ctx: Ctx) {
     if (body.phone !== undefined) payload.phone = (body.phone ?? '').trim() || null
     if (Object.keys(payload).length === 0) {
       const supabase = createSupabaseAdminClient(request)
-      const { data } = await supabase.from('people').select('*').eq('id', id).single()
+      const { data } = await supabase.from('people').select(PERSON_SELECT).eq('id', id).single()
       return NextResponse.json({ item: data })
     }
     const supabase = createSupabaseAdminClient(request)
-    const { data, error } = await supabase.from('people').update(payload).eq('id', id).select().single()
+    const { data, error } = await supabase.from('people').update(payload).eq('id', id).select(PERSON_SELECT).single()
     if (error) return NextResponse.json({ error: 'Erro ao atualizar' }, { status: 500 })
     return NextResponse.json({ item: data })
   } catch (err) {

@@ -104,6 +104,17 @@ export async function GET(request: NextRequest) {
       if (scopedId && scopedId !== personId) discipleIdsSet.add(scopedId)
     }
 
+    // Inclui pessoas consolidadas diretamente por este líder (quando não há célula definida)
+    const { data: consolidatorFollowups } = await supabase
+      .from('consolidation_followups')
+      .select('person_id')
+      .eq('consolidator_person_id', personId)
+
+    for (const row of consolidatorFollowups ?? []) {
+      const pid = row.person_id as string
+      if (pid && pid !== personId) discipleIdsSet.add(pid)
+    }
+
     const discipleIds = Array.from(discipleIdsSet)
     let churchId: string | null = null
 
@@ -257,11 +268,25 @@ export async function GET(request: NextRequest) {
     // 2. Buscar dados das pessoas (nome, contato)
     const { data: people } = await supabase
       .from('people')
-      .select('id, full_name, mobile_phone, email')
+      .select('id, full_name, mobile_phone, email, completed_review_date')
       .in('id', discipleIds)
 
-    const peopleMap: Record<string, { full_name: string; mobile_phone?: string; email?: string }> = {}
+    const peopleMap: Record<string, { full_name: string; mobile_phone?: string; email?: string; completed_review_date?: string | null }> = {}
     for (const p of people ?? []) peopleMap[p.id] = p
+
+    // 2.1 Buscar status de acompanhamento (para Revisao de Vidas)
+    const followupMap: Record<string, { id: string; status: string }> = {}
+    const { data: followups } = await supabase
+      .from('consolidation_followups')
+      .select('id, person_id, status, created_at')
+      .in('person_id', discipleIds)
+      .order('created_at', { ascending: false })
+
+    for (const f of followups ?? []) {
+      const pid = f.person_id as string
+      if (!pid || followupMap[pid]) continue
+      followupMap[pid] = { id: f.id as string, status: f.status as string }
+    }
 
     // 3. Total de cultos realizados no período (baseado em calendário - dia da semana já passou)
     // Cada culto conta separadamente: se tem 2 cultos de domingo e domingo acontece 3x, são 6 realizações
@@ -321,6 +346,7 @@ export async function GET(request: NextRequest) {
     // 5. Montar resposta
     const items = discipleIds.map(id => {
       const person  = peopleMap[id] ?? {}
+      const followup = followupMap[id]
       const att     = attMap[id] ?? { count: 0, lastDate: null }
       const percent = total > 0 ? Math.round((att.count / total) * 100) : 0
       return {
@@ -328,10 +354,13 @@ export async function GET(request: NextRequest) {
         disciple_name: person.full_name ?? 'Desconhecido',
         phone:         person.mobile_phone ?? null,
         email:         person.email ?? null,
+        followup_id:   followup?.id ?? null,
+        followup_status: followup?.status ?? null,
         attended:      att.count,
         total,
         percent,
         last_date:     att.lastDate,
+        completed_review_date: person.completed_review_date ?? null,
       }
     })
 

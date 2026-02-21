@@ -6,6 +6,7 @@ import { PageAccessGuard } from '@/app/admin/PageAccessGuard'
 import { LeadershipTree, LeadershipTreeNode } from '@/components/admin/LeadershipTree'
 import { CreatableCombobox } from '@/components/admin/CreatableCombobox'
 import { useRBAC } from '@/lib/hooks/useRBAC'
+import { useAdminAccess } from '@/lib/admin-access-context'
 import { adminFetchJson } from '@/lib/admin-client'
 import { Loader2 } from 'lucide-react'
 
@@ -13,6 +14,7 @@ export default function EstruturadeLiderancaPage() {
     const router = useRouter()
     const searchParams = useSearchParams()
     const { isAdmin } = useRBAC()
+    const { personId, profileName } = useAdminAccess()
 
     const [loading, setLoading] = useState(true)
     const [treeData, setTreeData] = useState<LeadershipTreeNode[]>([])
@@ -28,6 +30,13 @@ export default function EstruturadeLiderancaPage() {
     }, [rootPersonIdParam])
 
     useEffect(() => {
+        if (!rootPersonIdParam && personId && !selectedRootId) {
+            setSelectedRootId(personId)
+            if (profileName) setSelectedRootLabel(profileName)
+        }
+    }, [rootPersonIdParam, personId, selectedRootId, profileName])
+
+    useEffect(() => {
         const fetchTree = async () => {
             // If admin and no root selected, don't fetch (unless we want to handle 400 or default)
             // But if NOT admin, we fetch anyway because API forces the user's ID
@@ -36,8 +45,9 @@ export default function EstruturadeLiderancaPage() {
 
             setLoading(true)
             try {
+                const qp = selectedRootId ? `?rootPersonId=${encodeURIComponent(selectedRootId)}` : ''
                 const data = await adminFetchJson<{ rootPersonId: string; tree: LeadershipTreeNode[] }>(
-                    `/api/admin/people/leadership-tree?rootPersonId=${encodeURIComponent(selectedRootId)}`
+                    `/api/admin/people/leadership-tree${qp}`
                 )
                 setTreeData(data.tree || [])
 
@@ -64,8 +74,13 @@ export default function EstruturadeLiderancaPage() {
             router.push(`/admin/lideranca/estrutura?rootPersonId=${id}`)
             setSelectedRootLabel(label || text)
         } else {
-            router.push(`/admin/lideranca/estrutura`)
-            setSelectedRootLabel('')
+            if (personId) {
+                router.push(`/admin/lideranca/estrutura?rootPersonId=${personId}`)
+                setSelectedRootLabel(profileName || '')
+            } else {
+                router.push(`/admin/lideranca/estrutura`)
+                setSelectedRootLabel('')
+            }
         }
     }
 
