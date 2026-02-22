@@ -91,6 +91,26 @@ export default function AdminLayout({
       setSource(access.source || '')
       setPermissions(access.permissions || {})
 
+      if (access.canAccessAdmin && !access.personId) {
+        try {
+          const ensureRes = await fetch('/api/auth/self/create-person', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({
+              full_name: access.displayName || currentUser.user_metadata?.full_name,
+              email: access.email || currentUser.email,
+            }),
+          })
+          const ensureJson = await ensureRes.json().catch(() => ({}))
+          if (ensureRes.ok && ensureJson?.person?.id) {
+            setPersonId(ensureJson.person.id)
+          }
+        } catch {
+          // mantém navegação; regularização pode ser feita pela tela de usuários
+        }
+      }
+
       if (access.canAccessAdmin) {
         const isHttps = typeof window !== 'undefined' && window.location?.protocol === 'https:'
         document.cookie = `admin_access=1; path=/; max-age=86400; SameSite=Lax${isHttps ? '; Secure' : ''}`

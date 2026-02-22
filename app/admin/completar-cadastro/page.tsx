@@ -126,6 +126,27 @@ export default function CompletarCadastroPage() {
         setSubmitting(false)
         return
       }
+
+      // Regra de negócio: todo usuário do sistema precisa estar vinculado a uma Pessoa.
+      // Se vier person_id no convite, prioriza esse vínculo; caso contrário cria/recupera por e-mail.
+      const ensurePersonRes = await fetch(`${basePath}/api/auth/self/create-person`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({
+          personId,
+          full_name: nomeTrim,
+          email: session?.user?.email ?? undefined,
+        }),
+      })
+
+      if (!ensurePersonRes.ok) {
+        const ensureJson = await ensurePersonRes.json().catch(() => ({}))
+        setError(ensureJson?.error || 'Não foi possível vincular seu cadastro à Pessoa. Tente novamente.')
+        setSubmitting(false)
+        return
+      }
+
       // Se houver person_id na URL, redireciona para a página da pessoa para completar cadastro
       // Caso contrário, vai para o dashboard
       if (personId) {

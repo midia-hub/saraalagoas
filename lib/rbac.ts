@@ -104,6 +104,8 @@ const LEGACY_ADMIN_PERMISSIONS: PermissionMap = {
   roles: { view: true, create: true, edit: true, delete: true, manage: true },
   pessoas: { view: true, create: true, edit: true, delete: true, manage: true },
   consolidacao: { view: true, create: true, edit: true, delete: true, manage: true },
+  celulas: { view: true, create: true, edit: true, delete: true, manage: true },
+  revisao_vidas: { view: true, create: true, edit: true, delete: true, manage: true },
   instagram: { view: true, create: true, edit: true, delete: true, manage: true },
   facebook: { view: true, create: true, edit: true, delete: true, manage: true },
   meta: { view: true, create: true, edit: true, delete: true, manage: true },

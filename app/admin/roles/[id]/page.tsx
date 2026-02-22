@@ -1,11 +1,12 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Save, Shield, AlertCircle, Loader2, Eye, Pencil, PlusCircle, Trash2, Zap } from 'lucide-react'
+import { Save, Shield, AlertCircle, Loader2, Eye, Pencil, PlusCircle, Trash2, Zap, User, X } from 'lucide-react'
 import { useRouter, useParams } from 'next/navigation'
 import { useRBAC } from '@/lib/hooks/useRBAC'
 import { PageAccessGuard } from '@/app/admin/PageAccessGuard'
 import { AdminPageHeader } from '@/app/admin/AdminPageHeader'
+import { CustomSelect } from '@/components/ui/CustomSelect'
 import { adminFetchJson } from '@/lib/admin-client'
 import { Toast } from '@/components/Toast'
 import type { Role, Resource, Permission } from '@/lib/rbac-types'
@@ -25,6 +26,15 @@ interface PermissionSelection {
   [resourceId: string]: {
     [permissionId: string]: boolean
   }
+}
+
+type RoleUser = {
+  id: string
+  email: string | null
+  full_name: string | null
+  person_id: string | null
+  created_at: string
+  people?: { id: string; full_name: string | null; email: string | null } | null
 }
 
 export default function EditRolePage() {
@@ -55,6 +65,82 @@ export default function EditRolePage() {
   // Estado das permissões selecionadas
   const [selectedPermissions, setSelectedPermissions] = useState<PermissionSelection>({})
 
+  // Estado dos usuários da role
+  const [roleUsers, setRoleUsers] = useState<RoleUser[]>([])
+  const [loadingUsers, setLoadingUsers] = useState(false)
+  const [availableUsers, setAvailableUsers] = useState<RoleUser[]>([])
+  const [selectedUserId, setSelectedUserId] = useState('')
+  const [savingUserAction, setSavingUserAction] = useState(false)
+
+
+  async function loadRoleUsers() {
+    if (isNew) return
+    try {
+      setLoadingUsers(true)
+      const data = await adminFetchJson<{ users: RoleUser[] }>(
+        `/api/admin/roles/${roleId}/users`
+      )
+      setRoleUsers(data.users || [])
+    } catch (err) {
+      console.error('Erro ao carregar usuários:', err)
+    } finally {
+      setLoadingUsers(false)
+    }
+  }
+
+  async function loadAvailableUsers() {
+    if (isNew) return
+    try {
+      const data = await adminFetchJson<{ users: RoleUser[] }>(
+        `/api/admin/roles/${roleId}/users?scope=available`
+      )
+      setAvailableUsers(data.users || [])
+    } catch (err) {
+      console.error('Erro ao carregar usuários disponíveis:', err)
+    }
+  }
+
+  async function handleAddUserToRole() {
+    if (!selectedUserId || isNew) return
+    try {
+      setSavingUserAction(true)
+      await adminFetchJson(`/api/admin/roles/${roleId}/users`, {
+        method: 'POST',
+        body: JSON.stringify({ user_id: selectedUserId }),
+      })
+      setToast({ type: 'ok', text: 'Usuário adicionado à função.' })
+      setSelectedUserId('')
+      await Promise.all([loadRoleUsers(), loadAvailableUsers()])
+    } catch (err: unknown) {
+      setToast({ type: 'err', text: err instanceof Error ? err.message : 'Não foi possível adicionar usuário.' })
+    } finally {
+      setSavingUserAction(false)
+    }
+  }
+
+  async function handleRemoveUserFromRole(userId: string) {
+    if (isNew) return
+    try {
+      setSavingUserAction(true)
+      await adminFetchJson(`/api/admin/roles/${roleId}/users`, {
+        method: 'DELETE',
+        body: JSON.stringify({ user_id: userId }),
+      })
+      setToast({ type: 'ok', text: 'Usuário removido da função.' })
+      await Promise.all([loadRoleUsers(), loadAvailableUsers()])
+    } catch (err: unknown) {
+      setToast({ type: 'err', text: err instanceof Error ? err.message : 'Não foi possível remover usuário.' })
+    } finally {
+      setSavingUserAction(false)
+    }
+  }
+
+  useEffect(() => {
+    if (!isNew && roleId) {
+      loadRoleUsers()
+      loadAvailableUsers()
+    }
+  }, [roleId, isNew])
   useEffect(() => {
     if (roleId) {
       loadData()
@@ -250,7 +336,7 @@ export default function EditRolePage() {
           </div>
         )}
 
-        <form id="role-form" onSubmit={handleSubmit} className="space-y-6">
+        <form id="role-form" onSubmit={handleSubmit} autoComplete="off" className="space-y-6">
           {/* Basic info card */}
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
             <h2 className="text-base font-bold text-slate-800 mb-5 flex items-center gap-2">
@@ -274,6 +360,7 @@ export default function EditRolePage() {
                       })
                     }
                     placeholder="editor_conteudo"
+                    autoComplete="off"
                     className="w-full px-4 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-[#c62737] focus:border-[#c62737] text-sm font-mono bg-slate-50"
                     required
                   />
@@ -290,6 +377,7 @@ export default function EditRolePage() {
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     disabled={!isNew && role?.is_system}
+                    autoComplete="off"
                     className="w-full px-4 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-[#c62737] focus:border-[#c62737] text-sm disabled:bg-slate-100 disabled:text-slate-400"
                     required
                   />
@@ -302,6 +390,7 @@ export default function EditRolePage() {
                     onChange={(e) =>
                       setFormData({ ...formData, sort_order: parseInt(e.target.value) || 0 })
                     }
+                    autoComplete="off"
                     className="w-full px-4 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-[#c62737] focus:border-[#c62737] text-sm"
                   />
                 </div>
@@ -313,6 +402,7 @@ export default function EditRolePage() {
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   disabled={!isNew && role?.is_system}
+                  autoComplete="off"
                   rows={2}
                   className="w-full px-4 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-[#c62737] focus:border-[#c62737] text-sm disabled:bg-slate-100 disabled:text-slate-400 resize-none"
                 />
@@ -367,6 +457,114 @@ export default function EditRolePage() {
               </div>
             </div>
           </div>
+
+          {/* Card de usuários da role */}
+          {!isNew && (
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+              <div className="flex items-center justify-between mb-5">
+                <h2 className="text-base font-bold text-slate-800 flex items-center gap-2">
+                  <User className="w-4 h-4 text-sky-500" /> Usuários com esta função
+                </h2>
+                <span className="text-sm font-semibold px-3 py-1 rounded-full bg-sky-100 text-sky-700">
+                  {roleUsers.length} usuário{roleUsers.length !== 1 ? 's' : ''}
+                </span>
+              </div>
+
+              <div className="mb-4 p-4 rounded-2xl border border-slate-200 bg-gradient-to-br from-white to-slate-50">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-xs font-bold text-slate-700 uppercase tracking-wider">Adicionar usuário pela Pessoa vinculada</p>
+                  {availableUsers.length > 0 && (
+                    <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700">
+                      {availableUsers.length} disponível{availableUsers.length !== 1 ? 's' : ''}
+                    </span>
+                  )}
+                </div>
+                <div className="flex flex-col md:flex-row gap-3">
+                  <div className="flex-1">
+                    <CustomSelect
+                      value={selectedUserId}
+                      onChange={setSelectedUserId}
+                      disabled={savingUserAction || availableUsers.length === 0}
+                      placeholder="Selecione um usuário (Pessoa)"
+                      searchPlaceholder="Pesquisar por nome ou email..."
+                      showIcon={true}
+                      options={availableUsers.map((u) => ({
+                        value: u.id,
+                        label: u.people?.full_name || u.full_name || u.email || u.id,
+                        description: u.email || 'sem email',
+                      }))}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleAddUserToRole}
+                    disabled={!selectedUserId || savingUserAction}
+                    className="px-6 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 md:whitespace-nowrap"
+                  >
+                    {savingUserAction ? (
+                      <>
+                        <span className="inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        Salvando...
+                      </>
+                    ) : (
+                      '+ Adicionar'
+                    )}
+                  </button>
+                </div>
+                <p className="text-[11px] text-slate-500 mt-3 flex items-center gap-1.5">
+                  <span className="text-xs">ℹ️</span>
+                  Somente usuários já vinculados a uma Pessoa aparecem na lista.
+                </p>
+              </div>
+
+              {loadingUsers ? (
+                <div className="py-8 text-center">
+                  <div className="w-6 h-6 border-2 border-slate-300 border-t-[#c62737] rounded-full animate-spin mx-auto" />
+                </div>
+              ) : roleUsers.length === 0 ? (
+                <div className="py-8 text-center text-slate-500 text-sm border border-dashed border-slate-200 rounded-lg">
+                  Nenhum usuário tem esta função
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {roleUsers.map((user) => (
+                    <div
+                      key={user.id}
+                      className="flex items-center justify-between p-3 rounded-xl border border-slate-200 hover:bg-slate-50 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-sky-100 flex items-center justify-center flex-shrink-0">
+                          <User className="w-4 h-4 text-sky-600" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-slate-800">{user.people?.full_name || user.full_name || user.email}</p>
+                          <p className="text-xs text-slate-500">{user.email}</p>
+                          {user.person_id && (
+                            <button
+                              type="button"
+                              onClick={() => router.push(`/admin/pessoas/${user.person_id}`)}
+                              className="text-[11px] text-[#c62737] hover:underline mt-0.5"
+                            >
+                              Ver cadastro da Pessoa
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveUserFromRole(user.id)}
+                        disabled={savingUserAction}
+                        className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition disabled:opacity-40"
+                        title="Remover usuário desta função"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {!formData.is_admin && (isNew || !role?.is_system) && (
             <div className="space-y-4">

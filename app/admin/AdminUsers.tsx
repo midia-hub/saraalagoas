@@ -25,6 +25,10 @@ interface UserProfile {
   email: string | null
   full_name?: string | null
   person_id?: string | null
+  people?:
+    | { id: string; full_name?: string | null; email?: string | null }
+    | Array<{ id: string; full_name?: string | null; email?: string | null }>
+    | null
   avatar_url?: string | null
   role: string | null
   access_profile_id: string | null
@@ -55,11 +59,20 @@ export function AdminUsers() {
   const [loadingReset, setLoadingReset] = useState<string | null>(null)
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null)
   const [userToDelete, setUserToDelete] = useState<UserProfile | null>(null)
+  const [reconcilingUserId, setReconcilingUserId] = useState<string | null>(null)
+  const [reconcilingAll, setReconcilingAll] = useState(false)
 
   function getUserRole(user: UserProfile): RoleItem | null {
     const r = user.roles
     if (Array.isArray(r)) return r[0] || null
     return r || null
+  }
+
+  function getUserPerson(user: UserProfile): { id: string; full_name?: string | null; email?: string | null } | null {
+    const p = user.people
+    if (!p) return null
+    if (Array.isArray(p)) return p[0] || null
+    return p
   }
 
   async function loadData() {
@@ -82,7 +95,12 @@ export function AdminUsers() {
   }
 
   useEffect(() => {
-    loadData()
+    ;(async () => {
+      await adminFetchJson('/api/admin/users/reconcile-person-links', {
+        method: 'POST',
+      }).catch(() => null)
+      await loadData()
+    })()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -220,6 +238,46 @@ export function AdminUsers() {
     }
   }
 
+  async function handleReconcileUser(userId: string) {
+    setReconcilingUserId(userId)
+    setSavingMessage(null)
+    try {
+      const result = await adminFetchJson<{ fixed: number }>(`/api/admin/users/reconcile-person-links`, {
+        method: 'POST',
+        body: JSON.stringify({ user_id: userId }),
+      })
+      if ((result?.fixed ?? 0) > 0) {
+        setSavingMessage({ type: 'ok', text: 'Usuário vinculado com sucesso ao cadastro de Pessoa.' })
+      } else {
+        setSavingMessage({ type: 'err', text: 'Não foi possível regularizar este usuário.' })
+      }
+      await loadData()
+    } catch {
+      setSavingMessage({ type: 'err', text: 'Erro ao regularizar vínculo de Pessoa.' })
+    } finally {
+      setReconcilingUserId(null)
+    }
+  }
+
+  async function handleReconcileAll() {
+    setReconcilingAll(true)
+    setSavingMessage(null)
+    try {
+      const result = await adminFetchJson<{ total: number; fixed: number }>(`/api/admin/users/reconcile-person-links`, {
+        method: 'POST',
+      })
+      setSavingMessage({
+        type: 'ok',
+        text: `Regularização concluída: ${result.fixed} de ${result.total} usuário(s) vinculados ao cadastro de Pessoa.`,
+      })
+      await loadData()
+    } catch {
+      setSavingMessage({ type: 'err', text: 'Erro ao revisar vínculos de usuários.' })
+    } finally {
+      setReconcilingAll(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="max-w-6xl space-y-6">
@@ -273,20 +331,31 @@ export function AdminUsers() {
       </section>
 
       <section className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-        <h3 className="font-semibold text-gray-900 mb-4">Usuários com acesso</h3>
+        <div className="flex items-center justify-between gap-3 mb-4">
+          <h3 className="font-semibold text-gray-900">Usuários com acesso</h3>
+          <button
+            type="button"
+            onClick={handleReconcileAll}
+            disabled={reconcilingAll}
+            className="px-3 py-2 text-xs font-semibold rounded-lg border border-slate-300 hover:bg-slate-50 disabled:opacity-50"
+          >
+            {reconcilingAll ? 'Revisando vínculos...' : 'Revisar vínculos Pessoa'}
+          </button>
+        </div>
         {users.length === 0 ? (
           <p className="text-gray-500">Nenhum usuário encontrado. Convide alguém acima.</p>
         ) : (
           <ul className="divide-y divide-gray-200">
             {users.map((user) => {
               const currentRole = getUserRole(user)
+              const person = getUserPerson(user)
               const isAssigning = assigningRoleUserId === user.id
               return (
                 <li key={user.id} className="py-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <p className="text-gray-900 font-bold">
-                        {user.full_name || user.email || user.id}
+                        {person?.full_name || user.full_name || user.email || user.id}
                       </p>
                       {user.person_id ? (
                         <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-green-50 text-green-600 px-2 py-0.5 rounded-full border border-green-100 uppercase tracking-wider" title="Vinculado ao Cadastro Central">
@@ -301,6 +370,20 @@ export function AdminUsers() {
                       )}
                     </div>
                     <p className="text-xs text-gray-500">{user.email}</p>
+                    {user.person_id ? (
+                      <a href={`/admin/pessoas/${user.person_id}`} className="text-xs text-[#c62737] hover:underline">
+                        Ver cadastro da Pessoa
+                      </a>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleReconcileUser(user.id)}
+                        disabled={reconcilingUserId === user.id}
+                        className="text-xs text-amber-700 hover:underline disabled:opacity-50"
+                      >
+                        {reconcilingUserId === user.id ? 'Regularizando vínculo...' : 'Regularizar vínculo com Pessoa'}
+                      </button>
+                    )}
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <label className="text-sm text-gray-600 whitespace-nowrap sr-only md:not-sr-only">Função</label>

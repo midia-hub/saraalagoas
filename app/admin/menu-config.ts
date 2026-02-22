@@ -85,13 +85,41 @@ export const menuModules: MenuModule[] = [
                 href: '/admin/lideranca/meu-discipulado',
                 label: 'Meu Discipulado',
                 icon: UsersRound,
-                permission: 'consolidacao'
+                permission: 'pessoas'
             },
             {
                 href: '/admin/lideranca/rede-completa',
                 label: 'Rede Completa',
                 icon: UsersRound,
-                permission: 'consolidacao'
+                permission: 'pessoas'
+            },
+        ],
+    },
+
+    // Módulo Células
+    {
+        id: 'celulas',
+        title: 'Células',
+        icon: UsersRound,
+        permission: 'celulas',
+        items: [
+            {
+                href: '/admin/celulas',
+                label: 'Gerenciar Células',
+                icon: UsersRound,
+                permission: 'celulas'
+            },
+            {
+                href: '/admin/celulas/dashboard',
+                label: 'Dashboard',
+                icon: BarChart3,
+                permission: 'celulas'
+            },
+            {
+                href: '/admin/celulas/pd-management',
+                label: 'Gerenciar PD',
+                icon: DollarSign,
+                permission: 'celulas'
             },
         ],
     },
@@ -125,6 +153,24 @@ export const menuModules: MenuModule[] = [
                 href: '/admin/consolidacao/relatorios',
                 label: 'Relatórios',
                 icon: BarChart3,
+                permission: 'consolidacao'
+            },
+            {
+                href: '/admin/consolidacao/cadastros/igrejas',
+                label: 'Igrejas',
+                icon: Building2,
+                permission: 'consolidacao'
+            },
+            {
+                href: '/admin/consolidacao/cadastros/arenas',
+                label: 'Arenas',
+                icon: Trophy,
+                permission: 'consolidacao'
+            },
+            {
+                href: '/admin/consolidacao/cadastros/equipes',
+                label: 'Equipes',
+                icon: UserCog,
                 permission: 'consolidacao'
             },
         ],
@@ -196,6 +242,12 @@ export const menuModules: MenuModule[] = [
                 permission: 'livraria_estoque'
             },
             {
+                href: '/admin/livraria/movimentacoes',
+                label: 'Movimentações',
+                icon: ArrowLeftRight,
+                permission: 'livraria_movimentacoes'
+            },
+            {
                 href: '/admin/livraria/clientes',
                 label: 'Gestão de Clientes',
                 icon: UserCheck,
@@ -224,34 +276,6 @@ export const menuModules: MenuModule[] = [
                 label: 'Importação/Exportação',
                 icon: FileSpreadsheet,
                 permission: 'livraria_importacao'
-            },
-        ],
-    },
-
-    // Módulo Células
-    {
-        id: 'celulas',
-        title: 'Células',
-        icon: UsersRound,
-        permission: 'celulas',
-        items: [
-            {
-                href: '/admin/celulas',
-                label: 'Gerenciar Células',
-                icon: UsersRound,
-                permission: 'celulas'
-            },
-            {
-                href: '/admin/celulas/dashboard',
-                label: 'Dashboard',
-                icon: BarChart3,
-                permission: 'celulas'
-            },
-            {
-                href: '/admin/celulas/pd-management',
-                label: 'Gerenciar PD',
-                icon: DollarSign,
-                permission: 'celulas'
             },
         ],
     },
@@ -293,6 +317,18 @@ export const menuModules: MenuModule[] = [
                 icon: Settings,
                 permission: 'instagram'
             },
+            {
+                href: '#',
+                label: 'Facebook',
+                icon: MessageSquare,
+                permission: 'facebook'
+            },
+            {
+                href: '#',
+                label: 'Integrações Meta',
+                icon: MessageSquare,
+                permission: 'meta'
+            },
         ],
     },
 
@@ -308,24 +344,6 @@ export const menuModules: MenuModule[] = [
                 label: 'Pessoas',
                 icon: UserCircle,
                 permission: 'pessoas'
-            },
-            {
-                href: '/admin/consolidacao/cadastros/igrejas',
-                label: 'Igrejas',
-                icon: Building2,
-                permission: 'consolidacao'
-            },
-            {
-                href: '/admin/consolidacao/cadastros/arenas',
-                label: 'Arenas',
-                icon: Trophy,
-                permission: 'consolidacao'
-            },
-            {
-                href: '/admin/consolidacao/cadastros/equipes',
-                label: 'Equipes',
-                icon: UserCog,
-                permission: 'consolidacao'
             },
         ],
     },
@@ -348,6 +366,18 @@ export const menuModules: MenuModule[] = [
                 label: 'Gerenciar Permissões',
                 icon: Shield,
                 permission: 'roles'
+            },
+            {
+                href: '/cultos',
+                label: 'Cultos',
+                icon: BookOpen,
+                permission: 'configuracoes'
+            },
+            {
+                href: '/eventos',
+                label: 'Eventos',
+                icon: Ticket,
+                permission: 'configuracoes'
             },
             {
                 href: '/admin/consolidacao/cadastros/api-disparos',

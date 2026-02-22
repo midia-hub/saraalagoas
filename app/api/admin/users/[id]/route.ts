@@ -26,7 +26,7 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
 
     const { data: profile, error } = await supabaseServer
       .from('profiles')
-      .select('id, email, full_name, role_id, created_at')
+      .select('id, email, full_name, role_id, person_id, created_at, people:person_id(id, full_name, email)')
       .eq('id', id)
       .maybeSingle()
 
@@ -73,16 +73,29 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
       )
     }
 
+    const { data: currentProfile } = await supabaseServer
+      .from('profiles')
+      .select('id, person_id')
+      .eq('id', id)
+      .maybeSingle()
+
     const { data: updated, error } = await supabaseServer
       .from('profiles')
       .update(updates)
       .eq('id', id)
-      .select('id, email, full_name, role_id, created_at')
+      .select('id, email, full_name, role_id, person_id, created_at, people:person_id(id, full_name, email)')
       .single()
 
     if (error) {
       console.error('Erro ao atualizar usuário:', error)
       return NextResponse.json({ error: 'Erro ao atualizar usuário' }, { status: 500 })
+    }
+
+    if (typeof updates.full_name === 'string' && currentProfile?.person_id) {
+      await supabaseServer
+        .from('people')
+        .update({ full_name: updates.full_name, updated_at: new Date().toISOString() })
+        .eq('id', currentProfile.person_id)
     }
 
     return NextResponse.json({ user: updated })

@@ -89,6 +89,11 @@ export async function GET(request: NextRequest) {
       person_id,
       avatar_url,
       created_at,
+      people:person_id (
+        id,
+        full_name,
+        email
+      ),
       access_profiles (
         id,
         name,

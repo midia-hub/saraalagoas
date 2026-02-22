@@ -308,10 +308,24 @@ function RoleCard({ role, canEditRole, canDeleteRole, onEdit, onDelete }: RoleCa
             </span>
           )}
 
-          <span className="ml-auto inline-flex items-center gap-1.5 text-xs text-slate-500 font-medium">
-            <Users className="w-3.5 h-3.5 text-slate-400" />
-            {usersCount} usuário{usersCount !== 1 ? 's' : ''}
-          </span>
+          {/* Indicador de usuários clicável */}
+          {canEditRole && (
+            <button
+              onClick={onEdit}
+              className="ml-auto inline-flex items-center gap-1.5 text-xs text-slate-600 font-medium bg-sky-50 hover:bg-sky-100 px-2.5 py-1 rounded-full transition border border-sky-200"
+              title="Clique para ver e gerenciar usuários"
+            >
+              <Users className="w-3 h-3 text-sky-600" />
+              {usersCount} usuário{usersCount !== 1 ? 's' : ''}
+            </button>
+          )}
+
+          {!canEditRole && (
+            <span className="ml-auto inline-flex items-center gap-1.5 text-xs text-slate-500 font-medium">
+              <Users className="w-3.5 h-3.5 text-slate-400" />
+              {usersCount} usuário{usersCount !== 1 ? 's' : ''}
+            </span>
+          )}
         </div>
       </div>
     </div>
