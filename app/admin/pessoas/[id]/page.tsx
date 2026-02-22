@@ -114,8 +114,21 @@ type TabId = (typeof TABS)[number]['id']
 
 type UserLinkState = {
   linked: boolean
-  user: { id: string; email: string | null; full_name: string | null } | null
-  emailUser: { id: string; email: string | null; full_name: string | null; person_id: string | null } | null
+  user: {
+    id: string
+    email: string | null
+    full_name: string | null
+    role_id: string | null
+    access_profile_id: string | null
+  } | null
+  emailUser: {
+    id: string
+    email: string | null
+    full_name: string | null
+    person_id: string | null
+    role_id: string | null
+    access_profile_id: string | null
+  } | null
 }
 
 function DataCard({

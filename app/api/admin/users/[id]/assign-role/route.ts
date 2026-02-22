@@ -48,7 +48,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     // Verificar se o usuário existe
     const { data: user, error: userError } = await supabaseServer
       .from('profiles')
-      .select('id')
+      .select('id, person_id')
       .eq('id', userId)
       .maybeSingle()
 
@@ -56,12 +56,36 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 404 })
     }
 
+    if (!user.person_id) {
+      return NextResponse.json(
+        { error: 'Este usuário precisa estar vinculado a uma Pessoa antes de receber função.' },
+        { status: 400 }
+      )
+    }
+
+    let accessProfileId: string | null = null
+    const { data: accessProfiles } = await supabaseServer
+      .from('access_profiles')
+      .select('id, name')
+      .ilike('name', role.name)
+      .limit(1)
+
+    accessProfileId = accessProfiles?.[0]?.id ?? null
+
+    const keyOrName = `${role.name ?? ''}`.toLowerCase()
+    const legacyRole = keyOrName.includes('padrao') || keyOrName.includes('padrão') ? 'viewer' : 'editor'
+
     // Atualizar role do usuário
     const { data: updatedProfile, error: updateError } = await supabaseServer
       .from('profiles')
-      .update({ role_id })
+      .update({
+        role_id,
+        access_profile_id: accessProfileId,
+        role: legacyRole,
+        updated_at: new Date().toISOString(),
+      })
       .eq('id', userId)
-      .select('id, role_id')
+      .select('id, role_id, access_profile_id, role')
       .single()
 
     if (updateError) {
