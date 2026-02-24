@@ -42,6 +42,7 @@ function buildPayload(form: PersonFormData): Record<string, unknown> {
     else payload[key] = v === true || v === 'true'
   }
   set('full_name', form.full_name)
+  set('church_name', form.church_name)
   set('church_profile', form.church_profile)
   set('church_situation', form.church_situation)
   set('church_role', form.church_role)
@@ -52,6 +53,8 @@ function buildPayload(form: PersonFormData): Record<string, unknown> {
   set('marital_status', form.marital_status)
   set('marriage_date', form.marriage_date)
   set('rg', form.rg)
+  set('rg_issuing_agency', form.rg_issuing_agency)
+  set('rg_uf', form.rg_uf)
   set('cpf', form.cpf)
   set('special_needs', form.special_needs)
   set('cep', form.cep)
@@ -67,6 +70,9 @@ function buildPayload(form: PersonFormData): Record<string, unknown> {
   set('entry_by', form.entry_by)
   set('entry_date', form.entry_date)
   set('status_in_church', form.status_in_church)
+  setBool('is_new_convert', form.is_new_convert)
+  setBool('accepted_jesus', form.accepted_jesus)
+  set('accepted_jesus_at', form.accepted_jesus_at)
   set('conversion_date', form.conversion_date)
   setBool('is_baptized', form.is_baptized)
   set('baptism_date', form.baptism_date)
@@ -76,6 +82,7 @@ function buildPayload(form: PersonFormData): Record<string, unknown> {
   set('profession', form.profession)
   set('nationality', form.nationality)
   set('birthplace', form.birthplace)
+  set('origin_church', form.origin_church)
   set('interviewed_by', form.interviewed_by)
   set('registered_by', form.registered_by)
   set('blood_type', form.blood_type)
@@ -241,9 +248,10 @@ export default function PessoaDetalhePage() {
 
   async function handleSendInvite(e: React.FormEvent) {
     e.preventDefault()
-    const email = inviteEmail.trim()
+    const personEmail = (person?.email ?? '').trim()
+    const email = (inviteEmail.trim() || personEmail).trim()
     if (!email) {
-      setInviteMessage({ type: 'err', message: 'Informe um e-mail válido.' })
+      setInviteMessage({ type: 'err', message: 'Informe um e-mail válido no cadastro da pessoa ou no campo abaixo.' })
       return
     }
     if (!id) return
@@ -356,6 +364,7 @@ export default function PessoaDetalhePage() {
   }
 
   const isActive = person.church_situation === 'Ativo'
+  const personEmail = (person.email ?? '').trim()
   const shortId = id ? id.slice(0, 8) : ''
 
   return (
@@ -445,7 +454,10 @@ export default function PessoaDetalhePage() {
                   {!userLink?.linked && (
                     <button
                       type="button"
-                      onClick={() => setInviteModalOpen(true)}
+                      onClick={() => {
+                        setInviteEmail((person?.email ?? '').trim())
+                        setInviteModalOpen(true)
+                      }}
                       className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-300 text-slate-700 text-sm font-medium hover:bg-slate-50 transition-colors"
                       title="Enviar convite de cadastro"
                     >
@@ -518,9 +530,12 @@ export default function PessoaDetalhePage() {
                   <div><dt className="text-xs text-slate-500">Estado civil</dt><dd className="text-slate-800">{dash(person.marital_status)}</dd></div>
                   <div><dt className="text-xs text-slate-500">Data de casamento</dt><dd className="text-slate-800">{dash(formatDateDisplay(person.marriage_date))}</dd></div>
                   <div><dt className="text-xs text-slate-500">Cônjuge</dt><dd className="text-slate-800">{spouseName ?? '—'}</dd></div>
-                  <div><dt className="text-xs text-slate-500">RG / CPF</dt><dd className="text-slate-800">{dash(person.rg)} / {dash(person.cpf)}</dd></div>
+                  <div><dt className="text-xs text-slate-500">Documento de Identificação</dt><dd className="text-slate-800">{dash(person.rg)}</dd></div>
+                  <div><dt className="text-xs text-slate-500">Órgão Emissor</dt><dd className="text-slate-800">{dash(person.rg_issuing_agency)}</dd></div>
+                  <div><dt className="text-xs text-slate-500">UF do RG</dt><dd className="text-slate-800">{dash(person.rg_uf)}</dd></div>
+                  <div><dt className="text-xs text-slate-500">CPF</dt><dd className="text-slate-800">{dash(person.cpf)}</dd></div>
                   <div><dt className="text-xs text-slate-500">Escolaridade</dt><dd className="text-slate-800">{dash(person.education_level)}</dd></div>
-                  <div><dt className="text-xs text-slate-500">Profissão</dt><dd className="text-slate-800">{dash(person.profession)}</dd></div>
+                  <div><dt className="text-xs text-slate-500">Ocupação</dt><dd className="text-slate-800">{dash(person.profession)}</dd></div>
                   <div><dt className="text-xs text-slate-500">Tipo sanguíneo</dt><dd className="text-slate-800">{dash(person.blood_type)}</dd></div>
                 </dl>
               </div>
@@ -546,12 +561,16 @@ export default function PessoaDetalhePage() {
             <div className="bg-white rounded-xl border border-slate-200 p-6 mb-8">
               <h3 className="text-sm font-semibold text-slate-700 mb-4 uppercase tracking-wide">Dados eclesiásticos</h3>
               <dl className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div><dt className="text-xs text-slate-500">Igreja</dt><dd className="text-slate-800">{dash(person.church_name)}</dd></div>
                 <div><dt className="text-xs text-slate-500">Perfil</dt><dd className="text-slate-800">{person.church_profile}</dd></div>
                 <div><dt className="text-xs text-slate-500">Função</dt><dd className="text-slate-800">{dash(person.church_role)}</dd></div>
                 <div><dt className="text-xs text-slate-500">Líder direto</dt><dd className="text-slate-800">{leaderName ?? '—'}</dd></div>
                 <div><dt className="text-xs text-slate-500">Entrada por</dt><dd className="text-slate-800">{dash(person.entry_by)}</dd></div>
                 <div><dt className="text-xs text-slate-500">Data de entrada</dt><dd className="text-slate-800">{dash(formatDateDisplay(person.entry_date))}</dd></div>
-                <div><dt className="text-xs text-slate-500">Data de conversão</dt><dd className="text-slate-800">{dash(formatDateDisplay(person.conversion_date))}</dd></div>
+                <div><dt className="text-xs text-slate-500">É recém-convertido?</dt><dd className="text-slate-800">{simNao(person.is_new_convert)}</dd></div>
+                <div><dt className="text-xs text-slate-500">Aceitou Jesus?</dt><dd className="text-slate-800">{simNao(person.accepted_jesus)}</dd></div>
+                <div><dt className="text-xs text-slate-500">Aceitou Jesus em</dt><dd className="text-slate-800">{dash(person.accepted_jesus_at)}</dd></div>
+                <div><dt className="text-xs text-slate-500">Data que aceitou Jesus</dt><dd className="text-slate-800">{dash(formatDateDisplay(person.conversion_date))}</dd></div>
                 <div><dt className="text-xs text-slate-500">Batizado</dt><dd className="text-slate-800">{simNao(person.is_baptized)}</dd></div>
                 <div><dt className="text-xs text-slate-500">Data do batismo</dt><dd className="text-slate-800">{dash(formatDateDisplay(person.baptism_date))}</dd></div>
               </dl>
@@ -565,6 +584,7 @@ export default function PessoaDetalhePage() {
               <dl className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div><dt className="text-xs text-slate-500">Nacionalidade</dt><dd className="text-slate-800">{dash(person.nationality)}</dd></div>
                 <div><dt className="text-xs text-slate-500">Naturalidade</dt><dd className="text-slate-800">{dash(person.birthplace)}</dd></div>
+                <div><dt className="text-xs text-slate-500">Igreja de origem</dt><dd className="text-slate-800">{dash(person.origin_church)}</dd></div>
                 <div><dt className="text-xs text-slate-500">Entrevistado por</dt><dd className="text-slate-800">{dash(person.interviewed_by)}</dd></div>
                 <div><dt className="text-xs text-slate-500">Registrado por</dt><dd className="text-slate-800">{dash(person.registered_by)}</dd></div>
               </dl>
@@ -657,20 +677,32 @@ export default function PessoaDetalhePage() {
               </div>
 
               <form onSubmit={handleSendInvite} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">E-mail para enviar o convite</label>
-                  <input
-                    type="email"
-                    value={inviteEmail}
-                    onChange={(e) => setInviteEmail(e.target.value)}
-                    placeholder="email@exemplo.com"
-                    required
-                    className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:border-[#c62737] focus:ring-2 focus:ring-[#c62737]/20 outline-none transition-all"
-                  />
-                  <p className="text-xs text-slate-500 mt-1">
-                    Se for diferente do email da pessoa, certifique-se de usar um email válido que o usuário tenha acesso.
-                  </p>
-                </div>
+                {personEmail ? (
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">E-mail do cadastro da pessoa</label>
+                    <div className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-700">
+                      {personEmail}
+                    </div>
+                    <p className="text-xs text-slate-500 mt-1">
+                      O convite será enviado automaticamente para este e-mail.
+                    </p>
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">E-mail para enviar o convite</label>
+                    <input
+                      type="email"
+                      value={inviteEmail}
+                      onChange={(e) => setInviteEmail(e.target.value)}
+                      placeholder="email@exemplo.com"
+                      required
+                      className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:border-[#c62737] focus:ring-2 focus:ring-[#c62737]/20 outline-none transition-all"
+                    />
+                    <p className="text-xs text-slate-500 mt-1">
+                      Como não há e-mail no cadastro da pessoa, informe um e-mail válido que o usuário tenha acesso.
+                    </p>
+                  </div>
+                )}
 
                 {inviteMessage && (
                   <div
@@ -698,7 +730,7 @@ export default function PessoaDetalhePage() {
                   </button>
                   <button
                     type="submit"
-                    disabled={inviteSending || !inviteEmail.trim()}
+                    disabled={inviteSending || (!personEmail && !inviteEmail.trim())}
                     className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-[#c62737] text-white font-medium hover:bg-[#a62030] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
                     {inviteSending ? (

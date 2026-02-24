@@ -66,6 +66,12 @@ coverage
 *.key
 config/*-service-account*.json
 
+# Scripts temporários de debug
+scripts/check-*.mjs
+scripts/seed-*.mjs
+scripts/fix-*.mjs
+scripts/fix-*.sql
+
 # Supabase local
 supabase/.env
 supabase/.temp

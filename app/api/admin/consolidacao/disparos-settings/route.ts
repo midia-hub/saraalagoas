@@ -6,7 +6,7 @@ import { createSupabaseAdminClient } from '@/lib/supabase-server'
  * GET - retorna se a API de disparos está ativa (para o painel de cadastro)
  */
 export async function GET(request: NextRequest) {
-  const access = await requireAccess(request, { pageKey: 'consolidacao', action: 'view' })
+  const access = await requireAccess(request, { pageKey: 'consolidacao_config', action: 'view' })
   if (!access.ok) return access.response
 
   try {
@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
  * Body: { disparos_api_enabled: boolean }
  */
 export async function PATCH(request: NextRequest) {
-  const access = await requireAccess(request, { pageKey: 'consolidacao', action: 'manage' })
+  const access = await requireAccess(request, { pageKey: 'consolidacao_config', action: 'manage' })
   if (!access.ok) return access.response
 
   try {

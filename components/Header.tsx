@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Menu, X, Shield } from 'lucide-react'
+import { Menu, X, Shield, CalendarDays } from 'lucide-react'
 import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useSiteConfig } from '@/lib/site-config-context'
@@ -77,6 +77,13 @@ export default function Header() {
             ))}
             <div className="h-6 w-px bg-gray-200 mx-2" />
             <Link
+              href="/reservar-sala"
+              className="flex items-center gap-2 px-5 py-2.5 bg-sara-red text-white rounded-full font-bold hover:bg-red-700 transition-all duration-300 uppercase tracking-wider text-xs shadow-md hover:shadow-lg"
+            >
+              <CalendarDays size={14} />
+              Reservar Sala
+            </Link>
+            <Link
               href="/admin"
               className="flex items-center gap-2 px-5 py-2.5 bg-sara-gray-dark text-white rounded-full font-bold hover:bg-sara-red transition-all duration-300 uppercase tracking-wider text-xs shadow-md hover:shadow-lg"
             >
@@ -148,8 +155,16 @@ export default function Header() {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: config.menuItems.length * 0.1 }}
-                    className="mt-12"
+                    className="mt-12 space-y-3"
                   >
+                    <Link
+                      href="/reservar-sala"
+                      onClick={() => setIsMenuOpen(false)}
+                      className="flex items-center justify-center gap-3 w-full bg-sara-red text-white font-bold py-5 rounded-2xl hover:bg-red-700 transition-all shadow-xl"
+                    >
+                      <CalendarDays size={20} />
+                      RESERVAR SALA
+                    </Link>
                     <Link
                       href="/admin"
                       onClick={() => setIsMenuOpen(false)}

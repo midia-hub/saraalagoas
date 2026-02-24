@@ -92,6 +92,8 @@ const ADMIN_PAGE_KEYS = [
   'facebook',
   'meta',
   'cultos',
+  'reservas',
+  'consolidacao_config',
 ]
 
 const LEGACY_ADMIN_PERMISSIONS: PermissionMap = {
@@ -104,12 +106,14 @@ const LEGACY_ADMIN_PERMISSIONS: PermissionMap = {
   roles: { view: true, create: true, edit: true, delete: true, manage: true },
   pessoas: { view: true, create: true, edit: true, delete: true, manage: true },
   consolidacao: { view: true, create: true, edit: true, delete: true, manage: true },
+  consolidacao_config: { view: true, create: true, edit: true, delete: true, manage: true },
   celulas: { view: true, create: true, edit: true, delete: true, manage: true },
   revisao_vidas: { view: true, create: true, edit: true, delete: true, manage: true },
   instagram: { view: true, create: true, edit: true, delete: true, manage: true },
   facebook: { view: true, create: true, edit: true, delete: true, manage: true },
   meta: { view: true, create: true, edit: true, delete: true, manage: true },
   cultos: { view: true, create: true, edit: true, delete: true, manage: true },
+  reservas: { view: true, create: true, edit: true, delete: true, manage: true },
   livraria_produtos: { view: true, create: true, edit: true, delete: true, manage: true },
   livraria_estoque: { view: true, create: true, edit: true, delete: true, manage: true },
   livraria_movimentacoes: { view: true, create: true, edit: true, delete: true, manage: true },
@@ -138,6 +142,11 @@ const LEGACY_EDITOR_PERMISSIONS: PermissionMap = {
  * Deve estar alinhado com a tabela app_permissions no banco
  */
 const APP_PERMISSION_TO_RESOURCE_ACTION: Record<string, { resource_key: string; action: PermissionAction }> = {
+  [APP_PERMISSION_CODES.VIEW_RESERVAS]: { resource_key: 'reservas', action: 'view' },
+  [APP_PERMISSION_CODES.CREATE_RESERVAS]: { resource_key: 'reservas', action: 'create' },
+  [APP_PERMISSION_CODES.EDIT_RESERVAS]: { resource_key: 'reservas', action: 'edit' },
+  [APP_PERMISSION_CODES.DELETE_RESERVAS]: { resource_key: 'reservas', action: 'delete' },
+  [APP_PERMISSION_CODES.MANAGE_RESERVAS]: { resource_key: 'reservas', action: 'manage' },
   [APP_PERMISSION_CODES.VIEW_DASHBOARD]: { resource_key: 'dashboard', action: 'view' },
   [APP_PERMISSION_CODES.VIEW_GALLERY]: { resource_key: 'galeria', action: 'view' },
   [APP_PERMISSION_CODES.CREATE_GALLERY]: { resource_key: 'galeria', action: 'create' },

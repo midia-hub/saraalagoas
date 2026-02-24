@@ -5,6 +5,7 @@ import Footer from '@/components/Footer'
 const FloatingWhatsApp = dynamic(() => import('@/components/FloatingWhatsApp'), { ssr: false })
 import { redirect } from 'next/navigation'
 import { getConfiguredHomeRoute } from '@/lib/home-route'
+import HomeLoadGuard from '@/components/HomeLoadGuard'
 
 import SectionSkeleton from '@/components/SectionSkeleton'
 
@@ -48,7 +49,7 @@ export default async function Home() {
   }
 
   return (
-    <>
+    <HomeLoadGuard>
       <Header />
       <main>
         <Hero />
@@ -63,6 +64,6 @@ export default async function Home() {
       </main>
       <Footer />
       <FloatingWhatsApp />
-    </>
+    </HomeLoadGuard>
   )
 }

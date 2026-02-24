@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -34,12 +34,15 @@ export default function AdminLoginPage() {
   const [loading, setLoading] = useState(false)
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' } | null>(null)
   const [showPassword, setShowPassword] = useState(false)
-  const [modalPrimeiroLogin, setModalPrimeiroLogin] = useState(false)
-  const [loadingMagicLink, setLoadingMagicLink] = useState(false)
-  const emailPrimeiroLoginRef = useRef<HTMLInputElement>(null)
   const [modalResetSenha, setModalResetSenha] = useState(false)
   const [loadingResetSenha, setLoadingResetSenha] = useState(false)
   const emailResetSenhaRef = useRef<HTMLInputElement>(null)
+  const [showBackgroundEffects, setShowBackgroundEffects] = useState(false)
+
+  useEffect(() => {
+    const rafId = window.requestAnimationFrame(() => setShowBackgroundEffects(true))
+    return () => window.cancelAnimationFrame(rafId)
+  }, [])
 
   function showToastMessage(message: string, type: 'error' | 'success' = 'error') {
     setToast({ message, type })
@@ -136,61 +139,6 @@ export default function AdminLoginPage() {
     }
   }
 
-  async function handlePrimeiroLoginSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    const email = emailPrimeiroLoginRef.current?.value?.trim() ?? ''
-    if (!email) {
-      showToastMessage('Por favor, insira seu e-mail.')
-      return
-    }
-    if (!supabase) {
-      showToastMessage('Serviço temporariamente indisponível. Tente mais tarde ou contate o administrador.')
-      return
-    }
-    setLoadingMagicLink(true)
-    setToast(null)
-    try {
-      const basePath =
-        typeof process.env.NEXT_PUBLIC_USE_BASEPATH === 'string' && process.env.NEXT_PUBLIC_USE_BASEPATH === 'true'
-          ? '/saraalagoas'
-          : ''
-      const checkRes = await fetch(`${basePath}/api/auth/check-email`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
-      })
-      const checkJson = await checkRes.json().catch(() => ({}))
-      if (checkRes.ok && checkJson.exists === true) {
-        showToastMessage('Este e-mail já possui conta. Use "Fazer login" ou "Redefinir senha".')
-        setLoadingMagicLink(false)
-        return
-      }
-      const appOrigin =
-        typeof process.env.NEXT_PUBLIC_APP_URL === 'string' && process.env.NEXT_PUBLIC_APP_URL
-          ? process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, '')
-          : typeof window !== 'undefined'
-            ? window.location.origin
-            : ''
-      const emailRedirectTo = `${appOrigin}${basePath}/admin/completar-cadastro`
-      const { error } = await supabase.auth.signInWithOtp({
-        email,
-        options: { emailRedirectTo },
-      })
-      if (error) {
-        showToastMessage('Não foi possível enviar o link. Tente novamente.')
-        setLoadingMagicLink(false)
-        return
-      }
-      showToastMessage('Enviamos um link de acesso para seu e-mail. Verifique a caixa de entrada.', 'success')
-      setModalPrimeiroLogin(false)
-      emailPrimeiroLoginRef.current && (emailPrimeiroLoginRef.current.value = '')
-    } catch {
-      showToastMessage('Erro ao enviar link.')
-    } finally {
-      setLoadingMagicLink(false)
-    }
-  }
-
   async function handleResetSenhaSubmit(e: React.FormEvent) {
     e.preventDefault()
     const email = emailResetSenhaRef.current?.value?.trim() ?? ''
@@ -240,17 +188,21 @@ export default function AdminLoginPage() {
     <div className="fixed inset-0 overflow-auto text-[#252525]" style={{ fontFamily: "'Inter', sans-serif" }} role="dialog" aria-modal="true" aria-label="Login administrativo">
       <div className={styles.bg} />
       <div className={styles.bgGradient} />
-      <div className={styles.waves}>
-        <div className={`${styles.waveLayer} ${styles.waveLayer1}`} />
-        <div className={`${styles.waveLayer} ${styles.waveLayer2}`} />
-        <div className={`${styles.waveLayer} ${styles.waveLayer3}`} />
-      </div>
-      <div className={`${styles.bgBlob} ${styles.bgBlob1}`} />
-      <div className={`${styles.bgBlob} ${styles.bgBlob2}`} />
-      <div className={`${styles.bgBlob} ${styles.bgBlob3}`} />
-      <div className={styles.bgShimmer} />
-      <div className={`${styles.orb} ${styles.orb1}`} />
-      <div className={`${styles.orb} ${styles.orb2}`} />
+      {showBackgroundEffects ? (
+        <>
+          <div className={styles.waves}>
+            <div className={`${styles.waveLayer} ${styles.waveLayer1}`} />
+            <div className={`${styles.waveLayer} ${styles.waveLayer2}`} />
+            <div className={`${styles.waveLayer} ${styles.waveLayer3}`} />
+          </div>
+          <div className={`${styles.bgBlob} ${styles.bgBlob1}`} />
+          <div className={`${styles.bgBlob} ${styles.bgBlob2}`} />
+          <div className={`${styles.bgBlob} ${styles.bgBlob3}`} />
+          <div className={styles.bgShimmer} />
+          <div className={`${styles.orb} ${styles.orb1}`} />
+          <div className={`${styles.orb} ${styles.orb2}`} />
+        </>
+      ) : null}
 
       <main className={styles.wrapper}>
         <div className={styles.logoAboveCard}>
@@ -330,14 +282,6 @@ export default function AdminLoginPage() {
               <button
                 type="button"
                 className={styles.magicLink}
-                onClick={() => setModalPrimeiroLogin(true)}
-              >
-                Primeiro login
-              </button>
-              <button
-                type="button"
-                className={styles.magicLink}
-                style={{ fontSize: '0.75rem' }}
                 onClick={() => setModalResetSenha(true)}
               >
                 Redefinir senha
@@ -367,60 +311,6 @@ export default function AdminLoginPage() {
           </Link>
         </div>
       </main>
-
-      {/* Modal Primeiro login */}
-      {modalPrimeiroLogin && (
-        <div
-          className={styles.modalOverlay}
-          onClick={() => setModalPrimeiroLogin(false)}
-          role="dialog"
-          aria-modal="true"
-          aria-label="Primeiro login - informe seu e-mail"
-        >
-          <div className={styles.modalCard} onClick={(e) => e.stopPropagation()}>
-            <p className={styles.cardTitle} style={{ marginBottom: 4 }}>Primeiro login</p>
-            <p className={styles.cardSub} style={{ marginBottom: 14 }}>Informe seu e-mail para receber o link de acesso</p>
-            <form onSubmit={handlePrimeiroLoginSubmit}>
-              <div className={styles.field}>
-                <label htmlFor="modal-primeiro-login-email">E-mail</label>
-                <div className={styles.inputContainer}>
-                  <Mail size={18} strokeWidth={1.5} className={styles.inputIcon} />
-                  <input
-                    ref={emailPrimeiroLoginRef}
-                    id="modal-primeiro-login-email"
-                    type="email"
-                    placeholder="seu@email.com"
-                    autoComplete="email"
-                    autoCapitalize="none"
-                    autoCorrect="off"
-                    required
-                    className={styles.innerInput}
-                  />
-                </div>
-              </div>
-              <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-                <button
-                  type="button"
-                  className={styles.modalBtnSecondary}
-                  onClick={() => setModalPrimeiroLogin(false)}
-                >
-                  Cancelar
-                </button>
-                <button type="submit" disabled={loadingMagicLink} className={styles.btnLogin} style={{ flex: 1 }}>
-                  {loadingMagicLink ? (
-                    <span className="inline-flex items-center justify-center gap-2">
-                      <Loader2 size={18} className="animate-spin" />
-                      Enviando...
-                    </span>
-                  ) : (
-                    'Enviar link de acesso'
-                  )}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* Modal Redefinir senha */}
       {modalResetSenha && (

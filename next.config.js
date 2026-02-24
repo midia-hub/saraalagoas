@@ -1,8 +1,5 @@
 /** @type {import('next').NextConfig} */
-import path from 'path'
-import { fileURLToPath } from 'url'
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const path = require('path')
 
 // Para GitHub Pages: https://midia-hub.github.io/saraalagoas/
 // Em desenvolvimento (npm run dev) basePath fica sempre vazio para evitar 404 em /_next/static.
@@ -49,4 +46,4 @@ const nextConfig = {
   },
 }
 
-export default nextConfig
+module.exports = nextConfig

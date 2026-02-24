@@ -19,9 +19,10 @@ export async function GET(request: NextRequest) {
     const excludeId = request.nextUrl.searchParams.get('excludeId') ?? undefined
     const supabase = createSupabaseAdminClient(request)
 
+    // Busca pessoas ativas que têm usuário vinculado (existem na tabela profiles)
     let query = supabase
       .from('people')
-      .select('id, full_name')
+      .select('id, full_name, profiles!inner(id)')
       .eq('church_situation', 'Ativo')
       .order('full_name', { ascending: true })
       .limit(LIMIT)
@@ -36,9 +37,8 @@ export async function GET(request: NextRequest) {
       query = query.neq('id', excludeId)
     }
 
-    // Buscar apenas quando houver texto digitado
-    if (q) {
-      // Busca case-insensitive no campo full_name
+    // Só filtra por nome se busca tiver 3 ou mais caracteres
+    if (q.length >= 3) {
       query = query.ilike('full_name', `%${q}%`)
     }
 

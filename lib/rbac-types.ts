@@ -236,6 +236,7 @@ export const RESOURCE_KEYS = {
   FACEBOOK: 'facebook',
   META: 'meta',
   CULTOS: 'cultos',
+  RESERVAS: 'reservas',
 } as const
 
 /**
@@ -285,6 +286,12 @@ export interface AppPermission {
  * Novas funcionalidades: adicione aqui e na tabela app_permissions.
  */
 export const APP_PERMISSION_CODES = {
+    // Reservas de Salas
+    VIEW_RESERVAS: 'view_reservas',
+    CREATE_RESERVAS: 'create_reservas',
+    EDIT_RESERVAS: 'edit_reservas',
+    DELETE_RESERVAS: 'delete_reservas',
+    MANAGE_RESERVAS: 'manage_reservas',
   VIEW_DASHBOARD: 'view_dashboard',
   VIEW_GALLERY: 'view_gallery',
   CREATE_GALLERY: 'create_gallery',

@@ -1,15 +1,18 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { UserCircle, Search, UserPlus } from 'lucide-react'
+import { useState, useEffect, useCallback } from 'react'
+import { UserCircle, Search, UserPlus, Upload } from 'lucide-react'
 import { PageAccessGuard } from '@/app/admin/PageAccessGuard'
 import { CustomSelect } from '@/components/ui/CustomSelect'
 import { PeopleTable } from '@/components/admin/people/PeopleTable'
+import { PeopleImportModal } from '@/components/admin/people/PeopleImportModal'
 import { fetchPeople } from '@/lib/people'
+import { useAdminAccess } from '@/lib/admin-access-context'
 import type { Person } from '@/lib/types/person'
 import Link from 'next/link'
 
 export default function PessoasPage() {
+  const access = useAdminAccess()
   const [people, setPeople] = useState<Person[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -17,8 +20,9 @@ export default function PessoasPage() {
   const [churchProfile, setChurchProfile] = useState('')
   const [churchSituation, setChurchSituation] = useState('')
   const [churchRole, setChurchRole] = useState('')
+  const [importModalOpen, setImportModalOpen] = useState(false)
 
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
@@ -35,11 +39,11 @@ export default function PessoasPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [q, churchProfile, churchSituation, churchRole])
 
   useEffect(() => {
     load()
-  }, [q, churchProfile, churchSituation, churchRole])
+  }, [load])
 
   return (
     <PageAccessGuard pageKey="pessoas">
@@ -55,13 +59,25 @@ export default function PessoasPage() {
             </div>
           </div>
 
-          <Link
-            href="/admin/pessoas/novo"
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#c62737] text-white font-semibold hover:bg-[#a62030] transition-all shadow-lg shadow-[#c62737]/20 active:scale-[0.98]"
-          >
-            <UserPlus size={20} />
-            Cadastrar Pessoa
-          </Link>
+          <div className="flex items-center gap-2">
+            {access.isAdmin && (
+              <button
+                type="button"
+                onClick={() => setImportModalOpen(true)}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-700 font-semibold hover:bg-slate-50 transition-all"
+              >
+                <Upload size={18} />
+                Importar XLSX
+              </button>
+            )}
+            <Link
+              href="/admin/pessoas/novo"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#c62737] text-white font-semibold hover:bg-[#a62030] transition-all shadow-lg shadow-[#c62737]/20 active:scale-[0.98]"
+            >
+              <UserPlus size={20} />
+              Cadastrar Pessoa
+            </Link>
+          </div>
         </div>
 
         <div className="bg-white rounded-xl border border-slate-200 p-6 mb-6">
@@ -71,10 +87,18 @@ export default function PessoasPage() {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                 <input
-                  type="text"
+                  type="search"
+                  id="people-search"
+                  name="people-search"
                   value={q}
                   onChange={(e) => setQ(e.target.value)}
                   placeholder="Nome, telefone, e-mail ou CPF..."
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="none"
+                  spellCheck={false}
+                  data-lpignore="true"
+                  data-1p-ignore="true"
                   className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-300 focus:border-[#c62737] focus:ring-2 focus:ring-[#c62737]/20 outline-none"
                 />
               </div>
@@ -110,6 +134,15 @@ export default function PessoasPage() {
           </div>
         )}
         <PeopleTable people={people} loading={loading} />
+
+        {importModalOpen && (
+          <PeopleImportModal
+            onClose={() => setImportModalOpen(false)}
+            onImported={() => {
+              load()
+            }}
+          />
+        )}
       </div>
     </PageAccessGuard>
   )
