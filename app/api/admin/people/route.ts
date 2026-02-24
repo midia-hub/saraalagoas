@@ -3,7 +3,6 @@ import { requireAccess } from '@/lib/admin-api'
 import { createSupabaseAdminClient } from '@/lib/supabase-server'
 import { personCreateSchema } from '@/lib/validators/person'
 import { normalizeCpf, normalizePhone, normalizeDate } from '@/lib/validators/person'
-import { normalizeForSearch } from '@/lib/normalize-text'
 
 const isDev = process.env.NODE_ENV === 'development'
 const PEOPLE_LIST_SELECT = 'id, full_name, church_profile, church_situation, city, state, mobile_phone, email, updated_at'
@@ -41,13 +40,16 @@ export async function GET(request: NextRequest) {
 
     if (q) {
       const digits = q.replace(/\D/g, '')
-      const qNorm = normalizeForSearch(q)
       const orParts = [
-        `full_name_normalized.ilike.%${qNorm}%`,
+        `full_name.ilike.%${q}%`,
         `email.ilike.%${q}%`,
         `mobile_phone.ilike.%${q}%`,
         `phone.ilike.%${q}%`,
       ]
+      if (digits.length >= 8) {
+        orParts.push(`mobile_phone.ilike.%${digits}%`)
+        orParts.push(`phone.ilike.%${digits}%`)
+      }
       if (digits.length >= 11) orParts.push(`cpf.eq.${digits}`)
       query = query.or(orParts.join(','))
     }
@@ -104,6 +106,7 @@ export async function POST(request: NextRequest) {
     const payload = {
       leader_person_id: row.leader_person_id ?? null,
       full_name: row.full_name,
+      church_name: row.church_name ?? null,
       church_profile: row.church_profile,
       church_situation: row.church_situation,
       church_role: row.church_role ?? null,
@@ -112,6 +115,8 @@ export async function POST(request: NextRequest) {
       marital_status: row.marital_status ?? null,
       marriage_date: normalizeDate(row.marriage_date) ?? null,
       rg: row.rg ?? null,
+      rg_issuing_agency: row.rg_issuing_agency ?? null,
+      rg_uf: row.rg_uf ?? null,
       cpf: normalizeCpf(row.cpf) ?? null,
       special_needs: row.special_needs ?? null,
       cep: row.cep ?? null,
@@ -125,6 +130,9 @@ export async function POST(request: NextRequest) {
       entry_by: row.entry_by ?? null,
       entry_date: normalizeDate(row.entry_date) ?? null,
       status_in_church: row.status_in_church ?? null,
+      is_new_convert: row.is_new_convert ?? null,
+      accepted_jesus: row.accepted_jesus ?? null,
+      accepted_jesus_at: row.accepted_jesus_at ?? null,
       conversion_date: normalizeDate(row.conversion_date) ?? null,
       is_baptized: row.is_baptized ?? null,
       baptism_date: normalizeDate(row.baptism_date) ?? null,
@@ -134,6 +142,7 @@ export async function POST(request: NextRequest) {
       profession: row.profession ?? null,
       nationality: row.nationality ?? null,
       birthplace: row.birthplace ?? null,
+      origin_church: row.origin_church ?? null,
       interviewed_by: row.interviewed_by ?? null,
       registered_by: row.registered_by ?? null,
       blood_type: row.blood_type ?? null,

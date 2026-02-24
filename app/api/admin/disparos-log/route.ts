@@ -13,10 +13,10 @@ export interface DisparosLogEntry {
 }
 
 /**
- * GET - lista os últimos registros do log de disparos (configurações / perfil admin)
+ * GET - lista os últimos registros do log de disparos (API de disparos)
  */
 export async function GET(request: NextRequest) {
-  const access = await requireAccess(request, { pageKey: 'configuracoes', action: 'view' })
+  const access = await requireAccess(request, { pageKey: 'consolidacao_config', action: 'view' })
   if (!access.ok) return access.response
 
   const limit = Math.min(Number(request.nextUrl.searchParams.get('limit')) || 100, 200)

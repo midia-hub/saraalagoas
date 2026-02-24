@@ -53,6 +53,18 @@ export interface MenuModule {
  * Configuração modular dos menus do painel administrativo
  */
 export const menuModules: MenuModule[] = [
+        // Módulo Reservas de Salas
+        {
+            id: 'reservas',
+            title: 'Reservas',
+            icon: LayoutGrid,
+            permission: 'reservas',
+            items: [
+                { href: '/admin/reservas', label: 'Reservas', icon: ClipboardList, permission: 'reservas' },
+                { href: '/admin/reservas/salas', label: 'Salas', icon: Building2, permission: 'reservas' },
+                { href: '/admin/reservas/mensagens', label: 'Mensagens', icon: MessageSquare, permission: 'reservas' }
+            ]
+        },
     // Dashboard - Sempre visível ou com permissão específica
     {
         id: 'dashboard',
@@ -153,24 +165,6 @@ export const menuModules: MenuModule[] = [
                 href: '/admin/consolidacao/relatorios',
                 label: 'Relatórios',
                 icon: BarChart3,
-                permission: 'consolidacao'
-            },
-            {
-                href: '/admin/consolidacao/cadastros/igrejas',
-                label: 'Igrejas',
-                icon: Building2,
-                permission: 'consolidacao'
-            },
-            {
-                href: '/admin/consolidacao/cadastros/arenas',
-                label: 'Arenas',
-                icon: Trophy,
-                permission: 'consolidacao'
-            },
-            {
-                href: '/admin/consolidacao/cadastros/equipes',
-                label: 'Equipes',
-                icon: UserCog,
                 permission: 'consolidacao'
             },
         ],
@@ -337,13 +331,30 @@ export const menuModules: MenuModule[] = [
         id: 'cadastros',
         title: 'Cadastros',
         icon: UserCircle,
-        permission: 'pessoas',
         items: [
             {
                 href: '/admin/pessoas',
                 label: 'Pessoas',
                 icon: UserCircle,
                 permission: 'pessoas'
+            },
+            {
+                href: '/admin/consolidacao/cadastros/igrejas',
+                label: 'Igrejas',
+                icon: Building2,
+                permission: 'consolidacao'
+            },
+            {
+                href: '/admin/consolidacao/cadastros/arenas',
+                label: 'Arenas',
+                icon: Trophy,
+                permission: 'consolidacao'
+            },
+            {
+                href: '/admin/consolidacao/cadastros/equipes',
+                label: 'Equipes',
+                icon: UserCog,
+                permission: 'consolidacao'
             },
         ],
     },

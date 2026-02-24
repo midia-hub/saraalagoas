@@ -1,29 +1,17 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Loader2, Send } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import { siteConfig as defaultConfig } from '@/config/site'
 import type { SiteConfig } from '@/lib/types'
 import { adminFetchJson } from '@/lib/admin-client'
 import { Toast } from '@/components/Toast'
-
-export interface DisparosLogEntry {
-  id: string
-  phone: string
-  nome: string
-  conversion_type: string
-  status_code: number | null
-  source: string
-  created_at: string
-}
 
 export function AdminSiteConfig() {
   const [config, setConfig] = useState<SiteConfig>(defaultConfig as SiteConfig)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
-  const [disparosLog, setDisparosLog] = useState<DisparosLogEntry[]>([])
-  const [disparosLogLoading, setDisparosLogLoading] = useState(true)
 
   useEffect(() => {
     adminFetchJson<{ value?: unknown }>('/api/admin/site-config')
@@ -33,13 +21,6 @@ export function AdminSiteConfig() {
         }
       })
       .finally(() => setLoading(false))
-  }, [])
-
-  useEffect(() => {
-    adminFetchJson<{ items: DisparosLogEntry[] }>('/api/admin/disparos-log')
-      .then((data) => setDisparosLog(data.items ?? []))
-      .catch(() => setDisparosLog([]))
-      .finally(() => setDisparosLogLoading(false))
   }, [])
 
   async function handleSave(e: React.FormEvent) {
@@ -432,59 +413,6 @@ export function AdminSiteConfig() {
           {saving ? 'Salvando...' : 'Salvar configurações'}
         </button>
       </form>
-
-      {/* Log de disparos */}
-      <section className="mt-12 bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-        <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-          <Send className="text-[#c62737]" size={20} />
-          Log de disparos
-        </h3>
-        <p className="text-sm text-gray-600 mb-4">
-          Últimas chamadas ao webhook de disparos ao finalizar o formulário de consolidação (público ou admin).
-        </p>
-        {disparosLogLoading ? (
-          <p className="text-gray-500 text-sm">Carregando...</p>
-        ) : disparosLog.length === 0 ? (
-          <p className="text-gray-500 text-sm">Nenhum registro ainda.</p>
-        ) : (
-          <div className="overflow-x-auto -mx-2">
-            <table className="w-full text-sm border-collapse">
-              <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="text-left py-2 px-2 font-medium text-gray-700">Data/Hora</th>
-                  <th className="text-left py-2 px-2 font-medium text-gray-700">Telefone</th>
-                  <th className="text-left py-2 px-2 font-medium text-gray-700">Nome</th>
-                  <th className="text-left py-2 px-2 font-medium text-gray-700">Tipo</th>
-                  <th className="text-left py-2 px-2 font-medium text-gray-700">Origem</th>
-                  <th className="text-left py-2 px-2 font-medium text-gray-700">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {disparosLog.map((row) => (
-                  <tr key={row.id} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="py-2 px-2 text-gray-600">
-                      {new Date(row.created_at).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}
-                    </td>
-                    <td className="py-2 px-2 font-mono text-gray-800">{row.phone}</td>
-                    <td className="py-2 px-2 text-gray-800">{row.nome}</td>
-                    <td className="py-2 px-2 text-gray-600">{row.conversion_type === 'accepted' ? 'Aceitou' : 'Reconciliou'}</td>
-                    <td className="py-2 px-2 text-gray-600">{row.source === 'admin' ? 'Admin' : 'Público'}</td>
-                    <td className="py-2 px-2">
-                      {row.status_code != null ? (
-                        <span className={row.status_code >= 200 && row.status_code < 300 ? 'text-green-600' : 'text-red-600'}>
-                          {row.status_code}
-                        </span>
-                      ) : (
-                        <span className="text-gray-400">—</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
     </div>
   )
 }

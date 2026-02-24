@@ -39,7 +39,28 @@ export async function GET(request: NextRequest, context: RouteContext) {
     return NextResponse.json({ error: 'Pessoa não encontrada' }, { status: 404 })
   }
 
-  return NextResponse.json({ person })
+  let avatarUrl: string | null = null
+  try {
+    const { data: linkedProfile } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('person_id', id)
+      .maybeSingle()
+
+    if (linkedProfile?.id) {
+      const { data: authUserData, error: authUserError } = await supabase.auth.admin.getUserById(linkedProfile.id)
+      if (!authUserError) {
+        const metadataAvatar = authUserData.user?.user_metadata?.avatar_url
+        if (typeof metadataAvatar === 'string' && metadataAvatar.trim()) {
+          avatarUrl = metadataAvatar.trim()
+        }
+      }
+    }
+  } catch {
+    // Sem bloqueio: se não conseguir buscar avatar no Auth, retorna pessoa normalmente.
+  }
+
+  return NextResponse.json({ person: { ...person, avatar_url: avatarUrl } })
 }
 
 /**
@@ -73,6 +94,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   const payload: Record<string, unknown> = {}
 
   if (row.full_name !== undefined) payload.full_name = row.full_name
+  if (row.church_name !== undefined) payload.church_name = row.church_name ?? null
   if (row.church_profile !== undefined) payload.church_profile = row.church_profile
   if (row.church_situation !== undefined) payload.church_situation = row.church_situation
   if (row.church_role !== undefined) payload.church_role = row.church_role ?? null
@@ -81,6 +103,8 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   if (row.marital_status !== undefined) payload.marital_status = row.marital_status ?? null
   if (row.marriage_date !== undefined) payload.marriage_date = normalizeDate(row.marriage_date) ?? null
   if (row.rg !== undefined) payload.rg = row.rg ?? null
+  if (row.rg_issuing_agency !== undefined) payload.rg_issuing_agency = row.rg_issuing_agency ?? null
+  if (row.rg_uf !== undefined) payload.rg_uf = row.rg_uf ?? null
   if (row.cpf !== undefined) payload.cpf = normalizeCpf(row.cpf) ?? null
   if (row.special_needs !== undefined) payload.special_needs = row.special_needs ?? null
   if (row.cep !== undefined) payload.cep = row.cep ?? null
@@ -96,6 +120,9 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   if (row.entry_by !== undefined) payload.entry_by = row.entry_by ?? null
   if (row.entry_date !== undefined) payload.entry_date = normalizeDate(row.entry_date) ?? null
   if (row.status_in_church !== undefined) payload.status_in_church = row.status_in_church ?? null
+  if (row.is_new_convert !== undefined) payload.is_new_convert = row.is_new_convert ?? null
+  if (row.accepted_jesus !== undefined) payload.accepted_jesus = row.accepted_jesus ?? null
+  if (row.accepted_jesus_at !== undefined) payload.accepted_jesus_at = row.accepted_jesus_at ?? null
   if (row.conversion_date !== undefined) payload.conversion_date = normalizeDate(row.conversion_date) ?? null
   if (row.is_baptized !== undefined) payload.is_baptized = row.is_baptized ?? null
   if (row.baptism_date !== undefined) payload.baptism_date = normalizeDate(row.baptism_date) ?? null
@@ -105,6 +132,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   if (row.profession !== undefined) payload.profession = row.profession ?? null
   if (row.nationality !== undefined) payload.nationality = row.nationality ?? null
   if (row.birthplace !== undefined) payload.birthplace = row.birthplace ?? null
+  if (row.origin_church !== undefined) payload.origin_church = row.origin_church ?? null
   if (row.interviewed_by !== undefined) payload.interviewed_by = row.interviewed_by ?? null
   if (row.registered_by !== undefined) payload.registered_by = row.registered_by ?? null
   if (row.blood_type !== undefined) payload.blood_type = row.blood_type ?? null

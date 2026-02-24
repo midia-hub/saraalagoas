@@ -28,6 +28,8 @@ CREATE TABLE IF NOT EXISTS public.people (
     marital_status TEXT CHECK (marital_status IN ('Solteiro(a)', 'Casado(a)', 'Divorciado(a)', 'Viúvo(a)')),
     marriage_date DATE,
     rg TEXT,
+    rg_issuing_agency TEXT,
+    rg_uf TEXT,
     cpf TEXT,
     special_needs TEXT,
     
@@ -46,12 +48,16 @@ CREATE TABLE IF NOT EXISTS public.people (
     phone TEXT,
     
     -- Igreja
+    church_name TEXT,
     church_profile TEXT DEFAULT 'Visitante' CHECK (church_profile IN ('Membro', 'Frequentador', 'Visitante')),
     church_situation TEXT DEFAULT 'Ativo' CHECK (church_situation IN ('Ativo', 'Inativo')),
     church_role TEXT CHECK (church_role IN ('Nenhum', 'Obreiro', 'Voluntário', 'Diácono', 'Cooperador', 'Missionário', 'Pastor', 'Bispo')),
     entry_by TEXT CHECK (entry_by IN ('Batismo', 'Reconciliação', 'Transferência', 'Conversão', 'Outro')),
     entry_date DATE,
     status_in_church TEXT CHECK (status_in_church IN ('Ativo', 'Inativo')),
+    is_new_convert BOOLEAN,
+    accepted_jesus BOOLEAN,
+    accepted_jesus_at TEXT,
     conversion_date DATE,
     is_baptized BOOLEAN,
     baptism_date DATE,
@@ -63,6 +69,7 @@ CREATE TABLE IF NOT EXISTS public.people (
     profession TEXT,
     nationality TEXT,
     birthplace TEXT,
+    origin_church TEXT,
     interviewed_by TEXT,
     registered_by TEXT,
     blood_type TEXT,

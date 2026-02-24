@@ -52,6 +52,7 @@ export function PersonForm({ initial, onSubmit, loading = false, readOnlyMetadat
       leader_person_id: initial.leader_person_id ?? null,
       spouse_person_id: initial.spouse_person_id ?? null,
       full_name: initial.full_name ?? '',
+      church_name: initial.church_name ?? '',
       church_profile: initial.church_profile ?? '',
       church_situation: initial.church_situation ?? '',
       church_role: initial.church_role ?? '',
@@ -60,6 +61,8 @@ export function PersonForm({ initial, onSubmit, loading = false, readOnlyMetadat
       marital_status: initial.marital_status ?? '',
       marriage_date: initial.marriage_date ? String(initial.marriage_date).slice(0, 10) : '',
       rg: initial.rg ?? '',
+      rg_issuing_agency: initial.rg_issuing_agency ?? '',
+      rg_uf: initial.rg_uf ?? '',
       cpf: initial.cpf ?? '',
       special_needs: initial.special_needs ?? '',
       cep: initial.cep ?? '',
@@ -75,6 +78,9 @@ export function PersonForm({ initial, onSubmit, loading = false, readOnlyMetadat
       entry_by: initial.entry_by ?? '',
       entry_date: initial.entry_date ? String(initial.entry_date).slice(0, 10) : '',
       status_in_church: initial.status_in_church ?? '',
+      is_new_convert: initial.is_new_convert ?? null,
+      accepted_jesus: initial.accepted_jesus ?? null,
+      accepted_jesus_at: initial.accepted_jesus_at ?? '',
       conversion_date: initial.conversion_date ? String(initial.conversion_date).slice(0, 10) : '',
       is_baptized: initial.is_baptized ?? null,
       baptism_date: initial.baptism_date ? String(initial.baptism_date).slice(0, 10) : '',
@@ -84,6 +90,7 @@ export function PersonForm({ initial, onSubmit, loading = false, readOnlyMetadat
       profession: initial.profession ?? '',
       nationality: initial.nationality ?? '',
       birthplace: initial.birthplace ?? '',
+      origin_church: initial.origin_church ?? '',
       interviewed_by: initial.interviewed_by ?? '',
       registered_by: initial.registered_by ?? '',
       blood_type: initial.blood_type ?? '',
@@ -226,6 +233,16 @@ export function PersonForm({ initial, onSubmit, loading = false, readOnlyMetadat
           <div>
             <label className={labelClass}>Perfil na igreja *</label>
             <CustomSelect value={toFormValue(form.church_profile)} onChange={(v) => update('church_profile', v)} placeholder="Selecione" options={CHURCH_PROFILE_VALUES.map((v) => ({ value: v, label: v }))} />
+          </div>
+          <div>
+            <label className={labelClass}>Igreja</label>
+            <input
+              type="text"
+              value={toFormValue(form.church_name)}
+              onChange={(e) => update('church_name', e.target.value || null)}
+              className={inputClass}
+              placeholder="Nome da igreja"
+            />
           </div>
         </div>
       </section>
@@ -401,8 +418,16 @@ export function PersonForm({ initial, onSubmit, loading = false, readOnlyMetadat
             </div>
           )}
           <div>
-            <label className={labelClass}>RG</label>
+            <label className={labelClass}>Documento de Identificação</label>
             <input type="text" value={toFormValue(form.rg)} onChange={(e) => update('rg', e.target.value || null)} className={inputClass} />
+          </div>
+          <div>
+            <label className={labelClass}>Órgão Emissor</label>
+            <input type="text" value={toFormValue(form.rg_issuing_agency)} onChange={(e) => update('rg_issuing_agency', e.target.value || null)} className={inputClass} />
+          </div>
+          <div>
+            <label className={labelClass}>UF do RG</label>
+            <input type="text" value={toFormValue(form.rg_uf)} onChange={(e) => update('rg_uf', e.target.value || null)} className={inputClass} maxLength={2} placeholder="UF" />
           </div>
           <div>
             <label className={labelClass}>CPF</label>
@@ -512,7 +537,19 @@ export function PersonForm({ initial, onSubmit, loading = false, readOnlyMetadat
           </div>
 
           <div>
-            <label className={labelClass}>Data de conversão</label>
+            <label className={labelClass}>É recém-convertido?</label>
+            <CustomSelect value={form.is_new_convert === true ? 'true' : form.is_new_convert === false ? 'false' : ''} onChange={(v) => update('is_new_convert', v === '' ? null : v === 'true')} placeholder="Não informado" options={[{ value: 'true', label: 'Sim' }, { value: 'false', label: 'Não' }]} />
+          </div>
+          <div>
+            <label className={labelClass}>Aceitou Jesus?</label>
+            <CustomSelect value={form.accepted_jesus === true ? 'true' : form.accepted_jesus === false ? 'false' : ''} onChange={(v) => update('accepted_jesus', v === '' ? null : v === 'true')} placeholder="Não informado" options={[{ value: 'true', label: 'Sim' }, { value: 'false', label: 'Não' }]} />
+          </div>
+          <div>
+            <label className={labelClass}>Aceitou Jesus em</label>
+            <input type="text" value={toFormValue(form.accepted_jesus_at)} onChange={(e) => update('accepted_jesus_at', e.target.value || null)} className={inputClass} placeholder="Ex.: culto, conferência, célula" />
+          </div>
+          <div>
+            <label className={labelClass}>Data que aceitou Jesus</label>
             <DatePickerInput
               value={toFormValue(form.conversion_date)}
               onChange={(v: string) => update('conversion_date', v || null)}
@@ -543,7 +580,7 @@ export function PersonForm({ initial, onSubmit, loading = false, readOnlyMetadat
             <CustomSelect value={toFormValue(form.education_level)} onChange={(v) => update('education_level', v || null)} placeholder="Selecione" options={EDUCATION_LEVEL_VALUES.map((v) => ({ value: v, label: v }))} />
           </div>
           <div>
-            <label className={labelClass}>Profissão</label>
+            <label className={labelClass}>Ocupação</label>
             <input type="text" value={toFormValue(form.profession)} onChange={(e) => update('profession', e.target.value || null)} className={inputClass} />
           </div>
           <div>
@@ -553,6 +590,10 @@ export function PersonForm({ initial, onSubmit, loading = false, readOnlyMetadat
           <div>
             <label className={labelClass}>Naturalidade</label>
             <input type="text" value={toFormValue(form.birthplace)} onChange={(e) => update('birthplace', e.target.value || null)} className={inputClass} />
+          </div>
+          <div>
+            <label className={labelClass}>Igreja de origem</label>
+            <input type="text" value={toFormValue(form.origin_church)} onChange={(e) => update('origin_church', e.target.value || null)} className={inputClass} />
           </div>
           <div>
             <label className={labelClass}>Tipo sanguíneo</label>

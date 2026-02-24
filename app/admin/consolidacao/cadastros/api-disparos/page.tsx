@@ -2,15 +2,27 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
-import { Send, ArrowLeft, Save } from 'lucide-react'
+import { Send, ArrowLeft, Save, Loader2 } from 'lucide-react'
 import { PageAccessGuard } from '@/app/admin/PageAccessGuard'
 import { Button } from '@/components/ui/Button'
 import { adminFetchJson } from '@/lib/admin-client'
+
+export interface DisparosLogEntry {
+  id: string
+  phone: string
+  nome: string
+  conversion_type: string
+  status_code: number | null
+  source: string
+  created_at: string
+}
 
 export default function ApiDisparosPage() {
   const [enabled, setEnabled] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saveLoading, setSaveLoading] = useState(false)
+  const [disparosLog, setDisparosLog] = useState<DisparosLogEntry[]>([])
+  const [disparosLogLoading, setDisparosLogLoading] = useState(true)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -25,9 +37,23 @@ export default function ApiDisparosPage() {
     }
   }, [])
 
+  const loadLog = useCallback(async () => {
+    setDisparosLogLoading(true)
+    try {
+      const data = await adminFetchJson<{ items: DisparosLogEntry[] }>('/api/admin/disparos-log')
+      setDisparosLog(data.items ?? [])
+    } catch (err) {
+      console.error('[API disparos] Erro ao carregar log:', err)
+      setDisparosLog([])
+    } finally {
+      setDisparosLogLoading(false)
+    }
+  }, [])
+
   useEffect(() => {
     load()
-  }, [load])
+    loadLog()
+  }, [load, loadLog])
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -46,7 +72,7 @@ export default function ApiDisparosPage() {
   }
 
   return (
-    <PageAccessGuard pageKey="consolidacao">
+    <PageAccessGuard pageKey="consolidacao_config">
       <div className="p-6 md:p-8">
         <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -106,6 +132,93 @@ export default function ApiDisparosPage() {
             </div>
           </form>
         )}
+
+        {/* Log de disparos */}
+        <div className="mt-12">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold text-slate-800 flex items-center gap-2">
+              <Send className="text-[#c62737]" size={20} />
+              Log de disparos
+            </h3>
+            <button
+              onClick={loadLog}
+              className="text-xs text-[#c62737] hover:underline font-medium"
+            >
+              Atualizar log
+            </button>
+          </div>
+          
+          <p className="text-sm text-slate-500 mb-4">
+            Relatório de envios realizados independente da origem (site público, painel administrativo ou outros fluxos).
+          </p>
+          
+          {disparosLogLoading ? (
+            <div className="bg-white rounded-xl border border-slate-200 p-8 text-center text-slate-500 italic">
+              Carregando registros...
+            </div>
+          ) : disparosLog.length === 0 ? (
+            <div className="bg-white rounded-xl border border-slate-200 p-8 text-center text-slate-500 border-dashed">
+              Nenhum disparo registrado ainda.
+            </div>
+          ) : (
+            <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-100 bg-slate-50/50">
+                      <th className="text-left py-3 px-4 font-semibold text-slate-600">Data/Hora</th>
+                      <th className="text-left py-3 px-4 font-semibold text-slate-600">Telefone</th>
+                      <th className="text-left py-3 px-4 font-semibold text-slate-600">Nome</th>
+                      <th className="text-left py-3 px-4 font-semibold text-slate-600">Tipo</th>
+                      <th className="text-left py-3 px-4 font-semibold text-slate-600">Origem</th>
+                      <th className="text-center py-3 px-4 font-semibold text-slate-600">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {disparosLog.map((row) => (
+                      <tr key={row.id} className="hover:bg-slate-50/30 transition-colors">
+                        <td className="py-3 px-4 text-slate-500 text-xs">
+                          {new Date(row.created_at).toLocaleString('pt-BR', { 
+                            day: '2-digit', 
+                            month: '2-digit', 
+                            year: '2-digit', 
+                            hour: '2-digit', 
+                            minute: '2-digit' 
+                          })}
+                        </td>
+                        <td className="py-3 px-4 font-mono text-slate-700">{row.phone}</td>
+                        <td className="py-3 px-4 font-medium text-slate-900">{row.nome}</td>
+                        <td className="py-3 px-4">
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-600 font-bold uppercase whitespace-nowrap">
+                            {row.conversion_type === 'accepted' ? 'Aceitou' : 
+                             row.conversion_type === 'reconciled' ? 'Reconciliou' : 
+                             row.conversion_type === 'reserva_solicitada' ? 'Sol. Reserva' :
+                             row.conversion_type === 'reserva_aprovada' ? 'Res. Aprovada' :
+                             row.conversion_type === 'reserva_rejeitada' ? 'Res. Rejeitada' :
+                             row.conversion_type || 'Outro'}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-xs font-medium text-slate-400 uppercase">
+                          {row.source === 'admin' ? 'Painel' : row.source === 'reservas' ? 'Reserva' : 'Site'}
+                        </td>
+                        <td className="py-3 px-4 text-center">
+                          {row.status_code != null ? (
+                            <span className={`inline-flex items-center gap-1 font-bold text-xs ${row.status_code >= 200 && row.status_code < 300 ? 'text-green-600' : 'text-red-600'}`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${row.status_code >= 200 && row.status_code < 300 ? 'bg-green-500' : 'bg-red-500'}`} />
+                              {row.status_code}
+                            </span>
+                          ) : (
+                            <span className="text-slate-300">—</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </PageAccessGuard>
   )

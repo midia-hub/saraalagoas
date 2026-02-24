@@ -35,6 +35,7 @@ export interface Person {
   spouse_person_id: string | null
 
   full_name: string
+  church_name: string | null
   church_profile: ChurchProfile
   church_situation: ChurchSituation
 
@@ -45,6 +46,8 @@ export interface Person {
   marital_status: MaritalStatus | null
   marriage_date: string | null
   rg: string | null
+  rg_issuing_agency: string | null
+  rg_uf: string | null
   cpf: string | null
   special_needs: string | null
 
@@ -62,6 +65,9 @@ export interface Person {
   entry_by: EntryBy | null
   entry_date: string | null
   status_in_church: StatusInChurch | null
+  is_new_convert: boolean | null
+  accepted_jesus: boolean | null
+  accepted_jesus_at: string | null
   conversion_date: string | null
   is_baptized: boolean | null
   baptism_date: string | null
@@ -72,6 +78,7 @@ export interface Person {
   profession: string | null
   nationality: string | null
   birthplace: string | null
+  origin_church: string | null
   interviewed_by: string | null
   registered_by: string | null
   blood_type: BloodType | null
