@@ -153,10 +153,44 @@ export default function AdminLayout({
 
   useEffect(() => {
     if (loading || isPublicAdminPage) return
-    // Não exige hasAdminCookie() aqui: o cookie pode ser HttpOnly (definido pela API set-admin-cookie)
-    // e não fica visível em document.cookie. O middleware já validou o cookie no servidor.
     if (!user || !canAccessAdmin) router.replace('/admin/login')
   }, [loading, isPublicAdminPage, user, canAccessAdmin, router])
+
+  useEffect(() => {
+    const ADMIN_TITLES: [string, string][] = [
+      ['/admin/login',                          'Login'],
+      ['/admin/completar-cadastro',             'Completar Cadastro'],
+      ['/admin/acesso-negado',                  'Acesso Negado'],
+      ['/admin/revisao-vidas/inscritos',        'Inscritos — Revisão de Vidas'],
+      ['/admin/revisao-vidas/anamneses',        'Anamneses — Revisão de Vidas'],
+      ['/admin/revisao-vidas',                  'Revisão de Vidas'],
+      ['/admin/celulas/dashboard',              'Dashboard — Células'],
+      ['/admin/celulas',                        'Células'],
+      ['/admin/consolidacao/fichas',            'Fichas — Consolidação'],
+      ['/admin/consolidacao',                   'Consolidação'],
+      ['/admin/pessoas/novo',                   'Nova Pessoa'],
+      ['/admin/pessoas',                        'Pessoas'],
+      ['/admin/lideranca',                      'Liderança'],
+      ['/admin/cultos',                         'Cultos'],
+      ['/admin/escalas',                        'Escalas'],
+      ['/admin/galeria',                        'Galeria'],
+      ['/admin/instagram',                      'Instagram'],
+      ['/admin/livraria/movimentacoes',         'Movimentações — Livraria'],
+      ['/admin/livraria',                       'Livraria'],
+      ['/admin/reservas/salas',                 'Salas — Reservas'],
+      ['/admin/reservas',                       'Reservas'],
+      ['/admin/usuarios',                       'Usuários'],
+      ['/admin/roles',                          'Funções'],
+      ['/admin/settings',                       'Configurações'],
+      ['/admin/upload',                         'Upload'],
+      ['/admin/xp26-pesquisa-resultados',       'XP26 — Resultados'],
+      ['/admin/criar-acesso',                   'Criar Acesso'],
+      ['/admin',                                'Dashboard'],
+    ]
+    const match = ADMIN_TITLES.find(([prefix]) => pathname?.startsWith(prefix))
+    const pageTitle = match ? match[1] : 'Admin'
+    document.title = `${pageTitle} | Sara Sede Alagoas`
+  }, [pathname])
 
   if (isPublicAdminPage) return <>{children}</>
 

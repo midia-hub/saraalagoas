@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
+
+// Título da aba do navegador definido no componente via useEffect
 import Image from 'next/image'
 import {
   Loader2, CheckCircle2, AlertCircle,
@@ -63,6 +65,12 @@ export default function InscricaoRevisaoPage() {
   const [error, setError] = useState('')
   const [result, setResult] = useState<{ alreadyRegistered: boolean; eventName: string; anamneseToken?: string | null } | null>(null)
   const [copiedAnamnese, setCopiedAnamnese] = useState(false)
+
+  useEffect(() => {
+    document.title = event
+      ? `Inscrição — ${event.name} | Sara Sede Alagoas`
+      : 'Inscrição | Sara Sede Alagoas'
+  }, [event])
 
   useEffect(() => {
     if (!eventId) return

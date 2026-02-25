@@ -97,6 +97,10 @@ export default function FormularioConversaoPublicoPage() {
   }, [formData.cep])
 
   useEffect(() => {
+    document.title = 'Ficha de Conversão | Sara Sede Alagoas'
+  }, [])
+
+  useEffect(() => {
     fetch('/api/public/consolidacao/churches')
       .then((r) => r.json())
       .then((data) => setChurches(data.items ?? []))
