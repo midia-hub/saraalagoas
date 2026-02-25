@@ -10,6 +10,7 @@ export async function GET(request: NextRequest) {
   if (!access.ok) return access.response
   try {
     const q = (request.nextUrl.searchParams.get('q') ?? '').trim()
+    const churchId = request.nextUrl.searchParams.get('church_id') ?? ''
     const supabase = createSupabaseAdminClient(request)
     let query = supabase.from('arenas').select(`
       id, 
@@ -18,11 +19,14 @@ export async function GET(request: NextRequest) {
       day_of_week, 
       time_of_day,
       leaders:arena_leaders(person_id, person:people(full_name))
-    `).order('name')
+    `)
+
     if (q) query = query.ilike('name', `%${q}%`)
+    if (churchId) query = query.eq('church_id', churchId)
+
     const { data, error } = await query
     if (error) return NextResponse.json({ error: 'Erro ao listar arenas' }, { status: 500 })
-    return NextResponse.json({ items: data ?? [] })
+    return NextResponse.json({ items: (data ?? []).sort((a, b) => a.name.localeCompare(b.name)) })
   } catch (err) {
     console.error('GET consolidacao/arenas:', err)
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 })

@@ -31,6 +31,7 @@ export interface Person {
   created_at: string
   updated_at: string
   metadata: Record<string, unknown>
+  ministries?: string[] | null
   leader_person_id: string | null
   spouse_person_id: string | null
 

@@ -27,6 +27,7 @@ function buildPayload(form: PersonFormData): PersonCreate {
     set('church_profile', form.church_profile)
     set('church_situation', form.church_situation)
     set('church_role', form.church_role)
+    set('ministries', form.ministries)
     set('leader_person_id', form.leader_person_id)
     set('sex', form.sex)
     set('birth_date', form.birth_date)

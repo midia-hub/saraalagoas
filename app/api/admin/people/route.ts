@@ -3,6 +3,7 @@ import { requireAccess } from '@/lib/admin-api'
 import { createSupabaseAdminClient } from '@/lib/supabase-server'
 import { personCreateSchema } from '@/lib/validators/person'
 import { normalizeCpf, normalizePhone, normalizeDate } from '@/lib/validators/person'
+import { normalizeMinistryNames, replacePersonMinistries } from '@/lib/ministries'
 
 const isDev = process.env.NODE_ENV === 'development'
 const PEOPLE_LIST_SELECT = 'id, full_name, church_profile, church_situation, city, state, mobile_phone, email, updated_at'
@@ -103,6 +104,8 @@ export async function POST(request: NextRequest) {
     }
 
     const row = parsed.data
+    const ministryNames = row.ministries !== undefined ? normalizeMinistryNames(row.ministries) : []
+    const shouldUpdateMinistries = row.ministries !== undefined
     const payload = {
       leader_person_id: row.leader_person_id ?? null,
       full_name: row.full_name,
@@ -164,7 +167,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: message }, { status: 500 })
     }
 
-    return NextResponse.json({ person })
+    let ministries: string[] | undefined
+    if (shouldUpdateMinistries && person?.id) {
+      try {
+        ministries = await replacePersonMinistries(supabase, person.id, ministryNames)
+      } catch (ministryError) {
+        console.error('Erro ao salvar ministérios da pessoa:', ministryError)
+      }
+    }
+
+    return NextResponse.json({
+      person: ministries ? { ...person, ministries } : person,
+    })
   } catch (err) {
     console.error('Erro em POST /api/admin/people:', err)
     const message =

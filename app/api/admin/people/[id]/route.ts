@@ -4,6 +4,7 @@ import { createSupabaseAdminClient } from '@/lib/supabase-server'
 import { personUpdateSchema } from '@/lib/validators/person'
 import { normalizeCpf, normalizePhone, normalizeDate } from '@/lib/validators/person'
 import { canAccessPerson, getLeadershipTree } from '@/lib/people-access'
+import { fetchPersonMinistries, normalizeMinistryNames, replacePersonMinistries } from '@/lib/ministries'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -60,7 +61,9 @@ export async function GET(request: NextRequest, context: RouteContext) {
     // Sem bloqueio: se não conseguir buscar avatar no Auth, retorna pessoa normalmente.
   }
 
-  return NextResponse.json({ person: { ...person, avatar_url: avatarUrl } })
+  const ministries = await fetchPersonMinistries(supabase, id)
+
+  return NextResponse.json({ person: { ...person, avatar_url: avatarUrl, ministries } })
 }
 
 /**
@@ -91,6 +94,8 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   }
 
   const row = parsed.data
+  const ministryNames = row.ministries !== undefined ? normalizeMinistryNames(row.ministries) : []
+  const shouldUpdateMinistries = row.ministries !== undefined
   const payload: Record<string, unknown> = {}
 
   if (row.full_name !== undefined) payload.full_name = row.full_name
@@ -229,6 +234,15 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     return NextResponse.json({ error: 'Erro ao atualizar pessoa' }, { status: 500 })
   }
 
+  let ministries: string[] | undefined
+  if (shouldUpdateMinistries && person?.id) {
+    try {
+      ministries = await replacePersonMinistries(supabase, person.id, ministryNames)
+    } catch (ministryError) {
+      console.error('Erro ao salvar ministérios da pessoa:', ministryError)
+    }
+  }
+
   // Atualizar o outro cônjuge para manter vínculo bidirecional (e estado civil consistente)
   const newSpouseId = payload.spouse_person_id as string | null | undefined
   if (row.spouse_person_id !== undefined && person) {
@@ -269,7 +283,9 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     }
   }
 
-  return NextResponse.json({ person })
+  return NextResponse.json({
+    person: ministries ? { ...person, ministries } : person,
+  })
 }
 
 /**

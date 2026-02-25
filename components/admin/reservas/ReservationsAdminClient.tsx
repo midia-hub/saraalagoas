@@ -411,6 +411,38 @@ export default function ReservationsAdminClient() {
         </div>
       </div>
 
+      {/* ── MODAL DE CARREGAMENTO (APROVAÇÃO) ── */}
+      <AnimatePresence>
+        {actionLoadingId && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+            />
+            {/* Content */}
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 10 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 10 }}
+              className="relative w-full max-w-sm overflow-hidden bg-white rounded-2xl shadow-2xl border border-slate-200"
+            >
+              <div className="p-8 flex flex-col items-center gap-4">
+                <div className="p-4 rounded-2xl bg-blue-100">
+                  <Loader2 size={32} className="text-blue-600 animate-spin" />
+                </div>
+                <div className="text-center">
+                  <h3 className="text-lg font-bold text-slate-900">Aprovando reserva</h3>
+                  <p className="text-sm text-slate-500 mt-1">Aguarde enquanto processamos sua solicitação...</p>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* ── MODAL DE JUSTIFICATIVA (REJEIÇÃO / CANCELAMENTO) ── */}
       <AnimatePresence>
         {modalAction && (

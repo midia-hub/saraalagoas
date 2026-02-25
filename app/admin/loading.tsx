@@ -1,5 +1,5 @@
-import { AdminLoadingScreen } from '@/app/admin/AdminLoadingScreen'
-
+// O overlay global (GlobalLoadingOverlay) cobre este loading.
 export default function AdminLoading() {
-  return <AdminLoadingScreen message="Carregando painel..." />
+  return null
 }
+

@@ -3,13 +3,13 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import type { User } from '@supabase/supabase-js'
 import { AdminAccessProvider } from '@/lib/admin-access-context'
 import { adminFetchJson } from '@/lib/admin-client'
 import type { PermissionMap } from '@/lib/rbac-types'
 import { clearSupabaseLocalSession, getSessionWithRecovery } from '@/lib/auth-recovery'
 import { AdminLoadingScreen } from '@/app/admin/AdminLoadingScreen'
 import { AdminSidebar } from '@/app/admin/AdminSidebar'
+import { GlobalLoadingOverlay } from '@/components/admin/GlobalLoadingOverlay'
 
 function hasAdminCookie(): boolean {
   if (typeof document === 'undefined') return false
@@ -192,6 +192,7 @@ export default function AdminLayout({
         <main className="flex-1 overflow-auto pt-14 md:pt-0">
           {children}
         </main>
+        <GlobalLoadingOverlay />
       </div>
     </AdminAccessProvider>
   )

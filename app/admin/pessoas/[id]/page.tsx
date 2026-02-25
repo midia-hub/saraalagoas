@@ -46,6 +46,7 @@ function buildPayload(form: PersonFormData): Record<string, unknown> {
   set('church_profile', form.church_profile)
   set('church_situation', form.church_situation)
   set('church_role', form.church_role)
+  set('ministries', form.ministries)
   set('leader_person_id', form.leader_person_id)
   set('spouse_person_id', form.spouse_person_id)
   set('sex', form.sex)
@@ -312,13 +313,7 @@ export default function PessoaDetalhePage() {
   }
 
   if (loading) {
-    return (
-      <PageAccessGuard pageKey="pessoas">
-        <div className="p-6 md:p-8 flex items-center justify-center min-h-[200px]">
-          <div className="w-8 h-8 border-2 border-[#c62737] border-t-transparent rounded-full animate-spin" />
-        </div>
-      </PageAccessGuard>
-    )
+    return null
   }
 
   if (!person) {
@@ -508,15 +503,19 @@ export default function PessoaDetalhePage() {
           {/* Conteúdo da aba Perfil */}
           {activeTab === 'perfil' && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-              <DataCard label="Idade" value={getIdade(person.birth_date)} icon={Zap} />
-              <DataCard label="Como está se sentindo?" value="Não informou" icon={Heart} />
-              <DataCard label="Estado Civil" value={dash(person.marital_status)} icon={Heart} />
-              <DataCard label="É batizado?" value={simNao(person.is_baptized)} icon={Cross} />
-              <DataCard label="É pastor?" value={simNao(person.is_pastor)} icon={Cross} />
-              <DataCard label="Faz parte da liderança?" value={simNao(person.is_leader)} icon={Users} />
-              <DataCard label="Celular" value={dash(person.mobile_phone)} icon={Smartphone} />
-              <DataCard label="Necessidades especiais" value={dash(person.special_needs) || simNao(!!person.special_needs)} icon={Hand} />
-            </div>
+                <DataCard label="Idade" value={getIdade(person.birth_date)} icon={Zap} />
+                <DataCard
+                  label="Ministérios"
+                  value={Array.isArray(person.ministries) && person.ministries.length > 0 ? person.ministries.join(', ') : '—'}
+                  icon={Users}
+                />
+                <DataCard label="Estado Civil" value={dash(person.marital_status)} icon={Heart} />
+                <DataCard label="É batizado?" value={simNao(person.is_baptized)} icon={Cross} />
+                <DataCard label="É pastor?" value={simNao(person.is_pastor)} icon={Cross} />
+                <DataCard label="Faz parte da liderança?" value={simNao(person.is_leader)} icon={Users} />
+                <DataCard label="Celular" value={dash(person.mobile_phone)} icon={Smartphone} />
+                <DataCard label="Necessidades especiais" value={dash(person.special_needs) || simNao(!!person.special_needs)} icon={Hand} />
+              </div>
           )}
 
           {/* Conteúdo da aba Pessoais */}
@@ -564,6 +563,7 @@ export default function PessoaDetalhePage() {
                 <div><dt className="text-xs text-slate-500">Igreja</dt><dd className="text-slate-800">{dash(person.church_name)}</dd></div>
                 <div><dt className="text-xs text-slate-500">Perfil</dt><dd className="text-slate-800">{person.church_profile}</dd></div>
                 <div><dt className="text-xs text-slate-500">Função</dt><dd className="text-slate-800">{dash(person.church_role)}</dd></div>
+                <div><dt className="text-xs text-slate-500">Ministérios</dt><dd className="text-slate-800">{Array.isArray(person.ministries) && person.ministries.length > 0 ? person.ministries.join(', ') : '—'}</dd></div>
                 <div><dt className="text-xs text-slate-500">Líder direto</dt><dd className="text-slate-800">{leaderName ?? '—'}</dd></div>
                 <div><dt className="text-xs text-slate-500">Entrada por</dt><dd className="text-slate-800">{dash(person.entry_by)}</dd></div>
                 <div><dt className="text-xs text-slate-500">Data de entrada</dt><dd className="text-slate-800">{dash(formatDateDisplay(person.entry_date))}</dd></div>
@@ -592,7 +592,8 @@ export default function PessoaDetalhePage() {
           )}
 
           {/* Células */}
-          <div className="bg-white rounded-xl border border-slate-200 p-6">
+          {activeTab === 'perfil' && (
+            <div className="bg-white rounded-xl border border-slate-200 p-6">
             <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
               <h2 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
                 <span className="w-1 h-6 bg-emerald-500 rounded-full" />
@@ -655,7 +656,8 @@ export default function PessoaDetalhePage() {
                 ))}
               </div>
             )}
-          </div>
+            </div>
+          )}
         </div>
 
         {toast && (

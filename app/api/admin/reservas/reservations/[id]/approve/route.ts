@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAccess } from '@/lib/admin-api'
 import { createSupabaseAdminClient } from '@/lib/supabase-server'
-import { callTemplateDisparosWebhook } from '@/lib/call-disparos-template'
+import { callDisparosWebhook } from '@/lib/disparos-webhook'
 import { formatDatePtBr, formatTimePtBr } from '@/lib/reservas'
 
 export async function POST(
@@ -17,7 +17,7 @@ export async function POST(
   try {
     const { data: reservation, error: reservationError } = await supabase
       .from('room_reservations')
-      .select('id, room_id, requester_name, requester_phone, reason, start_datetime, end_datetime, status, requester_person_id, room:room_id(name)')
+      .select('id, room_id, requester_name, requester_phone, reason, start_datetime, end_datetime, status, requester_person_id, people_count, room:room_id(name)')
       .eq('id', id)
       .maybeSingle()
 
@@ -69,42 +69,33 @@ export async function POST(
     // ── Envio de mensagem automática (confirmação de aprovação) ──
     try {
       const { data: settings } = await supabase.from('consolidation_settings').select('disparos_api_enabled').eq('id', 1).maybeSingle()
-      if (settings?.disparos_api_enabled) {
-        const { data: template } = await supabase
-          .from('room_message_templates')
-          .select('id, name, message_id, variables')
-          .eq('active', true)
-          .or('name.eq.reserva_aprovada,name.ilike.%aprovada%')
-          .order('name')
-          .limit(1)
-          .maybeSingle()
-
+      if (settings?.disparos_api_enabled && reservation.requester_phone) {
         const roomName = (reservation.room as { name?: string } | null)?.name ?? String(reservation.room_id)
         const variables = {
-          nome: reservation.requester_name ?? '',
+          solicitante: reservation.requester_name ?? '',
           sala: roomName,
           data: formatDatePtBr(reservation.start_datetime),
           hora_inicio: formatTimePtBr(reservation.start_datetime),
           hora_fim: formatTimePtBr(reservation.end_datetime),
+          quantidade_pessoas: String(reservation.people_count ?? 0),
           motivo: reservation.reason ?? '',
         }
 
-        if (template?.message_id && reservation.requester_phone) {
-          const result = await callTemplateDisparosWebhook({
-            phone: reservation.requester_phone,
-            message_id: template.message_id,
-            variables,
-          })
+        const result = await callDisparosWebhook({
+          phone: reservation.requester_phone,
+          nome: reservation.requester_name ?? '',
+          conversionType: 'reserva_aprovada',
+          variables,
+        })
 
-          if (result) {
-            await supabase.from('disparos_log').insert({
-              phone: result.phone,
-              nome: variables.nome,
-              status_code: result.statusCode ?? null,
-              source: 'reservas',
-              conversion_type: 'reserva_aprovada'
-            })
-          }
+        if (result) {
+          await supabase.from('disparos_log').insert({
+            phone: result.phone,
+            nome: result.nome,
+            status_code: result.statusCode ?? null,
+            source: 'reservas',
+            conversion_type: 'reserva_aprovada'
+          })
         }
       }
     } catch (err) {

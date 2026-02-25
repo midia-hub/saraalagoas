@@ -2,6 +2,7 @@ import { Outfit, Inter } from 'next/font/google'
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import { siteConfig } from '@/config/site'
+import { getSiteConfig } from '@/lib/site-config-server'
 import { SiteConfigProvider } from '@/lib/site-config-context'
 
 const outfit = Outfit({
@@ -64,11 +65,13 @@ export const metadata: Metadata = {
   },
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  const initialConfig = await getSiteConfig()
+
   return (
     <html lang="pt-BR" className="scroll-smooth">
       <head>
@@ -77,7 +80,7 @@ export default function RootLayout({
         ) : null}
       </head>
       <body className={`${outfit.variable} ${inter.variable} antialiased`}>
-        <SiteConfigProvider>
+        <SiteConfigProvider initialConfig={initialConfig}>
           {children}
         </SiteConfigProvider>
       </body>

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServiceClient, supabaseServer } from '@/lib/supabase-server'
 import { getAccessSnapshotFromRequest } from '@/lib/rbac'
-import { callTemplateDisparosWebhook } from '@/lib/call-disparos-template'
+import { callDisparosWebhook } from '@/lib/disparos-webhook'
 import {
   isAllowedDay,
   isWithinRoomWindow,
@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
 
     const { data: room, error: roomError } = await supabase
       .from('rooms')
-      .select('id, name, active, available_days, available_start_time, available_end_time, day_times')
+      .select('id, name, active, available_days, available_start_time, available_end_time, day_times, approval_person_id, approver:approval_person_id(id, full_name, mobile_phone)')
       .eq('id', roomId)
       .eq('active', true)
       .maybeSingle()
@@ -188,7 +188,7 @@ export async function POST(request: NextRequest) {
     const { data: reservation, error: insertError } = await supabase
       .from('room_reservations')
       .insert(payload)
-      .select('id, status, room_id, requester_name, requester_phone, start_datetime, end_datetime')
+      .select('id, status, room_id, requester_name, requester_phone, start_datetime, end_datetime, people_count')
       .single()
 
     if (insertError) {
@@ -200,7 +200,7 @@ export async function POST(request: NextRequest) {
 
     // ── Envio de mensagem automática (confirmação de solicitação) ──
     try {
-      console.log('[Reserva Disparo] Iniciando processo de disparo para:', requesterPhone)
+      console.log('[Reserva Disparo] Iniciando processo de disparo')
       
       // 1. Verificar se disparos estão ativos globalmente
       const { data: settings, error: settingsError } = await supabase
@@ -215,66 +215,78 @@ export async function POST(request: NextRequest) {
       console.log('[Reserva Disparo] API Enabled:', isApiEnabled)
 
       if (isApiEnabled) {
-        // 2. Buscar template de solicitação recebida
-        const { data: template, error: templateError } = await supabase
-          .from('room_message_templates')
-          .select('id, name, message_id')
-          .eq('active', true)
-          .or('name.eq.reserva_solicitada,name.ilike.%solicitada%')
-          .order('name')
-          .limit(1)
-          .maybeSingle()
+        const roomName = room.name || String(room.id)
+        const approverData = room.approver as any
+        const approverName = approverData?.full_name || 'Administrador'
+        const approverPhone = approverData?.mobile_phone || null
+        
+        const commonVariables = {
+          aprovador_nome: approverName,
+          solicitante: reservation.requester_name ?? '',
+          sala: roomName,
+          data: formatDatePtBr(reservation.start_datetime),
+          hora_inicio: formatTimePtBr(reservation.start_datetime),
+          hora_fim: formatTimePtBr(reservation.end_datetime),
+          quantidade_pessoas: String(reservation.people_count ?? 0),
+          motivo: reason ?? '',
+        }
 
-        if (templateError) console.error('[Reserva Disparo] Erro ao buscar template:', templateError)
-        console.log('[Reserva Disparo] Template encontrado:', template?.name, 'MessageID:', template?.message_id)
-
-        if (template?.message_id && reservation.requester_phone) {
-          const roomName = room.name || String(room.id)
-          const variables = {
-            nome: reservation.requester_name ?? '',
-            sala: roomName,
-            data: formatDatePtBr(reservation.start_datetime),
-            hora_inicio: formatTimePtBr(reservation.start_datetime),
-            hora_fim: formatTimePtBr(reservation.end_datetime),
-            motivo: reason ?? '',
-          }
-
-          console.log('[Reserva Disparo] Chamando webhook com variáveis:', variables)
-          const result = await callTemplateDisparosWebhook({
+        // 2. Enviar mensagem para o solicitante (reserva_recebida)
+        if (reservation.requester_phone) {
+          console.log('[Reserva Disparo] Enviando mensagem para solicitante:', reservation.requester_phone)
+          const resultRequester = await callDisparosWebhook({
             phone: reservation.requester_phone,
-            message_id: template.message_id,
-            variables,
+            nome: reservation.requester_name ?? '',
+            conversionType: 'reserva_recebida',
+            variables: commonVariables,
           })
 
-          console.log('[Reserva Disparo] Resultado webhook:', result)
+          console.log('[Reserva Disparo] Resultado webhook (solicitante):', resultRequester)
 
-          if (result) {
-            console.log('[Reserva Disparo] Inserindo log no banco...')
+          if (resultRequester) {
             const { error: logError } = await supabase.from('disparos_log').insert({
-              phone: result.phone,
-              nome: variables.nome,
-              status_code: result.statusCode ?? null,
+              phone: resultRequester.phone,
+              nome: resultRequester.nome,
+              status_code: resultRequester.statusCode ?? null,
               source: 'reservas',
-              conversion_type: 'reserva_solicitada'
+              conversion_type: 'reserva_recebida'
             })
             if (logError) {
-              console.error('[Reserva Disparo] Erro ao inserir log:', logError)
+              console.error('[Reserva Disparo] Erro ao inserir log (solicitante):', logError)
             } else {
-              console.log('[Reserva Disparo] ✓ Log inserido com sucesso')
+              console.log('[Reserva Disparo] ✓ Log inserido (solicitante)')
             }
-          } else {
-            console.warn('[Reserva Disparo] Resultado do webhook é null/undefined')
           }
-        } else if (reservation.requester_phone) {
-          console.warn('[Reserva Disparo] Pulando disparo: message_id ausente ou telefone vazio')
-          // Logar que pulamos por falta de template
-          await supabase.from('disparos_log').insert({
-            phone: reservation.requester_phone,
-            nome: reservation.requester_name,
-            status_code: 404,
-            source: 'reservas',
-            conversion_type: 'reserva_solicitada'
+        }
+
+        // 3. Enviar mensagem para o aprovador (reserva_pendente_aprovacao)
+        if (approverPhone) {
+          console.log('[Reserva Disparo] Enviando mensagem para aprovador:', approverPhone)
+          const resultApprover = await callDisparosWebhook({
+            phone: approverPhone,
+            nome: approverName,
+            conversionType: 'reserva_pendente_aprovacao',
+            variables: commonVariables,
           })
+
+          console.log('[Reserva Disparo] Resultado webhook (aprovador):', resultApprover)
+
+          if (resultApprover) {
+            const { error: logError } = await supabase.from('disparos_log').insert({
+              phone: resultApprover.phone,
+              nome: resultApprover.nome,
+              status_code: resultApprover.statusCode ?? null,
+              source: 'reservas',
+              conversion_type: 'reserva_pendente_aprovacao'
+            })
+            if (logError) {
+              console.error('[Reserva Disparo] Erro ao inserir log (aprovador):', logError)
+            } else {
+              console.log('[Reserva Disparo] ✓ Log inserido (aprovador)')
+            }
+          }
+        } else {
+          console.warn('[Reserva Disparo] Aprovador sem telefone cadastrado - notificação não enviada')
         }
       }
     } catch (err) {

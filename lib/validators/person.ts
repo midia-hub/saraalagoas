@@ -61,11 +61,13 @@ const optionalString = z.string().trim().nullable().optional()
 const optionalDate = z.string().nullable().optional()
 const optionalBoolean = z.boolean().nullable().optional()
 const optionalUuid = z.string().uuid().nullable().optional()
+const optionalStringArray = z.array(z.string().trim().min(1)).nullable().optional()
 
 /** Schema base sem refinements — .partial() no Zod v4 só pode ser usado em schemas sem refinements */
 const personBaseSchema = z.object({
   leader_person_id: optionalUuid,
   spouse_person_id: optionalUuid,
+  ministries: optionalStringArray,
   full_name: z.string().min(1, 'Nome é obrigatório').trim(),
   church_name: optionalString,
   church_profile: z.enum(CHURCH_PROFILE_VALUES as unknown as [string, ...string[]]),

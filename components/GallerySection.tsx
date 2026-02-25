@@ -42,7 +42,6 @@ export default function GallerySection() {
                     fill
                     className="object-cover"
                     sizes="(max-width: 768px) 180px, 220px"
-                    unoptimized
                   />
                 </div>
               ))}

@@ -31,6 +31,7 @@ import {
     UsersRound,
     DollarSign,
     Heart,
+    CalendarDays,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
@@ -53,19 +54,8 @@ export interface MenuModule {
  * Configuração modular dos menus do painel administrativo
  */
 export const menuModules: MenuModule[] = [
-        // Módulo Reservas de Salas
-        {
-            id: 'reservas',
-            title: 'Reservas',
-            icon: LayoutGrid,
-            permission: 'reservas',
-            items: [
-                { href: '/admin/reservas', label: 'Reservas', icon: ClipboardList, permission: 'reservas' },
-                { href: '/admin/reservas/salas', label: 'Salas', icon: Building2, permission: 'reservas' },
-                { href: '/admin/reservas/mensagens', label: 'Mensagens', icon: MessageSquare, permission: 'reservas' }
-            ]
-        },
-    // Dashboard - Sempre visível ou com permissão específica
+
+    // Dashboard - sempre o primeiro item
     {
         id: 'dashboard',
         title: 'Painel Geral',
@@ -80,6 +70,18 @@ export const menuModules: MenuModule[] = [
         ],
     },
 
+    // Módulo Reservas de Salas
+    {
+        id: 'reservas',
+        title: 'Reservas de Salas',
+        icon: LayoutGrid,
+        permission: 'reservas',
+        items: [
+            { href: '/admin/reservas', label: 'Solicitações', icon: ClipboardList, permission: 'reservas' },
+            { href: '/admin/reservas/salas', label: 'Salas', icon: Building2, permission: 'reservas' },
+        ],
+    },
+
     // Módulo de Liderança
     {
         id: 'lideranca',
@@ -88,22 +90,32 @@ export const menuModules: MenuModule[] = [
         permission: 'pessoas',
         items: [
             {
+                href: '/admin/lideranca/meu-discipulado',
+                label: 'Discipulado',
+                icon: UsersRound,
+                permission: 'pessoas'
+            },
+            {
                 href: '/admin/lideranca/estrutura',
                 label: 'Estrutura de Liderança',
                 icon: UsersRound,
                 permission: 'pessoas'
             },
+        ],
+    },
+
+    // Módulo Escalas
+    {
+        id: 'escalas',
+        title: 'Escalas',
+        icon: CalendarDays,
+        permission: 'escalas',
+        items: [
             {
-                href: '/admin/lideranca/meu-discipulado',
-                label: 'Meu Discipulado',
-                icon: UsersRound,
-                permission: 'pessoas'
-            },
-            {
-                href: '/admin/lideranca/rede-completa',
-                label: 'Rede Completa',
-                icon: UsersRound,
-                permission: 'pessoas'
+                href: '/admin/escalas',
+                label: 'Disponibilidades',
+                icon: CalendarDays,
+                permission: 'escalas'
             },
         ],
     },
@@ -123,7 +135,7 @@ export const menuModules: MenuModule[] = [
             },
             {
                 href: '/admin/celulas/dashboard',
-                label: 'Dashboard',
+                label: 'Painel de Células',
                 icon: BarChart3,
                 permission: 'celulas'
             },
@@ -145,13 +157,13 @@ export const menuModules: MenuModule[] = [
         items: [
             {
                 href: '/admin/consolidacao/conversoes',
-                label: 'Formulário de Conversão',
+                label: 'Registrar Conversão',
                 icon: UserPlus,
                 permission: 'consolidacao'
             },
             {
                 href: '/admin/consolidacao/lista',
-                label: 'Lista de Convertidos',
+                label: 'Convertidos',
                 icon: ClipboardList,
                 permission: 'consolidacao'
             },
@@ -167,6 +179,12 @@ export const menuModules: MenuModule[] = [
                 icon: BarChart3,
                 permission: 'consolidacao'
             },
+            {
+                href: '/admin/consolidacao/cadastros/mensagens-conversao',
+                label: 'Mensagens de Conversão',
+                icon: MessageSquare,
+                permission: 'consolidacao'
+            },
         ],
     },
 
@@ -179,7 +197,7 @@ export const menuModules: MenuModule[] = [
         items: [
             {
                 href: '/admin/revisao-vidas',
-                label: 'Eventos',
+                label: 'Lista de Eventos',
                 icon: Heart,
                 permission: 'revisao_vidas'
             },
@@ -219,7 +237,7 @@ export const menuModules: MenuModule[] = [
             },
             {
                 href: '/admin/livraria/vendas/reservas',
-                label: 'Reservas',
+                label: 'Reservas de Livros',
                 icon: Bookmark,
                 permission: 'livraria_reservas'
             },
@@ -231,7 +249,7 @@ export const menuModules: MenuModule[] = [
             },
             {
                 href: '/admin/livraria/estoque',
-                label: 'Gestão de Estoque',
+                label: 'Controle de Estoque',
                 icon: ArrowLeftRight,
                 permission: 'livraria_estoque'
             },
@@ -243,7 +261,7 @@ export const menuModules: MenuModule[] = [
             },
             {
                 href: '/admin/livraria/clientes',
-                label: 'Gestão de Clientes',
+                label: 'Clientes',
                 icon: UserCheck,
                 permission: 'livraria_clientes'
             },
@@ -267,7 +285,7 @@ export const menuModules: MenuModule[] = [
             },
             {
                 href: '/admin/livraria/importacao',
-                label: 'Importação/Exportação',
+                label: 'Importação / Exportação',
                 icon: FileSpreadsheet,
                 permission: 'livraria_importacao'
             },
@@ -282,12 +300,6 @@ export const menuModules: MenuModule[] = [
         permission: 'galeria',
         items: [
             {
-                href: '/admin/galeria',
-                label: 'Galeria de Fotos',
-                icon: ImageIcon,
-                permission: 'galeria'
-            },
-            {
                 href: '/admin/upload',
                 label: 'Upload de Arquivos',
                 icon: Upload,
@@ -295,38 +307,20 @@ export const menuModules: MenuModule[] = [
             },
             {
                 href: '/admin/instagram/posts',
-                label: 'Posts Instagram',
+                label: 'Posts do Instagram',
                 icon: Instagram,
                 permission: 'instagram'
             },
             {
-                href: '/admin/instagram/collaboration',
-                label: 'Colaboradores',
-                icon: MessageSquare,
-                permission: 'instagram'
-            },
-            {
                 href: '/admin/instancias',
-                label: 'Configurar Instagram',
+                label: 'Configuração do Instagram',
                 icon: Settings,
                 permission: 'instagram'
-            },
-            {
-                href: '#',
-                label: 'Facebook',
-                icon: MessageSquare,
-                permission: 'facebook'
-            },
-            {
-                href: '#',
-                label: 'Integrações Meta',
-                icon: MessageSquare,
-                permission: 'meta'
             },
         ],
     },
 
-    // Módulo de Cadastros
+    // Módulo de Cadastros (tabelas de referência compartilhadas)
     {
         id: 'cadastros',
         title: 'Cadastros',
@@ -334,7 +328,7 @@ export const menuModules: MenuModule[] = [
         items: [
             {
                 href: '/admin/pessoas',
-                label: 'Pessoas',
+                label: 'Membros e Visitantes',
                 icon: UserCircle,
                 permission: 'pessoas'
             },
@@ -368,39 +362,21 @@ export const menuModules: MenuModule[] = [
         items: [
             {
                 href: '/admin/configuracoes',
-                label: 'Ajustes do Site',
+                label: 'Site e Aparência',
                 icon: LayoutGrid,
                 permission: 'configuracoes'
             },
             {
                 href: '/admin/roles',
-                label: 'Gerenciar Permissões',
+                label: 'Permissões de Acesso',
                 icon: Shield,
                 permission: 'roles'
-            },
-            {
-                href: '/cultos',
-                label: 'Cultos',
-                icon: BookOpen,
-                permission: 'configuracoes'
-            },
-            {
-                href: '/eventos',
-                label: 'Eventos',
-                icon: Ticket,
-                permission: 'configuracoes'
             },
             {
                 href: '/admin/consolidacao/cadastros/api-disparos',
                 label: 'API de Disparos',
                 icon: Link2,
                 permission: 'usuarios'
-            },
-            {
-                href: '/admin/consolidacao/cadastros/mensagens-conversao',
-                label: 'Mensagens de Conversão',
-                icon: MessageSquare,
-                permission: 'consolidacao'
             },
         ],
     },

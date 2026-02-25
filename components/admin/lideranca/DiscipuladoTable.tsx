@@ -81,30 +81,7 @@ export function DiscipuladoTable({
   const allSelected = items.length > 0 && items.every((item) => selectedSet.has(item.disciple_id))
 
   if (loading) {
-    return (
-      <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-100 px-5 py-3 flex items-center gap-2">
-          <div className="h-4 w-32 bg-slate-100 animate-pulse rounded" />
-        </div>
-        <div className="divide-y divide-slate-100">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="flex items-center gap-4 px-5 py-4">
-              <div className="w-10 h-10 rounded-full bg-slate-100 animate-pulse shrink-0" />
-              <div className="flex-1 space-y-2">
-                <div className="h-3.5 w-40 bg-slate-100 animate-pulse rounded" />
-                <div className="h-2.5 w-24 bg-slate-100 animate-pulse rounded" />
-              </div>
-              <div className="h-3 w-20 bg-slate-100 animate-pulse rounded hidden sm:block" />
-              <div className="h-6 w-16 bg-slate-100 animate-pulse rounded" />
-            </div>
-          ))}
-        </div>
-        <div className="flex items-center justify-center gap-2 py-4 text-sm text-slate-400">
-          <Loader2 className="w-4 h-4 animate-spin" />
-          Carregando...
-        </div>
-      </div>
-    )
+    return null
   }
 
   if (items.length === 0) {
