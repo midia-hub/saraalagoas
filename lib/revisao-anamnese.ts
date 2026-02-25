@@ -34,6 +34,7 @@ export const ANAMNESE_QUESTION_DEFS = [
   { key: 'q12', title: '12) Tem algum vício?', detailLabel: 'Se sim, fale um pouco sobre' },
   { key: 'q13', title: '13) Já frequentou candomblé, umbanda ou quimbanda?', detailLabel: 'Se sim, fale um pouco sobre' },
   { key: 'q14', title: '14) Já tomou passe ou fez pacto?', detailLabel: 'Se sim, fale um pouco sobre' },
+  { key: 'q15', title: '15) Tem restrição alimentar?', detailLabel: 'Se sim, qual?' },
 ] as const
 
 export function createEmptyQuestions(): Record<string, QuestionAnswer> {

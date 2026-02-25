@@ -104,6 +104,10 @@ export default function RevisaoVidasAnamnesePage() {
 
   const [form, setForm] = useState<RevisaoAnamneseFormData>(createDefaultAnamneseData())
 
+  useEffect(() => {
+    document.title = `${eventName} — Anamnese | Sara Sede Alagoas`
+  }, [eventName])
+
   const load = useCallback(async () => {
     setLoading(true)
     setError('')

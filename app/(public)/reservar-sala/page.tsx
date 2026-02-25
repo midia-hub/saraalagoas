@@ -443,6 +443,10 @@ export default function ReservarSalaPage() {
   const [checkingAvailability, setCheckingAvailability] = useState(false)
 
   const [submitting, setSubmitting] = useState(false)
+
+  useEffect(() => {
+    document.title = 'Reservar Sala | Sara Sede Alagoas'
+  }, [])
   const [submitError, setSubmitError] = useState('')
   const [reservationId, setReservationId] = useState('')
 
