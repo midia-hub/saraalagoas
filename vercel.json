@@ -10,7 +10,7 @@
     },
     {
       "path": "/api/cron/escalas-lembretes?tipo=dia_da_escala",
-      "schedule": "0 * * * *"
+      "schedule": "0 10 * * *"
     }
   ]
 }
