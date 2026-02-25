@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { createSupabaseServiceClient } from '@/lib/supabase-server'
 
+export const dynamic = 'force-dynamic'
+
 const XP26_SELECT = 'id, created_at, perfil, nota_evento, fortalecer_fe, decisao_importante, acompanhou_instagram, comunicacao_digital, escala_organizada, instrucoes_claras, lider_acessivel, tempo_descanso, falhas_area, valorizado, servir_novamente, melhor_ministracao, melhor_banda, avaliacao_louvor_geral, participara_xp27, superou_expectativa, teve_problema, contato_whatsapp_autorizado, mensagem_final, impacto_outro, decisao_qual, falhas_descricao, motivo_ministracao, indicacao_preletor_xp27, indicacao_banda_xp27, tema_preferido_xp27_outro, sugestao_xp27, descricao_problema, melhorias, servir_melhorar'
 const PUBLIC_CACHE_HEADERS = {
   'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',

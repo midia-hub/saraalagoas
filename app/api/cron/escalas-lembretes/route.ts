@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseAdminClient } from '@/lib/supabase-server'
+
+export const dynamic = 'force-dynamic'
+
 import {
   sendDisparoRaw,
   getNomeExibicao,
