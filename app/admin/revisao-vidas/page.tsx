@@ -3,11 +3,12 @@
 import { useState, useEffect, useCallback } from 'react'
 import { adminFetchJson } from '@/lib/admin-client'
 import type { ReviewEvent } from '@/lib/consolidacao-types'
-import { Loader2, Plus, RefreshCw, Calendar, Users, ChevronRight, BookOpen, X, Clock, Edit, ClipboardList } from 'lucide-react'
+import { Loader2, Plus, RefreshCw, Calendar, Users, ChevronRight, BookOpen, X, Clock, Edit, ClipboardList, Link2, Check } from 'lucide-react'
 import Link from 'next/link'
 import { AdminPageHeader } from '@/app/admin/AdminPageHeader'
 import { CustomSelect } from '@/components/ui/CustomSelect'
 import { CustomSearchSelect } from '@/components/ui/CustomSearchSelect'
+import { DatePickerInput } from '@/components/ui/DatePickerInput'
 import { EditEventModal } from './EditEventModal'
 
 const fieldCls = 'w-full rounded-xl border-2 border-slate-200 px-3.5 py-2.5 text-sm font-medium bg-white text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-400 transition-all hover:border-slate-300'
@@ -120,7 +121,7 @@ function CreateEventModal({ churches, onClose, onCreated }: {
             <CustomSearchSelect
               value={secretaryPersonId}
               onChange={setSecretaryPersonId}
-              options={people.map((p) => ({ value: p.id, label: p.full_name }))}
+              options={people.map((p) => ({ value: p.id, label: p.full_name || 'Sem nome' }))}
               placeholder="Digite para buscar..."
               allowEmpty={true}
             />
@@ -146,6 +147,17 @@ function EventCard({ ev, onEdit }: { ev: ReviewEvent; onEdit?: (event: ReviewEve
   const start = new Date(ev.start_date)
   const end = ev.end_date ? new Date(ev.end_date) : null
   const duration = end ? Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1 : null
+  const [copied, setCopied] = useState(false)
+
+  function handleCopyLink() {
+    const url = typeof window !== 'undefined'
+      ? `${window.location.origin}/revisao-vidas/inscricao/${ev.id}`
+      : `/revisao-vidas/inscricao/${ev.id}`
+    navigator.clipboard.writeText(url).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2500)
+    })
+  }
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col overflow-hidden hover:shadow-md hover:border-purple-200 transition-all group">
@@ -185,6 +197,24 @@ function EventCard({ ev, onEdit }: { ev: ReviewEvent; onEdit?: (event: ReviewEve
             </div>
           )}
         </div>
+
+        {/* Link de inscrição */}
+        {ev.active && (
+          <button
+            onClick={handleCopyLink}
+            className={`w-full flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all border ${
+              copied
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                : 'bg-purple-600 border-purple-600 text-white hover:bg-purple-700'
+            }`}
+          >
+            {copied ? (
+              <><Check className="w-3.5 h-3.5" /> Link copiado!</>
+            ) : (
+              <><Link2 className="w-3.5 h-3.5" /> Copiar link de inscrição</>
+            )}
+          </button>
+        )}
 
         {/* Actions */}
         <div className="mt-auto flex items-center gap-2">

@@ -130,7 +130,7 @@ export function EditEventModal({ isOpen, eventData, onClose, onSaved }: EditEven
             <CustomSearchSelect
               value={secretaryPersonId}
               onChange={setSecretaryPersonId}
-              options={people.map((p) => ({ value: p.id, label: p.full_name }))}
+              options={people.map((p: any) => ({ value: p.id, label: p.full_name || 'Sem nome' }))}
               placeholder="Digite para buscar..."
               allowEmpty={true}
             />

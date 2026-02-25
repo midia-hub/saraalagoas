@@ -180,10 +180,15 @@ export type ReviewRegistration = {
 export type ReviewRegistrationEnriched = ReviewRegistration & {
   person?: { id: string; full_name: string; mobile_phone: string | null; email: string | null; avatar_url?: string | null }
   leader?: { id: string; full_name: string } | null
+  leader_name_text?: string | null
   event?: ReviewEvent
   team_name?: string | null
   anamnese_alert_count?: number
   anamnese_photo_url?: string | null
+  calculated_status?: string | null
+  payment_status?: string | null
+  payment_date?: string | null
+  anamnese_completed?: boolean
 }
 
 export const ATTENDED_CHANNELS: { value: string; label: string }[] = [

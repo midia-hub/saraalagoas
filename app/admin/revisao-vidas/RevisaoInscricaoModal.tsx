@@ -61,7 +61,7 @@ export function RevisaoInscricaoModal({
     const q = pessoaSearch.toLowerCase()
     setFilteredPessoas(
       pessoas.filter((p) =>
-        p.full_name.toLowerCase().includes(q) || p.mobile_phone?.includes(q)
+        (p.full_name || '').toLowerCase().includes(q) || (p.mobile_phone || '').includes(q)
       )
     )
   }, [pessoaSearch, pessoas])

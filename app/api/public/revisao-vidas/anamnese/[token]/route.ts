@@ -13,7 +13,7 @@ export async function GET(request: NextRequest, { params }: { params: { token: s
 
     const { data: registration, error: regError } = await supabase
       .from('revisao_vidas_registrations')
-      .select('id, event_id, person_id, leader_person_id, anamnese_completed_at')
+      .select('id, event_id, person_id, leader_person_id, anamnese_completed_at, leader_name, team')
       .eq('anamnese_token', token)
       .maybeSingle()
 
@@ -78,8 +78,8 @@ export async function GET(request: NextRequest, { params }: { params: { token: s
       name: normalized.name || person?.full_name || '',
       phone: normalized.phone || person?.mobile_phone || '',
       bloodType: normalized.bloodType || person?.blood_type || '',
-      leader: normalized.leader || leader?.full_name || '',
-      team: normalized.team || personTeam?.name || leaderTeam?.name || '',
+      leader: normalized.leader || registration.leader_name || leader?.full_name || '',
+      team: normalized.team || registration.team || personTeam?.name || leaderTeam?.name || '',
       photoUrl: normalized.photoUrl || anamnese?.photo_url || '',
     }
 
