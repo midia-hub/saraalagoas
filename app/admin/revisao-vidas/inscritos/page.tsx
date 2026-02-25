@@ -28,6 +28,7 @@ type ReviewEvent = {
 export default function RevisaoVidasInscritosPage() {
   const [regs, setRegs] = useState<ReviewRegistrationEnriched[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [updating, setUpdating] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [copiedRegId, setCopiedRegId] = useState<string | null>(null)
@@ -44,17 +45,17 @@ export default function RevisaoVidasInscritosPage() {
 
   const load = useCallback(() => {
     setLoading(true)
+    setLoadError(null)
     Promise.all([
-      adminFetchJson('/api/admin/consolidacao/revisao/registrations'),
-      adminFetchJson('/api/admin/consolidacao/revisao/events'),
+      adminFetchJson('/api/admin/consolidacao/revisao/registrations').catch((e: Error) => {
+        setLoadError(e?.message ?? 'Erro ao carregar inscrições')
+        return { registrations: [] }
+      }),
+      adminFetchJson('/api/admin/consolidacao/revisao/events').catch(() => ({ events: [] })),
     ])
       .then(([regsData, eventsData]: any) => {
-        setRegs(regsData.registrations ?? [])
-        setEvents(eventsData.events ?? [])
-      })
-      .catch(() => {
-        setRegs([])
-        setEvents([])
+        setRegs(regsData.registrations ?? regsData.items ?? [])
+        setEvents(eventsData.events ?? eventsData.items ?? [])
       })
       .finally(() => setLoading(false))
   }, [])
@@ -122,7 +123,8 @@ export default function RevisaoVidasInscritosPage() {
   }
 
   function getPersonName(r: ReviewRegistrationEnriched) {
-    return (r.person?.full_name || (r as any).person_name || (r as any).full_name || '').trim() || '—'
+    const name = (r.person?.full_name || (r as any).person_name || (r as any).full_name || '').trim()
+    return name && name !== '—' ? name : '—'
   }
 
   const filtered = regs.filter(r =>
@@ -409,6 +411,12 @@ export default function RevisaoVidasInscritosPage() {
             <Loader2 className="w-6 h-6 animate-spin" />
             <span className="text-sm">Carregando inscrições…</span>
           </div>
+        ) : loadError ? (
+          <div className="flex flex-col items-center justify-center gap-3 py-16 text-rose-500">
+            <AlertTriangle className="w-7 h-7" />
+            <p className="text-sm font-medium">{loadError}</p>
+            <button onClick={load} className="text-xs text-[#c62737] hover:underline">Tentar novamente</button>
+          </div>
         ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-2 py-16 text-slate-400">
             <Users className="w-8 h-8 opacity-40" />
@@ -492,8 +500,11 @@ export default function RevisaoVidasInscritosPage() {
                       </span>
                     </div>
                     {/* Row 3: leader */}
-                    {r.leader?.full_name && (
-                      <div className="text-xs text-slate-400">Líder: {r.leader.full_name}</div>
+                    {(r.leader?.full_name || (r as any).leader_name_text) && (
+                      <div className="text-xs text-slate-400">Líder: {r.leader?.full_name || (r as any).leader_name_text}</div>
+                    )}
+                    {(r as any).team_name && (
+                      <div className="text-xs text-slate-400 uppercase tracking-tighter">Equipe: {(r as any).team_name}</div>
                     )}
                     <div className="flex items-center gap-2">
                       <a
@@ -562,9 +573,16 @@ export default function RevisaoVidasInscritosPage() {
                         <div className="font-semibold text-slate-800 leading-snug">
                           {getPersonName(r)}
                         </div>
-                        {r.person?.mobile_phone && (
-                          <div className="mt-0.5 text-xs text-slate-400">{r.person.mobile_phone}</div>
-                        )}
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5">
+                          {r.person?.mobile_phone && (
+                            <div className="text-xs text-slate-400">{r.person.mobile_phone}</div>
+                          )}
+                          {(r as any).team_name && (
+                            <div className="text-[11px] font-bold text-slate-400 uppercase tracking-tight bg-slate-100 px-1.5 rounded">
+                              {(r as any).team_name}
+                            </div>
+                          )}
+                        </div>
                       </td>
 
                       {/* Evento */}
@@ -579,7 +597,7 @@ export default function RevisaoVidasInscritosPage() {
 
                       {/* Líder */}
                       <td className="px-5 py-3.5 text-slate-500 text-sm">
-                        {r.leader?.full_name ?? <span className="text-slate-300">—</span>}
+                        {r.leader?.full_name || (r as any).leader_name_text || <span className="text-slate-300">—</span>}
                       </td>
 
                       <td className="px-5 py-3.5">

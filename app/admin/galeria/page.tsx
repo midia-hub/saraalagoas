@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Loader2, Image as ImageIcon } from 'lucide-react'
+import { Loader2, Image as ImageIcon, Upload, RefreshCw, Trash2 } from 'lucide-react'
 import { PageAccessGuard } from '@/app/admin/PageAccessGuard'
 import { useAdminAccess } from '@/lib/admin-access-context'
 import { adminFetchJson } from '@/lib/admin-client'
@@ -16,6 +16,8 @@ import {
 } from './_components/AlbumFilters'
 import { GaleriaLoading } from '@/components/GaleriaLoading'
 import { Toast } from '@/components/Toast'
+import { AdminPageHeader } from '@/app/admin/AdminPageHeader'
+import Link from 'next/link'
 
 /** Resposta bruta da API /api/gallery/list */
 type GalleryRow = {
@@ -283,6 +285,10 @@ export default function AdminGaleriaPage() {
     }
   }, [albumToDelete, deletingAlbumId])
 
+  const totalCultos = albums.filter(a => a.type === 'culto').length
+  const totalEventos = albums.filter(a => a.type === 'evento').length
+  const totalFotos = albums.reduce((acc, a) => acc + (a.photosCount ?? 0), 0)
+
   if (loading) {
     return (
       <PageAccessGuard pageKey="galeria">
@@ -300,28 +306,65 @@ export default function AdminGaleriaPage() {
 
   return (
     <PageAccessGuard pageKey="galeria">
-      <div className="p-6 md:p-8 animate-fade-in">
-        <div className="mb-6">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-[#c62737]/10 flex items-center justify-center shrink-0">
-              <ImageIcon className="text-[#c62737]" size={24} />
+      <div className="p-6 md:p-8 space-y-0 animate-fade-in">
+        <AdminPageHeader
+          icon={ImageIcon}
+          title="Galeria"
+          subtitle="Gerencie álbuns de cultos e eventos"
+          actions={
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-sm font-medium text-slate-600 hover:text-[#c62737] hover:border-[#c62737]/30 hover:bg-red-50 transition-all"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Atualizar
+              </button>
+              <Link
+                href="/admin/upload"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#c62737] text-white text-sm font-semibold hover:bg-[#a81e2d] transition-colors shadow-sm"
+              >
+                <Upload className="w-4 h-4" />
+                Novo Álbum
+              </Link>
             </div>
-            <div>
-              <h1 className="text-2xl font-bold text-slate-800">Álbuns</h1>
-              <p className="text-slate-500">
-                Encontre rapidamente um álbum por nome, tipo ou data.
-                {!error && filteredAndSorted.length > 0 && (
-                  <span className="ml-1">— {filteredAndSorted.length} álbum{filteredAndSorted.length !== 1 ? 's' : ''}</span>
-                )}
-              </p>
+          }
+        />
+
+        {/* Stats */}
+        {!error && albums.length > 0 && (
+          <div className="flex flex-wrap gap-3 mb-6">
+            <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200">
+              <ImageIcon className="w-4 h-4 text-slate-400" />
+              <span className="text-sm font-semibold text-slate-700">{albums.length}</span>
+              <span className="text-xs text-slate-500">álbuns</span>
             </div>
+            <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-violet-50 border border-violet-200">
+              <span className="w-2 h-2 rounded-full bg-violet-500 shrink-0" />
+              <span className="text-sm font-semibold text-violet-700">{totalCultos}</span>
+              <span className="text-xs text-violet-500">cultos</span>
+            </div>
+            <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-50 border border-amber-200">
+              <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+              <span className="text-sm font-semibold text-amber-700">{totalEventos}</span>
+              <span className="text-xs text-amber-500">eventos</span>
+            </div>
+            {totalFotos > 0 && (
+              <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-50 border border-emerald-200">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                <span className="text-sm font-semibold text-emerald-700">{totalFotos.toLocaleString('pt-BR')}</span>
+                <span className="text-xs text-emerald-500">fotos</span>
+              </div>
+            )}
           </div>
-        </div>
+        )}
 
         <AlbumFilters
           state={filters}
           onChange={setFilters}
           hideSortByPhotos={hideSortByPhotos}
+          totalVisible={filteredAndSorted.length}
         />
 
         {error && (
@@ -338,7 +381,7 @@ export default function AdminGaleriaPage() {
         )}
 
         {!error && filteredAndSorted.length > 0 && (
-          <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
             {filteredAndSorted.map((album) => (
               <AlbumCard
                 key={album.id}
@@ -355,51 +398,51 @@ export default function AdminGaleriaPage() {
         {/* Modal excluir álbum */}
         {albumToDelete && (
           <div
-            className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+            className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
             onClick={() => !deletingAlbumId && setAlbumToDelete(null)}
             role="dialog"
             aria-modal="true"
             aria-labelledby="delete-album-list-title"
           >
             <div
-              className="w-full max-w-md rounded-2xl bg-white shadow-xl p-6"
+              className="w-full max-w-md rounded-2xl bg-white shadow-2xl overflow-hidden"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex items-start gap-4">
-                <div className="flex-shrink-0 w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
-                  <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
+              {/* Red top accent */}
+              <div className="h-1.5 w-full bg-gradient-to-r from-rose-500 to-red-600" />
+              <div className="p-6">
+                <div className="flex items-start gap-4">
+                  <div className="flex-shrink-0 w-11 h-11 rounded-xl bg-rose-100 flex items-center justify-center">
+                    <Trash2 className="w-5 h-5 text-rose-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h2 id="delete-album-list-title" className="text-base font-bold text-slate-900">
+                      Excluir álbum?
+                    </h2>
+                    <p className="mt-1 text-sm text-slate-500">
+                      O álbum <span className="font-semibold text-slate-700">&ldquo;{albumToDelete.title}&rdquo;</span> e todas as suas fotos serão removidos permanentemente.
+                    </p>
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <h2 id="delete-album-list-title" className="text-lg font-semibold text-slate-900">
-                    Você tem certeza que deseja excluir este álbum?
-                  </h2>
-                  <p className="mt-1 text-sm text-slate-600">
-                    <span className="font-medium text-slate-700">{albumToDelete.title}</span>
-                    <br />
-                    Todas as fotos do álbum serão removidas. Esta ação não pode ser desfeita.
-                  </p>
+                <div className="mt-5 flex gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => !deletingAlbumId && setAlbumToDelete(null)}
+                    disabled={!!deletingAlbumId}
+                    className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50 disabled:opacity-50 transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleConfirmDeleteAlbum}
+                    disabled={!!deletingAlbumId}
+                    className="flex-1 px-4 py-2.5 rounded-xl bg-rose-600 text-white text-sm font-semibold hover:bg-rose-700 disabled:opacity-50 flex items-center justify-center gap-2 transition-colors"
+                  >
+                    {deletingAlbumId === albumToDelete.id && <Loader2 className="w-4 h-4 animate-spin" />}
+                    {deletingAlbumId === albumToDelete.id ? 'Excluindo...' : 'Sim, excluir'}
+                  </button>
                 </div>
-              </div>
-              <div className="mt-6 flex flex-row-reverse gap-3">
-                <button
-                  type="button"
-                  onClick={handleConfirmDeleteAlbum}
-                  disabled={!!deletingAlbumId}
-                  className="px-4 py-2.5 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 disabled:opacity-50 flex items-center gap-2"
-                >
-                  {deletingAlbumId === albumToDelete.id && <Loader2 className="w-4 h-4 animate-spin" />}
-                  {deletingAlbumId === albumToDelete.id ? 'Excluindo...' : 'Excluir álbum'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => !deletingAlbumId && setAlbumToDelete(null)}
-                  disabled={!!deletingAlbumId}
-                  className="px-4 py-2.5 rounded-lg border border-slate-300 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50 disabled:opacity-50"
-                >
-                  Cancelar
-                </button>
               </div>
             </div>
           </div>

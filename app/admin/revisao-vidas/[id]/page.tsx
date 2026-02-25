@@ -186,7 +186,9 @@ export default function RevisaoVidasEventPage() {
                 {regs.map(r => (
                   <tr key={r.id} className="hover:bg-slate-50/60 transition-colors">
                     <td className="px-5 py-3.5">
-                      <div className="font-semibold text-slate-800">{r.person?.full_name ?? '—'}</div>
+                      <div className="font-semibold text-slate-800">
+                        {r.person?.full_name || (r as any).person_name || '—'}
+                      </div>
                       {r.person?.mobile_phone && (
                         <div className="flex items-center gap-1 text-xs text-slate-400 mt-0.5">
                           <Phone className="w-3 h-3" />{r.person.mobile_phone}
@@ -194,7 +196,9 @@ export default function RevisaoVidasEventPage() {
                       )}
                     </td>
                     <td className="px-5 py-3.5">
-                      <span className="text-slate-500 text-sm">{r.leader?.full_name ?? <span className="text-slate-300">—</span>}</span>
+                      <span className="text-slate-500 text-sm">
+                        {r.leader?.full_name || (r as any).leader_name_text || <span className="text-slate-300">—</span>}
+                      </span>
                     </td>
                     <td className="px-5 py-3.5">
                       <div className="flex items-center gap-2">

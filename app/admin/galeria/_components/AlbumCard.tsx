@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Album } from '@/lib/gallery-types'
+import { Calendar, Image as ImageIcon, Share2, Check, FolderOpen, Trash2, Send, ExternalLink } from 'lucide-react'
 
 function formatDatePtBr(iso: string): string {
   try {
@@ -29,7 +30,7 @@ export interface AlbumCardProps {
 }
 
 export function AlbumCard({ album, onCopyLink, onVisible, canDeleteAlbum, onDeleteAlbum }: AlbumCardProps) {
-  const [showActions, setShowActions] = useState(false)
+  const [hovered, setHovered] = useState(false)
   const [copied, setCopied] = useState(false)
   const cardRef = useRef<HTMLElement>(null)
   const sentRef = useRef(false)
@@ -71,152 +72,148 @@ export function AlbumCard({ album, onCopyLink, onVisible, canDeleteAlbum, onDele
     [publicUrl, album, onCopyLink]
   )
 
-  const typeLabel = album.type === 'culto' ? 'Culto' : 'Evento'
-
+  const isCulto = album.type === 'culto'
+  const typeLabel = isCulto ? 'Culto' : 'Evento'
   const adminAlbumPath = `/admin/galeria/${album.id}`
 
   return (
     <article
       ref={cardRef}
-      className="group relative bg-white border border-slate-200 rounded-xl overflow-hidden hover:border-[#c62737]/40 hover:shadow-md transition-all"
-      onMouseEnter={() => setShowActions(true)}
-      onMouseLeave={() => setShowActions(false)}
+      className="group relative flex flex-col bg-white rounded-2xl overflow-hidden border border-slate-200 shadow-sm hover:shadow-xl hover:border-slate-300 transition-all duration-300 cursor-pointer"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
     >
-      <Link href={adminAlbumPath} className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-[#c62737] focus-visible:ring-offset-2 rounded-xl">
-        {/* Capa: usa proxy quando disponível para carregar no site */}
-        <div className="aspect-[4/3] bg-slate-100 relative overflow-hidden">
+      {/* Cover */}
+      <Link href={adminAlbumPath} className="block shrink-0">
+        <div className="aspect-video relative overflow-hidden bg-gradient-to-br from-slate-100 to-slate-200">
           {album.coverUrl ? (
             <img
               src={album.coverUrl}
               alt=""
-              className="w-full h-full object-cover"
+              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
               loading="lazy"
               decoding="async"
             />
           ) : (
-            <div className="w-full h-full flex items-center justify-center text-slate-400">
-              <svg
-                className="w-12 h-12"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                aria-hidden
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.5}
-                  d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14"
-                />
+            <div className="w-full h-full flex flex-col items-center justify-center gap-2">
+              <svg className="w-10 h-10 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6a2 2 0 11-4 0 2 2 0 014 0z" />
               </svg>
+              <span className="text-xs text-slate-400 font-medium">Sem capa</span>
             </div>
           )}
-        </div>
 
-        <div className="p-3">
-          <span className="inline-block px-2 py-0.5 text-xs font-medium rounded bg-slate-100 text-slate-600">
-            {typeLabel}
-          </span>
-          <h2 className="mt-1.5 font-semibold text-slate-900 line-clamp-2">
-            {album.title}
-          </h2>
-          <p className="mt-1 text-sm text-slate-500">
-            {formatDatePtBr(album.date)}
-            {album.photosCount != null && (
-              <span className="ml-1.5">• {album.photosCount} fotos</span>
-            )}
-          </p>
+          {/* Dark gradient overlay */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+
+          {/* Type badge — top left */}
+          <div className="absolute top-2.5 left-2.5">
+            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold tracking-wide ${
+              isCulto
+                ? 'bg-violet-600 text-white'
+                : 'bg-amber-500 text-white'
+            }`}>
+              {typeLabel}
+            </span>
+          </div>
+
+          {/* Photo count — bottom right, always visible */}
+          {album.photosCount != null && (
+            <div className="absolute bottom-2.5 right-2.5">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/50 text-white text-[11px] font-semibold backdrop-blur-sm">
+                <ImageIcon className="w-3 h-3" />
+                {album.photosCount} foto{album.photosCount !== 1 ? 's' : ''}
+              </span>
+            </div>
+          )}
+
+          {/* Date — bottom left */}
+          <div className="absolute bottom-2.5 left-2.5 flex items-center gap-1">
+            <span className="text-white/80 text-[11px] font-medium flex items-center gap-1">
+              <Calendar className="w-3 h-3" />
+              {formatDatePtBr(album.date)}
+            </span>
+          </div>
         </div>
       </Link>
 
-      {/* Ações rápidas */}
-      <div
-        className={`absolute top-2 right-2 flex flex-col gap-1 transition-opacity ${
-          showActions ? 'opacity-100' : 'opacity-0'
-        }`}
-      >
-        <Link
-          href={`/admin/galeria/${album.id}/post/select`}
-          className="flex items-center justify-center w-8 h-8 rounded-lg bg-white/90 shadow border border-slate-200 hover:bg-white text-slate-700"
-          title="Fazer postagem"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <span className="sr-only">Fazer postagem</span>
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h8M8 14h5M6 18h12a2 2 0 002-2V8a2 2 0 00-2-2h-4l-2-2H6a2 2 0 00-2 2v10a2 2 0 002 2z" />
-          </svg>
+      {/* Info + actions */}
+      <div className="flex flex-col flex-1 p-3.5 gap-3">
+        <Link href={adminAlbumPath} className="block">
+          <h2 className="font-semibold text-slate-800 text-sm leading-snug line-clamp-2 group-hover:text-[#c62737] transition-colors duration-200">
+            {album.title}
+          </h2>
         </Link>
-        <Link
-          href={adminAlbumPath}
-          className="flex items-center justify-center w-8 h-8 rounded-lg bg-white/90 shadow border border-slate-200 hover:bg-white text-slate-700"
-          title="Abrir álbum no admin"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <span className="sr-only">Abrir</span>
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-          </svg>
-        </Link>
-        <button
-          type="button"
-          onClick={handleCopyLink}
-          className="flex items-center justify-center w-8 h-8 rounded-lg bg-white/90 shadow border border-slate-200 hover:bg-white text-slate-700"
-          title={copied ? 'Copiado!' : 'Copiar link'}
-        >
-          <span className="sr-only">{copied ? 'Copiado' : 'Copiar link'}</span>
-          {copied ? (
-            <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-          ) : (
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
-            </svg>
-          )}
-        </button>
-        {album.drive_folder_id && (
-          <a
-            href={`https://drive.google.com/drive/folders/${album.drive_folder_id}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center justify-center w-8 h-8 rounded-lg bg-white/90 shadow border border-slate-200 hover:bg-white text-slate-700"
-            title="Abrir no Drive"
+
+        {/* Action bar — slides up on hover */}
+        <div className={`flex items-center gap-1.5 transition-all duration-200 ${
+          hovered ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-1 pointer-events-none'
+        }`}>
+          {/* Postar — primary CTA */}
+          <Link
+            href={`/admin/galeria/${album.id}/post/select`}
+            className="flex-1 flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#c62737] text-white text-xs font-semibold hover:bg-[#a81e2d] transition-colors"
+            title="Fazer postagem"
             onClick={(e) => e.stopPropagation()}
           >
-            <span className="sr-only">Drive</span>
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-            </svg>
-          </a>
-        )}
-        <Link
-          href="/admin/upload"
-          className="flex items-center justify-center w-8 h-8 rounded-lg bg-white/90 shadow border border-slate-200 hover:bg-white text-slate-700"
-          title="Upload (novo álbum)"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <span className="sr-only">Upload</span>
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-          </svg>
-        </Link>
-        {canDeleteAlbum && onDeleteAlbum && (
+            <Send className="w-3.5 h-3.5" />
+            Postar
+          </Link>
+
+          {/* Abrir álbum */}
+          <Link
+            href={adminAlbumPath}
+            className="flex items-center justify-center w-7 h-7 rounded-lg border border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+            title="Abrir álbum"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <ExternalLink className="w-3.5 h-3.5" />
+          </Link>
+
+          {/* Copiar link */}
           <button
             type="button"
-            onClick={(e) => {
-              e.stopPropagation()
-              e.preventDefault()
-              onDeleteAlbum(album)
-            }}
-            className="flex items-center justify-center w-8 h-8 rounded-lg bg-white/90 shadow border border-red-200 hover:bg-red-50 text-red-600"
-            title="Excluir álbum"
+            onClick={handleCopyLink}
+            className={`flex items-center justify-center w-7 h-7 rounded-lg border transition-colors ${
+              copied
+                ? 'border-emerald-300 bg-emerald-50 text-emerald-600'
+                : 'border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-700'
+            }`}
+            title={copied ? 'Copiado!' : 'Copiar link público'}
           >
-            <span className="sr-only">Excluir álbum</span>
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-            </svg>
+            {copied ? <Check className="w-3.5 h-3.5" /> : <Share2 className="w-3.5 h-3.5" />}
           </button>
-        )}
+
+          {/* Drive */}
+          {album.drive_folder_id && (
+            <a
+              href={`https://drive.google.com/drive/folders/${album.drive_folder_id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center w-7 h-7 rounded-lg border border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+              title="Abrir no Drive"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <FolderOpen className="w-3.5 h-3.5" />
+            </a>
+          )}
+
+          {/* Excluir */}
+          {canDeleteAlbum && onDeleteAlbum && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                e.preventDefault()
+                onDeleteAlbum(album)
+              }}
+              className="flex items-center justify-center w-7 h-7 rounded-lg border border-rose-200 bg-rose-50 text-rose-500 hover:bg-rose-100 hover:text-rose-700 transition-colors"
+              title="Excluir álbum"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
       </div>
     </article>
   )

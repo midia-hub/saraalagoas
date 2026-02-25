@@ -3,7 +3,9 @@ import { requireAccess } from '@/lib/admin-api'
 import { createSupabaseAdminClient } from '@/lib/supabase-server'
 import { canAccessPerson } from '@/lib/people-access'
 
-const REGISTRATION_SELECT = 'id, event_id, person_id, leader_person_id, status, notes, created_at, updated_at, anamnese_token, anamnese_completed, anamnese_completed_at, pre_revisao_aplicado, payment_status, payment_date, payment_method, amount, payment_notes, payment_validated_by, payment_validated_at'
+export const dynamic = 'force-dynamic'
+
+const REGISTRATION_SELECT = 'id, event_id, person_id, leader_person_id, status, notes, created_at, updated_at, anamnese_token, anamnese_completed, anamnese_completed_at, pre_revisao_aplicado, payment_status, payment_date, payment_method, amount, payment_notes, payment_validated_by, payment_validated_at, leader_name, team'
 
 function generateAnamneseToken() {
   return `${crypto.randomUUID().replace(/-/g, '')}${Date.now().toString(36)}`
@@ -68,14 +70,15 @@ export async function GET(request: NextRequest) {
     }
 
     // Enriquecer com dados de pessoa
-    const pids = [...new Set(registrations.map((r: Record<string, string>) => r.person_id).filter(Boolean))]
-    const ldIds = [...new Set(registrations.map((r: Record<string, string | null>) => r.leader_person_id).filter(Boolean))]
-    const evIds = [...new Set(registrations.map((r: Record<string, string>) => r.event_id).filter(Boolean))]
+    const pids = [...new Set(registrations.map((r: any) => r.person_id as string).filter(Boolean))] as string[]
+    const ldIds = [...new Set(registrations.map((r: any) => r.leader_person_id as string | null).filter(Boolean))] as string[]
+    const evIds = [...new Set(registrations.map((r: any) => r.event_id as string).filter(Boolean))] as string[]
 
-    const { data: people } = await supabase
-      .from('people')
-      .select('id, full_name, mobile_phone, email, avatar_url')
-      .in('id', pids)
+    const { data: people, error: peopleErr } = pids.length > 0
+      ? await supabase.from('people').select('id, full_name, mobile_phone, email').in('id', pids)
+      : { data: [], error: null }
+
+    if (peopleErr) console.error('[revisao/registrations] people query error:', peopleErr)
 
     const { data: leaders } = ldIds.length > 0
       ? await supabase.from('people').select('id, full_name').in('id', ldIds)
@@ -85,9 +88,9 @@ export async function GET(request: NextRequest) {
       ? await supabase.from('revisao_vidas_events').select('id, name, start_date, end_date, active, church_id').in('id', evIds)
       : { data: [] }
 
-    const peopleMap = new Map((people ?? []).map((p: Record<string, string>) => [p.id, p]))
-    const leaderMap = new Map((leaders ?? []).map((l: Record<string, string>) => [l.id, l]))
-    const eventMap = new Map((events ?? []).map((ev: Record<string, string>) => [ev.id, ev]))
+    const peopleMap = new Map((people ?? []).map((p: any) => [p.id as string, p]))
+    const leaderMap = new Map((leaders ?? []).map((l: any) => [l.id as string, l]))
+    const eventMap = new Map((events ?? []).map((ev: any) => [ev.id as string, ev]))
 
     const [{ data: anamneseRows }, { data: conversions }] = await Promise.all([
       registrations.length > 0
@@ -129,26 +132,27 @@ export async function GET(request: NextRequest) {
       row,
     ]))
 
-    // Calcular status dinâmico para cada registro
-    const statusMap = new Map<string, string>()
-    for (const reg of registrations) {
-      const { data: statusResult, error: statusError } = await supabase
-        .rpc('calculate_revisao_registration_status', { registration_id: reg.id as string })
-      
-      if (!statusError && statusResult) {
-        statusMap.set(reg.id as string, statusResult)
-      }
-    }
+    // Calcular status dinâmico para cada registro (em paralelo)
+    const statusEntries = await Promise.all(
+      registrations.map(async (reg: any) => {
+        const { data, error } = await supabase
+          .rpc('calculate_revisao_registration_status', { registration_id: reg.id as string })
+        return [reg.id as string, (!error && data) ? data as string : null] as const
+      })
+    )
+    const statusMap = new Map<string, string>(
+      statusEntries.filter(([, v]) => v !== null) as [string, string][]
+    )
 
-    const items = registrations.map((r: Record<string, unknown>) => {
+    const items = registrations.map((r: any) => {
       const person = peopleMap.get(r.person_id as string) ?? null
       const anamnese = anamneseMap.get(r.id as string)
-      const formData = (anamnese?.form_data && typeof anamnese.form_data === 'object')
+      const anamneseFormData = (anamnese?.form_data && typeof anamnese.form_data === 'object')
         ? anamnese.form_data as Record<string, unknown>
         : null
-      const formName = typeof formData?.name === 'string' ? formData.name.trim() : ''
-      const questions = formData?.questions && typeof formData.questions === 'object'
-        ? formData.questions as Record<string, Record<string, unknown>>
+      const formName = typeof anamneseFormData?.name === 'string' ? anamneseFormData.name.trim() : ''
+      const questions = anamneseFormData?.questions && typeof anamneseFormData.questions === 'object'
+        ? anamneseFormData.questions as Record<string, Record<string, unknown>>
         : {}
 
       const fallbackPerson = person ?? {
@@ -159,24 +163,24 @@ export async function GET(request: NextRequest) {
         avatar_url: null,
       }
 
+      const leader = r.leader_person_id ? leaderMap.get(r.leader_person_id as string) ?? null : null
+
       return {
-        ...(r as Record<string, unknown>),
         ...r,
-        calculated_status: statusMap.get(r.id as string) || r.status,
+        calculated_status: statusMap.get(r.id) || r.status,
         person: fallbackPerson,
-        leader: r.leader_person_id ? leaderMap.get(r.leader_person_id as string) ?? null : null,
+        leader: leader,
+        leader_name_text: r.leader_name || leader?.full_name || null,
         event: eventMap.get(r.event_id as string) ?? null,
-        person_name: person?.full_name ?? formName ?? null,
+        person_name: person?.full_name ?? formName ?? '—',
         team_name: (() => {
+          if (r.team) return r.team as string
           const conv = latestConversionByPerson.get(r.person_id as string)
           const teamId = conv?.team_id as string | null | undefined
           return teamId ? teamMap.get(teamId) ?? null : null
         })(),
-        anamnese_photo_url: (() => {
-          if (!anamnese) return null
-          return (anamnese.photo_url as string | null) ?? null
-        })(),
-        anamnese_alert_count: Object.values(questions).filter((q) => q?.answer === 'sim').length,
+        anamnese_photo_url: anamnese?.photo_url ?? null,
+        anamnese_alert_count: Object.values(questions).filter((q: any) => q?.answer === 'sim').length,
       }
     })
 

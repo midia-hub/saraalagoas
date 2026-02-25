@@ -42,7 +42,7 @@ export function CustomSelect({
   const filteredOptions = useMemo(() => {
     const term = filter.trim().toLowerCase()
     if (!term) return options
-    return options.filter((o) => o.label.toLowerCase().includes(term))
+    return options.filter((o) => (o.label || '').toLowerCase().includes(term))
   }, [filter, options])
 
   useEffect(() => {
