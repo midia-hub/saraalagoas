@@ -1,8 +1,58 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseAdminClient } from '@/lib/supabase-server'
 
+type InscricaoLogAction =
+  | 'attempt'
+  | 'person_reused'
+  | 'person_created'
+  | 'registration_exists'
+  | 'registration_created'
+  | 'registration_error'
+
 function normalizePhone(raw: string): string {
   return raw.replace(/\D/g, '')
+}
+
+function normalizeName(raw: string): string {
+  return raw
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, ' ')
+}
+
+function maskPhoneForLog(raw: string): string {
+  const digits = raw.replace(/\D/g, '')
+  if (digits.length <= 4) return digits
+  return `${digits.slice(0, 2)}***${digits.slice(-2)}`
+}
+
+async function writeInscricaoLog(
+  supabase: ReturnType<typeof createSupabaseAdminClient>,
+  input: {
+    eventId: string
+    action: InscricaoLogAction
+    personId?: string | null
+    registrationId?: string | null
+    personName?: string | null
+    phoneMasked?: string | null
+    payload?: Record<string, unknown>
+  }
+) {
+  try {
+    await supabase.from('revisao_vidas_inscricao_logs').insert({
+      event_id: input.eventId,
+      person_id: input.personId ?? null,
+      registration_id: input.registrationId ?? null,
+      person_name: input.personName ?? null,
+      phone_masked: input.phoneMasked ?? null,
+      action: input.action,
+      payload: input.payload ?? {},
+    })
+  } catch (error) {
+    console.error('[revisao-inscricao] falha ao gravar log:', error)
+  }
 }
 
 function generateAnamneseToken() {
@@ -21,7 +71,7 @@ export async function GET(
 
   const { data: event, error } = await supabase
     .from('revisao_vidas_events')
-    .select('id, name, start_date, end_date, active')
+    .select('id, name, start_date, end_date, active, church_id')
     .eq('id', params.eventId)
     .single()
 
@@ -70,6 +120,20 @@ export async function POST(
   const leaderName = (body.leader_name ?? '').trim() || null           // texto livre
   const team = (body.team ?? '').trim() || null                        // texto livre
   const preRevisao = body.pre_revisao === true || body.pre_revisao === 'true' // boolean
+  const maskedPhone = maskPhoneForLog(rawPhone)
+
+  console.info('[revisao-inscricao] nova tentativa', {
+    eventId: params.eventId,
+    fullName,
+    phone: maskedPhone,
+  })
+
+  await writeInscricaoLog(supabase, {
+    eventId: params.eventId,
+    action: 'attempt',
+    personName: fullName,
+    phoneMasked: maskedPhone,
+  })
 
   if (!fullName) return NextResponse.json({ error: 'Informe seu nome completo.' }, { status: 400 })
   if (!rawPhone) return NextResponse.json({ error: 'Informe seu telefone/WhatsApp.' }, { status: 400 })
@@ -79,13 +143,13 @@ export async function POST(
     return NextResponse.json({ error: 'Telefone inválido. Informe com DDD.' }, { status: 400 })
   }
 
-  // 3. Localizar ou criar pessoa pelo telefone
+  // 3. Localizar ou criar pessoa (telefone + nome)
   const phoneSearch = phone.startsWith('55') ? phone.slice(2) : phone
   const { data: existingPeople, error: searchErr } = await supabase
     .from('people')
-    .select('id, full_name, email, birth_date, sex')
+    .select('id, full_name, email, birth_date, sex, created_at')
     .or(`mobile_phone.eq.${phone},mobile_phone.eq.+55${phone},mobile_phone.eq.${phoneSearch},mobile_phone.eq.+55${phoneSearch}`)
-    .limit(1)
+    .order('created_at', { ascending: false })
 
   if (searchErr) {
     console.error('inscricao: erro ao buscar pessoa:', searchErr)
@@ -96,10 +160,12 @@ export async function POST(
   }
 
   let personId: string
+  const incomingName = normalizeName(fullName)
+  const matchedPerson = (existingPeople ?? []).find((person) => normalizeName(person.full_name ?? '') === incomingName)
 
-  if (existingPeople && existingPeople.length > 0) {
-    personId = existingPeople[0].id
-    const pData = existingPeople[0]
+  if (matchedPerson) {
+    personId = matchedPerson.id
+    const pData = matchedPerson
 
     // Atualizar e-mail / data de nascimento / sexo se informados e ausentes no cadastro central
     const updates: Record<string, string> = {}
@@ -110,8 +176,25 @@ export async function POST(
     if (Object.keys(updates).length > 0) {
       await supabase.from('people').update(updates).eq('id', personId)
     }
+
+    console.info('[revisao-inscricao] pessoa reaproveitada', {
+      eventId: params.eventId,
+      personId,
+      fullName,
+      phone: maskedPhone,
+      samePhoneCandidates: existingPeople?.length ?? 0,
+    })
+
+    await writeInscricaoLog(supabase, {
+      eventId: params.eventId,
+      action: 'person_reused',
+      personId,
+      personName: fullName,
+      phoneMasked: maskedPhone,
+      payload: { samePhoneCandidates: existingPeople?.length ?? 0 },
+    })
   } else {
-    // Criar nova pessoa
+    // Criar nova pessoa (inclusive quando o telefone já existe, mas para outro nome)
     const { data: newPerson, error: createErr } = await supabase
       .from('people')
       .insert({
@@ -136,6 +219,23 @@ export async function POST(
     }
 
     personId = newPerson.id
+
+    console.info('[revisao-inscricao] nova pessoa criada', {
+      eventId: params.eventId,
+      personId,
+      fullName,
+      phone: maskedPhone,
+      samePhoneCandidates: existingPeople?.length ?? 0,
+    })
+
+    await writeInscricaoLog(supabase, {
+      eventId: params.eventId,
+      action: 'person_created',
+      personId,
+      personName: fullName,
+      phoneMasked: maskedPhone,
+      payload: { samePhoneCandidates: existingPeople?.length ?? 0 },
+    })
   }
 
   // 4. Verificar se já tem inscrição
@@ -147,6 +247,23 @@ export async function POST(
     .maybeSingle()
 
   if (existing) {
+    console.info('[revisao-inscricao] inscrição já existente', {
+      eventId: params.eventId,
+      personId,
+      registrationId: existing.id,
+      status: existing.status,
+    })
+
+    await writeInscricaoLog(supabase, {
+      eventId: params.eventId,
+      action: 'registration_exists',
+      personId,
+      registrationId: existing.id,
+      personName: fullName,
+      phoneMasked: maskedPhone,
+      payload: { status: existing.status },
+    })
+
     return NextResponse.json({
       alreadyRegistered: true,
       registrationId: existing.id,
@@ -176,8 +293,35 @@ export async function POST(
 
   if (regErr || !reg) {
     console.error('inscricao: criar registro:', regErr)
+
+    await writeInscricaoLog(supabase, {
+      eventId: params.eventId,
+      action: 'registration_error',
+      personId,
+      personName: fullName,
+      phoneMasked: maskedPhone,
+      payload: { error: regErr?.message ?? 'unknown' },
+    })
+
     return NextResponse.json({ error: 'Erro ao criar inscrição. Tente novamente.' }, { status: 500 })
   }
+
+  console.info('[revisao-inscricao] inscrição criada', {
+    eventId: params.eventId,
+    personId,
+    registrationId: reg.id,
+    fullName,
+    phone: maskedPhone,
+  })
+
+  await writeInscricaoLog(supabase, {
+    eventId: params.eventId,
+    action: 'registration_created',
+    personId,
+    registrationId: reg.id,
+    personName: fullName,
+    phoneMasked: maskedPhone,
+  })
 
   return NextResponse.json({
     alreadyRegistered: false,

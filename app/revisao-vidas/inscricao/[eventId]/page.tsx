@@ -20,6 +20,7 @@ type EventInfo = {
   start_date: string
   end_date: string | null
   active: boolean
+  church_id?: string | null
 }
 
 function formatDate(iso: string) {
@@ -74,20 +75,40 @@ export default function InscricaoRevisaoPage() {
 
   useEffect(() => {
     if (!eventId) return
-    Promise.all([
-      fetch(`/api/revisao-vidas/inscricao/${eventId}`).then(async (r) => {
-        if (!r.ok) { setNotFound(true); return }
-        const data = await r.json()
-        setEvent(data.event)
-      }),
-      fetch('/api/revisao-vidas/teams').then(async (r) => {
-        if (!r.ok) return
-        const data = await r.json()
-        setMinistries(data.teams ?? [])
-      }),
-    ])
-      .catch(() => setNotFound(true))
-      .finally(() => setLoadingEvent(false))
+    ;(async () => {
+      try {
+        const eventRes = await fetch(`/api/revisao-vidas/inscricao/${eventId}`)
+        if (!eventRes.ok) {
+          setNotFound(true)
+          return
+        }
+
+        const eventData = await eventRes.json()
+        const eventInfo = eventData.event as EventInfo | undefined
+        if (!eventInfo) {
+          setNotFound(true)
+          return
+        }
+
+        setEvent(eventInfo)
+
+        const teamsUrl = eventInfo.church_id
+          ? `/api/revisao-vidas/teams?church_id=${encodeURIComponent(eventInfo.church_id)}`
+          : '/api/revisao-vidas/teams'
+
+        const teamsRes = await fetch(teamsUrl)
+        if (!teamsRes.ok) {
+          setMinistries([])
+          return
+        }
+        const teamsData = await teamsRes.json()
+        setMinistries(teamsData.teams ?? [])
+      } catch {
+        setNotFound(true)
+      } finally {
+        setLoadingEvent(false)
+      }
+    })()
   }, [eventId])
 
   async function handleSubmit(e: React.FormEvent) {
@@ -131,6 +152,24 @@ export default function InscricaoRevisaoPage() {
       setError('Erro de conexão. Verifique sua internet e tente novamente.')
     } finally {
       setSaving(false)
+    }
+  }
+
+  function startNewRegistration() {
+    setResult(null)
+    setError('')
+    setCopiedAnamnese(false)
+    setFullName('')
+    setPhone('')
+    setEmail('')
+    setBirthDate('')
+    setSex('')
+    setDecisionType('')
+    setLeaderName('')
+    setTeam('')
+    setPreRevisao(false)
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' })
     }
   }
 
@@ -264,6 +303,15 @@ export default function InscricaoRevisaoPage() {
               </p>
             </div>
           )}
+
+          <button
+            type="button"
+            onClick={startNewRegistration}
+            className="mt-4 w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-slate-200 bg-white text-slate-700 text-sm font-bold hover:bg-slate-50 transition-colors"
+          >
+            Fazer nova inscrição
+            <ArrowRight className="w-4 h-4" />
+          </button>
 
           <p className="text-center text-xs text-slate-400 mt-6">
             Sara Nossa Terra — Sede Alagoas

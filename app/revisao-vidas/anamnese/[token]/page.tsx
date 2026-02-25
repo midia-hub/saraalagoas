@@ -300,20 +300,6 @@ export default function RevisaoVidasAnamnesePage() {
                 onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))}
               />
             </Field>
-            <Field label="Tipo sanguíneo">
-              <button
-                type="button"
-                className={`${inputCls} min-h-[52px]`}
-                onClick={() => setBloodTypeModalOpen(true)}
-              >
-                <span className="flex items-center justify-between gap-3 w-full">
-                  <span className={`truncate text-left ${form.bloodType ? 'text-slate-900' : 'text-slate-400'}`}>
-                    {form.bloodType || 'Selecione'}
-                  </span>
-                  <ChevronsUpDown className="w-4 h-4 text-slate-400 flex-shrink-0" />
-                </span>
-              </button>
-            </Field>
             <Field label="Equipe">
               <input
                 className={inputCls}
@@ -333,10 +319,69 @@ export default function RevisaoVidasAnamnesePage() {
           </div>
         </section>
 
-        {/* â”€â”€ SeÃ§Ã£o 2 â€” PrÃ© RevisÃ£o â”€â”€ */}
+        {/* —— Seção 2 — Foto —— */}
+        {form.preReviewCompleted !== 'nao' && (
+          <section className="bg-white rounded-2xl shadow-sm overflow-hidden">
+            <div className="flex items-center gap-3 px-4 py-3.5 border-b border-slate-100 bg-slate-50">
+              <span className="w-6 h-6 rounded-full bg-purple-600 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">2</span>
+              <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wide">Foto</h2>
+              <span className="ml-auto text-xs text-slate-400 font-normal">Opcional</span>
+            </div>
+            <div className="p-4 space-y-4">
+              {form.photoUrl ? (
+                <div className="flex items-center gap-4">
+                  <img
+                    src={form.photoUrl}
+                    alt="Foto enviada"
+                    className="w-20 h-20 object-cover rounded-2xl border-2 border-slate-200 flex-shrink-0"
+                  />
+                  <div className="flex-1 space-y-2">
+                    <p className="text-sm font-semibold text-slate-700">Foto enviada</p>
+                    <label className="inline-flex items-center gap-2 cursor-pointer text-sm font-semibold text-purple-600">
+                      <Camera className="w-4 h-4" />
+                      Trocar foto
+                      <input
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        className="hidden"
+                        disabled={uploading}
+                        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUploadPhoto(f) }}
+                      />
+                    </label>
+                  </div>
+                </div>
+              ) : (
+                <label className={[
+                  'flex items-center justify-center gap-3 w-full rounded-2xl border-2 border-dashed border-slate-300',
+                  'bg-slate-50 py-6 cursor-pointer active:bg-slate-100 transition-colors',
+                  uploading ? 'opacity-60 pointer-events-none' : '',
+                ].join(' ')}>
+                  {uploading
+                    ? <Loader2 className="w-6 h-6 text-slate-400 animate-spin" />
+                    : <Camera className="w-6 h-6 text-slate-400" />
+                  }
+                  <span className="text-sm font-semibold text-slate-600">
+                    {uploading ? 'Enviando foto…' : 'Selecionar ou tirar foto'}
+                  </span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    className="hidden"
+                    disabled={uploading}
+                    onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUploadPhoto(f) }}
+                  />
+                </label>
+              )}
+            </div>
+          </section>
+        )}
+
+        {/* â”€â”€ SeÃ§Ã£o 3 â€” PrÃ© RevisÃ£o â”€â”€ */}
         <section className="bg-white rounded-2xl shadow-sm overflow-hidden">
           <div className="flex items-center gap-3 px-4 py-3.5 border-b border-slate-100 bg-slate-50">
-            <span className="w-6 h-6 rounded-full bg-purple-600 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">2</span>
+            <span className="w-6 h-6 rounded-full bg-purple-600 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">3</span>
             <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wide">Pré Revisão</h2>
           </div>
           <div className="p-4 space-y-4">
@@ -350,11 +395,11 @@ export default function RevisaoVidasAnamnesePage() {
           </div>
         </section>
 
-        {/* â”€â”€ SeÃ§Ã£o 3 â€” HistÃ³rico de saÃºde â”€â”€ */}
+        {/* â”€â”€ SeÃ§Ã£o 4 â€” HistÃ³rico de saÃºde â”€â”€ */}
         {form.preReviewCompleted !== 'nao' && (
           <section className="bg-white rounded-2xl shadow-sm overflow-hidden">
             <div className="flex items-center gap-3 px-4 py-3.5 border-b border-slate-100 bg-slate-50">
-              <span className="w-6 h-6 rounded-full bg-purple-600 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">3</span>
+              <span className="w-6 h-6 rounded-full bg-purple-600 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">4</span>
               <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wide">Histórico de saúde</h2>
             </div>
           <div className="divide-y divide-slate-100">
@@ -414,65 +459,6 @@ export default function RevisaoVidasAnamnesePage() {
           </section>
         )}
 
-        {/* â"€â"€ SeÃ§Ã£o 4 â€" Foto â"€â"€ */}
-        {form.preReviewCompleted !== 'nao' && (
-          <section className="bg-white rounded-2xl shadow-sm overflow-hidden">
-            <div className="flex items-center gap-3 px-4 py-3.5 border-b border-slate-100 bg-slate-50">
-              <span className="w-6 h-6 rounded-full bg-purple-600 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">4</span>
-            <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wide">Foto</h2>
-            <span className="ml-auto text-xs text-slate-400 font-normal">Opcional</span>
-          </div>
-          <div className="p-4 space-y-4">
-            {form.photoUrl ? (
-              <div className="flex items-center gap-4">
-                <img
-                  src={form.photoUrl}
-                  alt="Foto enviada"
-                  className="w-20 h-20 object-cover rounded-2xl border-2 border-slate-200 flex-shrink-0"
-                />
-                <div className="flex-1 space-y-2">
-                  <p className="text-sm font-semibold text-slate-700">Foto enviada</p>
-                  <label className="inline-flex items-center gap-2 cursor-pointer text-sm font-semibold text-purple-600">
-                    <Camera className="w-4 h-4" />
-                    Trocar foto
-                    <input
-                      type="file"
-                      accept="image/*"
-                      capture="environment"
-                      className="hidden"
-                      disabled={uploading}
-                      onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUploadPhoto(f) }}
-                    />
-                  </label>
-                </div>
-              </div>
-            ) : (
-              <label className={[
-                'flex items-center justify-center gap-3 w-full rounded-2xl border-2 border-dashed border-slate-300',
-                'bg-slate-50 py-6 cursor-pointer active:bg-slate-100 transition-colors',
-                uploading ? 'opacity-60 pointer-events-none' : '',
-              ].join(' ')}>
-                {uploading
-                  ? <Loader2 className="w-6 h-6 text-slate-400 animate-spin" />
-                  : <Camera className="w-6 h-6 text-slate-400" />
-                }
-                <span className="text-sm font-semibold text-slate-600">
-                  {uploading ? 'Enviando foto…' : 'Selecionar ou tirar foto'}
-                </span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  className="hidden"
-                  disabled={uploading}
-                  onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUploadPhoto(f) }}
-                />
-              </label>
-            )}
-          </div>
-          </section>
-        )}
-
         {/* Mensagem de pré-revisão não concluída */}
         {form.preReviewCompleted === 'nao' && (
           <div className="flex items-start gap-3 bg-blue-50 border border-blue-200 rounded-2xl px-4 py-4">
@@ -484,6 +470,29 @@ export default function RevisaoVidasAnamnesePage() {
               </p>
             </div>
           </div>
+        )}
+
+        {/* Tipo sanguíneo (antes de observações) */}
+        {form.preReviewCompleted !== 'nao' && (
+          <section className="bg-white rounded-2xl shadow-sm overflow-hidden">
+            <div className="flex items-center gap-3 px-4 py-3.5 border-b border-slate-100 bg-slate-50">
+              <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wide">Tipo sanguíneo <span className="text-rose-500">*</span></h2>
+            </div>
+            <div className="p-4">
+              <button
+                type="button"
+                className={`${inputCls} min-h-[52px]`}
+                onClick={() => setBloodTypeModalOpen(true)}
+              >
+                <span className="flex items-center justify-between gap-3 w-full">
+                  <span className={`truncate text-left ${form.bloodType ? 'text-slate-900' : 'text-slate-400'}`}>
+                    {form.bloodType || 'Selecione'}
+                  </span>
+                  <ChevronsUpDown className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                </span>
+              </button>
+            </div>
+          </section>
         )}
 
         {/* Observações gerais */}

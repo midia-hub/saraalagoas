@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { adminFetchJson } from '@/lib/admin-client'
 import type { ReviewRegistrationEnriched } from '@/lib/consolidacao-types'
 import { REVIEW_REG_STATUS_LABELS, REVIEW_REG_STATUS_COLORS, REVIEW_FLOW_STATUS_LABELS, REVIEW_FLOW_STATUS_COLORS } from '@/lib/consolidacao-types'
@@ -26,11 +27,13 @@ type ReviewEvent = {
 }
 
 export default function RevisaoVidasInscritosPage() {
+  const searchParams = useSearchParams()
   const [regs, setRegs] = useState<ReviewRegistrationEnriched[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [updating, setUpdating] = useState<string | null>(null)
   const [search, setSearch] = useState('')
+  const [selectedEventId, setSelectedEventId] = useState<string>(() => searchParams?.get('event_id') ?? '')
   const [copiedRegId, setCopiedRegId] = useState<string | null>(null)
   const [inscricaoModalOpen, setInscricaoModalOpen] = useState(false)
   const [events, setEvents] = useState<ReviewEvent[]>([])
@@ -46,8 +49,11 @@ export default function RevisaoVidasInscritosPage() {
   const load = useCallback(() => {
     setLoading(true)
     setLoadError(null)
+    const regsUrl = selectedEventId
+      ? `/api/admin/consolidacao/revisao/registrations?event_id=${selectedEventId}`
+      : '/api/admin/consolidacao/revisao/registrations'
     Promise.all([
-      adminFetchJson('/api/admin/consolidacao/revisao/registrations').catch((e: Error) => {
+      adminFetchJson(regsUrl).catch((e: Error) => {
         setLoadError(e?.message ?? 'Erro ao carregar inscrições')
         return { registrations: [] }
       }),
@@ -58,7 +64,7 @@ export default function RevisaoVidasInscritosPage() {
         setEvents(eventsData.events ?? eventsData.items ?? [])
       })
       .finally(() => setLoading(false))
-  }, [])
+  }, [selectedEventId])
 
   useEffect(() => { load() }, [load])
 
@@ -361,6 +367,19 @@ export default function RevisaoVidasInscritosPage() {
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         {/* Toolbar: search + count */}
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 border-b border-slate-100 bg-slate-50/70 px-4 py-3">
+          {/* Seletor de evento */}
+          <div className="shrink-0">
+            <select
+              value={selectedEventId}
+              onChange={e => { setSelectedEventId(e.target.value); setSearch('') }}
+              className="rounded-lg border border-slate-200 bg-white py-2 pl-3 pr-8 text-sm text-slate-700 font-medium transition focus:border-[#c62737]/40 focus:outline-none focus:ring-2 focus:ring-[#c62737]/15 max-w-[260px]"
+            >
+              <option value="">Todos os eventos</option>
+              {events.map(ev => (
+                <option key={ev.id} value={ev.id}>{ev.name}</option>
+              ))}
+            </select>
+          </div>
           {/* Search */}
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
