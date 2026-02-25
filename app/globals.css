@@ -374,6 +374,30 @@
   }
 }
 
+/* Dropdown list scrollbar */
+.dropdown-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+}
+
+.dropdown-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.dropdown-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+  margin: 6px 0;
+}
+
+.dropdown-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.15);
+  border-radius: 99px;
+}
+
+.dropdown-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(255, 255, 255, 0.3);
+}
+
 /* Custom Scrollbar - Admin Sidebar */
 .custom-scrollbar {
   scrollbar-width: thin;

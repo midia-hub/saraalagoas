@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/Button'
 import { CustomSelect } from '@/components/ui/CustomSelect'
 import { DatePickerInput } from '@/components/ui/DatePickerInput'
 import { CreatableCombobox } from '@/components/admin/CreatableCombobox'
+import { MinistrySelector } from '@/components/admin/MinistrySelector'
 import { adminFetchJson } from '@/lib/admin-client'
 import type { Person } from '@/lib/types/person'
 import { fetchPerson } from '@/lib/people'
@@ -20,7 +21,9 @@ import {
   BLOOD_TYPE_VALUES,
 } from '@/lib/types/person'
 
-export type PersonFormData = Partial<Record<keyof Person, string | boolean | null>>
+export type PersonFormData = Omit<Partial<Record<keyof Person, string | boolean | null>>, 'ministries'> & {
+  ministries?: string[] | null
+}
 
 interface PersonFormProps {
   initial?: Person | null
@@ -46,9 +49,12 @@ function isValidCPF(cpf: string) {
 }
 
 export function PersonForm({ initial, onSubmit, loading = false, readOnlyMetadata = false, readOnlyEmail = false }: PersonFormProps) {
+  const initialMinistries = Array.isArray(initial?.ministries) ? initial!.ministries : []
+  const [churches, setChurches] = useState<{ value: string; label: string }[]>([])
   const [form, setForm] = useState<PersonFormData>(() => {
     if (!initial) return {}
     return {
+      ministries: initialMinistries,
       leader_person_id: initial.leader_person_id ?? null,
       spouse_person_id: initial.spouse_person_id ?? null,
       full_name: initial.full_name ?? '',
@@ -101,9 +107,42 @@ export function PersonForm({ initial, onSubmit, loading = false, readOnlyMetadat
   const [leaderCurrentName, setLeaderCurrentName] = useState<string | null>(null)
   const [spouseLabel, setSpouseLabel] = useState('')
   const [sexError, setSexError] = useState<string | null>(null)
+  const [hasMinistries, setHasMinistries] = useState<boolean | null>(
+    initialMinistries.length > 0 ? true : false
+  )
 
-  const update = (key: keyof Person, value: string | boolean | null) => {
+  useEffect(() => {
+    adminFetchJson<{ items: { id: string; name: string }[] }>('/api/admin/consolidacao/churches')
+      .then((data) => {
+        const list = (data.items || []).map((c) => ({ value: c.name, label: c.name }))
+        setChurches(list)
+      })
+      .catch(() => setChurches([]))
+  }, [])
+
+  const update = (key: keyof Person, value: string | boolean | null | string[]) => {
     setForm((prev) => ({ ...prev, [key]: value }))
+  }
+
+  // Normaliza números de telefone: mantém apenas dígitos e, no blur, garante prefixo '55' quando fizer
+  // sentido (quando usuário informou DDD + número). Exemplos:
+  // 82999988877 -> 5582999988877
+  // 082999988877 -> 5582999988877 (remove zeros à esquerda)
+  // +55 (82) 99998-8877 -> 5582999988877
+  function onlyDigits(v: string | undefined | null) {
+    if (!v) return ''
+    return String(v).replace(/\D+/g, '')
+  }
+
+  function normalizeMobilePhone(v: string | undefined | null) {
+    const d = onlyDigits(v)
+    if (!d) return ''
+    let digits = d.replace(/^0+/, '')
+    if (digits.startsWith('55')) return digits
+    // Se o usuário informou DDD + número (>=10 dígitos), adiciona 55
+    if (digits.length >= 10) return `55${digits}`
+    // Se for apenas número curto (sem DDD), mantém como está (não força DDD)
+    return digits
   }
 
   useEffect(() => {
@@ -194,7 +233,13 @@ export function PersonForm({ initial, onSubmit, loading = false, readOnlyMetadat
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-8">
+    <form onSubmit={handleSubmit} autoComplete="off" className="space-y-8">
+      {/* Hidden fake fields to prevent password managers from offering credentials for this form */}
+      <div style={{ position: 'absolute', left: '-9999px', width: '1px', height: '1px', overflow: 'hidden' }} aria-hidden="true">
+        <input type="text" name="fake_username" autoComplete="username" tabIndex={-1} />
+        <input type="password" name="fake_password" autoComplete="current-password" tabIndex={-1} />
+        <input type="password" name="new_person_pass" autoComplete="new-password" tabIndex={-1} />
+      </div>
       {/* Toggle Ativo/Inativo */}
       <div className="flex items-center justify-between bg-white rounded-xl border border-slate-200 px-6 py-4">
         <div className="flex items-center gap-3">
@@ -236,12 +281,11 @@ export function PersonForm({ initial, onSubmit, loading = false, readOnlyMetadat
           </div>
           <div>
             <label className={labelClass}>Igreja</label>
-            <input
-              type="text"
+            <CustomSelect
               value={toFormValue(form.church_name)}
-              onChange={(e) => update('church_name', e.target.value || null)}
-              className={inputClass}
-              placeholder="Nome da igreja"
+              onChange={(v) => update('church_name', v || null)}
+              placeholder="Selecione a igreja"
+              options={churches}
             />
           </div>
         </div>
@@ -260,6 +304,45 @@ export function PersonForm({ initial, onSubmit, loading = false, readOnlyMetadat
               </div>
             ) : (
               <CustomSelect value={toFormValue(form.church_role)} onChange={(v) => update('church_role', v || null)} placeholder="Selecione" options={CHURCH_ROLE_VALUES.map((v) => ({ value: v, label: v }))} />
+            )}
+          </div>
+
+          <div className="md:col-span-2">
+            <label className={labelClass}>Participa de algum ministério?</label>
+            {readOnlyMetadata ? (
+              <div className="w-full px-4 py-3.5 rounded-2xl border border-slate-200 bg-slate-50/50 text-slate-500 font-bold text-sm flex items-center gap-3">
+                <LockIcon size={14} className="text-slate-400" />
+                {Array.isArray(form.ministries) && form.ministries.length > 0
+                  ? form.ministries.join(', ')
+                  : 'Não participa de ministérios'}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <CustomSelect
+                  value={hasMinistries === true ? 'true' : hasMinistries === false ? 'false' : ''}
+                  onChange={(v) => {
+                    if (v === 'true') {
+                      setHasMinistries(true)
+                    } else if (v === 'false') {
+                      setHasMinistries(false)
+                      update('ministries', [])
+                    } else {
+                      setHasMinistries(null)
+                    }
+                  }}
+                  placeholder="Selecione"
+                  options={[
+                    { value: 'true', label: 'Sim' },
+                    { value: 'false', label: 'Não' },
+                  ]}
+                />
+                {hasMinistries === true && (
+                  <MinistrySelector
+                    selected={Array.isArray(form.ministries) ? form.ministries : []}
+                    onChange={(values) => update('ministries', values)}
+                  />
+                )}
+              </div>
             )}
           </div>
 
@@ -506,12 +589,29 @@ export function PersonForm({ initial, onSubmit, loading = false, readOnlyMetadat
                 {toFormValue(form.email) || 'Sem e-mail'}
               </div>
             ) : (
-              <input type="email" value={toFormValue(form.email)} onChange={(e) => update('email', e.target.value || null)} className={inputClass} />
+              <input
+                type="email"
+                name="person_email"
+                autoComplete="off"
+                data-lpignore="true"
+                data-1p-ignore="true"
+                value={toFormValue(form.email)}
+                onChange={(e) => update('email', e.target.value || null)}
+                className={inputClass}
+              />
             )}
           </div>
           <div>
             <label className={labelClass}>Celular</label>
-            <input type="tel" value={toFormValue(form.mobile_phone)} onChange={(e) => update('mobile_phone', e.target.value || null)} className={inputClass} />
+            <input
+              type="tel"
+              inputMode="tel"
+              placeholder="5511999998888"
+              value={toFormValue(form.mobile_phone)}
+              onChange={(e) => update('mobile_phone', e.target.value ? onlyDigits(e.target.value) : null)}
+              onBlur={(e) => update('mobile_phone', normalizeMobilePhone(e.target.value) || null)}
+              className={inputClass}
+            />
           </div>
           <div>
             <label className={labelClass}>Telefone</label>

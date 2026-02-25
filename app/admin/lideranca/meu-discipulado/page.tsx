@@ -17,6 +17,8 @@ import type { FollowupEnriched } from '@/lib/consolidacao-types'
 import type { Person } from '@/lib/types/person'
 import Link from 'next/link'
 
+type Visao = 'diretos' | 'rede'
+
 type ServiceItem = { id: string; name: string; day_of_week?: number | string | null }
 
 function parseYmd(ymd: string): Date | null {
@@ -94,6 +96,7 @@ function weekdayLabel(day: number | null): string {
 
 export default function MeuDiscipuladoPage() {
   const { personId } = useAdminAccess()
+  const [visao, setVisao] = useState<Visao>('diretos')
   const today = new Date()
   const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0]
   const todayStr = today.toISOString().split('T')[0]
@@ -120,7 +123,8 @@ export default function MeuDiscipuladoPage() {
     setLoading(true)
     try {
       const query = new URLSearchParams(params).toString()
-      const data = await adminFetchJson(`/api/admin/lideranca/meu-discipulado?${query}`) as { items: AttendanceItem[]; debug?: any }
+      const endpoint = visao === 'rede' ? 'rede-completa' : 'meu-discipulado'
+      const data = await adminFetchJson(`/api/admin/lideranca/${endpoint}?${query}`) as { items: AttendanceItem[]; debug?: any }
       console.log('🔍 DEBUG - Dados da API:', data)
       setItems(data.items || [])
     } catch (err) {
@@ -128,7 +132,7 @@ export default function MeuDiscipuladoPage() {
     } finally {
       setLoading(false)
     }
-  }, [filters])
+  }, [filters, visao])
 
   useEffect(() => { load() }, [load])
 
@@ -210,8 +214,9 @@ export default function MeuDiscipuladoPage() {
 
     setSavingAttendance(true)
     try {
+      const endpoint = visao === 'rede' ? 'rede-completa' : 'meu-discipulado'
       const response = await adminFetchJson<{ saved: number }>(
-        '/api/admin/lideranca/meu-discipulado/presencas',
+        `/api/admin/lideranca/${endpoint}/presencas`,
         {
           method: 'POST',
           body: JSON.stringify({
@@ -340,11 +345,34 @@ export default function MeuDiscipuladoPage() {
     <div className="p-6 md:p-8 space-y-6">
       <AdminPageHeader
         icon={BookMarked}
-        title="Meu Discipulado"
-        subtitle="Frequência e engajamento dos seus discípulos nos cultos da igreja"
+        title="Discipulado"
+        subtitle={visao === 'diretos' ? 'Frequência e engajamento dos seus discípulos diretos nos cultos da igreja' : 'Frequência de toda a sua rede de liderança: 12, 144, 1728... todos os níveis'}
         backLink={{ href: '/admin/lideranca', label: 'Liderança' }}
         actions={
           <div className="flex items-center gap-2">
+            {/* Seletor de visão */}
+            <div className="flex items-center rounded-lg border border-slate-200 bg-white overflow-hidden text-sm font-medium">
+              <button
+                onClick={() => { setVisao('diretos'); setItems([]); setSelectedIds([]) }}
+                className={`px-3 py-2 transition-all ${
+                  visao === 'diretos'
+                    ? 'bg-[#c62737] text-white'
+                    : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                Meus discípulos
+              </button>
+              <button
+                onClick={() => { setVisao('rede'); setItems([]); setSelectedIds([]) }}
+                className={`px-3 py-2 transition-all ${
+                  visao === 'rede'
+                    ? 'bg-[#c62737] text-white'
+                    : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                Rede completa
+              </button>
+            </div>
             <Link
               href="/lideranca/presenca-culto"
               target="_blank"
@@ -455,14 +483,16 @@ export default function MeuDiscipuladoPage() {
         selectedIds={selectedIds}
         onToggleSelect={toggleSelect}
         onToggleSelectAll={toggleSelectAll}
-        onEnrollReview={handleEnrollReview}
+        onEnrollReview={visao === 'diretos' ? handleEnrollReview : undefined}
       />
 
       <div className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
         <Info className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
         <p className="text-[13px] text-slate-500 leading-relaxed">
-          Frequência abaixo de <strong className="text-slate-700">50%</strong> pode indicar necessidade de acompanhamento personalizado.
-          Use os filtros de data para visualizar tendências ao longo do tempo.
+          {visao === 'rede'
+            ? <><strong className="text-slate-700">Visão completa:</strong> inclui todos os discípulos em sua rede (diretos e indiretos).</>
+            : <>Frequência abaixo de <strong className="text-slate-700">50%</strong> pode indicar necessidade de acompanhamento personalizado.</>
+          }{' '}Use os filtros de data para visualizar tendências ao longo do tempo.
         </p>
       </div>
 

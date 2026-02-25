@@ -22,12 +22,21 @@ const SITE_CONFIG_CACHE_KEY = 'site_config_main_cache_v1'
 const SITE_CONFIG_CACHE_TTL_MS = 5 * 60 * 1000
 let memoryCache: { config: SiteConfig; updatedAt: number } | null = null
 
-export function SiteConfigProvider({ children }: { children: React.ReactNode }) {
+export function SiteConfigProvider({ 
+  children,
+  initialConfig, 
+}: { 
+  children: React.ReactNode
+  initialConfig?: SiteConfig
+}) {
   const pathname = usePathname()
-  const [config, setConfig] = useState<SiteConfig>(defaultConfig as SiteConfig)
+  const [config, setConfig] = useState<SiteConfig>(initialConfig || defaultConfig as SiteConfig)
   const [loading, setLoading] = useState(false)
 
   const applyCachedConfig = useCallback((): boolean => {
+    // Se temos initialConfig do servidor e não estamos na home recarregando, pule fetch.
+    if (initialConfig) return true
+    
     const now = Date.now()
 
     if (memoryCache && now - memoryCache.updatedAt <= SITE_CONFIG_CACHE_TTL_MS) {
@@ -66,8 +75,14 @@ export function SiteConfigProvider({ children }: { children: React.ReactNode }) 
   }, [])
 
   const refetch = useCallback(async () => {
+    // Se passamos initialConfig e não estamos mudando manualmente, nada a fazer
+    if (initialConfig && pathname !== '/') {
+       setLoading(false)
+       return
+    }
+
     const shouldFetch = pathname === '/'
-    if (!shouldFetch) {
+    if (!shouldFetch && !initialConfig) {
       setLoading(false)
       return
     }

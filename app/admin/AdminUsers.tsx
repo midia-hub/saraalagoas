@@ -279,18 +279,7 @@ export function AdminUsers() {
   }
 
   if (loading) {
-    return (
-      <div className="max-w-6xl space-y-6">
-        <div className="animate-pulse">
-          <div className="h-8 w-48 rounded bg-slate-200 mb-6" />
-          <div className="flex flex-wrap gap-4 mb-6">
-            <div className="h-10 w-64 rounded-lg bg-slate-100" />
-            <div className="h-10 w-32 rounded-lg bg-slate-100" />
-          </div>
-        </div>
-        <TableSkeleton rows={6} columns={4} showHeader />
-      </div>
-    )
+    return null
   }
 
   return (

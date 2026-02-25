@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAccess } from '@/lib/admin-api'
 import { createSupabaseAdminClient } from '@/lib/supabase-server'
-import { callTemplateDisparosWebhook } from '@/lib/call-disparos-template'
+import { callDisparosWebhook } from '@/lib/disparos-webhook'
 import { formatDatePtBr, formatTimePtBr } from '@/lib/reservas'
 
 export async function POST(
@@ -50,41 +50,31 @@ export async function POST(
           .single()
 
         if (resData?.requester_phone) {
-          const { data: template } = await supabase
-            .from('room_message_templates')
-            .select('id, name, message_id')
-            .eq('active', true)
-            .or('name.eq.reserva_rejeitada,name.ilike.%rejeitada%')
-            .order('name')
-            .limit(1)
-            .maybeSingle()
+          const roomName = (resData.room as { name?: string } | null)?.name ?? String(resData.room_id)
+          const variables = {
+            nome: resData.requester_name ?? '',
+            sala: roomName,
+            data: formatDatePtBr(resData.start_datetime),
+            hora_inicio: formatTimePtBr(resData.start_datetime),
+            hora_fim: formatTimePtBr(resData.end_datetime),
+            motivo_reprovacao: reason || 'Motivo não informado',
+          }
 
-          if (template?.message_id) {
-            const roomName = (resData.room as { name?: string } | null)?.name ?? String(resData.room_id)
-            const variables = {
-              nome: resData.requester_name ?? '',
-              sala: roomName,
-              data: formatDatePtBr(resData.start_datetime),
-              hora_inicio: formatTimePtBr(resData.start_datetime),
-              hora_fim: formatTimePtBr(resData.end_datetime),
-              motivo_rejeicao: reason || 'Motivo não informado',
-            }
+          const result = await callDisparosWebhook({
+            phone: resData.requester_phone,
+            nome: resData.requester_name ?? '',
+            conversionType: 'reserva_reprovada',
+            variables,
+          })
 
-            const result = await callTemplateDisparosWebhook({
-              phone: resData.requester_phone,
-              message_id: template.message_id,
-              variables,
+          if (result) {
+            await supabase.from('disparos_log').insert({
+              phone: result.phone,
+              nome: result.nome,
+              status_code: result.statusCode ?? null,
+              source: 'reservas',
+              conversion_type: 'reserva_reprovada'
             })
-
-            if (result) {
-              await supabase.from('disparos_log').insert({
-                phone: result.phone,
-                nome: variables.nome,
-                status_code: result.statusCode ?? null,
-                source: 'reservas',
-                conversion_type: 'reserva_rejeitada'
-              })
-            }
           }
         }
       }

@@ -1,6 +1,7 @@
 'use client'
 
 import { supabase } from '@/lib/supabase'
+import { showLoadingOverlay, hideLoadingOverlay, isPageLoadWindow } from '@/lib/loading-overlay'
 
 export async function getAccessTokenOrThrow(): Promise<string> {
   if (!supabase) {
@@ -26,13 +27,27 @@ export async function adminFetchJson<T = unknown>(
     headers.set('Content-Type', 'application/json')
   }
   headers.set('Authorization', `Bearer ${token}`)
-  // Evita 308 do ngrok (plano gratuito): página intersticial não é retornada quando o header está presente
   headers.set('ngrok-skip-browser-warning', 'true')
-  const response = await fetch(input, { ...init, headers })
-  const payload = await response.json().catch(() => ({}))
-  if (!response.ok) {
-    const message = typeof payload?.error === 'string' ? payload.error : `Erro ${response.status}`
-    throw new Error(message)
+
+  // Se estiver dentro da janela de carga de página (após nav), mostra imediatamente.
+  // Para ações do usuário (fora da janela), aguarda 2s antes de mostrar.
+  const delayMs = isPageLoadWindow() ? 0 : 2000
+  let overlayShown = false
+  const timer = setTimeout(() => {
+    overlayShown = true
+    showLoadingOverlay('Carregando...')
+  }, delayMs)
+
+  try {
+    const response = await fetch(input, { ...init, headers })
+    const payload = await response.json().catch(() => ({}))
+    if (!response.ok) {
+      const message = typeof payload?.error === 'string' ? payload.error : `Erro ${response.status}`
+      throw new Error(message)
+    }
+    return payload as T
+  } finally {
+    clearTimeout(timer)
+    if (overlayShown) hideLoadingOverlay()
   }
-  return payload as T
 }

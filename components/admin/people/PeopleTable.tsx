@@ -1,6 +1,6 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { Search, Pencil, UserCircle } from 'lucide-react'
 import type { Person } from '@/lib/types/person'
 import { TableSkeleton } from '@/components/ui/TableSkeleton'
@@ -11,10 +11,8 @@ interface PeopleTableProps {
 }
 
 export function PeopleTable({ people, loading }: PeopleTableProps) {
-  const router = useRouter()
-
   if (loading) {
-    return <TableSkeleton rows={10} columns={4} showHeader />
+    return null
   }
 
   if (people.length === 0) {
@@ -87,14 +85,13 @@ export function PeopleTable({ people, loading }: PeopleTableProps) {
               </td>
               <td className="px-6 py-4">
                 <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => router.push(`/admin/pessoas/${person.id}`)}
+                  <Link
+                    href={`/admin/pessoas/${person.id}`}
                     className="p-2 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors"
                     title="Ver / Editar"
                   >
                     <Pencil size={18} />
-                  </button>
+                  </Link>
                 </div>
               </td>
             </tr>

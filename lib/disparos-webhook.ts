@@ -21,18 +21,69 @@ const CHANNEL_ID = '06bbe7a9-642b-46d0-97cd-d77b6aff9d94'
 const MESSAGE_ID_ACEITOU = 'd3d770e5-6c68-4c91-b985-ceb920768a61'
 const MESSAGE_ID_RECONCILIOU = '8f32bd0d-ae13-4261-af91-4845284ab1fe'
 
-export type ConversionTypeDisparos = 'accepted' | 'reconciled'
+// Mensagens de Reservas de Sala (usando os IDs fornecidos)
+const MESSAGE_ID_RESERVA_RECEBIDA = '589eb419-039e-479b-8def-13c99b63055d'
+const MESSAGE_ID_RESERVA_PENDENTE_APROVACAO = 'ec0fba84-6657-405f-ad19-1c978e254c9c'
+const MESSAGE_ID_RESERVA_APROVADA = '6532739c-c972-481f-bdf3-c707dfabe3e5'
+const MESSAGE_ID_RESERVA_REPROVADA = '0d9a3be9-a8d4-4eb1-b6f0-c6aa7b37ca93'
+const MESSAGE_ID_RESERVA_CANCELADA = 'd03afd1c-ccd7-4907-a2a3-97353dea71a4'
+
+export type ConversionTypeDisparos = 'accepted' | 'reconciled' | 'reserva_recebida' | 'reserva_pendente_aprovacao' | 'reserva_aprovada' | 'reserva_reprovada' | 'reserva_cancelada'
 
 export type DisparosWebhookResult = { success: boolean; statusCode?: number; phone: string; nome: string }
 
+// ── Message IDs do módulo de Escalas ─────────────────────────────────────
+export const MESSAGE_ID_ESCALA_MES        = '4519f7f2-f890-42be-a660-69baec1b1dc5'
+export const MESSAGE_ID_ESCALA_LEMBRETE_3 = '91915ca1-0419-43b5-a70c-df0c0b92379f'
+export const MESSAGE_ID_ESCALA_LEMBRETE_1 = '96a161e3-087c-4755-b31e-0c127c36d6b9'
+export const MESSAGE_ID_ESCALA_DIA        = '27eb5277-f8d8-45b3-98cc-15f9e0b55d0c'
+
 /**
- * Chama o webhook de disparos após conversão (se configurado).
+ * Envia disparo diretamente com message_id e variáveis arbitrárias.
+ * Usado pelo módulo de escalas (sem necessidade de ConversionType).
+ */
+export async function sendDisparoRaw(params: {
+  phone: string
+  messageId: string
+  variables: Record<string, string>
+}): Promise<{ success: boolean; statusCode?: number }> {
+  const url = process.env.DISPAROS_WEBHOOK_URL
+  const bearer = process.env.DISPAROS_WEBHOOK_BEARER
+  if (!url || !bearer) return { success: false }
+
+  const digits = params.phone.replace(/\D/g, '')
+  const sem55 = digits.startsWith('55') ? digits.slice(2) : digits
+  const phoneE164 = `55${sem55}`.slice(0, 13)
+
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${bearer}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        phone: phoneE164,
+        channel_id: CHANNEL_ID,
+        message_id: params.messageId,
+        variables: params.variables,
+      }),
+    })
+    return { success: res.ok, statusCode: res.status }
+  } catch {
+    return { success: false }
+  }
+}
+
+/**
+ * Chama o webhook de disparos após conversão ou reserva (se configurado).
  * Retorna resultado para registro em disparos_log; não propaga erro.
  */
 export async function callDisparosWebhook(params: {
   phone: string
   nome: string
   conversionType: ConversionTypeDisparos
+  variables?: Record<string, string>  // Variáveis adicionais para templates de reserva
 }): Promise<DisparosWebhookResult | null> {
   const url = process.env.DISPAROS_WEBHOOK_URL
   const bearer = process.env.DISPAROS_WEBHOOK_BEARER
@@ -44,15 +95,47 @@ export async function callDisparosWebhook(params: {
   const digits = params.phone.replace(/\D/g, '')
   const sem55 = digits.startsWith('55') ? digits.slice(2) : digits
   const phoneE164 = `55${sem55}`.slice(0, 13)
-  const messageId = params.conversionType === 'accepted' ? MESSAGE_ID_ACEITOU : MESSAGE_ID_RECONCILIOU
+  
+  // Selecionar message_id baseado no tipo
+  let messageId: string
+  switch (params.conversionType) {
+    case 'accepted':
+      messageId = MESSAGE_ID_ACEITOU
+      break
+    case 'reconciled':
+      messageId = MESSAGE_ID_RECONCILIOU
+      break
+    case 'reserva_recebida':
+      messageId = MESSAGE_ID_RESERVA_RECEBIDA
+      break
+    case 'reserva_pendente_aprovacao':
+      messageId = MESSAGE_ID_RESERVA_PENDENTE_APROVACAO
+      break
+    case 'reserva_aprovada':
+      messageId = MESSAGE_ID_RESERVA_APROVADA
+      break
+    case 'reserva_reprovada':
+      messageId = MESSAGE_ID_RESERVA_REPROVADA
+      break
+    case 'reserva_cancelada':
+      messageId = MESSAGE_ID_RESERVA_CANCELADA
+      break
+    default:
+      messageId = MESSAGE_ID_ACEITOU
+  }
+  
   const nomeReduzido = getNomeExibicao(params.nome)
+  
+  // Para conversões: usa apenas o nome
+  // Para reservas: usa as variáveis fornecidas
+  const variables = params.variables ? { ...params.variables, nome: nomeReduzido } : { nome: nomeReduzido }
 
   try {
     const body = {
       phone: phoneE164,
       channel_id: CHANNEL_ID,
       message_id: messageId,
-      variables: { nome: nomeReduzido },
+      variables,
     }
     if (process.env.NODE_ENV === 'development') {
       console.log('Disparos webhook chamando:', url, body)

@@ -23,7 +23,9 @@ export async function GET(request: NextRequest) {
       .order('day_of_week')
       .order('time_of_day')
 
-    if (churchId) query = query.eq('church_id', churchId)
+    if (churchId) {
+      query = query.eq('church_id', churchId)
+    }
 
     const { data, error } = await query
     if (error) {

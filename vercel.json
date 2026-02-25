@@ -1,0 +1,16 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/escalas-lembretes?tipo=lembrete_3dias",
+      "schedule": "30 11 * * *"
+    },
+    {
+      "path": "/api/cron/escalas-lembretes?tipo=lembrete_1dia",
+      "schedule": "0 11 * * *"
+    },
+    {
+      "path": "/api/cron/escalas-lembretes?tipo=dia_da_escala",
+      "schedule": "0 * * * *"
+    }
+  ]
+}
