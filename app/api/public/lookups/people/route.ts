@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServiceClient } from '@/lib/supabase-server'
 
+export const dynamic = 'force-dynamic'
+
 /**
  * GET /api/public/lookups/people?q=
  * Busca pessoas pelo nome (mínimo 3 caracteres) para preenchimento automático.

@@ -11,11 +11,6 @@ import { AdminLoadingScreen } from '@/app/admin/AdminLoadingScreen'
 import { AdminSidebar } from '@/app/admin/AdminSidebar'
 import { GlobalLoadingOverlay } from '@/components/admin/GlobalLoadingOverlay'
 
-function hasAdminCookie(): boolean {
-  if (typeof document === 'undefined') return false
-  return document.cookie.split(';').some((item) => item.trim() === 'admin_access=1')
-}
-
 export default function AdminLayout({
   children,
 }: {
