@@ -75,6 +75,12 @@ export async function POST(request: NextRequest) {
     .filter(Boolean)
   
   const uniqueIntegrationIds = Array.from(new Set(integrationIds))
+  if (uniqueIntegrationIds.length === 0) {
+    return NextResponse.json(
+      { error: 'IDs de integrações Meta inválidos para publicação.' },
+      { status: 400 }
+    )
+  }
   
   // Criar seleções Meta baseadas nos destinations
   const metaSelections: MetaSelection[] = []
@@ -125,7 +131,7 @@ export async function POST(request: NextRequest) {
         album_id: albumId,
         created_by: userId,
         scheduled_at: scheduledAt.toISOString(),
-        instance_ids: instanceIds,
+        instance_ids: uniqueIntegrationIds,
         destinations: { instagram: destinations.instagram, facebook: destinations.facebook },
         caption: text,
         media_specs: mediaSpecs,

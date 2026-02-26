@@ -64,6 +64,21 @@ export async function POST(request: NextRequest) {
         .slice(0, 20)
     : []
 
+  const integrationIds = Array.from(
+    new Set(
+      instanceIds
+        .map((id) => {
+          const value = id.trim()
+          if (value.startsWith('meta_ig:')) return value.slice('meta_ig:'.length).trim()
+          if (value.startsWith('meta_fb:')) return value.slice('meta_fb:'.length).trim()
+          return value
+        })
+        .filter((id) =>
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)
+        )
+    )
+  )
+
   const destinations = {
     instagram: Boolean(body.destinations?.instagram ?? true),
     facebook: Boolean(body.destinations?.facebook ?? false),
@@ -119,6 +134,12 @@ export async function POST(request: NextRequest) {
   if (instanceIds.length === 0) {
     return NextResponse.json(
       { error: 'Selecione pelo menos uma conta.' },
+      { status: 400 }
+    )
+  }
+  if (integrationIds.length === 0) {
+    return NextResponse.json(
+      { error: 'Selecione pelo menos uma integração Meta válida.' },
       { status: 400 }
     )
   }
@@ -202,7 +223,7 @@ export async function POST(request: NextRequest) {
         album_id: null,
         created_by: userId,
         scheduled_at: new Date(scheduledAt).toISOString(),
-        instance_ids: instanceIds,
+        instance_ids: integrationIds,
         destinations,
         caption: text,
         media_specs: mediaSpecs,
