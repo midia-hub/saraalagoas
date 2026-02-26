@@ -28,6 +28,15 @@ export async function POST(request: NextRequest) {
     : { instagram: true, facebook: false }
   const text = typeof body.text === 'string' ? body.text : ''
   const mediaEdits = Array.isArray(body.mediaEdits) ? (body.mediaEdits as MediaEditInput[]) : []
+  const isUuid = (value: string) =>
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
+  const extractIntegrationId = (rawValue: string): string => {
+    let value = rawValue.trim()
+    while (value.startsWith('meta_ig:') || value.startsWith('meta_fb:')) {
+      value = value.slice(value.indexOf(':') + 1).trim()
+    }
+    return isUuid(value) ? value : ''
+  }
   const scheduledAtRaw = body.scheduled_at
   const scheduledAt =
     typeof scheduledAtRaw === 'string' && scheduledAtRaw.trim()
@@ -65,14 +74,7 @@ export async function POST(request: NextRequest) {
   }
 
   // Extrair IDs de integração e criar seleções baseadas em destinations
-  const integrationIds = instanceIds
-    .filter((id) => id.startsWith('meta_ig:') || id.startsWith('meta_fb:'))
-    .map((id) => {
-      if (id.startsWith('meta_ig:')) return id.slice('meta_ig:'.length).trim()
-      if (id.startsWith('meta_fb:')) return id.slice('meta_fb:'.length).trim()
-      return ''
-    })
-    .filter(Boolean)
+  const integrationIds = instanceIds.map(extractIntegrationId).filter(Boolean)
   
   const uniqueIntegrationIds = Array.from(new Set(integrationIds))
   if (uniqueIntegrationIds.length === 0) {
@@ -108,7 +110,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Não conseguimos localizar a galeria.' }, { status: 404 })
   }
 
-  const legacyInstanceIds = instanceIds.filter((id) => !id.startsWith('meta_ig:') && !id.startsWith('meta_fb:'))
+  const legacyInstanceIds = instanceIds.filter((id) => !extractIntegrationId(id))
   if (legacyInstanceIds.length > 0) {
     return NextResponse.json(
       { error: 'Somente integrações Meta são aceitas para publicação.' },
@@ -256,7 +258,7 @@ export async function POST(request: NextRequest) {
       db,
       userId,
       albumId,
-      instanceIds,
+      instanceIds: uniqueIntegrationIds,
       destinations,
       text,
       mediaEdits,
@@ -292,6 +294,35 @@ export async function POST(request: NextRequest) {
   }
   if (!message) {
     message = 'Nenhuma instância válida encontrada para publicação.'
+  }
+
+  if (metaResults.length > 0) {
+    const metaErrors = metaResults.filter((r) => !r.ok).map((r) => r.error).filter(Boolean)
+    const hasSuccess = metaResults.some((r) => r.ok)
+    const mediaSpecs = mediaEdits
+      .filter((item: { id?: string }) => typeof item?.id === 'string' && (item.id as string).trim())
+      .map((item: MediaEditInput) => ({
+        id: (item.id as string).trim(),
+        cropMode: item.cropMode || 'original',
+        altText: typeof item.altText === 'string' ? item.altText : '',
+      }))
+    const { error: logError } = await db.from('scheduled_social_posts').insert({
+      album_id: albumId,
+      created_by: userId,
+      scheduled_at: now,
+      instance_ids: uniqueIntegrationIds,
+      destinations: { instagram: destinations.instagram, facebook: destinations.facebook },
+      caption: text,
+      media_specs: mediaSpecs,
+      status: hasSuccess ? 'published' : 'failed',
+      published_at: hasSuccess ? now : null,
+      error_message: metaErrors.length > 0 ? metaErrors.join('; ') : null,
+      created_at: now,
+      updated_at: now,
+    })
+    if (logError) {
+      console.error('[publish] falha ao registrar log da postagem imediata:', logError.message)
+    }
   }
 
   console.log('[publish] Final results:', {

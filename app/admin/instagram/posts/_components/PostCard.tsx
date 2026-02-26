@@ -7,7 +7,6 @@ import {
   XCircle,
   CalendarClock,
   Image as ImageIcon,
-  ExternalLink,
   Pencil,
   Heart,
   MessageCircle,
@@ -51,8 +50,10 @@ type PostCardProps = {
 
 function buildThumbnailUrl(post: ScheduledItem): string | null {
   const firstId = post.media_specs?.[0]?.id
-  if (!firstId) return null
-  return `/api/gallery/image?fileId=${encodeURIComponent(firstId)}&mode=thumb&size=320`
+  if (firstId) return `/api/gallery/image?fileId=${encodeURIComponent(firstId)}&mode=thumb&size=320`
+  const firstUrl = post.media_specs?.[0]?.url
+  if (typeof firstUrl === 'string' && /^https?:\/\//i.test(firstUrl)) return firstUrl
+  return null
 }
 
 export function PostCard({ post, thumbnailUrl, metrics }: PostCardProps) {
@@ -129,7 +130,14 @@ export function PostCard({ post, thumbnailUrl, metrics }: PostCardProps) {
         )}
 
         <div className="mt-auto flex flex-wrap gap-2 pt-3">
-          {post.status === 'pending' && (
+          <Link
+            href={post.album_id ? `/admin/galeria/${post.album_id}/post/create?replay=${post.id}` : `/admin/midia/nova-postagem?replay=${post.id}`}
+            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
+          >
+            <Pencil className="h-3.5 w-3.5" />
+            Refazer postagem
+          </Link>
+          {post.status === 'pending' && post.album_id && (
             <Link
               href={`/admin/galeria/${post.album_id}/post/create`}
               className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"

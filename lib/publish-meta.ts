@@ -179,16 +179,18 @@ function buildMetaSelections(
 ): MetaSelection[] {
   const isUuid = (value: string) =>
     /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
+  const extractIntegrationId = (rawValue: string): string => {
+    let value = rawValue.trim()
+    while (value.startsWith('meta_ig:') || value.startsWith('meta_fb:')) {
+      value = value.slice(value.indexOf(':') + 1).trim()
+    }
+    return isUuid(value) ? value : ''
+  }
 
   const metaSelections: MetaSelection[] = []
   const seen = new Set<string>()
   for (const rawInstanceId of instanceIds) {
-    const instanceId = rawInstanceId.trim()
-    if (!instanceId) continue
-    let integrationId = ''
-    if (instanceId.startsWith('meta_ig:')) integrationId = instanceId.slice('meta_ig:'.length).trim()
-    else if (instanceId.startsWith('meta_fb:')) integrationId = instanceId.slice('meta_fb:'.length).trim()
-    else if (isUuid(instanceId)) integrationId = instanceId
+    const integrationId = extractIntegrationId(rawInstanceId)
     if (!integrationId || seen.has(integrationId)) continue
     seen.add(integrationId)
     if (destinations.instagram) metaSelections.push({ type: 'instagram', integrationId })
@@ -355,7 +357,7 @@ export async function executeMetaPublishWithUrls(params: ExecuteMetaPublishWithU
 export async function executeMetaPublish(params: ExecuteMetaPublishParams): Promise<{
   metaResults: MetaPublishResult[]
 }> {
-  const { db, userId, albumId, instanceIds, destinations, text, mediaEdits } = params
+  const { db, userId, instanceIds, destinations, text, mediaEdits } = params
   const mediaFileIds = mediaEdits
     .map((item) => (typeof item?.id === 'string' ? item.id.trim() : ''))
     .filter(Boolean)

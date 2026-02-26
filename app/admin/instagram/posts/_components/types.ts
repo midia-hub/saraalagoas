@@ -21,7 +21,7 @@ export type LegacyPostItem = {
 /** Postagem programada (scheduled_social_posts) */
 export type ScheduledItem = {
   id: string
-  album_id: string
+  album_id: string | null
   scheduled_at: string
   caption: string
   status: 'pending' | 'publishing' | 'published' | 'failed'
@@ -30,7 +30,7 @@ export type ScheduledItem = {
   created_at: string
   instance_ids?: string[]
   destinations?: { instagram?: boolean; facebook?: boolean }
-  media_specs?: Array<{ id: string; cropMode?: string; altText?: string }>
+  media_specs?: Array<{ id?: string; url?: string; cropMode?: string; altText?: string }>
   galleries?: { id: string; title: string; type: string; date: string } | null
 }
 

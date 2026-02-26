@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import {
   Instagram,
   Facebook,
@@ -53,6 +54,7 @@ type SocialInstance = {
 type MediaItem =
   | { id: string; type: 'upload'; dataUrl: string }
   | { id: string; type: 'gallery'; fileId: string; thumbUrl: string; name: string }
+  | { id: string; type: 'url'; url: string }
 
 type PublishMode = 'now' | 'scheduled'
 type MediaTab = 'upload' | 'gallery'
@@ -79,7 +81,9 @@ function thumbUrl(fileId: string) {
 }
 
 function mediaThumb(item: MediaItem): string {
-  return item.type === 'upload' ? item.dataUrl : item.thumbUrl
+  if (item.type === 'upload') return item.dataUrl
+  if (item.type === 'gallery') return item.thumbUrl
+  return item.url
 }
 
 function fileToBase64(file: File): Promise<string> {
@@ -477,8 +481,10 @@ function ImageCropperModal({
     setPreset(ASPECT_PRESETS[0])
     if (item.type === 'upload') {
       setImgSrc(item.dataUrl)
-    } else {
+    } else if (item.type === 'gallery') {
       setImgSrc(`/api/gallery/image?fileId=${encodeURIComponent(item.fileId)}&mode=full`)
+    } else {
+      setImgSrc(item.url)
     }
   }, [open, item])
 
@@ -1356,8 +1362,11 @@ function PreviewTabs({
 const QUICK_EMOJIS = ['😊', '🙏', '🔥', '❤️', '✨', '👏', '🎉', '📖', '⚡']
 
 function NovaPostagemContent() {
+  const searchParams = useSearchParams()
+  const replayId = searchParams?.get('replay') || ''
   const [instances, setInstances] = useState<SocialInstance[]>([])
   const [loadingInstances, setLoadingInstances] = useState(true)
+  const [loadingReplay, setLoadingReplay] = useState(false)
 
   // Formulário
   const [selectedInstanceId, setSelectedInstanceId] = useState('')
@@ -1398,6 +1407,14 @@ function NovaPostagemContent() {
     setToast({ visible: true, message, type })
   }, [])
 
+  const normalizeIntegrationId = useCallback((raw: string) => {
+    let value = raw.trim()
+    while (value.startsWith('meta_ig:') || value.startsWith('meta_fb:')) {
+      value = value.slice(value.indexOf(':') + 1).trim()
+    }
+    return value
+  }, [])
+
   useEffect(() => {
     adminFetchJson<SocialInstance[]>(
       '/api/admin/instagram/instances?forPosting=1&metaOnly=1'
@@ -1408,7 +1425,69 @@ function NovaPostagemContent() {
   }, [])
 
   useEffect(() => {
-    const inst = instances.find((i) => i.id === selectedInstanceId)
+    if (!replayId) return
+    setLoadingReplay(true)
+    adminFetchJson<{
+      id: string
+      instance_ids?: string[]
+      destinations?: { instagram?: boolean; facebook?: boolean }
+      caption?: string
+      media_specs?: Array<{ id?: string; url?: string }>
+    }>(`/api/social/scheduled/${replayId}`)
+      .then((post) => {
+        const ids = Array.isArray(post.instance_ids) ? post.instance_ids : []
+        const integrationId = ids.length > 0 ? normalizeIntegrationId(String(ids[0])) : ''
+        if (integrationId) {
+          setSelectedInstanceId(integrationId)
+        }
+        setDestinations({
+          instagram: Boolean(post.destinations?.instagram ?? true),
+          facebook: Boolean(post.destinations?.facebook ?? false),
+        })
+        setText(typeof post.caption === 'string' ? post.caption : '')
+
+        const specs = Array.isArray(post.media_specs) ? post.media_specs : []
+        const replayMedia: MediaItem[] = specs
+          .map((spec, index) => {
+            if (typeof spec?.id === 'string' && spec.id.trim()) {
+              const fileId = spec.id.trim()
+              return {
+                id: `replay-gal-${fileId}-${index}`,
+                type: 'gallery' as const,
+                fileId,
+                thumbUrl: thumbUrl(fileId),
+                name: `Imagem ${index + 1}`,
+              }
+            }
+            if (typeof spec?.url === 'string' && /^https?:\/\//i.test(spec.url.trim())) {
+              return {
+                id: `replay-url-${index}`,
+                type: 'url' as const,
+                url: spec.url.trim(),
+              }
+            }
+            return null
+          })
+          .filter((item): item is MediaItem => item != null)
+        setMedia(replayMedia.slice(0, 10))
+        if (replayMedia.some((m) => m.type === 'gallery')) {
+          setMediaTab('gallery')
+        }
+      })
+      .catch((e) => {
+        const msg = e instanceof Error ? e.message : 'NÃ£o foi possÃ­vel carregar a postagem para refazer.'
+        showToast(msg, 'err')
+      })
+      .finally(() => setLoadingReplay(false))
+  }, [replayId, normalizeIntegrationId, showToast])
+
+  useEffect(() => {
+    const normalizedSelectedId = normalizeIntegrationId(selectedInstanceId)
+    const inst = instances.find(
+      (i) =>
+        i.id === selectedInstanceId ||
+        normalizeIntegrationId(i.id) === normalizedSelectedId
+    )
     if (!inst) return
     const hasIG = inst.has_instagram !== false
     const hasFB = inst.has_facebook !== false
@@ -1422,10 +1501,15 @@ function NovaPostagemContent() {
       }
       return next
     })
-  }, [selectedInstanceId, instances])
+  }, [selectedInstanceId, instances, normalizeIntegrationId])
 
+  const normalizedSelectedId = normalizeIntegrationId(selectedInstanceId)
   const selectedInstance =
-    instances.find((i) => i.id === selectedInstanceId) ?? null
+    instances.find(
+      (i) =>
+        i.id === selectedInstanceId ||
+        normalizeIntegrationId(i.id) === normalizedSelectedId
+    ) ?? null
   const pageName = selectedInstance?.name ?? ''
 
   // ── Adicionar upload local ─────────────────────────────────────────────────
@@ -1545,16 +1629,22 @@ function NovaPostagemContent() {
 
     setPublishing(true)
     try {
+      const integrationId = normalizeIntegrationId(selectedInstanceId)
+      if (!integrationId) {
+        throw new Error('Selecione pelo menos uma integraÃ§Ã£o Meta vÃ¡lida.')
+      }
       const instanceIds: string[] = []
       if (destinations.instagram)
-        instanceIds.push(`meta_ig:${selectedInstanceId}`)
+        instanceIds.push(`meta_ig:${integrationId}`)
       if (destinations.facebook)
-        instanceIds.push(`meta_fb:${selectedInstanceId}`)
+        instanceIds.push(`meta_fb:${integrationId}`)
 
       const orderedMedia = media.map((m) =>
         m.type === 'upload'
           ? { type: 'upload' as const, value: m.dataUrl }
-          : { type: 'gallery' as const, value: m.fileId }
+          : m.type === 'gallery'
+          ? { type: 'gallery' as const, value: m.fileId }
+          : { type: 'url' as const, value: m.url }
       )
 
       const res = await adminFetchJson<{
@@ -1632,6 +1722,12 @@ function NovaPostagemContent() {
           backLink={{ href: '/admin/instagram/posts', label: 'Painel de Posts' }}
         />
       </div>
+      {loadingReplay && (
+        <div className="mb-4 flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Carregando dados da postagem para refazer...
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1fr_340px]">
         {/* ═══════════ ESQUERDA – COMPOSER ══════════════════════════ */}
@@ -2330,6 +2426,7 @@ function NovaPostagemContent() {
               onClick={handlePublish}
               disabled={
                 publishing ||
+                loadingReplay ||
                 !selectedInstanceId ||
                 media.length === 0 ||
                 igLimitHit

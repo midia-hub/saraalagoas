@@ -1,6 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAccess } from '@/lib/admin-api'
+import { requireAccess, requireAccessAny } from '@/lib/admin-api'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const access = await requireAccessAny(request, [
+    { pageKey: 'instagram', action: 'view' },
+    { pageKey: 'galeria', action: 'view' },
+  ])
+  if (!access.ok) return access.response
+
+  const { id } = await params
+  if (!id) {
+    return NextResponse.json({ error: 'ID da postagem Ã© obrigatÃ³rio.' }, { status: 400 })
+  }
+
+  const db = createSupabaseServerClient(request)
+  const { data, error } = await db
+    .from('scheduled_social_posts')
+    .select('id, album_id, created_by, scheduled_at, instance_ids, destinations, caption, media_specs, status, published_at, error_message, created_at, updated_at')
+    .eq('id', id)
+    .single()
+
+  if (error || !data) {
+    return NextResponse.json({ error: 'Postagem nÃ£o encontrada.' }, { status: 404 })
+  }
+
+  return NextResponse.json(data)
+}
 
 /**
  * PATCH: Reprogramar data/hora de uma postagem programada.

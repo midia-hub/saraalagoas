@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { PageAccessGuard } from '@/app/admin/PageAccessGuard'
 import { adminFetchJson } from '@/lib/admin-client'
 import { EditPhotoModal } from '../_components/EditPhotoModal'
@@ -17,8 +17,10 @@ type Gallery = {
 
 export default function AlbumPostCreatePage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const params = useParams<{ id: string }>()
   const albumId = params?.id || ''
+  const replayId = searchParams?.get('replay') || ''
 
   const { ready, draft, patchDraft, clearDraft } = usePostDraft(albumId)
 
@@ -31,6 +33,7 @@ export default function AlbumPostCreatePage() {
   const [editingMedia, setEditingMedia] = useState<PostDraft['media'][number] | null>(null)
   const [publishMode, setPublishMode] = useState<'now' | 'scheduled'>('now')
   const [scheduledAt, setScheduledAt] = useState('')
+  const [replayHydrating, setReplayHydrating] = useState(Boolean(replayId))
 
   useEffect(() => {
     if (!albumId) return
@@ -44,6 +47,68 @@ export default function AlbumPostCreatePage() {
       .then((data) => setInstances(Array.isArray(data) ? data : []))
       .catch(() => setInstances([]))
   }, [])
+
+  useEffect(() => {
+    if (!replayId) return
+    setReplayHydrating(true)
+    const normalizeIntegrationId = (raw: string) => {
+      let value = raw.trim()
+      while (value.startsWith('meta_ig:') || value.startsWith('meta_fb:')) {
+        value = value.slice(value.indexOf(':') + 1).trim()
+      }
+      return value
+    }
+    adminFetchJson<{
+      id: string
+      album_id: string | null
+      instance_ids?: string[]
+      destinations?: { instagram?: boolean; facebook?: boolean }
+      caption?: string
+      media_specs?: Array<{ id?: string; cropMode?: string; altText?: string }>
+    }>(`/api/social/scheduled/${replayId}`)
+      .then((post) => {
+        if (post.album_id && post.album_id !== albumId) {
+          setNotice('Esse log pertence a outro Ã¡lbum. Abra o refazer no Ã¡lbum correto.')
+          return
+        }
+
+        const selectedIntegrationId = Array.isArray(post.instance_ids) && post.instance_ids.length > 0
+          ? normalizeIntegrationId(String(post.instance_ids[0]))
+          : ''
+        const selectedInstanceId = selectedIntegrationId ? `meta_ig:${selectedIntegrationId}` : ''
+
+        const mediaSpecs = Array.isArray(post.media_specs) ? post.media_specs : []
+        const replayMedia = mediaSpecs
+          .map((spec) => {
+            const id = typeof spec?.id === 'string' ? spec.id.trim() : ''
+            if (!id) return null
+            return {
+              id,
+              url: `/api/gallery/image?fileId=${encodeURIComponent(id)}&mode=full`,
+              thumbnailUrl: `/api/gallery/image?fileId=${encodeURIComponent(id)}&mode=thumb`,
+              filename: `Imagem ${id.slice(0, 8)}`,
+              cropMode: spec.cropMode || 'original',
+              altText: typeof spec.altText === 'string' ? spec.altText : '',
+            }
+          })
+          .filter((item): item is PostDraft['media'][number] => item != null)
+
+        patchDraft({
+          selectedInstanceIds: selectedInstanceId ? [selectedInstanceId] : [],
+          destinations: {
+            instagram: Boolean(post.destinations?.instagram ?? true),
+            facebook: Boolean(post.destinations?.facebook ?? false),
+          },
+          text: typeof post.caption === 'string' ? post.caption : '',
+          media: replayMedia,
+        })
+        setNotice('Postagem carregada do histÃ³rico. Revise e escolha publicar agora ou agendar.')
+      })
+      .catch((e) => {
+        setError(e instanceof Error ? e.message : 'NÃ£o foi possÃ­vel carregar os dados para refazer a postagem.')
+      })
+      .finally(() => setReplayHydrating(false))
+  }, [replayId, albumId, patchDraft])
 
   const selectedInstances = useMemo(() => {
     const set = new Set(draft.selectedInstanceIds)
@@ -103,9 +168,10 @@ export default function AlbumPostCreatePage() {
   useEffect(() => {
     if (!ready) return
     if (draft.media.length === 0) {
+      if (replayHydrating) return
       router.replace(`/admin/galeria/${albumId}/post/select`)
     }
-  }, [ready, draft.media.length, albumId, router])
+  }, [ready, replayHydrating, draft.media.length, albumId, router])
 
   const hasInstagramDestination = draft.destinations?.instagram || false
   const hasFacebookDestination = draft.destinations?.facebook || false
