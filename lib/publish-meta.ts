@@ -177,12 +177,18 @@ function buildMetaSelections(
   instanceIds: string[],
   destinations: { instagram: boolean; facebook: boolean }
 ): MetaSelection[] {
+  const isUuid = (value: string) =>
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
+
   const metaSelections: MetaSelection[] = []
   const seen = new Set<string>()
-  for (const instanceId of instanceIds) {
+  for (const rawInstanceId of instanceIds) {
+    const instanceId = rawInstanceId.trim()
+    if (!instanceId) continue
     let integrationId = ''
     if (instanceId.startsWith('meta_ig:')) integrationId = instanceId.slice('meta_ig:'.length).trim()
     else if (instanceId.startsWith('meta_fb:')) integrationId = instanceId.slice('meta_fb:'.length).trim()
+    else if (isUuid(instanceId)) integrationId = instanceId
     if (!integrationId || seen.has(integrationId)) continue
     seen.add(integrationId)
     if (destinations.instagram) metaSelections.push({ type: 'instagram', integrationId })
