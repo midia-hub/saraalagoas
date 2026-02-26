@@ -64,18 +64,21 @@ export async function POST(request: NextRequest) {
         .slice(0, 20)
     : []
 
+  const isUuid = (value: string) =>
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
+  const extractIntegrationId = (rawValue: string): string => {
+    let value = rawValue.trim()
+    while (value.startsWith('meta_ig:') || value.startsWith('meta_fb:')) {
+      value = value.slice(value.indexOf(':') + 1).trim()
+    }
+    return isUuid(value) ? value : ''
+  }
+
   const integrationIds = Array.from(
     new Set(
       instanceIds
-        .map((id) => {
-          const value = id.trim()
-          if (value.startsWith('meta_ig:')) return value.slice('meta_ig:'.length).trim()
-          if (value.startsWith('meta_fb:')) return value.slice('meta_fb:'.length).trim()
-          return value
-        })
-        .filter((id) =>
-          /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)
-        )
+        .map(extractIntegrationId)
+        .filter(Boolean)
     )
   )
 
@@ -92,6 +95,7 @@ export async function POST(request: NextRequest) {
   type MediaEntry =
     | { type: 'upload'; value: string }
     | { type: 'gallery'; value: string }
+    | { type: 'url'; value: string }
 
   let orderedMedia: MediaEntry[] = []
 
@@ -101,7 +105,7 @@ export async function POST(request: NextRequest) {
     )
       .filter(
         (e) =>
-          (e.type === 'upload' || e.type === 'gallery') &&
+          (e.type === 'upload' || e.type === 'gallery' || e.type === 'url') &&
           typeof e.value === 'string'
       )
       .slice(0, 10) as MediaEntry[]
@@ -191,7 +195,7 @@ export async function POST(request: NextRequest) {
           path
         )
         imageUrls.push(publicUrl)
-      } else {
+      } else if (entry.type === 'gallery') {
         // Arquivo da galeria (Drive): resolver via resolveDriveFileToPublicUrl
         const publicUrl = await resolveDriveFileToPublicUrl(
           db,
@@ -200,6 +204,12 @@ export async function POST(request: NextRequest) {
           batchKey
         )
         imageUrls.push(publicUrl)
+      } else {
+        const url = entry.value.trim()
+        if (!/^https?:\/\//i.test(url)) {
+          throw new Error('URL de imagem inválida para refazer postagem.')
+        }
+        imageUrls.push(url)
       }
     }
   } catch (e) {
@@ -253,7 +263,7 @@ export async function POST(request: NextRequest) {
     const { metaResults } = await executeMetaPublishWithUrls({
       db,
       userId,
-      instanceIds,
+      instanceIds: integrationIds,
       destinations,
       text,
       imageUrls,
@@ -261,6 +271,25 @@ export async function POST(request: NextRequest) {
 
     const successCount = metaResults.filter((r) => r.ok).length
     const failedResults = metaResults.filter((r) => !r.ok)
+    const now = new Date().toISOString()
+
+    const { error: logError } = await db.from('scheduled_social_posts').insert({
+      album_id: null,
+      created_by: userId,
+      scheduled_at: now,
+      instance_ids: integrationIds,
+      destinations,
+      caption: text,
+      media_specs: imageUrls.map((url) => ({ url })),
+      status: successCount > 0 ? 'published' : 'failed',
+      published_at: successCount > 0 ? now : null,
+      error_message: failedResults.length > 0 ? failedResults.map((r) => r.error).filter(Boolean).join('; ') : null,
+      created_at: now,
+      updated_at: now,
+    })
+    if (logError) {
+      console.error('[nova-postagem] falha ao registrar log da postagem imediata:', logError.message)
+    }
 
     const message =
       successCount > 0

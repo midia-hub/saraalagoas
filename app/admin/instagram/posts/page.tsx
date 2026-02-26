@@ -207,13 +207,20 @@ export default function AdminInstagramPostsPage() {
 
   const filteredScheduled = useMemo(() => {
     let list = scheduledItems
+    const normalizeIntegrationId = (raw: string) => {
+      let value = raw.trim()
+      while (value.startsWith('meta_ig:') || value.startsWith('meta_fb:')) {
+        value = value.slice(value.indexOf(':') + 1).trim()
+      }
+      return value
+    }
     if (filters.status !== 'all') {
       list = list.filter((p) => p.status === filters.status)
     }
     if (filters.accountId) {
       list = list.filter((p) => {
         const ids = Array.isArray(p.instance_ids) ? p.instance_ids : []
-        return ids.some((id) => id.includes(filters.accountId))
+        return ids.some((id) => normalizeIntegrationId(id).includes(filters.accountId))
       })
     }
     return filterByDateRange(list, filters.dateRange as DateRangeKey)
@@ -340,7 +347,7 @@ export default function AdminInstagramPostsPage() {
             {/* Bloco: Postagens programadas (cards) */}
             {scheduledItems.length > 0 && (
               <section className="mt-6">
-                <h2 className="mb-3 text-lg font-semibold text-slate-900">Postagens programadas</h2>
+                <h2 className="mb-3 text-lg font-semibold text-slate-900">Postagens programadas e logs</h2>
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   {filteredScheduled.map((s) => (
                     <PostCard key={s.id} post={s} />
