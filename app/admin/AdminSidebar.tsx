@@ -1,11 +1,12 @@
 'use client'
 
-import { useCallback, useEffect, useState, useMemo } from 'react'
+import { useCallback, useEffect, useState, useMemo, useRef, type MouseEvent } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '@/lib/supabase'
 import { useAdminAccess } from '@/lib/admin-access-context'
+import { notifyNavigation, completeNavigation, subscribeLoadingOverlayState } from '@/lib/loading-overlay'
 import { menuModules } from './menu-config'
 import {
   Home,
@@ -13,10 +14,9 @@ import {
   ChevronRight,
   Menu,
   X,
-  PanelLeftClose,
   PanelLeft,
-  UserCircle,
   ChevronDown,
+  Loader2,
 } from 'lucide-react'
 
 const SIDEBAR_WIDTH_KEY = 'admin-sidebar-width'
@@ -40,6 +40,9 @@ export function AdminSidebar() {
   const [resizing, setResizing] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
   const [expandedModules, setExpandedModules] = useState<string[]>([])
+  const [pendingHref, setPendingHref] = useState<string | null>(null)
+  const [globalBusy, setGlobalBusy] = useState(false)
+  const navFallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     setWidth(getStoredWidth())
@@ -52,6 +55,38 @@ export function AdminSidebar() {
       setExpandedModules(prev => prev.includes(currentModule.id) ? prev : [...prev, currentModule.id])
     }
   }, [pathname])
+
+  useEffect(() => {
+    const unsubscribe = subscribeLoadingOverlayState((state) => {
+      setGlobalBusy(state.busy)
+    })
+    return unsubscribe
+  }, [])
+
+  useEffect(() => {
+    if (!pendingHref) return
+    const t = setTimeout(() => {
+      completeNavigation()
+    }, 150)
+    return () => clearTimeout(t)
+  }, [pathname, pendingHref])
+
+  useEffect(() => {
+    if (!pendingHref || globalBusy) return
+    if (navFallbackTimerRef.current) {
+      clearTimeout(navFallbackTimerRef.current)
+      navFallbackTimerRef.current = null
+    }
+    setPendingHref(null)
+  }, [pendingHref, globalBusy])
+
+  useEffect(() => {
+    return () => {
+      if (navFallbackTimerRef.current) {
+        clearTimeout(navFallbackTimerRef.current)
+      }
+    }
+  }, [])
 
   const handleResizeMove = useCallback(
     (e: MouseEvent) => {
@@ -91,6 +126,21 @@ export function AdminSidebar() {
 
   function closeMobileMenu() {
     setOpenMobile(false)
+  }
+
+  function handleMenuClick(href: string, isMobile = false) {
+    return (e: MouseEvent<HTMLAnchorElement>) => {
+      if (e.defaultPrevented) return
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return
+      if (isMobile) closeMobileMenu()
+      if (pathname === href) return
+      notifyNavigation()
+      if (navFallbackTimerRef.current) clearTimeout(navFallbackTimerRef.current)
+      navFallbackTimerRef.current = setTimeout(() => {
+        completeNavigation()
+      }, 15000)
+      setPendingHref(href)
+    }
   }
 
   const toggleModule = (moduleId: string) => {
@@ -181,7 +231,7 @@ export function AdminSidebar() {
                         <Link
                           key={href}
                           href={href}
-                          onClick={isMobile ? closeMobileMenu : undefined}
+                          onClick={handleMenuClick(href, isMobile)}
                           className={`flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] font-medium transition-all duration-200 ${isActive
                             ? 'bg-red-600 text-white shadow-lg shadow-red-600/20'
                             : 'text-slate-400 hover:text-slate-100 hover:bg-white/5'
@@ -189,6 +239,9 @@ export function AdminSidebar() {
                         >
                           {Icon && <Icon size={16} className="shrink-0" />}
                           <span className="flex-1 truncate">{label}</span>
+                          {pendingHref === href ? (
+                            <Loader2 size={13} className="shrink-0 animate-spin opacity-80" aria-hidden />
+                          ) : null}
                         </Link>
                       )
                     })}
