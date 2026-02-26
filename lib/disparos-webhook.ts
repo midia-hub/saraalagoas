@@ -38,6 +38,12 @@ export const MESSAGE_ID_ESCALA_LEMBRETE_3 = '91915ca1-0419-43b5-a70c-df0c0b92379
 export const MESSAGE_ID_ESCALA_LEMBRETE_1 = '96a161e3-087c-4755-b31e-0c127c36d6b9'
 export const MESSAGE_ID_ESCALA_DIA        = '27eb5277-f8d8-45b3-98cc-15f9e0b55d0c'
 
+// ── Message IDs do módulo Sara Kids ──────────────────────────────────────
+export const MESSAGE_ID_KIDS_CHECKIN      = '7f9fb081-bb8f-4db7-9b9c-25df8c3b110a'
+export const MESSAGE_ID_KIDS_CHECKOUT     = '02b7e040-2655-4547-942e-a9814ad96bf5'
+export const MESSAGE_ID_KIDS_ALERTA       = '0db51837-8f01-4b69-a6c6-d369bd4801b4'
+export const MESSAGE_ID_KIDS_ENCERRAMENTO = '851978a9-e0d2-4202-b332-4b144476a247'
+
 /**
  * Envia disparo diretamente com message_id e variáveis arbitrárias.
  * Usado pelo módulo de escalas (sem necessidade de ConversionType).

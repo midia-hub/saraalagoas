@@ -62,18 +62,23 @@ function AlbumThumbnails({ fileIds }: { fileIds: string[] }) {
 }
 
 async function GaleriaContent({ typeFilter }: { typeFilter: string }) {
-  let query = supabaseServer
-    .from('galleries')
-    .select('id, type, title, slug, date, gallery_files(drive_file_id)')
-    .order('date', { ascending: false })
-    .order('created_at', { ascending: false })
+  let items: GalleryItem[] = []
+  try {
+    let query = supabaseServer
+      .from('galleries')
+      .select('id, type, title, slug, date, gallery_files(drive_file_id)')
+      .order('date', { ascending: false })
+      .order('created_at', { ascending: false })
 
-  if (typeFilter) {
-    query = query.eq('type', typeFilter)
+    if (typeFilter) {
+      query = query.eq('type', typeFilter)
+    }
+
+    const { data } = await query.limit(40)
+    items = (data || []) as unknown as GalleryItem[]
+  } catch (err) {
+    console.error('[Galeria] Erro ao carregar galerias:', err)
   }
-
-  const { data, error } = await query.limit(40)
-  const items = (data || []) as unknown as GalleryItem[]
 
   const title =
     typeFilter === 'culto'
@@ -186,8 +191,8 @@ export default async function GaleriaPublicaPage(props: { searchParams: Promise<
         <div className="min-h-screen bg-gray-50">
           <div className="container mx-auto px-4 md:px-6 lg:px-8 py-12">
             <GaleriaLoading
-              title="Carregando álbuns"
-              subtitle="Aguarde..."
+              title="Carregando galeria"
+              subtitle="Buscando álbuns..."
               showGrid
               gridCount={8}
             />

@@ -1,19 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAccess } from '@/lib/admin-api'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
-import { executeMetaPublish, type MediaEditInput } from '@/lib/publish-meta'
+import { executeMetaPublish, executeMetaPublishWithUrls, type MediaEditInput } from '@/lib/publish-meta'
 
 const CRON_SECRET = process.env.CRON_SECRET
 
 type ScheduledRow = {
   id: string
-  album_id: string
+  album_id: string | null
   created_by: string
   scheduled_at: string
   instance_ids: string[]
   destinations: { instagram: boolean; facebook: boolean }
   caption: string
-  media_specs: Array<{ id: string; cropMode?: string; altText?: string }>
+  media_specs: Array<{ id?: string; url?: string; cropMode?: string; altText?: string }>
   status: string
 }
 
@@ -61,11 +61,9 @@ export async function POST(request: NextRequest) {
           }
         : { instagram: true, facebook: false }
     const mediaSpecs = Array.isArray(row.media_specs) ? row.media_specs : []
-    const mediaEdits: MediaEditInput[] = mediaSpecs.map((spec) => ({
-      id: spec.id,
-      cropMode: (spec.cropMode as MediaEditInput['cropMode']) || 'original',
-      altText: typeof spec.altText === 'string' ? spec.altText : '',
-    }))
+
+    // Detectar se o post foi criado via "Nova Postagem" (URLs diretas) ou via galeria (Drive IDs)
+    const isDirectUrlPost = mediaSpecs.length > 0 && mediaSpecs.every((spec) => typeof spec.url === 'string' && spec.url.startsWith('http'))
 
     await db
       .from('scheduled_social_posts')
@@ -73,17 +71,42 @@ export async function POST(request: NextRequest) {
       .eq('id', row.id)
 
     try {
-      const { metaResults } = await executeMetaPublish({
-        db,
-        userId,
-        albumId: row.album_id,
-        instanceIds,
-        destinations,
-        text: row.caption || '',
-        mediaEdits,
-      })
+      let failed: Array<{ ok: boolean; error?: string }> = []
 
-      const failed = metaResults.filter((r) => !r.ok)
+      if (isDirectUrlPost) {
+        // Caminho de URLs diretas (Nova Postagem standalone)
+        const imageUrls = mediaSpecs.map((s) => s.url as string)
+        const { metaResults } = await executeMetaPublishWithUrls({
+          db,
+          userId,
+          instanceIds,
+          destinations,
+          text: row.caption || '',
+          imageUrls,
+        })
+        failed = metaResults.filter((r) => !r.ok)
+      } else {
+        // Caminho legado: Drive IDs via álbum
+        const mediaEdits: MediaEditInput[] = mediaSpecs
+          .filter((spec) => typeof spec.id === 'string' && spec.id)
+          .map((spec) => ({
+            id: spec.id as string,
+            cropMode: (spec.cropMode as MediaEditInput['cropMode']) || 'original',
+            altText: typeof spec.altText === 'string' ? spec.altText : '',
+          }))
+
+        const { metaResults } = await executeMetaPublish({
+          db,
+          userId,
+          albumId: row.album_id ?? '',
+          instanceIds,
+          destinations,
+          text: row.caption || '',
+          mediaEdits,
+        })
+        failed = metaResults.filter((r) => !r.ok)
+      }
+
       const allOk = failed.length === 0
 
       await db

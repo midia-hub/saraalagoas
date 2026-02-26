@@ -27,11 +27,15 @@ import {
     LayoutGrid,
     MessageSquare,
     Link2,
+    PenLine,
     Building2,
     UsersRound,
     DollarSign,
     Heart,
     CalendarDays,
+    Baby,
+    QrCode,
+    Bot,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
@@ -300,6 +304,12 @@ export const menuModules: MenuModule[] = [
         permission: 'galeria',
         items: [
             {
+                href: '/admin/midia/nova-postagem',
+                label: 'Nova Postagem',
+                icon: PenLine,
+                permission: 'instagram'
+            },
+            {
                 href: '/admin/upload',
                 label: 'Upload de Arquivos',
                 icon: Upload,
@@ -307,7 +317,7 @@ export const menuModules: MenuModule[] = [
             },
             {
                 href: '/admin/instagram/posts',
-                label: 'Posts do Instagram',
+                label: 'Painel de Posts',
                 icon: Instagram,
                 permission: 'instagram'
             },
@@ -353,6 +363,34 @@ export const menuModules: MenuModule[] = [
         ],
     },
 
+    // Módulo Sara Kids
+    {
+        id: 'sara-kids',
+        title: 'Sara Kids',
+        icon: Baby,
+        permission: 'pessoas',
+        items: [
+            {
+                href: '/admin/sara-kids',
+                label: 'Painel Sara Kids',
+                icon: Baby,
+                permission: 'pessoas'
+            },
+            {
+                href: '/admin/sara-kids/checkin',
+                label: 'Check-in Culto Kids',
+                icon: QrCode,
+                permission: 'pessoas'
+            },
+            {
+                href: '/admin/sara-kids/presentes',
+                label: 'Crianças no Culto',
+                icon: Heart,
+                permission: 'pessoas'
+            },
+        ],
+    },
+
     // Módulo de Configurações
     {
         id: 'configuracoes',
@@ -365,6 +403,12 @@ export const menuModules: MenuModule[] = [
                 label: 'Site e Aparência',
                 icon: LayoutGrid,
                 permission: 'configuracoes'
+            },
+            {
+                href: '/admin/midia/ia-config',
+                label: 'IA — Configuração de Prompts',
+                icon: Bot,
+                permission: 'instagram'
             },
             {
                 href: '/admin/roles',

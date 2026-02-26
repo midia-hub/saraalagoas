@@ -8,6 +8,7 @@ import { PageAccessGuard } from '@/app/admin/PageAccessGuard'
 import { PersonForm } from '@/components/admin/people/PersonForm'
 import { Toast } from '@/components/Toast'
 import { createPerson } from '@/lib/people'
+import { adminFetchJson } from '@/lib/admin-client'
 import type { PersonFormData } from '@/components/admin/people/PersonForm'
 import type { PersonCreate } from '@/lib/types/person'
 
@@ -82,6 +83,12 @@ export default function PessoaNovoPage() {
         try {
             const payload = buildPayload(data)
             const created = await createPerson(payload)
+            if (data.kids_links && data.kids_links.length > 0) {
+                await adminFetchJson(`/api/admin/pessoas/${created.id}/kids-links`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ links: data.kids_links }),
+                })
+            }
             setToast({ type: 'ok', message: 'Pessoa cadastrada com sucesso!' })
             setTimeout(() => {
                 router.push(`/admin/pessoas/${created.id}`)

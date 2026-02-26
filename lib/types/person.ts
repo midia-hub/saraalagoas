@@ -15,6 +15,39 @@ export const EDUCATION_LEVEL_VALUES = [
   'Pós-graduação', 'Mestrado', 'Doutorado', 'Não informado'
 ] as const
 export const BLOOD_TYPE_VALUES = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'Não informado'] as const
+export const KIDS_BATHROOM_USE_VALUES = ['Independente', 'Parcialmente c/ ajuda', 'Não'] as const
+export type KidsBathroomUse = (typeof KIDS_BATHROOM_USE_VALUES)[number]
+
+export const KIDS_RELATIONSHIP_TYPE_VALUES = ['Pai', 'Mãe', 'Responsável', 'Outro'] as const
+export type KidsRelationshipType = (typeof KIDS_RELATIONSHIP_TYPE_VALUES)[number]
+
+export interface KidsLink {
+  id?: string
+  child_id?: string | null  // null/undefined para crianças ainda não cadastradas (serão criadas ao salvar)
+  child_name: string
+  birth_date?: string | null
+  sex?: string | null
+  relationship_type: KidsRelationshipType | string
+  kids_father_name?: string | null
+  kids_mother_name?: string | null
+  kids_father_contact?: string | null
+  kids_mother_contact?: string | null
+  kids_guardian_kinship?: string | null
+  // Dados Sara Kids armazenados no vínculo
+  kids_contact_1?: string | null
+  kids_contact_2?: string | null
+  kids_disability?: string | null
+  kids_favorite_toy?: string | null
+  kids_calming_mechanism?: string | null
+  kids_food_restriction?: string | null
+  kids_language_difficulty?: string | null
+  kids_noise_sensitivity?: string | null
+  kids_material_allergy?: string | null
+  kids_ministry_network?: string | null
+  kids_medication?: string | null
+  kids_health_issues?: string | null
+  kids_bathroom_use?: string | null
+}
 
 export type ChurchProfile = (typeof CHURCH_PROFILE_VALUES)[number]
 export type ChurchSituation = (typeof CHURCH_SITUATION_VALUES)[number]
@@ -84,6 +117,22 @@ export interface Person {
   registered_by: string | null
   blood_type: BloodType | null
   avatar_url?: string | null
+
+  // Cadastro Sara Kids
+  is_child: boolean | null
+  kids_contact_1: string | null
+  kids_contact_2: string | null
+  kids_disability: string | null
+  kids_favorite_toy: string | null
+  kids_calming_mechanism: string | null
+  kids_food_restriction: string | null
+  kids_language_difficulty: string | null
+  kids_noise_sensitivity: string | null
+  kids_material_allergy: string | null
+  kids_ministry_network: string | null
+  kids_medication: string | null
+  kids_health_issues: string | null
+  kids_bathroom_use: KidsBathroomUse | string | null
 }
 
 export type PersonCreate = Omit<Person, 'id' | 'created_at' | 'updated_at'> & {

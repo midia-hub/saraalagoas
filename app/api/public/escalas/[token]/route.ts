@@ -3,6 +3,8 @@ import { createSupabaseAdminClient } from '@/lib/supabase-server'
 
 type Params = { params: { token: string } }
 
+export const dynamic = 'force-dynamic'
+
 /**
  * GET /api/public/escalas/[token]
  * Retorna os dados públicos de um link de escala:

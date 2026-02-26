@@ -359,7 +359,7 @@ function StatCard({ label, value, color, bg, border }: {
 
 export default function EventAnamnesePage() {
   return (
-    <Suspense>
+    <Suspense fallback={null}>
       <EventAnamneseInner />
     </Suspense>
   )

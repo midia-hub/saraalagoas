@@ -237,6 +237,12 @@ export default function PessoaDetalhePage() {
     try {
       const payload = buildPayload(data)
       await updatePerson(id, payload as Parameters<typeof updatePerson>[1])
+      if (data.kids_links !== undefined) {
+        await adminFetchJson(`/api/admin/pessoas/${id}/kids-links`, {
+          method: 'PUT',
+          body: JSON.stringify({ links: data.kids_links }),
+        })
+      }
       setToast({ type: 'ok', message: 'Dados salvos com sucesso.' })
       setPerson((prev) => (prev ? { ...prev, ...payload } as Person : null))
       setEditing(false)

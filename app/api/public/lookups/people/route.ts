@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
     // Busca na tabela people sem exigir perfil de usuário (qualquer pessoa do cadastro)
     const { data, error } = await supabase
       .from('people')
-      .select('id, full_name, mobile_phone')
+      .select('id, full_name, mobile_phone, email, sex, church_name')
       .ilike('full_name', `%${q}%`)
       .eq('church_situation', 'Ativo')
       .order('full_name')

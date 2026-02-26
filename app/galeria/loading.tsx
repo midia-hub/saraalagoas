@@ -1,14 +1,8 @@
-import { GaleriaLoading } from '@/components/GaleriaLoading'
-
+/**
+ * O loading da galeria é gerenciado pelo <Suspense> interno do page.tsx.
+ * Retornar null aqui evita um flash de double-loading (skeleton do loading.tsx
+ * seguido pelo skeleton do Suspense fallback).
+ */
 export default function GaleriaPublicLoading() {
-  return (
-    <div className="container mx-auto px-4 py-8">
-      <GaleriaLoading
-        title="Carregando galeria"
-        subtitle="Buscando álbuns..."
-        showGrid
-        gridCount={8}
-      />
-    </div>
-  )
+  return null
 }

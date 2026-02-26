@@ -10,7 +10,7 @@ export interface AdminPageHeaderProps {
   /** Título principal da página */
   title: string
   /** Subtítulo ou descrição (opcional) */
-  subtitle?: string
+  subtitle?: React.ReactNode
   /** Link "Voltar" - ex: { href: '/admin/consolidacao/cadastros', label: 'Voltar aos cadastros' } */
   backLink?: { href: string; label?: string }
   /** Conteúdo extra à direita do header (botões de ação) */
@@ -46,7 +46,7 @@ export function AdminPageHeader({
           </div>
           <div>
             <h1 className="text-2xl font-bold text-slate-800">{title}</h1>
-            {subtitle && <p className="text-slate-500">{subtitle}</p>}
+            {subtitle && <div className="text-slate-500">{subtitle}</div>}
           </div>
         </div>
       </div>
