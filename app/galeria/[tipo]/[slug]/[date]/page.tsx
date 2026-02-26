@@ -59,19 +59,24 @@ export default function GalleryDetailPage() {
         setLoading(false)
         return
       }
-      const listRes = await fetch(`/api/gallery/list?${routeQuery}`)
-      const list = await listRes.json().catch(() => [])
-      const first = Array.isArray(list) ? list[0] : null
-      if (!first?.id) {
-        setLoading(false)
-        return
-      }
-      setGallery(first)
+      try {
+        const listRes = await fetch(`/api/gallery/list?${routeQuery}`)
+        const list = await listRes.json().catch(() => [])
+        const first = Array.isArray(list) ? list[0] : null
+        if (!first?.id) {
+          setLoading(false)
+          return
+        }
+        setGallery(first)
 
-      const filesRes = await fetch(`/api/gallery/${first.id}/files`)
-      const filesJson = await filesRes.json().catch(() => [])
-      setFiles(Array.isArray(filesJson) ? filesJson : [])
-      setLoading(false)
+        const filesRes = await fetch(`/api/gallery/${first.id}/files`)
+        const filesJson = await filesRes.json().catch(() => [])
+        setFiles(Array.isArray(filesJson) ? filesJson : [])
+      } catch (err) {
+        console.error('[Galeria] Erro ao carregar arquivos:', err)
+      } finally {
+        setLoading(false)
+      }
     }
     load()
   }, [routeQuery])

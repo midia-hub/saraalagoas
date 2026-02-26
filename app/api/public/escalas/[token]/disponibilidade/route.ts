@@ -3,6 +3,8 @@ import { createSupabaseAdminClient } from '@/lib/supabase-server'
 
 type Params = { params: { token: string } }
 
+export const dynamic = 'force-dynamic'
+
 /**
  * POST /api/public/escalas/[token]/disponibilidade
  * Body: { person_id: string, slots: { slot_id: string, disponivel: boolean, observacao?: string }[] }

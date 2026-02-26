@@ -28,46 +28,51 @@ function applySecurityHeaders(response: NextResponse): NextResponse {
 }
 
 export function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl
-  // Nunca aplicar regras a estáticos: _next (CSS, JS, chunks), favicon, etc.
-  if (
-    pathname.startsWith('/_next') ||
-    pathname.startsWith('/favicon') ||
-    pathname === '/robots.txt' ||
-    pathname === '/manifest.json' ||
-    pathname.startsWith('/brand/') ||
-    pathname.includes('.png') ||
-    pathname.includes('.ico')
-  ) {
-    return applySecurityHeaders(NextResponse.next())
-  }
-  const normalizedPath =
-    pathname.length > 1 && pathname.endsWith('/') ? pathname.slice(0, -1) : pathname
-  const isXp26ResultadosPage = normalizedPath === '/xp26-resultados'
-  const isXp26ResultadosApi = normalizedPath === '/api/public/xp26-resultados'
-
-  if (isXp26ResultadosPage || isXp26ResultadosApi) {
-    return applySecurityHeaders(NextResponse.next())
-  }
-
-  const isAdminPage = normalizedPath.startsWith('/admin')
-  const isAdminApi = normalizedPath.startsWith('/api/admin')
-  const isLoginPage = normalizedPath === '/admin/login'
-  const isCompletarCadastroPage = normalizedPath === '/admin/completar-cadastro'
-  const isPublicAdminPage = isLoginPage || isCompletarCadastroPage
-
-  if ((isAdminPage || isAdminApi) && !isPublicAdminPage) {
-    if (!hasAdminAccess(request)) {
-      if (isAdminApi) {
-        return applySecurityHeaders(NextResponse.json({ error: 'Acesso negado.' }, { status: 401 }))
-      }
-      const url = request.nextUrl.clone()
-      url.pathname = '/admin/login'
-      return applySecurityHeaders(NextResponse.redirect(url))
+  try {
+    const { pathname } = request.nextUrl
+    // Nunca aplicar regras a estáticos: _next (CSS, JS, chunks), favicon, etc.
+    if (
+      pathname.startsWith('/_next') ||
+      pathname.startsWith('/favicon') ||
+      pathname === '/robots.txt' ||
+      pathname === '/manifest.json' ||
+      pathname.startsWith('/brand/') ||
+      pathname.includes('.png') ||
+      pathname.includes('.ico')
+    ) {
+      return applySecurityHeaders(NextResponse.next())
     }
-  }
+    const normalizedPath =
+      pathname.length > 1 && pathname.endsWith('/') ? pathname.slice(0, -1) : pathname
+    const isXp26ResultadosPage = normalizedPath === '/xp26-resultados'
+    const isXp26ResultadosApi = normalizedPath === '/api/public/xp26-resultados'
 
-  return applySecurityHeaders(NextResponse.next())
+    if (isXp26ResultadosPage || isXp26ResultadosApi) {
+      return applySecurityHeaders(NextResponse.next())
+    }
+
+    const isAdminPage = normalizedPath.startsWith('/admin')
+    const isAdminApi = normalizedPath.startsWith('/api/admin')
+    const isLoginPage = normalizedPath === '/admin/login'
+    const isCompletarCadastroPage = normalizedPath === '/admin/completar-cadastro'
+    const isPublicAdminPage = isLoginPage || isCompletarCadastroPage
+
+    if ((isAdminPage || isAdminApi) && !isPublicAdminPage) {
+      if (!hasAdminAccess(request)) {
+        if (isAdminApi) {
+          return applySecurityHeaders(NextResponse.json({ error: 'Acesso negado.' }, { status: 401 }))
+        }
+        const url = request.nextUrl.clone()
+        url.pathname = '/admin/login'
+        return applySecurityHeaders(NextResponse.redirect(url))
+      }
+    }
+
+    return applySecurityHeaders(NextResponse.next())
+  } catch (err) {
+    console.error('[Middleware] Erro inesperado:', err)
+    return NextResponse.next()
+  }
 }
 
 export const config = {

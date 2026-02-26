@@ -346,7 +346,7 @@ export default function Xp26ResultadosPage() {
             perfil: row.perfil,
             text: trim(row[key] as string | null) ?? '',
           }))
-          .filter((entry) => entry.text.length > 0)
+          .filter((entry) => (entry.text ?? '').length > 0)
 
         return {
           key: String(key),

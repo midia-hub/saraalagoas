@@ -41,7 +41,7 @@ export type MetaPublishResult = {
   error?: string
 }
 
-async function resolveDriveFileToPublicUrl(
+export async function resolveDriveFileToPublicUrl(
   db: SupabaseClient,
   fileId: string,
   index: number,
@@ -199,6 +199,147 @@ export type ExecuteMetaPublishParams = {
   destinations: { instagram: boolean; facebook: boolean }
   text: string
   mediaEdits: MediaEditInput[]
+}
+
+export type ExecuteMetaPublishWithUrlsParams = {
+  db: SupabaseClient
+  userId: string
+  instanceIds: string[]
+  destinations: { instagram: boolean; facebook: boolean }
+  text: string
+  /** URLs públicas das imagens já hospedadas (Supabase Storage ou outra CDN pública). */
+  imageUrls: string[]
+}
+
+/**
+ * Publica no Meta (Instagram e/ou Facebook) passando diretamente as URLs das imagens,
+ * sem necessidade de álbum/Drive. Usado pelo fluxo "Nova Postagem" standalone.
+ */
+export async function executeMetaPublishWithUrls(params: ExecuteMetaPublishWithUrlsParams): Promise<{
+  metaResults: MetaPublishResult[]
+}> {
+  const { db, userId, instanceIds, destinations, text, imageUrls } = params
+  if (imageUrls.length === 0) return { metaResults: [] }
+
+  const metaSelections = buildMetaSelections(instanceIds, destinations)
+  const metaResults: MetaPublishResult[] = []
+
+  const integrationIds = Array.from(new Set(metaSelections.map((s) => s.integrationId)))
+  const { data: integrations, error: integrationsError } = await db
+    .from('meta_integrations')
+    .select('id,page_id,page_access_token,instagram_business_account_id,is_active')
+    .in('id', integrationIds)
+    .eq('created_by', userId)
+    .eq('is_active', true)
+
+  if (integrationsError) throw new Error(integrationsError.message)
+
+  const map = new Map<string, MetaIntegrationRow>()
+  ;(integrations || []).forEach((row) => map.set(row.id, row as MetaIntegrationRow))
+
+  const availableMetaSelections = metaSelections.filter((selection) => {
+    if (map.has(selection.integrationId)) return true
+    const missingInstanceId =
+      selection.type === 'instagram'
+        ? `meta_ig:${selection.integrationId}`
+        : `meta_fb:${selection.integrationId}`
+    metaResults.push({
+      instanceId: missingInstanceId,
+      provider: selection.type,
+      ok: false,
+      error: 'Integração Meta não encontrada. Reconecte a conta em Configurações.',
+    })
+    return false
+  })
+
+  const firstImageUrl = imageUrls[0]
+  const isMultipleImages = imageUrls.length > 1
+
+  for (const selection of availableMetaSelections) {
+    const instanceId =
+      selection.type === 'instagram'
+        ? `meta_ig:${selection.integrationId}`
+        : `meta_fb:${selection.integrationId}`
+    try {
+      const integration = map.get(selection.integrationId)
+      if (!integration) throw new Error('Integração Meta não encontrada.')
+      if (!integration.page_access_token) throw new Error('Integração sem page_access_token.')
+
+      if (selection.type === 'instagram') {
+        if (!integration.instagram_business_account_id)
+          throw new Error('Integração sem conta Instagram Business vinculada.')
+        if (imageUrls.length > 10)
+          throw new Error('Instagram permite no máximo 10 imagens por post (carrossel).')
+
+        let containerId: string
+        if (isMultipleImages) {
+          const childContainerIds: string[] = []
+          for (const imageUrl of imageUrls) {
+            const childContainer = await createInstagramCarouselItemContainer({
+              igUserId: integration.instagram_business_account_id,
+              imageUrl,
+              accessToken: integration.page_access_token,
+            })
+            if (!childContainer?.id) throw new Error('Falha ao criar container filho do carrossel.')
+            childContainerIds.push(childContainer.id)
+          }
+          const carouselContainer = await createInstagramCarouselContainer({
+            igUserId: integration.instagram_business_account_id,
+            childContainerIds,
+            caption: text || '',
+            accessToken: integration.page_access_token,
+          })
+          if (!carouselContainer?.id) throw new Error('Falha ao criar container de carrossel.')
+          containerId = carouselContainer.id
+        } else {
+          const container = await createInstagramMediaContainer({
+            igUserId: integration.instagram_business_account_id,
+            imageUrl: firstImageUrl,
+            caption: text || '',
+            accessToken: integration.page_access_token,
+          })
+          if (!container?.id) throw new Error('Meta create container failed.')
+          containerId = container.id
+        }
+        await waitForInstagramMediaContainerReady({
+          containerId,
+          accessToken: integration.page_access_token,
+        })
+        await publishInstagramMediaWithRetry({
+          igUserId: integration.instagram_business_account_id,
+          creationId: containerId,
+          accessToken: integration.page_access_token,
+        })
+      } else {
+        if (!integration.page_id) throw new Error('Integração sem página do Facebook.')
+        if (isMultipleImages) {
+          await publishFacebookMultipleImages({
+            pageId: integration.page_id,
+            pageAccessToken: integration.page_access_token,
+            imageUrls,
+            message: text || '',
+          })
+        } else {
+          await publishFacebookImage({
+            pageId: integration.page_id,
+            pageAccessToken: integration.page_access_token,
+            imageUrl: firstImageUrl,
+            message: text || '',
+          })
+        }
+      }
+      metaResults.push({ instanceId, provider: selection.type, ok: true })
+    } catch (e) {
+      metaResults.push({
+        instanceId,
+        provider: selection.type,
+        ok: false,
+        error: e instanceof Error ? e.message : 'Falha ao publicar no Meta.',
+      })
+    }
+  }
+
+  return { metaResults }
 }
 
 /**

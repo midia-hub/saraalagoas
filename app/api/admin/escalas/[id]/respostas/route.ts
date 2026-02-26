@@ -3,20 +3,28 @@ import { createSupabaseAdminClient } from '@/lib/supabase-server'
 
 type Params = { params: { id: string } }
 
+// Garante que a rota nunca seja cacheada — dados mudam em tempo real
+export const dynamic = 'force-dynamic'
+
 /** GET /api/admin/escalas/[id]/respostas  – resumo por voluntário */
 export async function GET(request: NextRequest, { params }: Params) {
   const supabase = createSupabaseAdminClient(request)
 
-  const [{ data: slots }, { data: respostas }, { data: link }] = await Promise.all([
+  const [
+    { data: slots },
+    { data: respostas, error: respostasErr },
+    { data: link },
+  ] = await Promise.all([
     supabase
       .from('escalas_slots')
       .select('id, type, label, date, time_of_day, sort_order, funcoes')
       .eq('link_id', params.id)
       .order('date', { ascending: true })
       .order('time_of_day', { ascending: true }),
+    // Sem join — full_name vem do allPeople abaixo (evita erro silencioso de PostgREST)
     supabase
       .from('escalas_respostas')
-      .select('person_id, slot_id, disponivel, observacao, person:people(full_name)')
+      .select('person_id, slot_id, disponivel, observacao')
       .eq('link_id', params.id),
     supabase
       .from('escalas_links')
@@ -24,6 +32,10 @@ export async function GET(request: NextRequest, { params }: Params) {
       .eq('id', params.id)
       .single(),
   ])
+
+  if (respostasErr) {
+    console.error('[escalas/respostas] Erro ao buscar respostas:', respostasErr)
+  }
 
   if (!link) return NextResponse.json({ error: 'Escala não encontrada' }, { status: 404 })
 
@@ -55,18 +67,33 @@ export async function GET(request: NextRequest, { params }: Params) {
 
   const byPerson: Record<string, any[]> = {}
 
+  // Coleta IDs de quem respondeu mas não está na lista oficial (ex: mudou de ministério)
+  const extraIds: string[] = []
+  for (const r of respostas ?? []) {
+    if (!volunteersMap[r.person_id] && !extraIds.includes(r.person_id)) {
+      extraIds.push(r.person_id)
+    }
+  }
+
+  // Busca os nomes dos extra em lote (se houver)
+  if (extraIds.length > 0) {
+    const { data: extraPeople } = await supabase
+      .from('people')
+      .select('id, full_name')
+      .in('id', extraIds)
+    for (const p of extraPeople ?? []) {
+      volunteersMap[p.id] = p.full_name
+    }
+  }
+
   for (const r of respostas ?? []) {
     const pid = r.person_id
-    // Se por acaso alguém respondeu e não está na lista oficial (ex: mudou de ministério), adiciona
-    if (!volunteersMap[pid]) {
-      volunteersMap[pid] = (r.person as any)?.full_name || 'Desconhecido'
-    }
     if (!byPerson[pid]) byPerson[pid] = []
     byPerson[pid].push({
       person_id: pid,
       slot_id: r.slot_id,
       disponivel: r.disponivel,
-      observacao: r.observacao
+      observacao: r.observacao ?? null,
     })
   }
 

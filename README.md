@@ -162,8 +162,11 @@ supabase db push
 
 ## 📖 Documentação Completa
 
+> ⚠️ **OBRIGATÓRIO — Design System:** antes de criar ou editar qualquer componente de UI, formulário ou tela, consulte **[`docs/DESIGN-SYSTEM.md`](docs/DESIGN-SYSTEM.md)**. Ele define os padrões canônicos de dropdowns, campos de data/hora, inputs, labels, botões e tokens de cor da plataforma.
+
 Para informações detalhadas sobre arquitetura, APIs, banco de dados e fluxos:
 
+- [**🎨 Design System (obrigatório)**](docs/DESIGN-SYSTEM.md) - Padrões de UI: selects, datas, inputs, botões, tokens
 - [**Documentação da Plataforma**](DOCUMENTACAO_PLATAFORMA.md) - Referência completa
 - [Mercado Pago - Produção](docs/MERCADOPAGO-PRODUCAO.md)
 - [Webhook Mercado Pago com ngrok](docs/MERCADOPAGO-WEBHOOK-NGROK.md)
@@ -321,6 +324,7 @@ Configure no painel da Vercel (Settings → Environment Variables) as variáveis
 
 ## Documentação adicional
 
+- **🎨 Design System (obrigatório para UI):** [`docs/DESIGN-SYSTEM.md`](docs/DESIGN-SYSTEM.md) — padrões canônicos de dropdowns, datas, inputs, labels, botões e tokens de cor.
 - **Documentação geral da plataforma:** `DOCUMENTACAO_PLATAFORMA.md` — funcionalidades, páginas, APIs, tabelas do banco, bibliotecas (quando são chamadas), fluxos (conversão, publicação Meta, livraria) e variáveis de ambiente.
 - **Menu admin:** configuração em `app/admin/menu-config.ts` (módulos: Principal, Usuários, Mídia, Consolidação, Livraria, Instagram). Permissões e RBAC em `lib/rbac.ts`.
 - **Templates de e-mail:** `supabase/email-templates/README.md`.

@@ -1,12 +1,14 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams } from 'next/navigation'
-import { Calendar, Loader2, CheckCircle2, XCircle, Users } from 'lucide-react'
+import { Calendar, Loader2, CheckCircle2, XCircle, Users, RefreshCw } from 'lucide-react'
 import Link from 'next/link'
 import { PageAccessGuard } from '@/app/admin/PageAccessGuard'
 import { AdminPageHeader } from '@/app/admin/AdminPageHeader'
 import { adminFetchJson } from '@/lib/admin-client'
+
+const POLL_INTERVAL_MS = 30_000 // atualiza a cada 30s automaticamente
 
 const MONTHS = [
   'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -63,24 +65,53 @@ export default function EscalaRespostasPage() {
   const id = params?.id
   const [data, setData] = useState<ApiPayload | null>(null)
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState('')
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  const load = useCallback(async () => {
+  /** Carrega dados. silent=true não exibe o spinner de loading inicial. */
+  const load = useCallback(async (silent = false) => {
     if (!id) return
-    setLoading(true)
+    if (!silent) setLoading(true)
+    else setRefreshing(true)
     try {
       const res = await adminFetchJson<ApiPayload>(`/api/admin/escalas/${id}/respostas`)
       setData(res)
+      setLastUpdated(new Date())
+      setError('')
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Erro ao carregar.')
+      // Em refresh silencioso, mantém dados anteriores e só mostra erro se for o primeiro load
+      if (!silent) setError(e instanceof Error ? e.message : 'Erro ao carregar.')
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
+      else setRefreshing(false)
     }
   }, [id])
 
-  useEffect(() => { load() }, [load])
+  // Carga inicial
+  useEffect(() => { load(false) }, [load])
 
-  if (loading) return null
+  // Polling automático a cada 30s enquanto a aba estiver visível
+  useEffect(() => {
+    if (!id) return
+    pollRef.current = setInterval(() => {
+      if (document.visibilityState === 'visible') load(true)
+    }, POLL_INTERVAL_MS)
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current)
+    }
+  }, [id, load])
+
+  if (loading) {
+    return (
+      <PageAccessGuard pageKey="escalas">
+        <div className="flex items-center justify-center min-h-[40vh]">
+          <Loader2 className="animate-spin text-[#c62737]" size={32} />
+        </div>
+      </PageAccessGuard>
+    )
+  }
 
   if (error) {
     return (
@@ -139,22 +170,43 @@ export default function EscalaRespostasPage() {
           }
           backLink={{ href: '/admin/escalas', label: 'Voltar às escalas' }}
           actions={
-            <Link
-              href={`/admin/escalas/${id}/voluntarios`}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 text-slate-600 text-sm font-medium hover:bg-slate-50 transition-colors"
-            >
-              <Users size={15} /> Gerenciar voluntários
-            </Link>
+            <div className="flex items-center gap-2">
+              {lastUpdated && (
+                <span className="text-[11px] text-slate-400 hidden sm:inline">
+                  atualizado {lastUpdated.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                </span>
+              )}
+              <button
+                onClick={() => load(true)}
+                disabled={refreshing}
+                className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 text-slate-600 text-sm font-medium hover:bg-slate-50 transition-colors disabled:opacity-50"
+                title="Atualizar respostas"
+              >
+                <RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} />
+                <span className="hidden sm:inline">Atualizar</span>
+              </button>
+              <Link
+                href={`/admin/escalas/${id}/voluntarios`}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 text-slate-600 text-sm font-medium hover:bg-slate-50 transition-colors"
+              >
+                <Users size={15} /> Gerenciar voluntários
+              </Link>
+            </div>
           }
         />
 
         {volunteers.length === 0 ? (
           <div className="py-16 text-center text-slate-500 border border-dashed border-slate-300 rounded-xl">
             <Users className="mx-auto mb-3 text-slate-300" size={40} />
-            Nenhum voluntário respondeu ainda.
+            Nenhum voluntário cadastrado neste ministério ainda.
           </div>
         ) : (
-          <div className="overflow-x-auto mt-6">
+          <div className="overflow-x-auto mt-6 relative">
+            {refreshing && (
+              <div className="absolute top-2 right-2 z-10 flex items-center gap-1.5 bg-white/90 border border-slate-200 rounded-lg px-2.5 py-1 shadow-sm text-xs text-slate-500">
+                <Loader2 size={12} className="animate-spin" /> Atualizando...
+              </div>
+            )}
             <table className="min-w-full text-sm border border-slate-200 rounded-xl overflow-hidden">
               <thead className="bg-slate-50">
                 <tr>
