@@ -48,7 +48,10 @@ export const MESSAGE_ID_KIDS_CHECKIN      = '7f9fb081-bb8f-4db7-9b9c-25df8c3b110
 export const MESSAGE_ID_KIDS_CHECKOUT     = '02b7e040-2655-4547-942e-a9814ad96bf5'
 export const MESSAGE_ID_KIDS_ALERTA       = '0db51837-8f01-4b69-a6c6-d369bd4801b4'
 export const MESSAGE_ID_KIDS_ENCERRAMENTO = '851978a9-e0d2-4202-b332-4b144476a247'
-
+// ── Message IDs do módulo de Disparo Individual (Cadastro Pessoa) ────────────
+export const MESSAGE_ID_CULTO        = '16155aa7-ce8f-4bba-a37a-b4d60c04782f' // Hoje é dia de culto!
+export const MESSAGE_ID_ARENA        = 'bfaa202b-e385-4c2f-9fe5-ce0b026b80c5' // Hoje é dia de ARENA!
+export const MESSAGE_ID_MOMENTO_DEUS = 'fc1e2ddf-dea2-4422-abf8-f36df567e678' // Momento com Deus
 /**
  * Envia disparo diretamente com message_id e variáveis arbitrárias.
  * Usado pelo módulo de escalas (sem necessidade de ConversionType).

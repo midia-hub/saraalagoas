@@ -1,6 +1,5 @@
 'use client'
 
-import Link from 'next/link'
 import { Image as ImageIcon, Upload, X } from 'lucide-react'
 
 export interface AlbumEmptyStateProps {
@@ -36,13 +35,15 @@ export function AlbumEmptyState({
             Limpar filtros
           </button>
         )}
-        <Link
-          href="/admin/upload"
+        <a
+          href="http://localhost:3001/admin/upload/"
+          target="_blank"
+          rel="noopener noreferrer"
           className="inline-flex items-center gap-2 rounded-xl bg-[#c62737] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#a01f2d] transition-colors shadow-sm"
         >
           <Upload className="w-4 h-4" />
           {hasActiveFilters ? 'Fazer upload' : 'Criar primeiro álbum'}
-        </Link>
+        </a>
       </div>
     </div>
   )

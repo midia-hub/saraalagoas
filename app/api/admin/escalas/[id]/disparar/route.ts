@@ -121,7 +121,7 @@ async function executeDisparoJob({ escalaId, tipo, teste, phoneTeste, nomeTeste 
     dia_da_escala: MESSAGE_ID_ESCALA_DIA,
   }[tipo]
 
-  type ResultadoItem = { person_id: string; nome: string; phone_last4: string; success: boolean; statusCode?: number }
+  type ResultadoItem = { person_id: string; nome: string; phone_last4: string; phone: string; success: boolean; statusCode?: number }
   const resultados: ResultadoItem[] = []
 
   if (tipo === 'mes') {
@@ -179,6 +179,7 @@ async function executeDisparoJob({ escalaId, tipo, teste, phoneTeste, nomeTeste 
         person_id: personId,
         nome: nomeExib,
         phone_last4: phone.slice(-4),
+        phone,
         success: result.success,
         statusCode: result.statusCode,
       })
@@ -256,6 +257,7 @@ async function executeDisparoJob({ escalaId, tipo, teste, phoneTeste, nomeTeste 
           person_id: a.person_id,
           nome: nomeExib,
           phone_last4: phone.slice(-4),
+          phone,
           success: result.success,
           statusCode: result.statusCode,
         })
@@ -267,6 +269,19 @@ async function executeDisparoJob({ escalaId, tipo, teste, phoneTeste, nomeTeste 
 
   const enviados = resultados.filter(r => r.success).length
   const erros = resultados.filter(r => !r.success).length
+
+  // Registra em lote no log de disparos (apenas entradas com telefone válido)
+  const logEntries = resultados.filter(r => !!r.phone).map(r => ({
+    phone: r.phone,
+    nome: r.nome,
+    status_code: r.statusCode ?? null,
+    source: 'escala',
+    conversion_type: `escala_${tipo}`,
+  }))
+  if (logEntries.length > 0) {
+    await supabase.from('disparos_log').insert(logEntries)
+      .then(({ error }) => { if (error) console.error('disparos_log escala batch:', error) })
+  }
 
   return { ok: true, enviados, erros }
 }

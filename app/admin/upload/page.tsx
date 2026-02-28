@@ -4,9 +4,10 @@ import { useEffect, useMemo, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { PageAccessGuard } from '@/app/admin/PageAccessGuard'
+import { useAdminAccess } from '@/lib/admin-access-context'
 import { adminFetchJson, getAccessTokenOrThrow } from '@/lib/admin-client'
 import { supabase } from '@/lib/supabase'
-import { Loader2, Upload, LayoutGrid, CheckCircle2, ChevronRight, ImagePlus, X } from 'lucide-react'
+import { Loader2, Upload, LayoutGrid, CheckCircle2, ChevronRight, ImagePlus, X, Settings2 } from 'lucide-react'
 import { CustomSelect } from '@/components/ui/CustomSelect'
 
 type UploadType = 'culto' | 'evento'
@@ -119,6 +120,7 @@ async function uploadViaSupabase(
 
 export default function AdminUploadPage() {
   const router = useRouter()
+  const { isAdmin } = useAdminAccess()
   const [step, setStep] = useState<1 | 2 | 3>(1)
   const [type, setType] = useState<UploadType>('culto')
   const [date, setDate] = useState('')
@@ -290,13 +292,25 @@ export default function AdminUploadPage() {
               <p className="text-sm text-slate-500">Cultos e eventos para a galeria</p>
             </div>
           </div>
-          <Link
-            href="/admin/galeria"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border-2 border-slate-200 bg-white text-sm font-semibold text-slate-700 hover:border-red-600 hover:text-red-600 hover:bg-red-50 transition-all duration-200 shrink-0"
-          >
-            <LayoutGrid size={16} />
-            Ver galeria
-          </Link>
+          <div className="flex items-center gap-2 shrink-0">
+            {isAdmin ? (
+              <Link
+                href="/admin/galeria"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border-2 border-[#c62737]/30 bg-[#c62737]/5 text-sm font-semibold text-[#c62737] hover:border-[#c62737] hover:bg-[#c62737]/10 transition-all duration-200"
+              >
+                <Settings2 size={16} />
+                Gerenciar álbuns
+              </Link>
+            ) : (
+              <Link
+                href="/admin/galeria"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border-2 border-slate-200 bg-white text-sm font-semibold text-slate-700 hover:border-red-600 hover:text-red-600 hover:bg-red-50 transition-all duration-200"
+              >
+                <LayoutGrid size={16} />
+                Ver galeria
+              </Link>
+            )}
+          </div>
         </div>
 
         {/* Stepper */}

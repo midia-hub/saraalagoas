@@ -8,11 +8,24 @@ import { TableSkeleton } from '@/components/ui/TableSkeleton'
 interface PeopleTableProps {
   people: Person[]
   loading?: boolean
+  selectedIds?: string[]
+  onSelectIds?: (ids: string[]) => void
 }
 
-export function PeopleTable({ people, loading }: PeopleTableProps) {
+export function PeopleTable({ people, loading, selectedIds = [], onSelectIds }: PeopleTableProps) {
   if (loading) {
     return null
+  }
+
+  function toggleAll() {
+    if (!onSelectIds) return
+    if (selectedIds.length === people.length) onSelectIds([])
+    else onSelectIds(people.map(p => p.id))
+  }
+  function toggleOne(id: string) {
+    if (!onSelectIds) return
+    if (selectedIds.includes(id)) onSelectIds(selectedIds.filter(i => i !== id))
+    else onSelectIds([...selectedIds, id])
   }
 
   if (people.length === 0) {
@@ -31,6 +44,18 @@ export function PeopleTable({ people, loading }: PeopleTableProps) {
       <table className="w-full">
         <thead className="bg-slate-50 border-b border-slate-200">
           <tr>
+            <th className="px-3 py-4 text-left">
+              <input
+                type="checkbox"
+                checked={selectedIds.length === people.length && people.length > 0}
+                ref={el => {
+                  if (el) el.indeterminate = selectedIds.length > 0 && selectedIds.length < people.length
+                }}
+                onChange={toggleAll}
+                className="accent-[#c62737] w-5 h-5 rounded"
+                aria-label="Selecionar todos"
+              />
+            </th>
             <th className="px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
               Nome
             </th>
@@ -51,6 +76,15 @@ export function PeopleTable({ people, loading }: PeopleTableProps) {
               key={person.id}
               className="hover:bg-slate-50 transition-colors"
             >
+              <td className="px-3 py-4">
+                <input
+                  type="checkbox"
+                  checked={selectedIds.includes(person.id)}
+                  onChange={() => toggleOne(person.id)}
+                  className="accent-[#c62737] w-5 h-5 rounded"
+                  aria-label={`Selecionar ${person.full_name}`}
+                />
+              </td>
               <td className="px-6 py-4">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-[#c62737]/10 flex items-center justify-center text-[#c62737] font-bold">

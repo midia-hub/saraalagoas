@@ -118,6 +118,16 @@ export async function POST(request: NextRequest) {
           data: now.toLocaleDateString('pt-BR'),
           hora_checkin: now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
         },
+      }).then(result => {
+        if (result) {
+          supabase.from('disparos_log').insert({
+            phone,
+            nome: guardian.full_name,
+            status_code: result.statusCode ?? null,
+            source: 'kids',
+            conversion_type: 'kids_checkin',
+          }).then(({ error }) => { if (error) console.error('disparos_log kids_checkin:', error) })
+        }
       }).catch(err => console.error('[kids-checkin POST WhatsApp Error]', err))
     }
   }

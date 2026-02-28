@@ -12,8 +12,21 @@ export interface DisparosLogEntry {
   created_at: string
 }
 
+export interface BackgroundJobEntry {
+  id: string
+  kind: string
+  status: 'queued' | 'running' | 'completed' | 'failed'
+  metadata: Record<string, string> | null
+  result: Record<string, unknown> | null
+  error: string | null
+  created_at: string
+  started_at: string | null
+  finished_at: string | null
+}
+
 /**
  * GET - lista os últimos registros do log de disparos (API de disparos)
+ * + jobs recentes do background_jobs para escalas
  */
 export async function GET(request: NextRequest) {
   const access = await requireAccess(request, { pageKey: 'consolidacao_config', action: 'view' })
@@ -23,14 +36,27 @@ export async function GET(request: NextRequest) {
 
   try {
     const supabase = createSupabaseAdminClient(request)
-    const { data, error } = await supabase
-      .from('disparos_log')
-      .select('id, phone, nome, conversion_type, status_code, source, created_at')
-      .order('created_at', { ascending: false })
-      .limit(limit)
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-    return NextResponse.json({ items: (data ?? []) as DisparosLogEntry[] })
+    const [logResult, jobsResult] = await Promise.all([
+      supabase
+        .from('disparos_log')
+        .select('id, phone, nome, conversion_type, status_code, source, created_at')
+        .order('created_at', { ascending: false })
+        .limit(limit),
+      supabase
+        .from('background_jobs')
+        .select('id, kind, status, metadata, result, error, created_at, started_at, finished_at')
+        .in('kind', ['escalas-disparo'])
+        .order('created_at', { ascending: false })
+        .limit(50),
+    ])
+
+    if (logResult.error) return NextResponse.json({ error: logResult.error.message }, { status: 500 })
+
+    return NextResponse.json({
+      items: (logResult.data ?? []) as DisparosLogEntry[],
+      jobs: (jobsResult.data ?? []) as BackgroundJobEntry[],
+    })
   } catch (err) {
     console.error('GET disparos-log:', err)
     return NextResponse.json({ error: 'Erro ao carregar log' }, { status: 500 })

@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Loader2, Image as ImageIcon, Upload, RefreshCw, Trash2 } from 'lucide-react'
+import { Loader2, Image as ImageIcon, Upload, RefreshCw, Trash2, Link2 } from 'lucide-react'
 import { PageAccessGuard } from '@/app/admin/PageAccessGuard'
 import { useAdminAccess } from '@/lib/admin-access-context'
 import { adminFetchJson } from '@/lib/admin-client'
@@ -107,6 +107,7 @@ export default function AdminGaleriaPage() {
   const [albumToDelete, setAlbumToDelete] = useState<Album | null>(null)
   const [deletingAlbumId, setDeletingAlbumId] = useState<string | null>(null)
   const [toast, setToast] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
+  const [copiedLink, setCopiedLink] = useState(false)
   const [filters, setFilters] = useState<AlbumFiltersState>({
     search: '',
     type: '',
@@ -341,19 +342,36 @@ export default function AdminGaleriaPage() {
             <div className="flex items-center gap-2">
               <button
                 type="button"
+                onClick={() => {
+                  const url = `${window.location.origin}/upload-fotos`
+                  navigator.clipboard.writeText(url).then(() => {
+                    setCopiedLink(true)
+                    setTimeout(() => setCopiedLink(false), 2500)
+                  })
+                }}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-sm font-medium text-slate-600 hover:text-[#c62737] hover:border-[#c62737]/30 hover:bg-red-50 transition-all"
+                title="Copiar link p\u00fablico de envio de fotos"
+              >
+                <Link2 className="w-4 h-4" />
+                {copiedLink ? 'Link copiado!' : 'Link de envio'}
+              </button>
+              <button
+                type="button"
                 onClick={() => window.location.reload()}
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-sm font-medium text-slate-600 hover:text-[#c62737] hover:border-[#c62737]/30 hover:bg-red-50 transition-all"
               >
                 <RefreshCw className="w-4 h-4" />
                 Atualizar
               </button>
-              <Link
-                href="/admin/upload"
+              <a
+                href="http://localhost:3001/admin/upload/"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#c62737] text-white text-sm font-semibold hover:bg-[#a81e2d] transition-colors shadow-sm"
               >
                 <Upload className="w-4 h-4" />
                 Novo Álbum
-              </Link>
+              </a>
             </div>
           }
         />
