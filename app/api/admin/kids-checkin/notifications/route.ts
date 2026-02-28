@@ -58,6 +58,15 @@ async function executeKidsNotificationsJob(type: KidsNotificationType, checkinId
       if (res.success) successCount++
       else errorCount++
 
+      // Registra no log de disparos
+      supabase.from('disparos_log').insert({
+        phone,
+        nome: c.guardian?.full_name || '—',
+        status_code: res.statusCode ?? null,
+        source: 'kids',
+        conversion_type: `kids_${type}`,
+      }).then(({ error }) => { if (error) console.error('disparos_log kids_notif:', error) })
+
       return { checkinId: c.id, success: res.success }
     })
   )

@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
@@ -21,7 +21,11 @@ import {
   Send,
   Loader2,
   Mail,
+  MessageCircle,
+  CheckCircle2,
+  XCircle,
 } from 'lucide-react'
+import { DatePickerInput } from '@/components/ui/DatePickerInput'
 import Link from 'next/link'
 import { PageAccessGuard } from '@/app/admin/PageAccessGuard'
 import { PersonForm } from '@/components/admin/people/PersonForm'
@@ -95,23 +99,65 @@ function buildPayload(form: PersonFormData): Record<string, unknown> {
 
 function dash(v: string | null | undefined): string {
   const t = typeof v === 'string' ? v.trim() : v
-  return t || '—'
+  return t || '?'
 }
 
 function simNao(v: boolean | null | undefined): string {
   if (v === true) return 'Sim'
-  if (v === false) return 'Não'
-  return 'Não informado'
+  if (v === false) return 'N?o'
+  return 'N?o informado'
 }
 
 function getIdade(birthDate: string | null | undefined): string {
-  if (!birthDate) return '—'
+  if (!birthDate) return '?'
   const [y, m, d] = birthDate.split('T')[0].split('-').map(Number)
   const today = new Date()
   let age = today.getFullYear() - y
   if (today.getMonth() + 1 < m || (today.getMonth() + 1 === m && today.getDate() < d)) age--
-  return age >= 0 ? `${age} anos` : '—'
+  return age >= 0 ? `${age} anos` : '?'
 }
+
+//  Configura??o de mensagens de disparo individual 
+const MESES_PT = [
+  'janeiro','fevereiro','mar?o','abril','maio','junho',
+  'julho','agosto','setembro','outubro','novembro','dezembro',
+]
+
+function formatDataBR(ymd: string): string {
+  if (!ymd || ymd.length < 10) return ymd
+  const [y, m, d] = ymd.slice(0, 10).split('-').map(Number)
+  if (!y || !m || !d) return ymd
+  return `${d} de ${MESES_PT[m - 1]} de ${y}`
+}
+
+const DISPARO_MESSAGES = [
+  {
+    id: 'culto',
+    messageId: '16155aa7-ce8f-4bba-a37a-b4d60c04782f',
+    label: 'Hoje ? dia de culto!',
+    emoji: '?',
+    description: 'Convite para o culto com data e hor?rio.',
+    variables: ['data', 'hora'] as const,
+  },
+  {
+    id: 'arena',
+    messageId: 'bfaa202b-e385-4c2f-9fe5-ce0b026b80c5',
+    label: 'Hoje ? dia de ARENA!',
+    emoji: '=%',
+    description: 'Convite para o Arena com data e hor?rio.',
+    variables: ['data', 'hora'] as const,
+  },
+  {
+    id: 'momento',
+    messageId: 'fc1e2ddf-dea2-4422-abf8-f36df567e678',
+    label: 'Momento com Deus',
+    emoji: '=O',
+    description: 'Mensagem devocional com texto personalizado.',
+    variables: ['texto'] as const,
+  },
+] as const
+
+type DisparoMessageId = (typeof DISPARO_MESSAGES)[number]['id']
 
 const TABS = [
   { id: 'perfil', label: 'Perfil', icon: User },
@@ -166,7 +212,7 @@ function DataCard({
             <Icon className="text-emerald-600" size={16} />
           </span>
         )}
-        <span className="text-sm font-medium text-slate-800">{value ?? '—'}</span>
+        <span className="text-sm font-medium text-slate-800">{value ?? '?'}</span>
       </div>
     </div>
   )
@@ -185,9 +231,9 @@ export default function PessoaDetalhePage() {
   const [toast, setToast] = useState<{ type: 'ok' | 'err'; message: string } | null>(null)
   const [leaderName, setLeaderName] = useState<string | null>(null)
   const [spouseName, setSpouseName] = useState<string | null>(null)
+  const [inviteProfile, setInviteProfile] = useState('')
   const [cells, setCells] = useState<any[]>([])
   const [loadingCells, setLoadingCells] = useState(false)
-  const [inviteProfile, setInviteProfile] = useState('')
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteModalOpen, setInviteModalOpen] = useState(false)
   const [inviteSending, setInviteSending] = useState(false)
@@ -199,9 +245,19 @@ export default function PessoaDetalhePage() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
+  // Disparo individual
+  const [disparoModalOpen, setDisparoModalOpen] = useState(false)
+  const [disparoMessageId, setDisparoMessageId] = useState<DisparoMessageId>('culto')
+  const [disparoData, setDisparoData] = useState('')
+  const [disparoHora, setDisparoHora] = useState('')
+  const [disparoTexto, setDisparoTexto] = useState('')
+  const [disparoLoading, setDisparoLoading] = useState(false)
+  const [disparoResult, setDisparoResult] = useState<{ type: 'ok' | 'err'; message: string } | null>(null)
+
   async function loadUserLink(personId: string) {
     try {
       const data = await adminFetchJson<UserLinkState>(`/api/admin/people/${personId}/user-link`)
+        setInviteProfile('')
       setUserLink(data)
     } catch {
       setUserLink({ linked: false, user: null, emailUser: null })
@@ -212,7 +268,8 @@ export default function PessoaDetalhePage() {
     setLoadingInviteRoles(true)
     try {
       const data = await adminFetchJson<{ roles?: InviteRoleOption[] }>('/api/admin/roles')
-      setInviteRoles((data.roles ?? []).filter((role) => role.is_active !== false))
+      const activeRoles = (data.roles ?? []).filter((role) => role.is_active !== false)
+      setInviteRoles(activeRoles)
     } catch {
       setInviteRoles([])
     } finally {
@@ -302,16 +359,12 @@ export default function PessoaDetalhePage() {
   async function handleSendInvite(e: React.FormEvent) {
     e.preventDefault()
     const personEmail = (person?.email ?? '').trim()
-    const email = (inviteEmail.trim() || personEmail).trim()
+    const email = personEmail || inviteEmail.trim()
     if (!email) {
-      setInviteMessage({ type: 'err', message: 'Informe um e-mail válido no cadastro da pessoa ou no campo abaixo.' })
+      setInviteMessage({ type: 'err', message: 'Informe um e-mail v?lido no cadastro da pessoa ou no campo abaixo.' })
       return
     }
     if (!id) return
-    if (!inviteProfile) {
-      setInviteMessage({ type: 'err', message: 'Selecione o perfil de acesso.' })
-      return
-    }
 
     setInviteSending(true)
     setInviteMessage(null)
@@ -322,7 +375,7 @@ export default function PessoaDetalhePage() {
       })
       setInviteMessage({
         type: 'ok',
-        message: result?.message || `Convite enviado para ${email}. O usuário receberá um link para completar o cadastro.`,
+        message: result?.message || `Convite enviado para ${email}. O usu?rio receber? um link para completar o cadastro.`,
       })
       setInviteEmail('')
       await loadUserLink(id)
@@ -340,6 +393,54 @@ export default function PessoaDetalhePage() {
     }
   }
 
+  async function handleDisparo(e: React.FormEvent) {
+    e.preventDefault()
+    if (!id) return
+    const msg = DISPARO_MESSAGES.find(m => m.id === disparoMessageId)
+    if (!msg) return
+
+    setDisparoLoading(true)
+    setDisparoResult(null)
+    try {
+      const variables: Record<string, string> = {}
+      if (msg.variables.includes('data' as never)) {
+        if (!disparoData) { setDisparoResult({ type: 'err', message: 'Informe a data do evento.' }); setDisparoLoading(false); return }
+        variables.data = formatDataBR(disparoData)
+      }
+      if (msg.variables.includes('hora' as never)) {
+        if (!disparoHora.trim()) { setDisparoResult({ type: 'err', message: 'Informe o hor?rio do evento.' }); setDisparoLoading(false); return }
+        variables.hora = disparoHora.trim()
+      }
+      if (msg.variables.includes('texto' as never)) {
+        if (!disparoTexto.trim()) { setDisparoResult({ type: 'err', message: 'Informe o texto da mensagem devocional.' }); setDisparoLoading(false); return }
+        variables.texto = disparoTexto.trim()
+      }
+
+      await adminFetchJson(`/api/admin/pessoas/${id}/disparar`, {
+        method: 'POST',
+        body: JSON.stringify({ messageId: msg.messageId, variables }),
+      })
+      setDisparoResult({ type: 'ok', message: `Mensagem "${msg.label}" enviada com sucesso!` })
+      setTimeout(() => {
+        setDisparoModalOpen(false)
+        setDisparoResult(null)
+      }, 2500)
+    } catch (err) {
+      setDisparoResult({ type: 'err', message: err instanceof Error ? err.message : 'Erro ao enviar mensagem.' })
+    } finally {
+      setDisparoLoading(false)
+    }
+  }
+
+  function openDisparoModal() {
+    setDisparoMessageId('culto')
+    setDisparoData('')
+    setDisparoHora('')
+    setDisparoTexto('')
+    setDisparoResult(null)
+    setDisparoModalOpen(true)
+  }
+
   /**
    * Mescla dados de person com conversao
    * Usa conversao como fallback para preencher campos vazios
@@ -349,7 +450,7 @@ export default function PessoaDetalhePage() {
 
     const merged: Person = { ...p }
 
-    // Pré-preencher campos vazios com dados de conversão
+    // Pr?-preencher campos vazios com dados de convers?o
     if (!merged.email && conversao.email) merged.email = conversao.email
     if (!merged.mobile_phone && conversao.telefone) merged.mobile_phone = conversao.telefone
     if (!merged.birth_date && conversao.data_nascimento) merged.birth_date = conversao.data_nascimento
@@ -376,7 +477,7 @@ export default function PessoaDetalhePage() {
     return (
       <PageAccessGuard pageKey="pessoas">
         <div className="p-6 md:p-8">
-          <p className="text-slate-600">Pessoa não encontrada.</p>
+          <p className="text-slate-600">Pessoa n?o encontrada.</p>
           <Link href="/admin/pessoas" className="mt-4 inline-flex items-center gap-2 text-[#c62737] font-medium">
             <ArrowLeft size={18} /> Voltar para Pessoas
           </Link>
@@ -430,8 +531,8 @@ export default function PessoaDetalhePage() {
             <ArrowLeft size={20} /> Voltar
           </Link>
           <div className="flex items-center gap-4 text-sm text-slate-500">
-            <span>Data de criação: {formatDateDisplay(person.created_at) || '—'}</span>
-            <span>Atualizado em: {formatDateDisplay(person.updated_at) || '—'}</span>
+            <span>Data de cria??o: {formatDateDisplay(person.created_at) || '?'}</span>
+            <span>Atualizado em: {formatDateDisplay(person.updated_at) || '?'}</span>
             <span className="text-emerald-500">
               <Star size={18} className="inline" />
             </span>
@@ -463,7 +564,7 @@ export default function PessoaDetalhePage() {
                   <h1 className="text-2xl font-bold text-slate-800">{person.full_name}</h1>
                   <span className={`inline-flex items-center gap-1.5 text-sm ${userLink?.linked ? 'text-emerald-600' : 'text-amber-600'}`}>
                     <span className={`w-2 h-2 rounded-full ${userLink?.linked ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-                    {userLink?.linked ? 'Usuário vinculado' : 'Sem usuário vinculado'}
+                    {userLink?.linked ? 'Usu?rio vinculado' : 'Sem usu?rio vinculado'}
                   </span>
                 </div>
                 <p className="text-sm text-slate-500 mb-3">ID: {shortId}</p>
@@ -491,7 +592,7 @@ export default function PessoaDetalhePage() {
                     </button>
                   </span>
                 </div>
-                <p className="text-sm text-slate-500 mt-1">Funções: {dash(person.church_role)}</p>
+                <p className="text-sm text-slate-500 mt-1">Fun??es: {dash(person.church_role)}</p>
               </div>
               <div className="flex flex-col items-end gap-2 shrink-0">
                 <span
@@ -507,14 +608,22 @@ export default function PessoaDetalhePage() {
                       type="button"
                       onClick={() => {
                         setInviteEmail((person?.email ?? '').trim())
-                        setInviteProfile('')
-                        setInviteMessage(null)
                         setInviteModalOpen(true)
                       }}
                       className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-300 text-slate-700 text-sm font-medium hover:bg-slate-50 transition-colors"
                       title="Enviar convite de cadastro"
                     >
                       <Send size={16} /> Enviar convite
+                    </button>
+                  )}
+                  {(person.mobile_phone || person.phone) && (
+                    <button
+                      type="button"
+                      onClick={openDisparoModal}
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-blue-200 text-blue-700 text-sm font-medium hover:bg-blue-50 transition-colors"
+                      title="Enviar mensagem via WhatsApp"
+                    >
+                      <MessageCircle size={16} /> Disparar
                     </button>
                   )}
                   <button
@@ -529,17 +638,17 @@ export default function PessoaDetalhePage() {
                       type="button"
                       onClick={() => setDeleteConfirmOpen(true)}
                       className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-red-200 text-red-600 text-sm font-medium hover:bg-red-50 transition-colors"
-                      title="Excluir pessoa e usuário"
+                      title="Excluir pessoa e usu?rio"
                     >
                       <Trash2 size={16} /> Excluir
                     </button>
                   )}
                 </div>
                 {userLink?.linked && userLink.user?.email && (
-                  <p className="text-xs text-slate-500">Usuário: {userLink.user.email}</p>
+                  <p className="text-xs text-slate-500">Usu?rio: {userLink.user.email}</p>
                 )}
                 {!userLink?.linked && userLink?.emailUser?.email && (
-                  <p className="text-xs text-amber-600">Existe usuário com esse e-mail sem vínculo automático.</p>
+                  <p className="text-xs text-amber-600">Existe usu?rio com esse e-mail sem v?nculo autom?tico.</p>
                 )}
               </div>
             </div>
@@ -568,25 +677,25 @@ export default function PessoaDetalhePage() {
             })}
           </div>
 
-          {/* Conteúdo da aba Perfil */}
+          {/* Conte?do da aba Perfil */}
           {activeTab === 'perfil' && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                 <DataCard label="Idade" value={getIdade(person.birth_date)} icon={Zap} />
                 <DataCard
-                  label="Ministérios"
-                  value={Array.isArray(person.ministries) && person.ministries.length > 0 ? person.ministries.join(', ') : '—'}
+                  label="Minist?rios"
+                  value={Array.isArray(person.ministries) && person.ministries.length > 0 ? person.ministries.join(', ') : '?'}
                   icon={Users}
                 />
                 <DataCard label="Estado Civil" value={dash(person.marital_status)} icon={Heart} />
-                <DataCard label="É batizado?" value={simNao(person.is_baptized)} icon={Cross} />
-                <DataCard label="É pastor?" value={simNao(person.is_pastor)} icon={Cross} />
-                <DataCard label="Faz parte da liderança?" value={simNao(person.is_leader)} icon={Users} />
+                <DataCard label="? batizado?" value={simNao(person.is_baptized)} icon={Cross} />
+                <DataCard label="? pastor?" value={simNao(person.is_pastor)} icon={Cross} />
+                <DataCard label="Faz parte da lideran?a?" value={simNao(person.is_leader)} icon={Users} />
                 <DataCard label="Celular" value={dash(person.mobile_phone)} icon={Smartphone} />
                 <DataCard label="Necessidades especiais" value={dash(person.special_needs) || simNao(!!person.special_needs)} icon={Hand} />
               </div>
           )}
 
-          {/* Conteúdo da aba Pessoais */}
+          {/* Conte?do da aba Pessoais */}
           {activeTab === 'pessoais' && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
               <div className="bg-white rounded-xl border border-slate-200 p-6">
@@ -596,20 +705,20 @@ export default function PessoaDetalhePage() {
                   <div><dt className="text-xs text-slate-500">Data de nascimento</dt><dd className="text-slate-800">{dash(formatDateDisplay(person.birth_date))}</dd></div>
                   <div><dt className="text-xs text-slate-500">Estado civil</dt><dd className="text-slate-800">{dash(person.marital_status)}</dd></div>
                   <div><dt className="text-xs text-slate-500">Data de casamento</dt><dd className="text-slate-800">{dash(formatDateDisplay(person.marriage_date))}</dd></div>
-                  <div><dt className="text-xs text-slate-500">Cônjuge</dt><dd className="text-slate-800">{spouseName ?? '—'}</dd></div>
-                  <div><dt className="text-xs text-slate-500">Documento de Identificação</dt><dd className="text-slate-800">{dash(person.rg)}</dd></div>
-                  <div><dt className="text-xs text-slate-500">Órgão Emissor</dt><dd className="text-slate-800">{dash(person.rg_issuing_agency)}</dd></div>
+                  <div><dt className="text-xs text-slate-500">C?njuge</dt><dd className="text-slate-800">{spouseName ?? '?'}</dd></div>
+                  <div><dt className="text-xs text-slate-500">Documento de Identifica??o</dt><dd className="text-slate-800">{dash(person.rg)}</dd></div>
+                  <div><dt className="text-xs text-slate-500">?rg?o Emissor</dt><dd className="text-slate-800">{dash(person.rg_issuing_agency)}</dd></div>
                   <div><dt className="text-xs text-slate-500">UF do RG</dt><dd className="text-slate-800">{dash(person.rg_uf)}</dd></div>
                   <div><dt className="text-xs text-slate-500">CPF</dt><dd className="text-slate-800">{dash(person.cpf)}</dd></div>
                   <div><dt className="text-xs text-slate-500">Escolaridade</dt><dd className="text-slate-800">{dash(person.education_level)}</dd></div>
-                  <div><dt className="text-xs text-slate-500">Ocupação</dt><dd className="text-slate-800">{dash(person.profession)}</dd></div>
-                  <div><dt className="text-xs text-slate-500">Tipo sanguíneo</dt><dd className="text-slate-800">{dash(person.blood_type)}</dd></div>
+                  <div><dt className="text-xs text-slate-500">Ocupa??o</dt><dd className="text-slate-800">{dash(person.profession)}</dd></div>
+                  <div><dt className="text-xs text-slate-500">Tipo sangu?neo</dt><dd className="text-slate-800">{dash(person.blood_type)}</dd></div>
                 </dl>
               </div>
             </div>
           )}
 
-          {/* Conteúdo da aba Contatos */}
+          {/* Conte?do da aba Contatos */}
           {activeTab === 'contatos' && (
             <div className="bg-white rounded-xl border border-slate-200 p-6 mb-8">
               <h3 className="text-sm font-semibold text-slate-700 mb-4 uppercase tracking-wide">Contatos</h3>
@@ -618,24 +727,24 @@ export default function PessoaDetalhePage() {
                 <div><dt className="text-xs text-slate-500">Celular</dt><dd className="text-slate-800">{dash(person.mobile_phone)}</dd></div>
                 <div><dt className="text-xs text-slate-500">Telefone</dt><dd className="text-slate-800">{dash(person.phone)}</dd></div>
                 <div><dt className="text-xs text-slate-500">Cidade / Estado</dt><dd className="text-slate-800">{dash(person.city)} / {dash(person.state)}</dd></div>
-                <div className="md:col-span-2"><dt className="text-xs text-slate-500">Endereço</dt><dd className="text-slate-800">{[person.address_line, person.address_number, person.neighborhood, person.cep].filter(Boolean).map(dash).join(', ') || '—'}</dd></div>
+                <div className="md:col-span-2"><dt className="text-xs text-slate-500">Endere?o</dt><dd className="text-slate-800">{[person.address_line, person.address_number, person.neighborhood, person.cep].filter(Boolean).map(dash).join(', ') || '?'}</dd></div>
               </dl>
             </div>
           )}
 
-          {/* Conteúdo da aba Igreja */}
+          {/* Conte?do da aba Igreja */}
           {activeTab === 'igreja' && (
             <div className="bg-white rounded-xl border border-slate-200 p-6 mb-8">
-              <h3 className="text-sm font-semibold text-slate-700 mb-4 uppercase tracking-wide">Dados eclesiásticos</h3>
+              <h3 className="text-sm font-semibold text-slate-700 mb-4 uppercase tracking-wide">Dados eclesi?sticos</h3>
               <dl className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div><dt className="text-xs text-slate-500">Igreja</dt><dd className="text-slate-800">{dash(person.church_name)}</dd></div>
                 <div><dt className="text-xs text-slate-500">Perfil</dt><dd className="text-slate-800">{person.church_profile}</dd></div>
-                <div><dt className="text-xs text-slate-500">Função</dt><dd className="text-slate-800">{dash(person.church_role)}</dd></div>
-                <div><dt className="text-xs text-slate-500">Ministérios</dt><dd className="text-slate-800">{Array.isArray(person.ministries) && person.ministries.length > 0 ? person.ministries.join(', ') : '—'}</dd></div>
-                <div><dt className="text-xs text-slate-500">Líder direto</dt><dd className="text-slate-800">{leaderName ?? '—'}</dd></div>
+                <div><dt className="text-xs text-slate-500">Fun??o</dt><dd className="text-slate-800">{dash(person.church_role)}</dd></div>
+                <div><dt className="text-xs text-slate-500">Minist?rios</dt><dd className="text-slate-800">{Array.isArray(person.ministries) && person.ministries.length > 0 ? person.ministries.join(', ') : '?'}</dd></div>
+                <div><dt className="text-xs text-slate-500">L?der direto</dt><dd className="text-slate-800">{leaderName ?? '?'}</dd></div>
                 <div><dt className="text-xs text-slate-500">Entrada por</dt><dd className="text-slate-800">{dash(person.entry_by)}</dd></div>
                 <div><dt className="text-xs text-slate-500">Data de entrada</dt><dd className="text-slate-800">{dash(formatDateDisplay(person.entry_date))}</dd></div>
-                <div><dt className="text-xs text-slate-500">É recém-convertido?</dt><dd className="text-slate-800">{simNao(person.is_new_convert)}</dd></div>
+                <div><dt className="text-xs text-slate-500">? rec?m-convertido?</dt><dd className="text-slate-800">{simNao(person.is_new_convert)}</dd></div>
                 <div><dt className="text-xs text-slate-500">Aceitou Jesus?</dt><dd className="text-slate-800">{simNao(person.accepted_jesus)}</dd></div>
                 <div><dt className="text-xs text-slate-500">Aceitou Jesus em</dt><dd className="text-slate-800">{dash(person.accepted_jesus_at)}</dd></div>
                 <div><dt className="text-xs text-slate-500">Data que aceitou Jesus</dt><dd className="text-slate-800">{dash(formatDateDisplay(person.conversion_date))}</dd></div>
@@ -645,7 +754,7 @@ export default function PessoaDetalhePage() {
             </div>
           )}
 
-          {/* Conteúdo da aba Mais */}
+          {/* Conte?do da aba Mais */}
           {activeTab === 'mais' && (
             <div className="bg-white rounded-xl border border-slate-200 p-6 mb-8">
               <h3 className="text-sm font-semibold text-slate-700 mb-4 uppercase tracking-wide">Outros dados</h3>
@@ -659,26 +768,26 @@ export default function PessoaDetalhePage() {
             </div>
           )}
 
-          {/* Células */}
+          {/* C?lulas */}
           {activeTab === 'perfil' && (
             <div className="bg-white rounded-xl border border-slate-200 p-6">
             <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
               <h2 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
                 <span className="w-1 h-6 bg-emerald-500 rounded-full" />
-                Células
+                C?lulas
               </h2>
               <div className="flex gap-2">
                 <button
                   type="button"
                   className="px-3 py-2 rounded-lg border border-slate-300 text-slate-600 text-sm font-medium hover:bg-slate-50"
                 >
-                  Indicar para um líder
+                  Indicar para um l?der
                 </button>
                 <button
                   type="button"
                   className="px-3 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700"
                 >
-                  Adicionar Célula
+                  Adicionar C?lula
                 </button>
               </div>
             </div>
@@ -688,7 +797,7 @@ export default function PessoaDetalhePage() {
               </div>
             ) : cells.length === 0 ? (
               <div className="py-8 text-center text-slate-500 text-sm border border-dashed border-slate-200 rounded-lg">
-                Nenhuma célula vinculada.
+                Nenhuma c?lula vinculada.
               </div>
             ) : (
               <div className="space-y-3">
@@ -700,11 +809,11 @@ export default function PessoaDetalhePage() {
                         <p className="text-xs text-slate-600 mt-1">
                           {cell.day_label && cell.time_of_day ? (
                             <>
-                              {cell.day_label} às {cell.time_of_day}
+                              {cell.day_label} ?s {cell.time_of_day}
                               {cell.frequency && ` (${cell.frequency})`}
                             </>
                           ) : (
-                            '—'
+                            '?'
                           )}
                         </p>
                         {cell.church_name && (
@@ -754,7 +863,7 @@ export default function PessoaDetalhePage() {
                       {personEmail}
                     </div>
                     <p className="text-xs text-slate-500 mt-1">
-                      O convite será enviado automaticamente para este e-mail.
+                      O convite ser? enviado automaticamente para este e-mail.
                     </p>
                   </div>
                 ) : (
@@ -769,13 +878,13 @@ export default function PessoaDetalhePage() {
                       className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:border-[#c62737] focus:ring-2 focus:ring-[#c62737]/20 outline-none transition-all"
                     />
                     <p className="text-xs text-slate-500 mt-1">
-                      Como não há e-mail no cadastro da pessoa, informe um e-mail válido que o usuário tenha acesso.
+                      Como n?o h? e-mail no cadastro da pessoa, informe um e-mail v?lido que o usu?rio tenha acesso.
                     </p>
                   </div>
                 )}
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Perfil de acesso do usuário</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Perfil de acesso do usu?rio</label>
                   <select
                     value={inviteProfile}
                     onChange={(e) => setInviteProfile(e.target.value)}
@@ -791,7 +900,8 @@ export default function PessoaDetalhePage() {
                     ))}
                   </select>
                   <p className="text-xs text-slate-500 mt-1">
-                    Defina o perfil de acesso que o usuário terá ao completar o cadastro.
+                    Defina o perfil de acesso que o usu?rio ter? ao completar o cadastro.
+                    {loadingInviteRoles ? ' Carregando perfis...' : ''}
                   </p>
                 </div>
 
@@ -822,7 +932,7 @@ export default function PessoaDetalhePage() {
                   </button>
                   <button
                     type="submit"
-                    disabled={inviteSending || (!personEmail && !inviteEmail.trim()) || !inviteProfile || loadingInviteRoles}
+                    disabled={inviteSending || (!personEmail && !inviteEmail.trim()) || !inviteProfile}
                     className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-[#c62737] text-white font-medium hover:bg-[#a62030] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
                     {inviteSending ? (
@@ -841,11 +951,151 @@ export default function PessoaDetalhePage() {
           </div>
         )}
 
+        {/* Modal de Disparo */}
+        {disparoModalOpen && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-2xl shadow-lg max-w-lg w-full p-6">
+              <div className="flex items-center gap-3 mb-5">
+                <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+                  <MessageCircle className="text-blue-600" size={24} />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-slate-800">Enviar mensagem</h2>
+                  <p className="text-sm text-slate-500">{person.full_name}</p>
+                </div>
+              </div>
+
+              <form onSubmit={handleDisparo} className="space-y-4">
+                {/* Seletor de mensagem */}
+                <div>
+                  <p className="text-sm font-medium text-slate-700 mb-2">Escolha a mensagem</p>
+                  <div className="grid grid-cols-1 gap-2">
+                    {DISPARO_MESSAGES.map((msg) => (
+                      <label
+                        key={msg.id}
+                        className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
+                          disparoMessageId === msg.id
+                            ? 'border-[#c62737] bg-[#c62737]/5 ring-1 ring-[#c62737]/30'
+                            : 'border-slate-200 hover:border-slate-300 bg-white'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="disparoMsg"
+                          value={msg.id}
+                          checked={disparoMessageId === msg.id}
+                          onChange={() => {
+                            setDisparoMessageId(msg.id)
+                            setDisparoResult(null)
+                          }}
+                          className="accent-[#c62737]"
+                        />
+                        <span className="text-xl">{msg.emoji}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-slate-800">{msg.label}</p>
+                          <p className="text-xs text-slate-500">{msg.description}</p>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Nome (autom?tico) */}
+                <div>
+                  <label className="block text-xs font-medium text-slate-500 mb-1">Nome (autom?tico)</label>
+                  <div className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-600 text-sm">
+                    {person.full_name}
+                  </div>
+                </div>
+
+                {/* Campos de data e hora (culto / arena) */}
+                {(disparoMessageId === 'culto' || disparoMessageId === 'arena') && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-slate-700 mb-1">Data do evento</label>
+                      <DatePickerInput
+                        value={disparoData}
+                        onChange={setDisparoData}
+                        placeholder="dd/mm/aaaa"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-700 mb-1">Hor�rio</label>
+                      <input
+                        type="text"
+                        value={disparoHora}
+                        onChange={(e) => setDisparoHora(e.target.value)}
+                        placeholder="ex: 19h ou 19h30"
+                        className="w-full px-4 py-3 rounded-xl border border-slate-200 hover:border-slate-300 focus:border-[#c62737] focus:ring-2 focus:ring-[#c62737]/20 outline-none transition-all text-sm"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Campo de texto (momento com Deus) */}
+                {disparoMessageId === 'momento' && (
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-1">Texto devocional</label>
+                    <textarea
+                      value={disparoTexto}
+                      onChange={(e) => setDisparoTexto(e.target.value)}
+                      placeholder="Digite ou cole aqui o texto do momento com Deus..."
+                      rows={5}
+                      className="w-full px-4 py-3 rounded-xl border border-slate-200 hover:border-slate-300 focus:border-[#c62737] focus:ring-2 focus:ring-[#c62737]/20 outline-none transition-all text-sm resize-none"
+                    />
+                  </div>
+                )}
+
+                {/* Resultado */}
+                {disparoResult && (
+                  <div
+                    className={`flex items-center gap-2 p-3 rounded-xl text-sm font-medium ${
+                      disparoResult.type === 'ok'
+                        ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                        : 'bg-red-50 text-red-800 border border-red-200'
+                    }`}
+                  >
+                    {disparoResult.type === 'ok'
+                      ? <CheckCircle2 size={16} className="shrink-0" />
+                      : <XCircle size={16} className="shrink-0" />
+                    }
+                    {disparoResult.message}
+                  </div>
+                )}
+
+                <div className="flex gap-3 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDisparoModalOpen(false)
+                      setDisparoResult(null)
+                    }}
+                    className="flex-1 px-4 py-2 rounded-xl border border-slate-300 text-slate-700 font-medium hover:bg-slate-50 transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={disparoLoading}
+                    className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-[#c62737] text-white font-medium hover:bg-[#a62030] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {disparoLoading ? (
+                      <><Loader2 size={18} className="animate-spin" /> Enviando...</>
+                    ) : (
+                      <><MessageCircle size={18} /> Enviar mensagem</>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
         <ConfirmDialog
           open={deleteConfirmOpen}
           variant="danger"
           title="Excluir pessoa"
-          message={`Tem certeza que deseja excluir "${person.full_name}"? ${userLink?.linked ? 'O usuário vinculado à plataforma também será excluído. ' : ''}Esta ação é permanente e não pode ser desfeita.`}
+          message={`Tem certeza que deseja excluir "${person.full_name}"? ${userLink?.linked ? 'O usu?rio vinculado � plataforma tamb?m ser? exclu?do. ' : ''}Esta a??o ? permanente e n?o pode ser desfeita.`}
           confirmLabel="Sim, excluir"
           loading={deleting}
           onConfirm={handleDelete}

@@ -119,6 +119,15 @@ export async function triggerScalePublishedNotifications(
 
     if (result.success) enviados++
     else erros++
+
+    // Registra no log de disparos
+    supabase.from('disparos_log').insert({
+      phone,
+      nome: nomeExib,
+      status_code: result.statusCode ?? null,
+      source: 'escala',
+      conversion_type: 'escala_mes',
+    }).then(({ error }) => { if (error) console.error('disparos_log escala_mes:', error) })
   }
 
   return { ok: true, enviados, erros }

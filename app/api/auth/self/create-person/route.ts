@@ -82,6 +82,8 @@ export async function POST(request: NextRequest) {
             }
         }
 
+        // Detecta perfil de acesso do convite (metadata do usuário)
+        const userProfile = snapshot?.user_metadata?.profile || snapshot?.profile || null
         // Criar a pessoa
         const { data: person, error: createError } = await supabaseServer
             .from('people')
@@ -90,8 +92,9 @@ export async function POST(request: NextRequest) {
                 email: finalEmail || null,
                 church_profile: 'Membro', // Default
                 church_situation: 'Ativo', // Default
+                user_profile: userProfile || null,
             })
-            .select('id, full_name, email, church_profile, church_situation')
+            .select('id, full_name, email, church_profile, church_situation, user_profile')
             .single()
 
         if (createError || !person) {

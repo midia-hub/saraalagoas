@@ -94,8 +94,16 @@ export async function POST(
 
   if (isConfigured) {
     try {
-      await sendDisparoRaw({ phone: cleanPhone, messageId, variables })
+      const sendResult = await sendDisparoRaw({ phone: cleanPhone, messageId, variables })
       sendSuccess = true
+      // Registra no log unificado de disparos
+      supabaseAdmin.from('disparos_log').insert({
+        phone: cleanPhone,
+        nome: personName ?? 'Responsável',
+        status_code: sendResult?.statusCode ?? null,
+        source: 'midia',
+        conversion_type: `midia_${stepType}`,
+      }).then(({ error }) => { if (error) console.error('disparos_log midia:', error) })
     } catch (err) {
       sendError = err instanceof Error ? err.message : String(err)
       console.error('[disparo] Erro WhatsApp:', sendError)

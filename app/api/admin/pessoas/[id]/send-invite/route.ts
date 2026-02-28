@@ -23,8 +23,12 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
     const body = await request.json().catch(() => ({}))
     const email = (body.email ?? '').trim()
+    const profile = (body.profile ?? '').trim()
     if (!email) {
       return NextResponse.json({ error: 'E-mail é obrigatório' }, { status: 400 })
+    }
+    if (!profile) {
+      return NextResponse.json({ error: 'Perfil de acesso é obrigatório' }, { status: 400 })
     }
 
     const supabaseAdmin = createSupabaseAdminClient(request)
@@ -80,6 +84,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
       data: {
         person_id: personId,
         person_name: person.full_name,
+        profile,
       },
     })
 
