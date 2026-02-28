@@ -15,14 +15,11 @@ import {
     BookOpen,
     Package,
     ArrowLeftRight,
-    FileSpreadsheet,
     BarChart3,
     ShoppingCart,
     History,
     Bookmark,
     UserCheck,
-    CreditCard,
-    Ticket,
     Store,
     LayoutGrid,
     MessageSquare,
@@ -43,7 +40,7 @@ export interface MenuItem {
     href: string
     label: string
     icon?: LucideIcon
-    permission?: string
+    permission?: string | string[]
 }
 
 export interface MenuModule {
@@ -235,9 +232,9 @@ export const menuModules: MenuModule[] = [
             },
             {
                 href: '/admin/livraria/loja-caixa',
-                label: 'Loja e Caixa',
+                label: 'Loja, Caixa e Cupons',
                 icon: Store,
-                permission: 'livraria_pdv'
+                permission: ['livraria_pdv', 'livraria_cupons']
             },
             {
                 href: '/admin/livraria/vendas/historico',
@@ -255,43 +252,19 @@ export const menuModules: MenuModule[] = [
                 href: '/admin/livraria/produtos',
                 label: 'Catálogo de Produtos',
                 icon: Package,
-                permission: 'livraria_produtos'
+                permission: ['livraria_produtos', 'livraria_importacao']
             },
             {
                 href: '/admin/livraria/estoque',
-                label: 'Controle de Estoque',
+                label: 'Estoque & Movimentações',
                 icon: ArrowLeftRight,
                 permission: 'livraria_estoque'
             },
             {
-                href: '/admin/livraria/movimentacoes',
-                label: 'Movimentações',
-                icon: ArrowLeftRight,
-                permission: 'livraria_movimentacoes'
-            },
-            {
                 href: '/admin/livraria/clientes',
-                label: 'Clientes',
+                label: 'Clientes & Fiado',
                 icon: UserCheck,
-                permission: 'livraria_clientes'
-            },
-            {
-                href: '/admin/livraria/fiado',
-                label: 'Controle de Fiado',
-                icon: CreditCard,
-                permission: 'livraria_fiado'
-            },
-            {
-                href: '/admin/livraria/cupons',
-                label: 'Cupons de Desconto',
-                icon: Ticket,
-                permission: 'livraria_cupons'
-            },
-            {
-                href: '/admin/livraria/importacao',
-                label: 'Importação / Exportação',
-                icon: FileSpreadsheet,
-                permission: 'livraria_importacao'
+                permission: ['livraria_clientes', 'livraria_fiado']
             },
         ],
     },

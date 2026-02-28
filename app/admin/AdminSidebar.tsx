@@ -160,9 +160,10 @@ export function AdminSidebar() {
 
     const visibleItems = module.items.filter(item => {
       if (access.isAdmin) return true
-      if (item.permission === 'dashboard') return true
       if (!item.permission) return true
-      return !!access.permissions[item.permission]?.view
+      const perms = Array.isArray(item.permission) ? item.permission : [item.permission]
+      if (perms.includes('dashboard')) return true
+      return perms.some(p => !!access.permissions[p]?.view)
     })
 
     if (visibleItems.length === 0) return null

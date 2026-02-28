@@ -57,7 +57,7 @@ export default function RelatorioFiadoPage() {
       <div className="p-4 sm:p-6 md:p-8">
         <div className="mb-6 flex items-center gap-3">
           <Link
-            href="/admin/livraria/fiado"
+            href="/admin/livraria/clientes?tab=fiado"
             className="p-2 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600"
             aria-label="Voltar"
           >

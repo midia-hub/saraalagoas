@@ -8,16 +8,17 @@ export function PageAccessGuard({
   pageKey,
   children,
 }: {
-  pageKey: string
+  pageKey: string | string[]
   children: React.ReactNode
 }) {
   const router = useRouter()
   const access = useAdminAccess()
   // Dashboard (página inicial) é acessível a todos os usuários do painel
+  const keys = Array.isArray(pageKey) ? pageKey : [pageKey]
   const allowed =
     access.isAdmin ||
-    !!access.permissions[pageKey]?.view ||
-    pageKey === 'dashboard'
+    keys.includes('dashboard') ||
+    keys.some((k) => !!access.permissions[k]?.view)
 
   useEffect(() => {
     if (!access.loading && !allowed) {

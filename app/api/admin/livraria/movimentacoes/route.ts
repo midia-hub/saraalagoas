@@ -4,7 +4,7 @@ import { createSupabaseAdminClient } from '@/lib/supabase-server'
 
 /** GET - lista movimentações com filtros: from, to, type, product_id */
 export async function GET(request: NextRequest) {
-  const access = await requireAccess(request, { pageKey: 'livraria_movimentacoes', action: 'view' })
+  const access = await requireAccess(request, { pageKey: 'livraria_estoque', action: 'view' })
   if (!access.ok) return access.response
   try {
     const { searchParams } = new URL(request.url)

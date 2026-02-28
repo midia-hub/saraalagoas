@@ -5,6 +5,8 @@ import {
   createInstagramMediaContainer,
   createInstagramCarouselItemContainer,
   createInstagramCarouselContainer,
+  createInstagramReelContainer,
+  createInstagramStoryContainer,
   publishInstagramMediaWithRetry,
   waitForInstagramMediaContainerReady,
 } from '@/lib/meta'
@@ -209,14 +211,22 @@ export type ExecuteMetaPublishParams = {
   mediaEdits: MediaEditInput[]
 }
 
+export type PostType = 'feed' | 'reel' | 'story'
+
 export type ExecuteMetaPublishWithUrlsParams = {
   db: SupabaseClient
   userId: string
   instanceIds: string[]
   destinations: { instagram: boolean; facebook: boolean }
   text: string
-  /** URLs públicas das imagens já hospedadas (Supabase Storage ou outra CDN pública). */
+  /** URLs públicas das mídias já hospedadas (Supabase Storage ou outra CDN pública). */
   imageUrls: string[]
+  /** Tipo de postagem: feed (padrão), reel ou story. */
+  postType?: PostType
+  /** Indica que a mídia é um vídeo (para reel/story de vídeo). */
+  isVideo?: boolean
+  /** Offset em milissegundos para o frame de capa do Reel (thumb_offset). */
+  thumbOffset?: number
 }
 
 /**
@@ -226,11 +236,30 @@ export type ExecuteMetaPublishWithUrlsParams = {
 export async function executeMetaPublishWithUrls(params: ExecuteMetaPublishWithUrlsParams): Promise<{
   metaResults: MetaPublishResult[]
 }> {
-  const { db, userId, instanceIds, destinations, text, imageUrls } = params
+  const { db, userId, instanceIds, destinations, text, imageUrls, postType = 'feed', isVideo = false } = params
   if (imageUrls.length === 0) return { metaResults: [] }
 
-  const metaSelections = buildMetaSelections(instanceIds, destinations)
+  // Stories/Reels só suportam Instagram; Facebook Stories usam API diferente (não implementado)
+  const effectiveDestinations =
+    postType === 'reel' || postType === 'story'
+      ? { instagram: destinations.instagram, facebook: false }
+      : destinations
+
+  const metaSelections = buildMetaSelections(instanceIds, effectiveDestinations)
   const metaResults: MetaPublishResult[] = []
+
+  // Registrar imediatamente que FB não é suportado para reel/story
+  if ((postType === 'reel' || postType === 'story') && destinations.facebook) {
+    const fbInstanceId = instanceIds.find((id) => id.startsWith('meta_fb:'))
+    if (fbInstanceId) {
+      metaResults.push({
+        instanceId: fbInstanceId,
+        provider: 'facebook',
+        ok: false,
+        error: `${postType === 'reel' ? 'Reels' : 'Stories'} só são publicados no Instagram via esta integração.`,
+      })
+    }
+  }
 
   const integrationIds = Array.from(new Set(metaSelections.map((s) => s.integrationId)))
   const { data: integrations, error: integrationsError } = await db
@@ -260,8 +289,8 @@ export async function executeMetaPublishWithUrls(params: ExecuteMetaPublishWithU
     return false
   })
 
-  const firstImageUrl = imageUrls[0]
-  const isMultipleImages = imageUrls.length > 1
+  const firstUrl = imageUrls[0]
+  const isMultiple = imageUrls.length > 1
 
   for (const selection of availableMetaSelections) {
     const instanceId =
@@ -276,42 +305,72 @@ export async function executeMetaPublishWithUrls(params: ExecuteMetaPublishWithU
       if (selection.type === 'instagram') {
         if (!integration.instagram_business_account_id)
           throw new Error('Integração sem conta Instagram Business vinculada.')
-        if (imageUrls.length > 10)
-          throw new Error('Instagram permite no máximo 10 imagens por post (carrossel).')
 
         let containerId: string
-        if (isMultipleImages) {
-          const childContainerIds: string[] = []
-          for (const imageUrl of imageUrls) {
-            const childContainer = await createInstagramCarouselItemContainer({
+
+        if (postType === 'reel') {
+          // ── REEL ──────────────────────────────────────────────────────
+          if (!isVideo) throw new Error('Reels exigem um arquivo de vídeo.')
+          const reelContainer = await createInstagramReelContainer({
+            igUserId: integration.instagram_business_account_id,
+            videoUrl: firstUrl,
+            caption: text || '',
+            shareToFeed: true,
+            thumbOffset,
+            accessToken: integration.page_access_token,
+          })
+          if (!reelContainer?.id) throw new Error('Falha ao criar container de Reel.')
+          containerId = reelContainer.id
+        } else if (postType === 'story') {
+          // ── STORY ─────────────────────────────────────────────────────
+          const storyContainer = await createInstagramStoryContainer({
+            igUserId: integration.instagram_business_account_id,
+            ...(isVideo ? { videoUrl: firstUrl } : { imageUrl: firstUrl }),
+            accessToken: integration.page_access_token,
+          })
+          if (!storyContainer?.id) throw new Error('Falha ao criar container de Story.')
+          containerId = storyContainer.id
+        } else {
+          // ── FEED ──────────────────────────────────────────────────────
+          if (imageUrls.length > 10)
+            throw new Error('Instagram permite no máximo 10 imagens por post (carrossel).')
+          if (isMultiple) {
+            const childContainerIds: string[] = []
+            for (const imageUrl of imageUrls) {
+              const childContainer = await createInstagramCarouselItemContainer({
+                igUserId: integration.instagram_business_account_id,
+                imageUrl,
+                accessToken: integration.page_access_token,
+              })
+              if (!childContainer?.id) throw new Error('Falha ao criar container filho do carrossel.')
+              childContainerIds.push(childContainer.id)
+            }
+            const carouselContainer = await createInstagramCarouselContainer({
               igUserId: integration.instagram_business_account_id,
-              imageUrl,
+              childContainerIds,
+              caption: text || '',
               accessToken: integration.page_access_token,
             })
-            if (!childContainer?.id) throw new Error('Falha ao criar container filho do carrossel.')
-            childContainerIds.push(childContainer.id)
+            if (!carouselContainer?.id) throw new Error('Falha ao criar container de carrossel.')
+            containerId = carouselContainer.id
+          } else {
+            const container = await createInstagramMediaContainer({
+              igUserId: integration.instagram_business_account_id,
+              imageUrl: firstUrl,
+              caption: text || '',
+              accessToken: integration.page_access_token,
+            })
+            if (!container?.id) throw new Error('Meta create container failed.')
+            containerId = container.id
           }
-          const carouselContainer = await createInstagramCarouselContainer({
-            igUserId: integration.instagram_business_account_id,
-            childContainerIds,
-            caption: text || '',
-            accessToken: integration.page_access_token,
-          })
-          if (!carouselContainer?.id) throw new Error('Falha ao criar container de carrossel.')
-          containerId = carouselContainer.id
-        } else {
-          const container = await createInstagramMediaContainer({
-            igUserId: integration.instagram_business_account_id,
-            imageUrl: firstImageUrl,
-            caption: text || '',
-            accessToken: integration.page_access_token,
-          })
-          if (!container?.id) throw new Error('Meta create container failed.')
-          containerId = container.id
         }
+
+        // Aguarda processamento (necessário para todos os tipos)
         await waitForInstagramMediaContainerReady({
           containerId,
           accessToken: integration.page_access_token,
+          // Vídeos demoram mais para processar
+          timeoutMs: isVideo ? 900_000 : 45_000,
         })
         await publishInstagramMediaWithRetry({
           igUserId: integration.instagram_business_account_id,
@@ -319,8 +378,9 @@ export async function executeMetaPublishWithUrls(params: ExecuteMetaPublishWithU
           accessToken: integration.page_access_token,
         })
       } else {
+        // Facebook — somente para Feed (reel/story bloqueados acima)
         if (!integration.page_id) throw new Error('Integração sem página do Facebook.')
-        if (isMultipleImages) {
+        if (isMultiple) {
           await publishFacebookMultipleImages({
             pageId: integration.page_id,
             pageAccessToken: integration.page_access_token,
@@ -331,7 +391,7 @@ export async function executeMetaPublishWithUrls(params: ExecuteMetaPublishWithU
           await publishFacebookImage({
             pageId: integration.page_id,
             pageAccessToken: integration.page_access_token,
-            imageUrl: firstImageUrl,
+            imageUrl: firstUrl,
             message: text || '',
           })
         }

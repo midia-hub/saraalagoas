@@ -1,16 +1,18 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import Cropper from 'cropperjs'
 import 'cropperjs/dist/cropper.css'
-import { BookOpen, Plus, Pencil, Trash2, ArrowLeft, Download, Camera, Upload, X, ScanBarcode, AlertTriangle, Crop, Check, RotateCcw } from 'lucide-react'
+import { BookOpen, Plus, Pencil, Trash2, ArrowLeft, Download, Camera, Upload, X, ScanBarcode, AlertTriangle, Crop, Check, RotateCcw, FileSpreadsheet } from 'lucide-react'
 import { PageAccessGuard } from '@/app/admin/PageAccessGuard'
 import { Button } from '@/components/ui/Button'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { adminFetchJson, getAccessTokenOrThrow } from '@/lib/admin-client'
 import { getStorageUrl } from '@/lib/storage-url'
+import { useAdminAccess } from '@/lib/admin-access-context'
 
 type ProductImage = { id: string; image_path: string; sort_order?: number }
 type Product = {
@@ -63,6 +65,89 @@ export default function LivrariaProdutosPage() {
   const onDetectedRef = useRef<((r: unknown) => void) | null>(null)
   const photoCropperRef = useRef<HTMLImageElement>(null)
   const photoCropperInstanceRef = useRef<Cropper | null>(null)
+
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const { permissions, isAdmin } = useAdminAccess()
+  const canProdutos = isAdmin || !!permissions?.livraria_produtos?.view
+  const canImportacao = isAdmin || !!permissions?.livraria_importacao?.view
+  const [activeTab, setActiveTab] = useState<'produtos' | 'importacao'>('produtos')
+
+  useEffect(() => {
+    const t = searchParams.get('tab')
+    if (t === 'importacao' && canImportacao) {
+      setActiveTab('importacao')
+    } else if (canProdutos) {
+      setActiveTab('produtos')
+    } else if (canImportacao) {
+      setActiveTab('importacao')
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams])
+
+  const handleTabChange = (tab: 'produtos' | 'importacao') => {
+    setActiveTab(tab)
+    if (tab === 'importacao') {
+      router.replace('/admin/livraria/produtos?tab=importacao', { scroll: false })
+    } else {
+      router.replace('/admin/livraria/produtos', { scroll: false })
+    }
+  }
+
+  // Import/Export state
+  const [importType, setImportType] = useState<'products' | 'stock'>('products')
+  const [importFile, setImportFile] = useState<File | null>(null)
+  const [validating, setValidating] = useState(false)
+  const [processing, setProcessing] = useState(false)
+  const [importValidation, setImportValidation] = useState<{ valid: boolean; errors: Array<{ row: number; message: string }>; preview?: unknown[] } | null>(null)
+  const [processResult, setProcessResult] = useState<{ created?: number; updated?: number; results?: Array<{ row: number; sku: string; success: boolean; error?: string }> } | null>(null)
+
+  const handleImportValidate = async () => {
+    if (!importFile) return
+    setValidating(true)
+    setImportValidation(null)
+    try {
+      const token = await getAccessTokenOrThrow()
+      const fd = new FormData()
+      fd.append('file', importFile)
+      fd.append('type', importType)
+      const res = await fetch('/api/admin/livraria/importacao/validar', {
+        method: 'POST',
+        body: fd,
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      const data = await res.json()
+      setImportValidation({ valid: data.valid, errors: data.errors ?? [], preview: data.preview })
+    } catch {
+      setImportValidation({ valid: false, errors: [{ row: 0, message: 'Erro ao validar arquivo' }] })
+    } finally {
+      setValidating(false)
+    }
+  }
+
+  const handleImportProcess = async () => {
+    if (!importFile) return
+    setProcessing(true)
+    setProcessResult(null)
+    try {
+      const token = await getAccessTokenOrThrow()
+      const fd = new FormData()
+      fd.append('file', importFile)
+      fd.append('type', importType)
+      const res = await fetch('/api/admin/livraria/importacao/processar', {
+        method: 'POST',
+        body: fd,
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data?.error || 'Erro')
+      setProcessResult({ created: data.created, updated: data.updated, results: data.results })
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setProcessing(false)
+    }
+  }
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -445,7 +530,7 @@ export default function LivrariaProdutosPage() {
   }
 
   return (
-    <PageAccessGuard pageKey="livraria_produtos">
+    <PageAccessGuard pageKey={['livraria_produtos', 'livraria_importacao']}>
       <div className="p-4 sm:p-6 md:p-8 min-h-0">
         <div className="mb-6 sm:mb-8 flex flex-col gap-4">
           <div className="flex items-start sm:items-center gap-3">
@@ -458,24 +543,57 @@ export default function LivrariaProdutosPage() {
                   <BookOpen className="text-[#c62737]" size={22} />
                 </div>
                 <div className="min-w-0">
-                  <h1 className="text-xl sm:text-2xl font-bold text-slate-800 truncate">Produtos</h1>
-                  <p className="text-slate-500 text-sm sm:text-base">Cadastro de produtos da livraria</p>
+                  <h1 className="text-xl sm:text-2xl font-bold text-slate-800 truncate">
+                    {activeTab === 'importacao' ? 'Catálogo de Produtos' : 'Produtos'}
+                  </h1>
+                  <p className="text-slate-500 text-sm sm:text-base">
+                    {activeTab === 'importacao' ? 'Importação, exportação e cadastro' : 'Cadastro de produtos da livraria'}
+                  </p>
                 </div>
               </div>
             </div>
           </div>
-          <div className="flex flex-wrap gap-2 sm:gap-2">
-            <Button variant="secondary" onClick={handleExport} loading={exportLoading} className="flex-1 sm:flex-none min-w-[120px] touch-manipulation">
-              <Download size={18} />
-              Exportar
-            </Button>
-            <Button onClick={openCreate} className="flex-1 sm:flex-none min-w-[120px] touch-manipulation">
-              <Plus size={18} />
-              Novo produto
-            </Button>
-          </div>
+          {activeTab === 'produtos' && (
+            <div className="flex flex-wrap gap-2 sm:gap-2">
+              <Button variant="secondary" onClick={handleExport} loading={exportLoading} className="flex-1 sm:flex-none min-w-[120px] touch-manipulation">
+                <Download size={18} />
+                Exportar
+              </Button>
+              <Button onClick={openCreate} className="flex-1 sm:flex-none min-w-[120px] touch-manipulation">
+                <Plus size={18} />
+                Novo produto
+              </Button>
+            </div>
+          )}
         </div>
 
+        {/* Abas -- só mostra a barra se o usuário tiver acesso a ambas */}
+        {canProdutos && canImportacao && (
+          <div className="flex border-b border-slate-200 mb-6">
+            <button
+              type="button"
+              onClick={() => handleTabChange('produtos')}
+              className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === 'produtos' ? 'border-[#c62737] text-[#c62737]' : 'border-transparent text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              <BookOpen size={16} />
+              Produtos
+            </button>
+            <button
+              type="button"
+              onClick={() => handleTabChange('importacao')}
+              className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === 'importacao' ? 'border-[#c62737] text-[#c62737]' : 'border-transparent text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              <FileSpreadsheet size={16} />
+              Importação / Exportação
+            </button>
+          </div>
+        )}
+
+        {activeTab === 'produtos' && (<>
         <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row sm:flex-wrap gap-3 sm:gap-4">
           <input
             type="text"
@@ -607,6 +725,100 @@ export default function LivrariaProdutosPage() {
             <div className="p-6 sm:p-8 text-center text-slate-500">Nenhum produto encontrado.</div>
           )}
         </div>
+        </>)}
+
+        {activeTab === 'importacao' && (
+          <div className="space-y-6">
+            <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2">
+              <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-6">
+                <h2 className="text-base sm:text-lg font-semibold text-slate-800 mb-2 flex items-center gap-2">
+                  <Download size={20} />
+                  Baixar modelo
+                </h2>
+                <p className="text-sm text-slate-600 mb-4">Use os modelos para preencher e importar.</p>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <a href="/api/admin/livraria/importacao/modelo?type=products" className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-sm font-medium touch-manipulation">
+                    Modelo produtos (XLSX)
+                  </a>
+                  <a href="/api/admin/livraria/importacao/modelo?type=stock" className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-sm font-medium touch-manipulation">
+                    Modelo estoque (XLSX)
+                  </a>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-6">
+                <h2 className="text-base sm:text-lg font-semibold text-slate-800 mb-2 flex items-center gap-2">
+                  <Upload size={20} />
+                  Exportar
+                </h2>
+                <p className="text-sm text-slate-600 mb-4">Exporte produtos, movimentações ou estoque baixo.</p>
+                <div className="flex flex-wrap gap-2">
+                  <a href="/api/admin/livraria/exportacao?type=products&format=xlsx" className="inline-flex items-center gap-2 px-4 py-2 bg-[#c62737] text-white rounded-lg text-sm font-medium hover:bg-[#a01f2d]">
+                    Produtos (XLSX)
+                  </a>
+                  <a href="/api/admin/livraria/exportacao?type=movements&format=xlsx" className="inline-flex items-center gap-2 px-4 py-2 bg-[#c62737] text-white rounded-lg text-sm font-medium hover:bg-[#a01f2d]">
+                    Movimentações (XLSX)
+                  </a>
+                  <a href="/api/admin/livraria/exportacao?type=low_stock&format=xlsx" className="inline-flex items-center gap-2 px-4 py-2 bg-[#c62737] text-white rounded-lg text-sm font-medium hover:bg-[#a01f2d]">
+                    Estoque baixo (XLSX)
+                  </a>
+                </div>
+              </div>
+            </div>
+
+            <section className="bg-white rounded-xl border border-slate-200 p-4 sm:p-6">
+              <h2 className="text-base sm:text-lg font-semibold text-slate-800 mb-4">Importação em massa</h2>
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-slate-700 mb-2">Tipo de importação</label>
+                <select value={importType} onChange={(e) => setImportType(e.target.value as 'products' | 'stock')} className="w-full sm:w-auto px-3 py-2.5 border border-slate-300 rounded-lg">
+                  <option value="products">Importar produtos (XLSX)</option>
+                  <option value="stock">Atualizar estoque (XLSX)</option>
+                </select>
+              </div>
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-slate-700 mb-2">Arquivo</label>
+                <input
+                  type="file"
+                  accept=".xlsx,.xls"
+                  onChange={(e) => { setImportFile(e.target.files?.[0] ?? null); setImportValidation(null); setProcessResult(null) }}
+                  className="text-sm w-full min-w-0"
+                />
+              </div>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Button variant="secondary" onClick={handleImportValidate} loading={validating} disabled={!importFile} className="w-full sm:w-auto touch-manipulation">
+                  Validar
+                </Button>
+                <Button onClick={handleImportProcess} loading={processing} disabled={!importFile} className="w-full sm:w-auto touch-manipulation">
+                  Confirmar processamento
+                </Button>
+              </div>
+              {importValidation && (
+                <div className="mt-6 p-4 rounded-lg border border-slate-200 bg-slate-50">
+                  {importValidation.valid ? (
+                    <p className="text-green-700 text-sm">Arquivo válido. Você pode confirmar o processamento.</p>
+                  ) : (
+                    <div>
+                      <p className="text-red-700 text-sm font-medium mb-2">Encontramos erros no arquivo. Ajuste e tente novamente.</p>
+                      <ul className="text-sm text-slate-700 list-disc list-inside">
+                        {importValidation.errors.map((e, i) => (
+                          <li key={i}>Linha {e.row}: {e.message}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+              {processResult && (
+                <div className="mt-6 p-4 rounded-lg border border-green-200 bg-green-50 text-green-800 text-sm">
+                  Processado. Criados: {processResult.created ?? 0}. Atualizados: {processResult.updated ?? 0}.
+                  {(processResult.results ?? []).filter((r) => !r.success).length > 0 && (
+                    <p className="mt-2">Erros: {(processResult.results ?? []).filter((r) => !r.success).map((r) => `Linha ${r.row} (${r.sku}): ${r.error}`).join('; ')}</p>
+                  )}
+                </div>
+              )}
+            </section>
+          </div>
+        )}
 
         {modalOpen && (
           <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4" onClick={() => setModalOpen(false)}>
