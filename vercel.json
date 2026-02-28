@@ -2,7 +2,7 @@
   "crons": [
     {
       "path": "/api/social/run-scheduled",
-      "schedule": "*/5 * * * *"
+      "schedule": "0 12 * * *"
     },
     {
       "path": "/api/cron/escalas-lembretes?tipo=lembrete_3dias",
