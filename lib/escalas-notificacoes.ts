@@ -4,7 +4,6 @@ import {
   getNomeExibicao,
   MESSAGE_ID_ESCALA_MES,
 } from './disparos-webhook'
-import { siteConfig } from '@/config/site'
 
 type Assignment = { funcao: string; person_id: string; person_name: string }
 type SlotResult = {
@@ -82,7 +81,8 @@ export async function triggerScalePublishedNotifications(
 
   const mesNum = String(link.month).padStart(2, '0')
   const anoStr = String(link.year)
-  const linkEscala = `${process.env.NEXT_PUBLIC_SITE_URL ?? siteConfig.url}/escalas/${link.token}/escala`
+  const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || 'https://saraalagoas.com').replace(/\/$/, '')
+  const linkEscala = `${baseUrl}/escalas/${link.token}/escala`
 
   let enviados = 0
   let erros = 0

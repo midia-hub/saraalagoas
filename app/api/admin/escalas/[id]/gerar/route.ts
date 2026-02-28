@@ -60,15 +60,23 @@ export async function POST(request: NextRequest, { params }: Params) {
   }
 
   // ── 1.1 Limpeza/Deduplicação de slots ────────────────────────────────────
-  // Algumas bases podem ter duplicidade (ex: 'Arena' cadastrado como Culto e como Arena no mesmo horário)
-  // Damos preferência ao tipo 'arena' se o nome sugerir ou se houver duplicata.
+  // Algumas bases podem ter duplicidade (ex: 'Arena' cadastrado como Culto e como Arena no mesmo horário).
+  // ATENÇÃO: slots do tipo 'evento' nunca são deduplicados — são eventos especiais adicionados
+  // manualmente pelo admin e devem sempre ser preservados na escala.
   const filteredSlotsData = slotsData.reduce((acc: any[], current) => {
-    // Normaliza tipo se nome contiver "Arena"
+    // Normaliza tipo se nome contiver "Arena" E o slot veio como culto (provavelmente cadastro duplo)
     if (current.label.toLowerCase().includes('arena') && current.type === 'culto') {
       current.type = 'arena'
     }
 
+    // Eventos especiais nunca são deduplicados
+    if (current.type === 'evento') {
+      acc.push(current)
+      return acc
+    }
+
     const duplicateIndex = acc.findIndex(s => 
+      s.type !== 'evento' &&
       s.date === current.date && 
       s.time_of_day === current.time_of_day && 
       s.label.toLowerCase() === current.label.toLowerCase()
@@ -77,7 +85,7 @@ export async function POST(request: NextRequest, { params }: Params) {
     if (duplicateIndex === -1) {
       acc.push(current)
     } else {
-      // Se houver duplicata, preferimos a que já é 'arena' ou a que tem mais funções definidas
+      // Se houver duplicata entre cultos/arenas, preferimos o tipo 'arena' ou o que tem mais funções
       const existing = acc[duplicateIndex]
       const currentIsPref = current.type === 'arena' || (current.funcoes?.length ?? 0) > (existing.funcoes?.length ?? 0)
       if (currentIsPref) acc[duplicateIndex] = current

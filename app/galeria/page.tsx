@@ -67,6 +67,7 @@ async function GaleriaContent({ typeFilter }: { typeFilter: string }) {
     let query = supabaseServer
       .from('galleries')
       .select('id, type, title, slug, date, gallery_files(drive_file_id)')
+      .eq('hidden_from_public', false)
       .order('date', { ascending: false })
       .order('created_at', { ascending: false })
 

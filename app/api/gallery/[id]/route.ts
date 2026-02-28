@@ -12,7 +12,7 @@ export async function GET(
   if (!id) return NextResponse.json({ error: 'O ID é obrigatório. Por favor, informe-o.' }, { status: 400 })
   const { data, error } = await supabaseServer
     .from('galleries')
-    .select('id, type, title, slug, date, drive_folder_id, created_at')
+    .select('id, type, title, slug, date, drive_folder_id, created_at, hidden_from_public')
     .eq('id', id)
     .single()
 
@@ -79,5 +79,51 @@ export async function DELETE(
   }
 
   invalidateGalleryFilesCache(id)
+  return NextResponse.json({ ok: true })
+}
+
+/**
+ * PATCH /api/gallery/[id]
+ * Atualiza campos do álbum. Suporta: { hidden_from_public: boolean }
+ * Requer permissão galeria → Editar.
+ */
+export async function PATCH(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> | { id: string } }
+) {
+  const access = await requireAccess(request, { pageKey: 'galeria', action: 'edit' })
+  if (!access.ok) return access.response
+
+  const params = await Promise.resolve(context.params)
+  const id = params.id
+  if (!id) {
+    return NextResponse.json({ error: 'O ID do álbum é obrigatório.' }, { status: 400 })
+  }
+
+  let body: { hidden_from_public?: boolean }
+  try {
+    body = await request.json()
+  } catch {
+    return NextResponse.json({ error: 'Body JSON inválido.' }, { status: 400 })
+  }
+
+  const updates: Record<string, unknown> = {}
+  if (typeof body.hidden_from_public === 'boolean') {
+    updates.hidden_from_public = body.hidden_from_public
+  }
+
+  if (Object.keys(updates).length === 0) {
+    return NextResponse.json({ error: 'Nenhum campo para atualizar.' }, { status: 400 })
+  }
+
+  const { error } = await supabaseServer
+    .from('galleries')
+    .update(updates)
+    .eq('id', id)
+
+  if (error) {
+    return NextResponse.json({ error: 'Não foi possível atualizar o álbum.' }, { status: 500 })
+  }
+
   return NextResponse.json({ ok: true })
 }

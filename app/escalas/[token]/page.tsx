@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams } from 'next/navigation'
-import { CheckCircle2, Clock, Loader2, Music, Search, Send, User, XCircle } from 'lucide-react'
+import { AlertCircle, Calendar, CheckCircle2, Clock, Loader2, Music, Search, Send, User, XCircle } from 'lucide-react'
 
 const MONTHS = [
   'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',

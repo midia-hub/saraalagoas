@@ -28,6 +28,7 @@ type GalleryRow = {
   date: string
   created_at: string
   drive_folder_id?: string
+  hidden_from_public?: boolean
 }
 
 /** Arquivo retornado por GET /api/gallery/[id]/files */
@@ -47,6 +48,7 @@ function rowToAlbum(row: GalleryRow): Album {
     created_at: row.created_at,
     publicPath: `/galeria/${row.type}/${row.slug}/${row.date}`,
     drive_folder_id: row.drive_folder_id,
+    hidden_from_public: row.hidden_from_public ?? false,
   }
 }
 
@@ -97,6 +99,7 @@ const INITIAL_ENRICH_COUNT = 12
 export default function AdminGaleriaPage() {
   const { permissions, isAdmin } = useAdminAccess()
   const canDeleteAlbum = isAdmin || !!permissions.galeria?.delete
+  const canEditAlbum = isAdmin || !!permissions.galeria?.edit
 
   const [albums, setAlbums] = useState<Album[]>([])
   const [loading, setLoading] = useState(true)
@@ -285,6 +288,29 @@ export default function AdminGaleriaPage() {
     }
   }, [albumToDelete, deletingAlbumId])
 
+  const handleToggleVisibility = useCallback(async (album: Album) => {
+    const newValue = !album.hidden_from_public
+    setAlbums((prev) =>
+      prev.map((a) => (a.id === album.id ? { ...a, hidden_from_public: newValue } : a))
+    )
+    try {
+      await adminFetchJson(`/api/gallery/${album.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ hidden_from_public: newValue }),
+      })
+      setToast({
+        type: 'ok',
+        text: newValue ? 'Álbum ocultado da galeria pública.' : 'Álbum visível na galeria pública.',
+      })
+    } catch {
+      // reverter em caso de erro
+      setAlbums((prev) =>
+        prev.map((a) => (a.id === album.id ? { ...a, hidden_from_public: album.hidden_from_public } : a))
+      )
+      setToast({ type: 'err', text: 'Não foi possível alterar a visibilidade.' })
+    }
+  }, [])
+
   const totalCultos = albums.filter(a => a.type === 'culto').length
   const totalEventos = albums.filter(a => a.type === 'evento').length
   const totalFotos = albums.reduce((acc, a) => acc + (a.photosCount ?? 0), 0)
@@ -390,6 +416,7 @@ export default function AdminGaleriaPage() {
                 onVisible={enrichAlbum}
                 canDeleteAlbum={canDeleteAlbum}
                 onDeleteAlbum={canDeleteAlbum ? () => setAlbumToDelete(album) : undefined}
+                onToggleVisibility={canEditAlbum ? handleToggleVisibility : undefined}
               />
             ))}
           </div>

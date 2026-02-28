@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom'
 import { useParams } from 'next/navigation'
 import {
   Loader2, Sparkles, ArrowLeftRight, CheckCircle2, Send, Music,
-  Calendar, Clock, Users, AlertCircle, ChevronDown, Search, Check,
+  Calendar, Clock, Users, AlertCircle, ChevronDown, Search, Check, Download, FileImage,
 } from 'lucide-react'
 
 const MONTHS = [
@@ -215,6 +215,9 @@ export default function EscalaPublicaPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [successMsg, setSuccessMsg] = useState('')
+  const [exporting, setExporting] = useState<'pdf' | 'jpg' | null>(null)
+  const [exportError, setExportError] = useState('')
+  const escalaExportRef = useRef<HTMLDivElement>(null)
 
   // ── Formulário de troca (inline no final da página) ──────────────────────
   const [trocaPersonId, setTrocaPersonId] = useState('')
@@ -270,8 +273,8 @@ export default function EscalaPublicaPage() {
   // Coleta todas as funções únicas na ordem de aparição
   const allFuncoes = Array.from(new Set(
     slots.flatMap(s => [
-      ...s.assignments.map(a => a.funcao),
-      ...s.faltando,
+      ...(s.assignments || []).map(a => a.funcao),
+      ...(s.faltando || []),
     ])
   ))
 
@@ -312,8 +315,151 @@ export default function EscalaPublicaPage() {
     }
   }
 
+  function getExportFileBase() {
+    const raw = `escala-${link.ministry}-${MONTHS[(link.month ?? 1) - 1]}-${link.year}`
+    return raw
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-zA-Z0-9-_]+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '')
+      .toLowerCase()
+  }
+
+  async function captureEscalaCanvas() {
+    if (!escalaExportRef.current) throw new Error('Área da escala não encontrada.')
+    const html2canvas = (await import('html2canvas')).default
+
+    const el = escalaExportRef.current
+    // Mede a largura e altura completas (incluindo overflow horizontal da tabela)
+    const fullW = el.scrollWidth
+    const fullH = el.scrollHeight
+
+    return html2canvas(el, {
+      backgroundColor: '#0f172a',
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      width: fullW,
+      height: fullH,
+      // Simula uma janela larga para que elementos min-width não sejam comprimidos
+      windowWidth: Math.max(fullW + 200, 1600),
+      onclone: (_doc: Document, clonedEl: HTMLElement) => {
+        // Fundo sólido no elemento raiz
+        clonedEl.style.background = '#0f172a'
+        clonedEl.style.width = fullW + 'px'
+
+        clonedEl.querySelectorAll<HTMLElement>('*').forEach(node => {
+          const cls = node.getAttribute('class') ?? ''
+
+          // 1. Remove backdrop-blur — não renderiza no html2canvas
+          if (cls.includes('backdrop-blur')) {
+            node.style.backdropFilter = 'none'
+            ;(node.style as unknown as Record<string, string>)['webkitBackdropFilter'] = 'none'
+            // Substitui por fundo sólido levemente translúcido
+            if (!node.style.backgroundColor) {
+              node.style.backgroundColor = 'rgba(15,23,42,0.85)'
+            }
+          }
+
+          // 2. Esconde blobs decorativos com blur pesado (apenas efeito visual, renderiza errado)
+          if (cls.includes('blur-3xl') || cls.includes('blur-2xl')) {
+            node.style.display = 'none'
+          }
+
+          // 3. Destrava posição sticky (renderiza no offset de scroll, pode desalinhar)
+          if (cls.includes('sticky')) {
+            node.style.position = 'relative'
+            node.style.left = 'auto'
+            node.style.zIndex = 'auto'
+          }
+
+          // 4. Expande containers com overflow para capturar tabela completa
+          if (cls.includes('overflow-x-auto') || cls.includes('overflow-hidden')) {
+            node.style.overflow = 'visible'
+          }
+        })
+      },
+    })
+  }
+
+  async function downloadEscalaJpg() {
+    setExportError('')
+    setExporting('jpg')
+    try {
+      const canvas = await captureEscalaCanvas()
+      const maxWidth = 1440
+      const scale = canvas.width > maxWidth ? maxWidth / canvas.width : 1
+      const outWidth = Math.max(1, Math.round(canvas.width * scale))
+      const outHeight = Math.max(1, Math.round(canvas.height * scale))
+
+      const outCanvas = document.createElement('canvas')
+      outCanvas.width = outWidth
+      outCanvas.height = outHeight
+      const outCtx = outCanvas.getContext('2d')
+      if (!outCtx) throw new Error('Falha ao preparar imagem otimizada.')
+
+      outCtx.fillStyle = '#0f172a'
+      outCtx.fillRect(0, 0, outWidth, outHeight)
+      outCtx.drawImage(canvas, 0, 0, outWidth, outHeight)
+
+      const MAX_BYTES = 1_600_000
+      let quality = 0.9
+      let dataUrl = outCanvas.toDataURL('image/jpeg', quality)
+      while (dataUrl.length > MAX_BYTES && quality > 0.62) {
+        quality -= 0.08
+        dataUrl = outCanvas.toDataURL('image/jpeg', quality)
+      }
+
+      const a = document.createElement('a')
+      a.href = dataUrl
+      a.download = `${getExportFileBase()}.jpg`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+    } catch {
+      setExportError('Não foi possível gerar JPG agora. Tente novamente.')
+    } finally {
+      setExporting(null)
+    }
+  }
+
+  async function downloadEscalaPdf() {
+    setExportError('')
+    setExporting('pdf')
+    try {
+      const canvas = await captureEscalaCanvas()
+      const { jsPDF } = await import('jspdf')
+      const img = canvas.toDataURL('image/jpeg', 0.94)
+      const generatedAt = new Date().toLocaleString('pt-BR')
+      const footerText = `${link.ministry}${link.church?.name ? ` · ${link.church.name}` : ''} · Gerado em ${generatedAt}`
+      const footerHeight = 34
+
+      const orientation = canvas.width > canvas.height ? 'landscape' : 'portrait'
+      const pdf = new jsPDF({
+        orientation,
+        unit: 'px',
+        format: [canvas.width, canvas.height + footerHeight],
+      })
+
+      pdf.addImage(img, 'JPEG', 0, 0, canvas.width, canvas.height, undefined, 'FAST')
+      pdf.setFillColor(15, 23, 42)
+      pdf.rect(0, canvas.height, canvas.width, footerHeight, 'F')
+      pdf.setTextColor(203, 213, 225)
+      pdf.setFontSize(11)
+      pdf.text(footerText, 14, canvas.height + 22, { maxWidth: canvas.width - 28 })
+      pdf.save(`${getExportFileBase()}.pdf`)
+    } catch {
+      setExportError('Não foi possível gerar PDF agora. Tente novamente.')
+    } finally {
+      setExporting(null)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-[#1a0508]">
+
+      <div ref={escalaExportRef}>
 
       {/* ── Hero header ─────────────────────────────────────────────────────── */}
       <div className="relative overflow-hidden pt-10 pb-8 px-5">
@@ -351,6 +497,29 @@ export default function EscalaPublicaPage() {
               <span className="text-xs text-white/40 font-medium">Publicado em {pubDate}</span>
             </div>
           </div>
+          <div data-html2canvas-ignore className="mt-5 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={downloadEscalaPdf}
+              disabled={exporting !== null}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-white/15 bg-white/10 text-white text-xs font-semibold hover:bg-white/15 transition-colors disabled:opacity-40"
+            >
+              {exporting === 'pdf' ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
+              Baixar PDF
+            </button>
+            <button
+              type="button"
+              onClick={downloadEscalaJpg}
+              disabled={exporting !== null}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-white/15 bg-white/10 text-white text-xs font-semibold hover:bg-white/15 transition-colors disabled:opacity-40"
+            >
+              {exporting === 'jpg' ? <Loader2 size={13} className="animate-spin" /> : <FileImage size={13} />}
+              Baixar JPG
+            </button>
+          </div>
+          {exportError && (
+            <p data-html2canvas-ignore className="mt-2 text-xs text-red-300 font-medium">{exportError}</p>
+          )}
         </div>
       </div>
 
@@ -396,11 +565,14 @@ export default function EscalaPublicaPage() {
                         <td className={`sticky left-0 z-10 backdrop-blur-sm border-b border-r border-white/10 px-5 py-4 ${stickyBg}`}>
                           <div className="flex items-center gap-2.5">
                             <div className={`w-0.5 h-10 rounded-full shrink-0 ${
-                              slot.type === 'arena' ? 'bg-violet-500' : slot.type === 'culto' ? 'bg-[#c62737]' : 'bg-blue-500'
+                              slot.type === 'arena' ? 'bg-violet-500' : slot.type === 'evento' ? 'bg-amber-500' : 'bg-[#c62737]'
                             }`} />
                             <div>
                               <p className="font-bold text-white text-xs leading-tight">{slot.label}</p>
-                              <p className="text-white/40 text-[11px] capitalize mt-0.5">{dayName} {dayNum} · {slot.time_of_day}</p>
+                              <p className="text-white/40 text-[11px] capitalize mt-0.5">
+                                {slot.type === 'evento' && <span className="text-amber-400 font-bold mr-1">EVENTO</span>}
+                                {dayName} {dayNum} · {slot.time_of_day}
+                              </p>
                               {hasProblema && (
                                 <span className="inline-flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-400 font-bold mt-1">
                                   <AlertCircle size={8} /> {slot.faltando.length} em aberto
@@ -455,7 +627,10 @@ export default function EscalaPublicaPage() {
             </div>
           </div>
         )}
+      </div>
+      </div>
 
+      <div className="max-w-4xl mx-auto px-4 pb-12">
         {/* ── Seção de solicitação de troca ────────────────────────────── */}
         {slots.length > 0 && (
           <div className="mt-6 bg-white/5 backdrop-blur-sm border border-white/10 rounded-3xl overflow-hidden">

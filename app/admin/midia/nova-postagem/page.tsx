@@ -1867,74 +1867,12 @@ function NovaPostagemContent() {
             </div>
           </div>
 
-          {/* ┌── Card 2: Legenda ────────────────────────────────────┐ */}
-          <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-            <div className="flex items-center gap-3 border-b border-slate-100 bg-slate-50/60 px-5 py-3.5">
+          {/* ┌── Card 2: Mídias ─────────────────────────────────────┐ */}
+          {/* Sem overflow-hidden: overlay de ações usa position:absolute */}
+          <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="flex items-center gap-3 border-b border-slate-100 bg-slate-50/60 px-5 py-3.5 rounded-t-2xl">
               <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#c62737] text-[11px] font-bold text-white flex-shrink-0">
                 2
-              </span>
-              <h2 className="text-sm font-semibold text-slate-800">Legenda</h2>
-              <span
-                className={`ml-auto text-xs tabular-nums font-medium ${
-                  charCount > 2000 ? 'text-red-500' : 'text-slate-400'
-                }`}
-              >
-                {charCount}/2200
-              </span>
-              <button
-                type="button"
-                onClick={() => setAiModalOpen(true)}
-                className="flex items-center gap-1.5 rounded-xl border border-violet-200 bg-gradient-to-r from-violet-50 to-purple-50 px-3 py-1.5 text-xs font-semibold text-violet-700 hover:from-violet-100 hover:to-purple-100 transition-all shadow-sm"
-              >
-                <Sparkles className="h-3 w-3" />
-                Gerar com IA
-              </button>
-            </div>
-            <div className="px-5 py-4">
-              <textarea
-                ref={textareaRef}
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                placeholder="Digite a legenda do seu post… ✨"
-                rows={5}
-                maxLength={2200}
-                className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50/40 px-4 py-3 text-sm text-slate-800 placeholder:text-slate-400 outline-none transition focus:border-[#c62737] focus:ring-2 focus:ring-[#c62737]/20 focus:bg-white hover:border-slate-300"
-              />
-              {/* Barra de emojis */}
-              <div className="mt-2.5 flex flex-wrap items-center gap-1">
-                {QUICK_EMOJIS.map((e) => (
-                  <button
-                    key={e}
-                    type="button"
-                    onClick={() => insertEmoji(e)}
-                    className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm leading-none hover:bg-slate-50 hover:border-slate-300 transition-colors"
-                    title={e}
-                  >
-                    {e}
-                  </button>
-                ))}
-                <button
-                  type="button"
-                  onClick={() => insertEmoji(' #')}
-                  className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-bold text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors"
-                  title="Inserir hashtag"
-                >
-                  #
-                </button>
-                {text && (
-                  <span className="ml-auto text-xs text-slate-400">
-                    {(text.match(/#\w/g) ?? []).length} hashtag(s)
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* ┌── Card 3: Mídias ─────────────────────────────────────┐ */}
-          <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-            <div className="flex items-center gap-3 border-b border-slate-100 bg-slate-50/60 px-5 py-3.5">
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#c62737] text-[11px] font-bold text-white flex-shrink-0">
-                3
               </span>
               <h2 className="text-sm font-semibold text-slate-800">Mídias</h2>
               {media.length > 0 && (
@@ -1977,84 +1915,124 @@ function NovaPostagemContent() {
             <div className="px-5 py-4">
               {/* Grid de mídias selecionadas */}
               {media.length > 0 && (
-                <div className="mb-4 grid grid-cols-4 gap-2 sm:grid-cols-5 md:grid-cols-6">
+                <div className="mb-4 grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
                   {media.map((item, idx) => (
-                    <div key={item.id} className="group relative aspect-square">
-                      <div
-                        className={`h-full w-full overflow-hidden rounded-xl border-2 bg-slate-100 transition-all ${
-                          item.type === 'gallery'
-                            ? 'border-blue-200'
-                            : 'border-slate-200'
-                        }`}
-                      >
-                        <img
-                          src={mediaThumb(item)}
-                          alt={`Mídia ${idx + 1}`}
-                          className="h-full w-full object-cover"
-                          loading="lazy"
-                        />
-                      </div>
-                      {/* Badge de ordem */}
-                      <span
-                        className={`absolute left-1 top-1 flex h-5 w-5 items-center justify-center rounded-md text-[10px] font-bold text-white shadow ${
-                          item.type === 'gallery'
-                            ? 'bg-blue-500'
-                            : 'bg-slate-800/80'
-                        }`}
-                      >
-                        {idx + 1}
-                      </span>
-                      {/* Badge de fonte */}
-                      {item.type === 'gallery' && (
-                        <span
-                          className="absolute bottom-1 right-1 rounded-md bg-blue-500/80 p-0.5 text-white backdrop-blur-sm"
-                          title="Da galeria"
+                    <div key={item.id} className="group flex flex-col gap-1">
+                      {/* Thumbnail */}
+                      <div className="relative aspect-square">
+                        <div
+                          className={`h-full w-full overflow-hidden rounded-xl border-2 bg-slate-100 transition-all ${
+                            item.type === 'gallery'
+                              ? 'border-blue-200'
+                              : 'border-slate-200'
+                          }`}
                         >
-                          <FolderOpen className="h-2.5 w-2.5" />
+                          <img
+                            src={mediaThumb(item)}
+                            alt={`Mídia ${idx + 1}`}
+                            className="h-full w-full object-cover"
+                            loading="lazy"
+                          />
+                        </div>
+                        {/* Badge de ordem */}
+                        <span
+                          className={`absolute left-1 top-1 flex h-5 w-5 items-center justify-center rounded-md text-[10px] font-bold text-white shadow ${
+                            item.type === 'gallery'
+                              ? 'bg-blue-500'
+                              : 'bg-slate-800/80'
+                          }`}
+                        >
+                          {idx + 1}
                         </span>
-                      )}
-                      {/* Ações ao hover */}
-                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity bg-black/30 rounded-xl">
-                        <div className="flex gap-1">
-                          <button
-                            type="button"
-                            onClick={() => setCropItem(item)}
-                            className="flex h-6 w-6 items-center justify-center rounded-full bg-white/90 text-slate-700 hover:bg-white shadow transition-colors"
-                            title="Editar proporção"
+                        {/* Badge de fonte */}
+                        {item.type === 'gallery' && (
+                          <span
+                            className="absolute bottom-1 right-1 rounded-md bg-blue-500/80 p-0.5 text-white backdrop-blur-sm"
+                            title="Da galeria"
                           >
-                            <Crop className="h-3 w-3" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => removeMedia(item.id)}
-                            className="flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-white hover:bg-red-600 shadow transition-colors"
-                            title="Remover"
-                          >
-                            <X className="h-3 w-3" />
-                          </button>
-                        </div>
-                        <div className="flex gap-1">
-                          {idx > 0 && (
+                            <FolderOpen className="h-2.5 w-2.5" />
+                          </span>
+                        )}
+                        {/* Ações ao hover — somente desktop (sm+) */}
+                        <div className="absolute inset-0 hidden sm:flex flex-col items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity bg-black/30 rounded-xl">
+                          <div className="flex gap-1">
                             <button
                               type="button"
-                              onClick={() => moveMedia(item.id, 'left')}
-                              className="flex h-5 w-5 items-center justify-center rounded-full bg-white/90 text-slate-700 hover:bg-white shadow transition-colors"
-                              title="Mover para esquerda"
+                              onClick={() => setCropItem(item)}
+                              className="flex h-6 w-6 items-center justify-center rounded-full bg-white/90 text-slate-700 hover:bg-white shadow transition-colors"
+                              title="Editar proporção"
                             >
-                              <ChevronLeft className="h-3 w-3" />
+                              <Crop className="h-3 w-3" />
                             </button>
-                          )}
-                          {idx < media.length - 1 && (
                             <button
                               type="button"
-                              onClick={() => moveMedia(item.id, 'right')}
-                              className="flex h-5 w-5 items-center justify-center rounded-full bg-white/90 text-slate-700 hover:bg-white shadow transition-colors"
-                              title="Mover para direita"
+                              onClick={() => removeMedia(item.id)}
+                              className="flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-white hover:bg-red-600 shadow transition-colors"
+                              title="Remover"
                             >
-                              <ChevronRight className="h-3 w-3" />
+                              <X className="h-3 w-3" />
                             </button>
-                          )}
+                          </div>
+                          <div className="flex gap-1">
+                            {idx > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => moveMedia(item.id, 'left')}
+                                className="flex h-5 w-5 items-center justify-center rounded-full bg-white/90 text-slate-700 hover:bg-white shadow transition-colors"
+                                title="Mover para esquerda"
+                              >
+                                <ChevronLeft className="h-3 w-3" />
+                              </button>
+                            )}
+                            {idx < media.length - 1 && (
+                              <button
+                                type="button"
+                                onClick={() => moveMedia(item.id, 'right')}
+                                className="flex h-5 w-5 items-center justify-center rounded-full bg-white/90 text-slate-700 hover:bg-white shadow transition-colors"
+                                title="Mover para direita"
+                              >
+                                <ChevronRight className="h-3 w-3" />
+                              </button>
+                            )}
+                          </div>
                         </div>
+                      </div>
+                      {/* Controles sempre visíveis no mobile */}
+                      <div className="flex sm:hidden items-center gap-0.5">
+                        <button
+                          type="button"
+                          onClick={() => idx > 0 && moveMedia(item.id, 'left')}
+                          disabled={idx === 0}
+                          className="flex flex-1 items-center justify-center rounded-lg bg-slate-100 py-1 hover:bg-slate-200 disabled:opacity-25 transition-colors"
+                          title="Mover para esquerda"
+                        >
+                          <ChevronLeft className="h-3.5 w-3.5 text-slate-600" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setCropItem(item)}
+                          className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-100 hover:bg-slate-200 transition-colors"
+                          title="Editar proporção"
+                        >
+                          <Crop className="h-3 w-3 text-slate-600" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => removeMedia(item.id)}
+                          className="flex h-7 w-7 items-center justify-center rounded-lg bg-red-50 hover:bg-red-100 transition-colors"
+                          title="Remover"
+                        >
+                          <X className="h-3 w-3 text-red-500" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => idx < media.length - 1 && moveMedia(item.id, 'right')}
+                          disabled={idx >= media.length - 1}
+                          className="flex flex-1 items-center justify-center rounded-lg bg-slate-100 py-1 hover:bg-slate-200 disabled:opacity-25 transition-colors"
+                          title="Mover para direita"
+                        >
+                          <ChevronRight className="h-3.5 w-3.5 text-slate-600" />
+                        </button>
                       </div>
                     </div>
                   ))}
@@ -2158,8 +2136,11 @@ function NovaPostagemContent() {
                     <span className="inline-block h-2.5 w-2.5 rounded bg-blue-500" />
                     Da galeria
                   </span>
-                  <span className="ml-auto font-medium text-slate-500">
-                    Use as setas para reordenar
+                  <span className="ml-auto font-medium text-slate-500 hidden sm:inline">
+                    Passe o mouse sobre a imagem para reordenar
+                  </span>
+                  <span className="ml-auto font-medium text-slate-500 sm:hidden">
+                    Use ↔ abaixo de cada foto para reordenar
                   </span>
                 </div>
               )}
@@ -2173,9 +2154,73 @@ function NovaPostagemContent() {
             </div>
           </div>
 
+          {/* ┌── Card 3: Legenda ────────────────────────────────────┐ */}
+          <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="flex items-center gap-3 border-b border-slate-100 bg-slate-50/60 px-5 py-3.5 rounded-t-2xl">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#c62737] text-[11px] font-bold text-white flex-shrink-0">
+                3
+              </span>
+              <h2 className="text-sm font-semibold text-slate-800">Legenda</h2>
+              <span
+                className={`ml-auto text-xs tabular-nums font-medium ${
+                  charCount > 2000 ? 'text-red-500' : 'text-slate-400'
+                }`}
+              >
+                {charCount}/2200
+              </span>
+              <button
+                type="button"
+                onClick={() => setAiModalOpen(true)}
+                className="flex items-center gap-1.5 rounded-xl border border-violet-200 bg-gradient-to-r from-violet-50 to-purple-50 px-3 py-1.5 text-xs font-semibold text-violet-700 hover:from-violet-100 hover:to-purple-100 transition-all shadow-sm"
+              >
+                <Sparkles className="h-3 w-3" />
+                Gerar com IA
+              </button>
+            </div>
+            <div className="px-5 py-4">
+              <textarea
+                ref={textareaRef}
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                placeholder="Digite a legenda do seu post… ✨"
+                rows={5}
+                maxLength={2200}
+                className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50/40 px-4 py-3 text-sm text-slate-800 placeholder:text-slate-400 outline-none transition focus:border-[#c62737] focus:ring-2 focus:ring-[#c62737]/20 focus:bg-white hover:border-slate-300"
+              />
+              {/* Barra de emojis */}
+              <div className="mt-2.5 flex flex-wrap items-center gap-1">
+                {QUICK_EMOJIS.map((e) => (
+                  <button
+                    key={e}
+                    type="button"
+                    onClick={() => insertEmoji(e)}
+                    className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm leading-none hover:bg-slate-50 hover:border-slate-300 transition-colors"
+                    title={e}
+                  >
+                    {e}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => insertEmoji(' #')}
+                  className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-bold text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors"
+                  title="Inserir hashtag"
+                >
+                  #
+                </button>
+                {text && (
+                  <span className="ml-auto text-xs text-slate-400">
+                    {(text.match(/#\w/g) ?? []).length} hashtag(s)
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
           {/* ┌── Card 4: Agendamento ────────────────────────────────┐ */}
-          <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-            <div className="flex items-center gap-3 border-b border-slate-100 bg-slate-50/60 px-5 py-3.5">
+          {/* Sem overflow-hidden: contém DatePickerInput com calendário position:absolute */}
+          <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="flex items-center gap-3 border-b border-slate-100 bg-slate-50/60 px-5 py-3.5 rounded-t-2xl">
               <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#c62737] text-[11px] font-bold text-white flex-shrink-0">
                 4
               </span>

@@ -1,10 +1,11 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import {
   ArrowLeft,
   Pencil,
+  Trash2,
   User,
   Heart,
   Phone,
@@ -25,8 +26,10 @@ import Link from 'next/link'
 import { PageAccessGuard } from '@/app/admin/PageAccessGuard'
 import { PersonForm } from '@/components/admin/people/PersonForm'
 import { Toast } from '@/components/Toast'
+import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { fetchPerson, updatePerson } from '@/lib/people'
 import { adminFetchJson } from '@/lib/admin-client'
+import { useAdminAccess } from '@/lib/admin-access-context'
 import type { Person } from '@/lib/types/person'
 import type { PersonFormData } from '@/components/admin/people/PersonForm'
 import { formatDateDisplay } from '@/lib/validators/person'
@@ -165,7 +168,9 @@ function DataCard({
 
 export default function PessoaDetalhePage() {
   const params = useParams()
+  const router = useRouter()
   const id = params?.id as string
+  const access = useAdminAccess()
   const [person, setPerson] = useState<Person | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -182,6 +187,8 @@ export default function PessoaDetalhePage() {
   const [inviteMessage, setInviteMessage] = useState<{ type: 'ok' | 'err'; message: string } | null>(null)
   const [conversao, setConversao] = useState<Record<string, any> | null>(null)
   const [userLink, setUserLink] = useState<UserLinkState | null>(null)
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   async function loadUserLink(personId: string) {
     try {
@@ -189,6 +196,19 @@ export default function PessoaDetalhePage() {
       setUserLink(data)
     } catch {
       setUserLink({ linked: false, user: null, emailUser: null })
+    }
+  }
+
+  async function handleDelete() {
+    if (!id) return
+    setDeleting(true)
+    try {
+      await adminFetchJson(`/api/admin/people/${id}`, { method: 'DELETE' })
+      router.push('/admin/pessoas')
+    } catch (e) {
+      setDeleting(false)
+      setDeleteConfirmOpen(false)
+      setToast({ type: 'err', message: e instanceof Error ? e.message : 'Erro ao excluir pessoa.' })
     }
   }
 
@@ -472,6 +492,16 @@ export default function PessoaDetalhePage() {
                   >
                     <Pencil size={16} /> Editar
                   </button>
+                  {access.isAdmin && (
+                    <button
+                      type="button"
+                      onClick={() => setDeleteConfirmOpen(true)}
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-red-200 text-red-600 text-sm font-medium hover:bg-red-50 transition-colors"
+                      title="Excluir pessoa e usuário"
+                    >
+                      <Trash2 size={16} /> Excluir
+                    </button>
+                  )}
                 </div>
                 {userLink?.linked && userLink.user?.email && (
                   <p className="text-xs text-slate-500">Usuário: {userLink.user.email}</p>
@@ -756,6 +786,17 @@ export default function PessoaDetalhePage() {
             </div>
           </div>
         )}
+
+        <ConfirmDialog
+          open={deleteConfirmOpen}
+          variant="danger"
+          title="Excluir pessoa"
+          message={`Tem certeza que deseja excluir "${person.full_name}"? ${userLink?.linked ? 'O usuário vinculado à plataforma também será excluído. ' : ''}Esta ação é permanente e não pode ser desfeita.`}
+          confirmLabel="Sim, excluir"
+          loading={deleting}
+          onConfirm={handleDelete}
+          onCancel={() => setDeleteConfirmOpen(false)}
+        />
       </div>
     </PageAccessGuard>
   )

@@ -174,6 +174,8 @@ export default function AdminLayout({
       ['/admin/escalas',                        'Escalas'],
       ['/admin/galeria',                        'Galeria'],
       ['/admin/instagram',                      'Instagram'],
+      ['/admin/midia/agenda-social',            'Agenda Mídia/Social'],
+      ['/admin/midia/demandas',                 'Demandas de Mídia'],
       ['/admin/livraria/movimentacoes',         'Movimentações — Livraria'],
       ['/admin/livraria',                       'Livraria'],
       ['/admin/reservas/salas',                 'Salas — Reservas'],

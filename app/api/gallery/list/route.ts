@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
 
   let query = supabaseServer
     .from('galleries')
-    .select('id, type, title, slug, date, created_at, drive_folder_id')
+    .select('id, type, title, slug, date, created_at, drive_folder_id, hidden_from_public')
     .order('date', { ascending: false })
     .order('created_at', { ascending: false })
 

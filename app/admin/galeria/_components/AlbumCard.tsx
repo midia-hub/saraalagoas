@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Album } from '@/lib/gallery-types'
-import { Calendar, Image as ImageIcon, Share2, Check, FolderOpen, Trash2, Send, ExternalLink } from 'lucide-react'
+import { Calendar, Image as ImageIcon, Share2, Check, FolderOpen, Trash2, Send, ExternalLink, EyeOff, Eye } from 'lucide-react'
 
 function formatDatePtBr(iso: string): string {
   try {
@@ -27,9 +27,11 @@ export interface AlbumCardProps {
   canDeleteAlbum?: boolean
   /** Chamado ao clicar em excluir álbum (abre confirmação no pai) */
   onDeleteAlbum?: (album: Album) => void
+  /** Chamado ao clicar em ocultar/exibir álbum na galeria pública */
+  onToggleVisibility?: (album: Album) => void
 }
 
-export function AlbumCard({ album, onCopyLink, onVisible, canDeleteAlbum, onDeleteAlbum }: AlbumCardProps) {
+export function AlbumCard({ album, onCopyLink, onVisible, canDeleteAlbum, onDeleteAlbum, onToggleVisibility }: AlbumCardProps) {
   const [hovered, setHovered] = useState(false)
   const [copied, setCopied] = useState(false)
   const cardRef = useRef<HTMLElement>(null)
@@ -117,7 +119,17 @@ export function AlbumCard({ album, onCopyLink, onVisible, canDeleteAlbum, onDele
             </span>
           </div>
 
-          {/* Photo count — bottom right, always visible */}
+          {/* Hidden badge — top right when album is hidden */}
+          {album.hidden_from_public && (
+            <div className="absolute top-2.5 right-2.5">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/90 text-white text-[10px] font-bold backdrop-blur-sm">
+                <EyeOff className="w-2.5 h-2.5" />
+                Oculto
+              </span>
+            </div>
+          )}
+
+          {/* Photo count — bottom right, always visible */}}
           {album.photosCount != null && (
             <div className="absolute bottom-2.5 right-2.5">
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/50 text-white text-[11px] font-semibold backdrop-blur-sm">
@@ -196,6 +208,26 @@ export function AlbumCard({ album, onCopyLink, onVisible, canDeleteAlbum, onDele
             >
               <FolderOpen className="w-3.5 h-3.5" />
             </a>
+          )}
+
+          {/* Ocultar / Exibir */}
+          {onToggleVisibility && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                e.preventDefault()
+                onToggleVisibility(album)
+              }}
+              className={`flex items-center justify-center w-7 h-7 rounded-lg border transition-colors ${
+                album.hidden_from_public
+                  ? 'border-amber-300 bg-amber-50 text-amber-600 hover:bg-amber-100'
+                  : 'border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-700'
+              }`}
+              title={album.hidden_from_public ? 'Tornar visível na galeria pública' : 'Ocultar da galeria pública'}
+            >
+              {album.hidden_from_public ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+            </button>
           )}
 
           {/* Excluir */}

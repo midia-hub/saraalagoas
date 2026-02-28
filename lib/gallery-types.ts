@@ -35,5 +35,7 @@ export interface Album {
   publicPath: string
   /** ID da pasta no Google Drive (para link "Abrir no Drive") */
   drive_folder_id?: string
+  /** Se true, o álbum não aparece na listagem pública de /galeria */
+  hidden_from_public?: boolean
 }
 

@@ -5,7 +5,8 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { PageAccessGuard } from '@/app/admin/PageAccessGuard'
 import { AdminPageHeader } from '@/app/admin/AdminPageHeader'
 import { adminFetchJson } from '@/lib/admin-client'
-import { Facebook, Instagram, CheckCircle, XCircle, AlertCircle, Loader2, Unlink, Link2 } from 'lucide-react'
+import { Facebook, Instagram, Youtube, CheckCircle, XCircle, AlertCircle, Loader2, Unlink, Link2, Trash2, Video } from 'lucide-react'
+import { CustomSelect } from '@/components/ui/CustomSelect'
 
 type MetaIntegration = {
   id: string
@@ -33,6 +34,27 @@ type MetaIntegration = {
   }
 }
 
+// ─── Tipo YouTube ────────────────────────────────────────────────────────────
+type YouTubeIntegration = {
+  id:                    string
+  created_at:            string
+  updated_at:            string
+  channel_id:            string | null
+  channel_title:         string | null
+  channel_custom_url:    string | null
+  channel_thumbnail_url: string | null
+  token_expires_at:      string | null
+  scopes:                string[] | null
+  is_active:             boolean
+  metadata:              Record<string, unknown>
+}
+
+type YouTubePostModal = {
+  integrationId: string
+  channelTitle:  string
+  open:          boolean
+}
+
 export default function AdminInstanciasPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -44,6 +66,23 @@ export default function AdminInstanciasPage() {
   const [unlinkModalId, setUnlinkModalId] = useState<string | null>(null)
   const [unlinking, setUnlinking] = useState(false)
   const [revinkingId, setRevinkingId] = useState<string | null>(null)
+
+  // ── YouTube ──
+  const [ytIntegrations, setYtIntegrations]   = useState<YouTubeIntegration[]>([])
+  const [ytLoading, setYtLoading]             = useState(true)
+  const [ytConnecting, setYtConnecting]       = useState(false)
+  const [ytTogglingId, setYtTogglingId]       = useState<string | null>(null)
+  const [ytDeletingId, setYtDeletingId]       = useState<string | null>(null)
+  const [ytDeleteModalId, setYtDeleteModalId] = useState<string | null>(null)
+  const [ytPostModal, setYtPostModal]         = useState<YouTubePostModal | null>(null)
+  const [ytPostForm, setYtPostForm]           = useState({
+    videoUrl:      '',
+    title:         '',
+    description:   '',
+    privacyStatus: 'public',
+    tags:          '',
+  })
+  const [ytPosting, setYtPosting]             = useState(false)
 
   const instagramScopeLabels: Record<string, string> = {
     pages_show_list: 'Listagem de páginas',
@@ -67,8 +106,21 @@ export default function AdminInstanciasPage() {
     }
   }
 
+  async function loadYtIntegrations() {
+    setYtLoading(true)
+    try {
+      const data = await adminFetchJson<{ integrations: YouTubeIntegration[] }>('/api/admin/youtube/integrations')
+      setYtIntegrations(data.integrations || [])
+    } catch {
+      setYtIntegrations([])
+    } finally {
+      setYtLoading(false)
+    }
+  }
+
   useEffect(() => {
     loadIntegrations()
+    loadYtIntegrations()
   }, [])
 
   // Tratar retorno por query params (fluxo sem popup / fallback)
@@ -230,6 +282,116 @@ export default function AdminInstanciasPage() {
     }
   }
 
+  // ──────────────────────────────────────────────────────────────────────────
+  // Funções YouTube
+  // ──────────────────────────────────────────────────────────────────────────
+  async function handleConnectYouTube() {
+    setYtConnecting(true)
+    setError(null)
+    setSuccess(null)
+    try {
+      const data = await adminFetchJson<{ url: string }>('/api/youtube/oauth/start?popup=1')
+      const width  = 520
+      const height = 640
+      const left   = Math.round((window.screen.width  - width)  / 2)
+      const top    = Math.round((window.screen.height - height) / 2)
+      const popup  = window.open(
+        data.url,
+        'youtube-oauth',
+        `width=${width},height=${height},left=${left},top=${top},scrollbars=yes,resizable=yes`
+      )
+      if (!popup) {
+        setError('Popup bloqueado. Permita popups para este site e tente novamente.')
+        setYtConnecting(false)
+        return
+      }
+      const handleMsg = (event: MessageEvent) => {
+        if (event.origin !== window.location.origin) return
+        if (event.data?.type !== 'youtube-oauth-done') return
+        window.removeEventListener('message', handleMsg)
+        clearInterval(timer)
+        setYtConnecting(false)
+        if (event.data.connected) {
+          const label = event.data.channel ? `Canal: ${event.data.channel}` : 'Canal conectado!'
+          setSuccess(`YouTube conectado! ${label}`)
+          loadYtIntegrations()
+        } else {
+          setError(event.data.error || 'Não foi possível conectar o canal.')
+        }
+      }
+      const timer = setInterval(() => {
+        if (popup.closed) { clearInterval(timer); window.removeEventListener('message', handleMsg); setYtConnecting(false) }
+      }, 400)
+      window.addEventListener('message', handleMsg)
+    } catch (e) {
+      setYtConnecting(false)
+      const msg = e instanceof Error ? e.message : null
+      setError(msg || 'Não foi possível iniciar a conexão com o YouTube. Configure YOUTUBE_CLIENT_ID e YOUTUBE_CLIENT_SECRET no .env.')
+    }
+  }
+
+  async function handleToggleYoutubeActive(id: string, current: boolean) {
+    setYtTogglingId(id)
+    try {
+      await adminFetchJson(`/api/admin/youtube/integrations/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ is_active: !current }),
+      })
+      await loadYtIntegrations()
+    } catch {
+      setError('Não foi possível atualizar. Tente novamente.')
+    } finally {
+      setYtTogglingId(null)
+    }
+  }
+
+  async function confirmDeleteYoutube() {
+    const id = ytDeleteModalId
+    if (!id) return
+    setYtDeletingId(id)
+    setYtDeleteModalId(null)
+    try {
+      await adminFetchJson(`/api/admin/youtube/integrations/${id}`, { method: 'DELETE' })
+      setSuccess('Canal do YouTube removido.')
+      await loadYtIntegrations()
+    } catch {
+      setError('Não foi possível remover. Tente novamente.')
+    } finally {
+      setYtDeletingId(null)
+    }
+  }
+
+  async function handlePostToYouTube() {
+    if (!ytPostModal) return
+    if (!ytPostForm.videoUrl) { setError('Informe a URL do vídeo.'); return }
+    if (!ytPostForm.title)    { setError('Informe o título do vídeo.'); return }
+    setYtPosting(true)
+    setError(null)
+    try {
+      const tags = ytPostForm.tags
+        ? ytPostForm.tags.split(',').map((t) => t.trim()).filter(Boolean)
+        : []
+      const result = await adminFetchJson<{ videoId: string; videoUrl: string }>('/api/admin/youtube/post', {
+        method: 'POST',
+        body: JSON.stringify({
+          integrationId: ytPostModal.integrationId,
+          videoUrl:      ytPostForm.videoUrl,
+          title:         ytPostForm.title,
+          description:   ytPostForm.description,
+          privacyStatus: ytPostForm.privacyStatus,
+          tags,
+        }),
+      })
+      setYtPostModal(null)
+      setYtPostForm({ videoUrl: '', title: '', description: '', privacyStatus: 'public', tags: '' })
+      setSuccess(`Vídeo enviado ao YouTube! ${result.videoUrl}`)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Erro ao publicar vídeo.')
+    } finally {
+      setYtPosting(false)
+    }
+  }
+
   function getStatusBadge(integration: MetaIntegration) {
     if (integration.metadata?.pending_page_selection) {
       return (
@@ -306,8 +468,8 @@ export default function AdminInstanciasPage() {
       <div className="p-6 md:p-8">
         <AdminPageHeader
           icon={Link2}
-          title="Configurações do Instagram/Facebook"
-          subtitle="Conecte sua conta do Facebook/Instagram para liberar as postagens. Use a conta que administra a página e o perfil do Instagram."
+          title="Contas Conectadas"
+          subtitle="Gerencie as integrações com Instagram, Facebook e YouTube para publicar diretamente da plataforma."
         />
 
         {/* Mensagens de sucesso/erro */}
@@ -352,6 +514,33 @@ export default function AdminInstanciasPage() {
           </p>
         </div>
 
+        {/* Conectar YouTube */}
+        <div className="mb-6 rounded-xl border-2 border-red-100 bg-white p-5">
+          <h2 className="text-lg font-semibold text-slate-900 mb-2 flex items-center gap-2">
+            <Youtube size={20} className="text-red-600" />
+            Conectar YouTube
+          </h2>
+          <p className="text-slate-600 text-sm mb-4">
+            Faça login com a conta Google que administra o canal. O acesso permite fazer upload de vídeos
+            diretamente pelo painel. Necessário configurar <strong>YOUTUBE_CLIENT_ID</strong> e{' '}
+            <strong>YOUTUBE_CLIENT_SECRET</strong> (Google Cloud Console &rarr; APIs &amp; Services &rarr; Credentials).
+          </p>
+          <button
+            onClick={handleConnectYouTube}
+            disabled={ytConnecting}
+            className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-5 py-2.5 text-white font-medium hover:bg-red-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+          >
+            {ytConnecting ? (
+              <><Loader2 size={18} className="animate-spin" /> Abrindo login...</>
+            ) : (
+              <><Youtube size={18} /> Conectar canal do YouTube</>
+            )}
+          </button>
+          <p className="mt-3 text-xs text-slate-500">
+            O canal vinculado aparecerá na lista abaixo. Cada conta Google pode ter apenas um canal por conexão.
+          </p>
+        </div>
+
         {/* Resumo: contas disponíveis para postagem */}
         {!loading && integrations.length > 0 && (
           <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
@@ -386,6 +575,15 @@ export default function AdminInstanciasPage() {
                 {integrations.filter(isLinked).length} / {integrations.filter((i) => !isLinked(i)).length}
               </p>
             </div>
+            <div className="rounded-xl border border-red-100 bg-white p-4">
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-500 flex items-center gap-1">
+                <Youtube size={12} className="text-red-600" /> YouTube (ativo)
+              </p>
+              <p className="mt-1 text-2xl font-semibold text-red-600">
+                {ytIntegrations.filter((i) => i.is_active).length}
+              </p>
+              <p className="text-xs text-slate-500 mt-0.5">canais conectados</p>
+            </div>
           </div>
         )}
 
@@ -400,6 +598,111 @@ export default function AdminInstanciasPage() {
           </div>
         ) : (
           <div className="space-y-8">
+            {/* Canais YouTube */}
+            <div className="rounded-xl border border-red-200 bg-white">
+              <div className="border-b border-red-100 px-4 py-3 bg-red-50/50">
+                <h2 className="font-semibold text-slate-900 flex items-center gap-2">
+                  <Youtube size={20} className="text-red-600" />
+                  Canais YouTube
+                </h2>
+                <p className="text-xs text-slate-500 mt-0.5">Canais do YouTube conectados via OAuth Google.</p>
+              </div>
+              {ytLoading ? (
+                <div className="p-6 flex items-center justify-center">
+                  <Loader2 size={20} className="animate-spin text-slate-400" />
+                </div>
+              ) : ytIntegrations.length === 0 ? (
+                <p className="p-5 text-sm text-slate-500">Nenhum canal conectado. Clique em &quot;Conectar canal do YouTube&quot; acima.</p>
+              ) : (
+                <div className="divide-y divide-slate-100">
+                  {ytIntegrations.map((yt) => {
+                    const expiresAt = yt.token_expires_at ? new Date(yt.token_expires_at) : null
+                    const isExpired = expiresAt ? expiresAt < new Date() : false
+                    return (
+                      <div key={yt.id} className="p-5 hover:bg-slate-50 flex flex-wrap items-start justify-between gap-4">
+                        <div className="min-w-0 flex items-start gap-3">
+                          {yt.channel_thumbnail_url ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={yt.channel_thumbnail_url} alt={yt.channel_title ?? ''} className="w-10 h-10 rounded-full shrink-0 border border-slate-200" />
+                          ) : (
+                            <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center shrink-0">
+                              <Youtube size={18} className="text-red-600" />
+                            </div>
+                          )}
+                          <div>
+                            <div className="flex flex-wrap items-center gap-2 mb-0.5">
+                              {yt.is_active && !isExpired ? (
+                                <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700">
+                                  <CheckCircle size={12} /> Ativa
+                                </span>
+                              ) : isExpired ? (
+                                <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700">
+                                  <XCircle size={12} /> Token expirado
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                                  <XCircle size={12} /> Inativa
+                                </span>
+                              )}
+                              <span className="font-medium text-slate-900">{yt.channel_title || 'Canal sem nome'}</span>
+                            </div>
+                            <div className="text-xs text-slate-500 space-y-0.5">
+                              {yt.channel_custom_url && <p>Handle: {yt.channel_custom_url}</p>}
+                              {yt.channel_id && <p>ID: {yt.channel_id}</p>}
+                              <p>Atualizado: {new Date(yt.updated_at).toLocaleString('pt-BR')}</p>
+                              {expiresAt && (
+                                <p className={isExpired ? 'text-red-600 font-medium' : ''}>
+                                  Token {isExpired ? 'expirou' : 'expira'}: {expiresAt.toLocaleDateString('pt-BR')}
+                                  {isExpired && ' — Reconecte o canal'}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap gap-2 shrink-0">
+                          {isExpired && (
+                            <button
+                              onClick={handleConnectYouTube}
+                              disabled={ytConnecting}
+                              className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-sm text-amber-800 hover:bg-amber-100 disabled:opacity-50 flex items-center gap-1"
+                            >
+                              {ytConnecting && <Loader2 className="w-3 h-3 animate-spin" />}
+                              Reconectar
+                            </button>
+                          )}
+                          {yt.is_active && !isExpired && (
+                            <button
+                              onClick={() => {
+                                setYtPostForm({ videoUrl: '', title: yt.channel_title ? `Novo vídeo — ${yt.channel_title}` : '', description: '', privacyStatus: 'public', tags: '' })
+                                setYtPostModal({ integrationId: yt.id, channelTitle: yt.channel_title ?? '', open: true })
+                              }}
+                              className="rounded-lg bg-red-600 px-3 py-1.5 text-sm text-white hover:bg-red-700 flex items-center gap-1"
+                            >
+                              <Video size={14} /> Publicar vídeo
+                            </button>
+                          )}
+                          <button
+                            onClick={() => handleToggleYoutubeActive(yt.id, yt.is_active)}
+                            disabled={ytTogglingId === yt.id}
+                            className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-100 disabled:opacity-50"
+                          >
+                            {ytTogglingId === yt.id ? <Loader2 size={14} className="animate-spin" /> : (yt.is_active ? 'Desativar' : 'Ativar')}
+                          </button>
+                          <button
+                            onClick={() => setYtDeleteModalId(yt.id)}
+                            disabled={ytDeletingId === yt.id}
+                            className="rounded-lg border border-red-300 px-3 py-1.5 text-sm text-red-700 hover:bg-red-50 flex items-center gap-1 disabled:opacity-50"
+                          >
+                            {ytDeletingId === yt.id ? <Loader2 size={14} className="animate-spin" /> : <><Trash2 size={14} /> Remover</>}
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+
             {/* Pendentes (sem página escolhida) - só vinculadas */}
             {integrations.filter((i) => isLinked(i) && i.metadata?.pending_page_selection).length > 0 && (
               <div className="rounded-xl border border-slate-200 bg-white">
@@ -663,6 +966,155 @@ export default function AdminInstanciasPage() {
         <p className="mt-4 text-xs text-slate-500">
           Para revogar o app no Facebook: Configurações → Apps e sites.
         </p>
+
+        {/* Modal YouTube: Publicar Vídeo */}
+        {ytPostModal?.open && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+            onClick={() => !ytPosting && setYtPostModal(null)}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="yt-post-modal-title"
+          >
+            <div
+              className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white shadow-xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-6 border-b border-slate-100">
+                <div className="flex items-center gap-3 mb-1">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-red-100">
+                    <Youtube size={18} className="text-red-600" />
+                  </div>
+                  <div>
+                    <h2 id="yt-post-modal-title" className="text-base font-semibold text-slate-900">Publicar vídeo no YouTube</h2>
+                    <p className="text-xs text-slate-500">Canal: {ytPostModal.channelTitle}</p>
+                  </div>
+                </div>
+              </div>
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">URL do vídeo <span className="text-red-500">*</span></label>
+                  <input
+                    value={ytPostForm.videoUrl}
+                    onChange={(e) => setYtPostForm({ ...ytPostForm, videoUrl: e.target.value })}
+                    placeholder="https://drive.google.com/... ou URL pública do vídeo"
+                    className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 hover:border-slate-300 focus:border-[#c62737] focus:ring-1 focus:ring-[#c62737] outline-none transition-colors"
+                  />
+                  <p className="text-[10px] text-slate-400 mt-1">O arquivo de vídeo deve ser acessível publicamente (URL direta).</p>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Título <span className="text-red-500">*</span></label>
+                  <input
+                    value={ytPostForm.title}
+                    onChange={(e) => setYtPostForm({ ...ytPostForm, title: e.target.value })}
+                    maxLength={100}
+                    placeholder="Título do vídeo (max 100 caracteres)"
+                    className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 hover:border-slate-300 focus:border-[#c62737] focus:ring-1 focus:ring-[#c62737] outline-none transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Descrição</label>
+                  <textarea
+                    value={ytPostForm.description}
+                    onChange={(e) => setYtPostForm({ ...ytPostForm, description: e.target.value })}
+                    rows={3}
+                    placeholder="Descrição do vídeo..."
+                    className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 hover:border-slate-300 focus:border-[#c62737] focus:ring-1 focus:ring-[#c62737] outline-none transition-colors resize-none"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Visibilidade</label>
+                    <CustomSelect
+                      value={ytPostForm.privacyStatus}
+                      onChange={(v) => setYtPostForm({ ...ytPostForm, privacyStatus: v })}
+                      options={[
+                        { value: 'public',   label: 'Público' },
+                        { value: 'unlisted', label: 'Não listado' },
+                        { value: 'private',  label: 'Privado' },
+                      ]}
+                      allowEmpty={false}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Tags (vírgula)</label>
+                    <input
+                      value={ytPostForm.tags}
+                      onChange={(e) => setYtPostForm({ ...ytPostForm, tags: e.target.value })}
+                      placeholder="Sara, Alagoas, culto"
+                      className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 hover:border-slate-300 focus:border-[#c62737] focus:ring-1 focus:ring-[#c62737] outline-none transition-colors"
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-3 justify-end px-6 pb-6">
+                <button
+                  type="button"
+                  onClick={() => !ytPosting && setYtPostModal(null)}
+                  disabled={ytPosting}
+                  className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handlePostToYouTube}
+                  disabled={ytPosting}
+                  className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50 inline-flex items-center gap-2"
+                >
+                  {ytPosting ? (
+                    <><Loader2 size={16} className="animate-spin" /> Enviando vídeo...</>
+                  ) : (
+                    <><Youtube size={16} /> Publicar no YouTube</>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal YouTube: Confirmar remoção */}
+        {ytDeleteModalId && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+            onClick={() => setYtDeleteModalId(null)}
+            role="dialog"
+            aria-modal="true"
+          >
+            <div
+              className="w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100">
+                    <Trash2 size={20} className="text-red-600" />
+                  </div>
+                  <h2 className="text-lg font-semibold text-slate-900">Remover canal do YouTube</h2>
+                </div>
+                <p className="text-slate-600 text-sm mb-4">
+                  O canal será desconectado da plataforma. Para reconectar, faça o OAuth novamente.
+                </p>
+              </div>
+              <div className="flex gap-3 justify-end px-6 pb-6">
+                <button
+                  type="button"
+                  onClick={() => setYtDeleteModalId(null)}
+                  className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmDeleteYoutube}
+                  className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 inline-flex items-center gap-2"
+                >
+                  <Trash2 size={16} /> Remover canal
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Modal Desvincular */}
         {unlinkModalId && (

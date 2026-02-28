@@ -430,7 +430,119 @@ O `overflow-hidden` corta tudo que ultrapassa o limite do container — incluind
 
 ---
 
-## 5. Tabelas
+## 5. Modal de Confirmação / Exclusão
+
+### 5.1 Componente canônico: `<ConfirmDialog />`
+> **Caminho:** `components/admin/ConfirmDialog.tsx`  
+> **Usar em:** toda ação destrutiva (excluir registro) ou que exija confirmação explícita do usuário antes de executar.
+
+```tsx
+import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
+
+<ConfirmDialog
+  open={!!deleteTarget}
+  title="Excluir item"
+  message={`Confirma a exclusão de "${deleteTarget?.name}"? Esta ação não pode ser desfeita.`}
+  variant="danger"
+  loading={deleteLoading}
+  onConfirm={confirmDelete}
+  onCancel={() => setDeleteTarget(null)}
+/>
+```
+
+**Props disponíveis:**
+
+| Prop             | Tipo                     | Padrão         | Descrição                                                         |
+|------------------|--------------------------|----------------|-------------------------------------------------------------------|
+| `open`           | `boolean`                | —              | Controla a visibilidade do modal                                  |
+| `title`          | `string`                 | —              | Título em destaque (ex.: "Excluir escala")                        |
+| `message`        | `string`                 | —              | Descrição completa da ação e suas consequências                   |
+| `confirmLabel`   | `string`                 | `'Excluir'` / `'Confirmar'` | Texto do botão de ação principal              |
+| `cancelLabel`    | `string \| null`         | `'Cancelar'`  | Texto do botão cancelar. `null` ou `''` oculta o botão           |
+| `onConfirm`      | `() => void`             | —              | Chamado ao clicar no botão de confirmação                        |
+| `onCancel`       | `() => void`             | —              | Chamado ao cancelar (Esc, botão Cancelar, clique no overlay)     |
+| `variant`        | `'danger' \| 'primary'`  | `'primary'`   | `danger` = ação destrutiva; `primary` = confirmação geral        |
+| `loading`        | `boolean`                | `false`        | Spinner no botão e desabilita interações durante a chamada à API |
+
+**Variantes:**
+
+| Variante    | Ícone       | Cor do botão confirm                 | Uso                             |
+|-------------|-------------|--------------------------------------|---------------------------------|
+| `danger`    | `Trash2`    | `bg-red-600 hover:bg-red-700`        | Exclusão irreversível           |
+| `primary`   | `AlertCircle` | `bg-[#c62737] hover:bg-[#9e1f2e]` | Confirmações sem risco crítico  |
+
+**Comportamento:**
+- Overlay com `backdrop-blur-sm` + `bg-black/40`
+- Fecha com `Esc` (desde que `loading` seja `false`)
+- Clique no overlay fecha o modal (se não carregando)
+- Botão `×` no canto superior direito
+- Scroll do `body` bloqueado enquanto aberto
+- API totalmente retrocompatível com o componente anterior
+
+**Padrão de uso com estado local:**
+```tsx
+const [deleteTarget, setDeleteTarget] = useState<Item | null>(null)
+const [deleteLoading, setDeleteLoading] = useState(false)
+
+async function confirmDelete() {
+  if (!deleteTarget) return
+  setDeleteLoading(true)
+  try {
+    await adminFetchJson(`/api/admin/recursos/${deleteTarget.id}`, { method: 'DELETE' })
+    setDeleteTarget(null)
+    reload()
+  } finally {
+    setDeleteLoading(false)
+  }
+}
+
+// No JSX:
+<ConfirmDialog
+  open={!!deleteTarget}
+  title="Excluir recurso"
+  message={deleteTarget ? `Excluir "${deleteTarget.name}"? Esta ação não pode ser desfeita.` : ''}
+  variant="danger"
+  loading={deleteLoading}
+  onConfirm={confirmDelete}
+  onCancel={() => setDeleteTarget(null)}
+/>
+```
+
+### 5.2 ❌ Proibido — `window.confirm()` e modais inline ad hoc
+
+Nunca usar `window.confirm()` ou `alert()` para confirmar exclusões. Nunca montar modais de confirmação inline em páginas sem usar o componente canônico.
+
+```tsx
+// ❌ NÃO FAZER
+if (confirm('Excluir?')) { ... }
+
+// ❌ NÃO FAZER — modal inline ad hoc
+{showDelete && (
+  <div className="fixed inset-0 ...">
+    <div className="bg-white p-6">
+      <p>Confirmar exclusão?</p>
+      <button onClick={deleteItem}>Excluir</button>
+    </div>
+  </div>
+)}
+
+// ✅ FAZER
+<ConfirmDialog
+  open={!!deleteTarget}
+  variant="danger"
+  title="Excluir item"
+  message={...}
+  onConfirm={confirmDelete}
+  onCancel={() => setDeleteTarget(null)}
+  loading={deleteLoading}
+/>
+```
+
+> ⚠️ **Exceção temporária:** O pipeline de demandas (`app/admin/midia/demandas/[id]/page.tsx`) usa exclusão inline com `confirm()` para ações rápidas dentro de cards de estágio/item. Refatorar para `<ConfirmDialog>` quando a tela for revisada.
+
+---
+
+## 6. Tabelas
 
 ```tsx
 <div className="overflow-x-auto rounded-xl border border-slate-200">
@@ -453,7 +565,7 @@ O `overflow-hidden` corta tudo que ultrapassa o limite do container — incluind
 
 ---
 
-## 6. Estados de Feedback
+## 7. Estados de Feedback
 
 ### 6.1 Loading (spinner inline)
 ```tsx
@@ -490,13 +602,14 @@ O `overflow-hidden` corta tudo que ultrapassa o limite do container — incluind
 
 ---
 
-## 7. Inventário de Componentes UI
+## 8. Inventário de Componentes UI
 
 | Componente               | Caminho                                     | Situação        |
 |--------------------------|---------------------------------------------|-----------------|
 | `CustomSelect`           | `components/ui/CustomSelect.tsx`            | ✅ Canônico      |
 | `DatePickerInput`        | `components/ui/DatePickerInput.tsx`         | ✅ Canônico      |
 | `DateSelectInput`        | `components/ui/DateSelectInput.tsx`         | ✅ Uso específico (nascimento) |
+| `ConfirmDialog`          | `components/admin/ConfirmDialog.tsx`        | ✅ Canônico — exclusão/confirmação |
 | `SearchableSelect`       | `components/ui/SearchableSelect.tsx`        | ⚠️ Legado — preferir `CustomSelect` |
 | `NativeDropdown`         | `components/ui/NativeDropdown.tsx`          | ⚠️ Foco inconsistente (purple) — corrigir ao editar |
 | `DayOfWeekSelect`        | `components/admin/ImprovedSelects.tsx`      | ✅ Canônico (admin) |
@@ -506,7 +619,7 @@ O `overflow-hidden` corta tudo que ultrapassa o limite do container — incluind
 
 ---
 
-## 8. Inconsistências Conhecidas (Backlog)
+## 9. Inconsistências Conhecidas (Backlog)
 
 | Local                                              | Problema                                             | Correção                                      |
 |----------------------------------------------------|------------------------------------------------------|-----------------------------------------------|
@@ -516,9 +629,98 @@ O `overflow-hidden` corta tudo que ultrapassa o limite do container — incluind
 | `app/admin/upload/page.tsx`                        | `<input type="date">` direto                          | Migrar para `<DatePickerInput>` (baixa prio.) |
 | `app/escalas/[token]/escala/page.tsx`              | `SearchableSelect` local duplicado                   | Extrair e usar `CustomSelect`                 |
 
+> ✅ **Corrigido em 27/02/2026:** `app/admin/livraria/vendas/page.tsx` — `<select>` nativo de categorias migrado para `<CustomSelect>`; input de busca corrigido para tokens canônicos (`rounded-xl`, foco `#c62737`).
+
 ---
 
-## 9. Checklist de Revisão de UI
+## 10. Padrões Mobile / PDV
+
+Telas de alto uso em dispositivos móveis (ex: PDV da livraria) requerem atenção especial a tamanho de toque, feedback visual e espaçamento.
+
+### 10.1 Área de toque mínima
+
+Todo elemento interativo (botão, ícone clicável) deve ter área de toque mínima de **44 × 44 px** em contextos mobile.
+
+```
+// ✅ Boa prática — botão de quantidade no carrinho
+className="w-9 h-9 rounded-lg border border-slate-200 flex items-center justify-center"
+
+// ❌ Ruim — área muito pequena
+className="w-6 h-6 rounded border ..."
+```
+
+### 10.2 FAB (Floating Action Button)
+
+Para ações prioritárias em mobile (ex: abrir sacola, iniciar venda), use um botão flutuante fixo:
+
+```tsx
+<div className="lg:hidden fixed bottom-5 right-4 z-30">
+  <button
+    type="button"
+    onClick={onAction}
+    className="relative flex items-center justify-center w-14 h-14 rounded-full bg-[#c62737] text-white shadow-xl active:scale-95 transition-transform"
+    aria-label="Ação principal"
+  >
+    <IconComponent size={24} />
+    {count > 0 && (
+      <span className="absolute -top-1 -right-1 min-w-[20px] h-5 rounded-full bg-white text-[#c62737] text-xs font-bold flex items-center justify-center px-1">
+        {count}
+      </span>
+    )}
+  </button>
+</div>
+```
+
+> ⚠️ Quando houver um FAB na tela, adicione `pb-24` ao container de conteúdo principal para que o último item não fique oculto atrás do botão.
+
+### 10.3 Drawer lateral (mobile)
+
+Para painéis secundários (ex: sacola, filtros) em mobile, use um drawer com overlay:
+
+```tsx
+{open && (
+  <div className="lg:hidden fixed inset-0 z-40" aria-modal="true">
+    {/* Overlay com blur */}
+    <div
+      className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+      onClick={onClose}
+      aria-hidden
+    />
+    {/* Painel */}
+    <div className="absolute right-0 top-0 bottom-0 w-full max-w-sm bg-white shadow-2xl flex flex-col">
+      {/* Cabeçalho com área de toque generosa */}
+      <div className="flex items-center justify-between px-4 py-3.5 border-b border-slate-200">
+        <h3 className="font-bold text-slate-900">Título</h3>
+        <button
+          type="button"
+          onClick={onClose}
+          className="p-2 rounded-xl text-slate-500 hover:bg-slate-100 transition-colors"
+          aria-label="Fechar"
+        >
+          ✕
+        </button>
+      </div>
+      <div className="flex-1 min-h-0 overflow-auto">
+        {/* conteúdo */}
+      </div>
+    </div>
+  </div>
+)}
+```
+
+### 10.4 Padding mínimo em listas/grade no mobile
+
+Em telas com FAB fixo, adicione `pb-24` ao container da lista/grade para que o último item não fique oculto atrás do botão flutuante:
+
+```tsx
+<div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pb-24 lg:pb-4">
+  {items.map(...)}
+</div>
+```
+
+---
+
+## 11. Checklist de Revisão de UI
 
 Antes de enviar uma PR com nova tela ou componente, confirme:
 
@@ -532,3 +734,6 @@ Antes de enviar uma PR com nova tela ou componente, confirme:
 - [ ] Labels público seguem `text-sm font-semibold text-slate-800`
 - [ ] Bordas de inputs/selects usam `border-slate-200` (repouso)
 - [ ] Cantos arredondados: `rounded-xl` para inputs/selects, `rounded-2xl` para painéis flutuantes
+- [ ] Toda exclusão usa `<ConfirmDialog variant="danger">` — sem `window.confirm()` ou modais ad hoc
+- [ ] Telas mobile: elementos interativos com área de toque ≥ 44 × 44 px
+- [ ] Telas mobile com FAB: container de conteúdo com `pb-24` para não ocultar último item

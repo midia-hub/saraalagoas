@@ -81,22 +81,26 @@ export async function POST(
           motivo: reservation.reason ?? '',
         }
 
-        const result = await callDisparosWebhook({
-          phone: reservation.requester_phone,
-          nome: reservation.requester_name ?? '',
-          conversionType: 'reserva_aprovada',
-          variables,
-        })
-
-        if (result) {
-          await supabase.from('disparos_log').insert({
-            phone: result.phone,
-            nome: result.nome,
-            status_code: result.statusCode ?? null,
-            source: 'reservas',
-            conversion_type: 'reserva_aprovada'
+        void (async () => {
+          const result = await callDisparosWebhook({
+            phone: reservation.requester_phone,
+            nome: reservation.requester_name ?? '',
+            conversionType: 'reserva_aprovada',
+            variables,
           })
-        }
+
+          if (result) {
+            await supabase.from('disparos_log').insert({
+              phone: result.phone,
+              nome: result.nome,
+              status_code: result.statusCode ?? null,
+              source: 'reservas',
+              conversion_type: 'reserva_aprovada'
+            })
+          }
+        })().catch((err) => {
+          console.error('approve reservation webhook async error:', err)
+        })
       }
     } catch (err) {
       console.error('approve reservation webhook error:', err)

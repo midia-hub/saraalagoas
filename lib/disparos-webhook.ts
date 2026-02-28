@@ -38,6 +38,11 @@ export const MESSAGE_ID_ESCALA_LEMBRETE_3 = '91915ca1-0419-43b5-a70c-df0c0b92379
 export const MESSAGE_ID_ESCALA_LEMBRETE_1 = '96a161e3-087c-4755-b31e-0c127c36d6b9'
 export const MESSAGE_ID_ESCALA_DIA        = '27eb5277-f8d8-45b3-98cc-15f9e0b55d0c'
 
+// ── Message IDs do módulo de Demandas de Mídia ───────────────────────────
+// ⚠️ Configurar os IDs reais após criar os templates no painel Disparos
+export const MESSAGE_ID_DEMANDA_ARTE       = process.env.MESSAGE_ID_DEMANDA_ARTE       ?? 'CONFIGURAR_MESSAGE_ID_ARTE'
+export const MESSAGE_ID_DEMANDA_VIDEO      = process.env.MESSAGE_ID_DEMANDA_VIDEO      ?? 'CONFIGURAR_MESSAGE_ID_VIDEO'
+
 // ── Message IDs do módulo Sara Kids ──────────────────────────────────────
 export const MESSAGE_ID_KIDS_CHECKIN      = '7f9fb081-bb8f-4db7-9b9c-25df8c3b110a'
 export const MESSAGE_ID_KIDS_CHECKOUT     = '02b7e040-2655-4547-942e-a9814ad96bf5'

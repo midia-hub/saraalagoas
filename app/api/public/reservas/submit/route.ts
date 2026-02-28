@@ -231,63 +231,65 @@ export async function POST(request: NextRequest) {
           motivo: reason ?? '',
         }
 
-        // 2. Enviar mensagem para o solicitante (reserva_recebida)
-        if (reservation.requester_phone) {
-          console.log('[Reserva Disparo] Enviando mensagem para solicitante:', reservation.requester_phone)
-          const resultRequester = await callDisparosWebhook({
-            phone: reservation.requester_phone,
-            nome: reservation.requester_name ?? '',
-            conversionType: 'reserva_recebida',
-            variables: commonVariables,
-          })
-
-          console.log('[Reserva Disparo] Resultado webhook (solicitante):', resultRequester)
-
-          if (resultRequester) {
-            const { error: logError } = await supabase.from('disparos_log').insert({
-              phone: resultRequester.phone,
-              nome: resultRequester.nome,
-              status_code: resultRequester.statusCode ?? null,
-              source: 'reservas',
-              conversion_type: 'reserva_recebida'
+        void (async () => {
+          if (reservation.requester_phone) {
+            console.log('[Reserva Disparo] Enviando mensagem para solicitante:', reservation.requester_phone)
+            const resultRequester = await callDisparosWebhook({
+              phone: reservation.requester_phone,
+              nome: reservation.requester_name ?? '',
+              conversionType: 'reserva_recebida',
+              variables: commonVariables,
             })
-            if (logError) {
-              console.error('[Reserva Disparo] Erro ao inserir log (solicitante):', logError)
-            } else {
-              console.log('[Reserva Disparo] ✓ Log inserido (solicitante)')
+
+            console.log('[Reserva Disparo] Resultado webhook (solicitante):', resultRequester)
+
+            if (resultRequester) {
+              const { error: logError } = await supabase.from('disparos_log').insert({
+                phone: resultRequester.phone,
+                nome: resultRequester.nome,
+                status_code: resultRequester.statusCode ?? null,
+                source: 'reservas',
+                conversion_type: 'reserva_recebida'
+              })
+              if (logError) {
+                console.error('[Reserva Disparo] Erro ao inserir log (solicitante):', logError)
+              } else {
+                console.log('[Reserva Disparo] ✓ Log inserido (solicitante)')
+              }
             }
           }
-        }
 
-        // 3. Enviar mensagem para o aprovador (reserva_pendente_aprovacao)
-        if (approverPhone) {
-          console.log('[Reserva Disparo] Enviando mensagem para aprovador:', approverPhone)
-          const resultApprover = await callDisparosWebhook({
-            phone: approverPhone,
-            nome: approverName,
-            conversionType: 'reserva_pendente_aprovacao',
-            variables: commonVariables,
-          })
-
-          console.log('[Reserva Disparo] Resultado webhook (aprovador):', resultApprover)
-
-          if (resultApprover) {
-            const { error: logError } = await supabase.from('disparos_log').insert({
-              phone: resultApprover.phone,
-              nome: resultApprover.nome,
-              status_code: resultApprover.statusCode ?? null,
-              source: 'reservas',
-              conversion_type: 'reserva_pendente_aprovacao'
+          if (approverPhone) {
+            console.log('[Reserva Disparo] Enviando mensagem para aprovador:', approverPhone)
+            const resultApprover = await callDisparosWebhook({
+              phone: approverPhone,
+              nome: approverName,
+              conversionType: 'reserva_pendente_aprovacao',
+              variables: commonVariables,
             })
-            if (logError) {
-              console.error('[Reserva Disparo] Erro ao inserir log (aprovador):', logError)
-            } else {
-              console.log('[Reserva Disparo] ✓ Log inserido (aprovador)')
+
+            console.log('[Reserva Disparo] Resultado webhook (aprovador):', resultApprover)
+
+            if (resultApprover) {
+              const { error: logError } = await supabase.from('disparos_log').insert({
+                phone: resultApprover.phone,
+                nome: resultApprover.nome,
+                status_code: resultApprover.statusCode ?? null,
+                source: 'reservas',
+                conversion_type: 'reserva_pendente_aprovacao'
+              })
+              if (logError) {
+                console.error('[Reserva Disparo] Erro ao inserir log (aprovador):', logError)
+              } else {
+                console.log('[Reserva Disparo] ✓ Log inserido (aprovador)')
+              }
             }
+          } else {
+            console.warn('[Reserva Disparo] Aprovador sem telefone cadastrado - notificação não enviada')
           }
-        } else {
-          console.warn('[Reserva Disparo] Aprovador sem telefone cadastrado - notificação não enviada')
-        }
+        })().catch((err) => {
+          console.error('[Reserva Disparo] Exception no processo assíncrono de disparo:', err)
+        })
       }
     } catch (err) {
       console.error('[Reserva Disparo] Exception no processo de disparo:', err)
