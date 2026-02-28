@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://sarasedealagoas.com.br/sitemap.xml
+Sitemap: https://saraalagoas.com/sitemap.xml

@@ -26,6 +26,7 @@ import { adminFetchJson } from '@/lib/admin-client'
 import { siteConfig } from '@/config/site'
 import { CustomSelect } from '@/components/ui/CustomSelect'
 import { DatePickerInput } from '@/components/ui/DatePickerInput'
+import { Toast } from '@/components/Toast'
 
 // ── Tipos ───────────────────────────────────────────────────────────────────
 
@@ -49,6 +50,14 @@ interface PresenteCheckin {
   delivered_to_name: string | null
   child: { id: string; full_name: string; birth_date: string | null } | null
   guardian: { id: string; full_name: string; mobile_phone: string | null; phone: string | null } | null
+}
+
+type KidsJobStatus = 'queued' | 'running' | 'completed' | 'failed'
+
+type KidsNotificationJobResult = {
+  ok: true
+  summary: { success: number; errors: number; total: number }
+  results: Array<{ checkinId: string; success: boolean; error?: string }>
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -266,24 +275,76 @@ function CheckoutModal({
 function CallModal({
   items,
   onClose,
+  onNotify,
 }: {
   items: PresenteCheckin[]
   onClose: () => void
+  onNotify: (type: 'ok' | 'err', message: string) => void
 }) {
   const [called, setCalled] = useState<Set<string>>(new Set())
   const [msgType, setMsgType] = useState<'alerta' | 'encerramento'>('encerramento')
   const [sendingAll, setSendingAll] = useState(false)
+  const [processingIds, setProcessingIds] = useState<Set<string>>(new Set())
+
+  async function acompanharJob(jobId: string) {
+    for (let attempt = 0; attempt < 120; attempt++) {
+      await new Promise(resolve => setTimeout(resolve, 2500))
+      const status = await adminFetchJson<{
+        ok: boolean
+        job: {
+          status: KidsJobStatus
+          result: KidsNotificationJobResult | null
+          error: string | null
+        }
+      }>(`/api/admin/kids-checkin/notifications?job_id=${jobId}`)
+
+      if (status.job.status === 'completed') return status.job.result
+      if (status.job.status === 'failed') {
+        throw new Error(status.job.error || 'Falha ao processar notificações.')
+      }
+    }
+
+    throw new Error('Tempo de processamento excedido para as notificações.')
+  }
 
   async function callOne(c: PresenteCheckin) {
-    if (called.has(c.id)) return
+    if (called.has(c.id) || processingIds.has(c.id)) return
+    setProcessingIds((prev) => new Set([...prev, c.id]))
+
     try {
-      await adminFetchJson('/api/admin/kids-checkin/notifications', {
+      const start = await adminFetchJson<{ ok: boolean; job_id: string }>('/api/admin/kids-checkin/notifications', {
         method: 'POST',
         body: JSON.stringify({ type: msgType, checkinIds: [c.id] }),
       })
-      setCalled((prev) => new Set([...prev, c.id]))
+
+      onNotify('ok', 'Disparo iniciado. Você será avisado ao finalizar.')
+
+      void acompanharJob(start.job_id)
+        .then((result) => {
+          if (result && result.summary.success > 0) {
+            setCalled((prev) => new Set([...prev, c.id]))
+            onNotify('ok', 'Disparo finalizado com sucesso.')
+          } else {
+            onNotify('err', 'Disparo finalizado sem envios bem-sucedidos.')
+          }
+        })
+        .catch((err) => {
+          onNotify('err', err instanceof Error ? err.message : 'Erro ao processar disparo.')
+        })
+        .finally(() => {
+          setProcessingIds((prev) => {
+            const next = new Set(prev)
+            next.delete(c.id)
+            return next
+          })
+        })
     } catch (err) {
-      console.error(err)
+      onNotify('err', err instanceof Error ? err.message : 'Erro ao iniciar disparo.')
+      setProcessingIds((prev) => {
+        const next = new Set(prev)
+        next.delete(c.id)
+        return next
+      })
     }
   }
 
@@ -292,19 +353,40 @@ function CallModal({
     if (remaining.length === 0) return
     setSendingAll(true)
     try {
-      await adminFetchJson('/api/admin/kids-checkin/notifications', {
+      const start = await adminFetchJson<{ ok: boolean; job_id: string }>('/api/admin/kids-checkin/notifications', {
         method: 'POST',
         body: JSON.stringify({ type: msgType, checkinIds: remaining.map((i) => i.id) }),
       })
-      setCalled((prev) => {
-        const next = new Set(prev)
-        remaining.forEach((i) => next.add(i.id))
-        return next
-      })
-    } catch (err) {
-      console.error(err)
-    } finally {
+
+      onNotify('ok', `Disparos iniciados para ${remaining.length} responsável(is).`)
       setSendingAll(false)
+
+      void acompanharJob(start.job_id)
+        .then((result) => {
+          if (!result) {
+            onNotify('err', 'Processamento finalizado sem retorno de resultado.')
+            return
+          }
+
+          const successIds = new Set(result.results.filter(r => r.success).map(r => r.checkinId))
+          setCalled((prev) => {
+            const next = new Set(prev)
+            for (const successId of successIds) next.add(successId)
+            return next
+          })
+
+          if (result.summary.errors === 0) {
+            onNotify('ok', `Disparos finalizados: ${result.summary.success} enviado(s).`)
+          } else {
+            onNotify('err', `Disparos finalizados com ${result.summary.errors} erro(s).`)
+          }
+        })
+        .catch((err) => {
+          onNotify('err', err instanceof Error ? err.message : 'Erro ao processar disparos.')
+        })
+    } catch (err) {
+      setSendingAll(false)
+      onNotify('err', err instanceof Error ? err.message : 'Erro ao iniciar disparos.')
     }
   }
 
@@ -369,6 +451,7 @@ function CallModal({
           {items.map((c) => {
             const phone = getGuardianPhone(c)
             const isCalled = called.has(c.id)
+            const isProcessing = processingIds.has(c.id)
             const childName = c.child?.full_name ?? ''
             const avatar = getAvatarStyle(childName)
 
@@ -402,14 +485,18 @@ function CallModal({
                 {phone ? (
                   <button
                     onClick={() => callOne(c)}
-                    disabled={isCalled || sendingAll}
+                    disabled={isCalled || isProcessing || sendingAll}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 transition-all ${
                       isCalled
                         ? 'bg-slate-100 text-slate-400 border border-slate-200'
                         : 'bg-[#25D366] text-white hover:bg-[#1ebe59] shadow-sm'
                     }`}
                   >
-                    {isCalled ? <><CheckCircle2 size={12} /> Enviado</> : <><MessageCircle size={12} /> Chamar</>}
+                    {isCalled
+                      ? <><CheckCircle2 size={12} /> Enviado</>
+                      : isProcessing
+                        ? <><RefreshCw size={12} className="animate-spin" /> Processando</>
+                        : <><MessageCircle size={12} /> Chamar</>}
                   </button>
                 ) : (
                   <span className="text-xs text-slate-400 shrink-0 flex items-center gap-1 px-2">
@@ -434,7 +521,7 @@ function CallModal({
                 className="w-full h-11 flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-[#c62737] text-white text-sm font-bold hover:bg-[#9e1f2e] transition-colors disabled:opacity-50"
               >
                 {sendingAll ? <RefreshCw size={14} className="animate-spin" /> : <PhoneCall size={14} />}
-                {sendingAll ? 'Enviando...' : `Chamar ${items.length - called.size} restantes`}
+                {sendingAll ? 'Iniciando...' : `Chamar ${items.length - called.size} restantes`}
               </button>
             </div>
           )}
@@ -473,18 +560,58 @@ export default function KidsPresentesPage() {
   const [checkingOut, setCheckingOut] = useState<Set<string>>(new Set())
   const [checkoutTarget, setCheckoutTarget] = useState<PresenteCheckin | null>(null)
   const [callingSingle, setCallingSingle] = useState<Set<string>>(new Set())
+  const [toast, setToast] = useState<{ type: 'ok' | 'err'; message: string } | null>(null)
+
+  const acompanharJob = useCallback(async (jobId: string) => {
+    for (let attempt = 0; attempt < 120; attempt++) {
+      await new Promise(resolve => setTimeout(resolve, 2500))
+      const status = await adminFetchJson<{
+        ok: boolean
+        job: {
+          status: KidsJobStatus
+          result: KidsNotificationJobResult | null
+          error: string | null
+        }
+      }>(`/api/admin/kids-checkin/notifications?job_id=${jobId}`)
+
+      if (status.job.status === 'completed') return status.job.result
+      if (status.job.status === 'failed') {
+        throw new Error(status.job.error || 'Falha ao processar notificações.')
+      }
+    }
+
+    throw new Error('Tempo de processamento excedido para as notificações.')
+  }, [])
 
   async function handleSingleCall(id: string) {
     if (callingSingle.has(id)) return
     setCallingSingle((prev) => new Set([...prev, id]))
     try {
-      await adminFetchJson('/api/admin/kids-checkin/notifications', {
+      const start = await adminFetchJson<{ ok: boolean; job_id: string }>('/api/admin/kids-checkin/notifications', {
         method: 'POST',
         body: JSON.stringify({ type: 'alerta', checkinIds: [id] }),
       })
-      // Opcional: mostrar um toast de sucesso. Para agora, o feedback é apenas o spinner parando.
+
+      setToast({ type: 'ok', message: 'Disparo iniciado. Você será avisado ao finalizar.' })
+
+      void acompanharJob(start.job_id)
+        .then((result) => {
+          if (!result) {
+            setToast({ type: 'err', message: 'Disparo finalizado sem retorno de resultado.' })
+            return
+          }
+
+          if (result.summary.errors === 0) {
+            setToast({ type: 'ok', message: `Disparo finalizado: ${result.summary.success} enviado(s).` })
+          } else {
+            setToast({ type: 'err', message: `Disparo finalizado com ${result.summary.errors} erro(s).` })
+          }
+        })
+        .catch((err) => {
+          setToast({ type: 'err', message: err instanceof Error ? err.message : 'Erro ao processar disparo.' })
+        })
     } catch (err) {
-      console.error(err)
+      setToast({ type: 'err', message: err instanceof Error ? err.message : 'Erro ao iniciar disparo.' })
     } finally {
       setCallingSingle((prev) => {
         const next = new Set(prev)
@@ -1013,8 +1140,16 @@ export default function KidsPresentesPage() {
         <CallModal
           items={selectedItems}
           onClose={() => setShowCallModal(false)}
+          onNotify={(type, message) => setToast({ type, message })}
         />
       )}
+
+      <Toast
+        visible={!!toast}
+        message={toast?.message ?? ''}
+        type={toast?.type ?? 'ok'}
+        onClose={() => setToast(null)}
+      />
     </PageAccessGuard>
   )
 }

@@ -222,6 +222,12 @@ export const menuModules: MenuModule[] = [
         permission: 'livraria_produtos',
         items: [
             {
+                href: '/admin/livraria/dashboard',
+                label: 'Dashboard',
+                icon: BarChart3,
+                permission: 'livraria_dashboard'
+            },
+            {
                 href: '/admin/livraria/vendas',
                 label: 'Vendas (PDV)',
                 icon: ShoppingCart,
@@ -282,12 +288,6 @@ export const menuModules: MenuModule[] = [
                 permission: 'livraria_cupons'
             },
             {
-                href: '/admin/livraria/dashboard',
-                label: 'Relatórios e BI',
-                icon: BarChart3,
-                permission: 'livraria_dashboard'
-            },
-            {
                 href: '/admin/livraria/importacao',
                 label: 'Importação / Exportação',
                 icon: FileSpreadsheet,
@@ -319,6 +319,18 @@ export const menuModules: MenuModule[] = [
                 href: '/admin/instagram/posts',
                 label: 'Painel de Posts',
                 icon: Instagram,
+                permission: 'instagram'
+            },
+            {
+                href: '/admin/midia/agenda-social',
+                label: 'Agenda Mídia/Social',
+                icon: CalendarDays,
+                permission: 'instagram'
+            },
+            {
+                href: '/admin/midia/demandas',
+                label: 'Demandas de Mídia',
+                icon: ClipboardList,
                 permission: 'instagram'
             },
             {

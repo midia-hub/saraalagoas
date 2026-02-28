@@ -417,9 +417,10 @@ export function PersonForm({ initial, onSubmit, loading = false, readOnlyMetadat
                 type="tel"
                 inputMode="tel"
                 placeholder="5511999998888"
+                maxLength={13}
                 value={toFormValue(form.mobile_phone)}
                 onChange={(e) => {
-                  update('mobile_phone', e.target.value ? onlyDigits(e.target.value) : null)
+                  update('mobile_phone', e.target.value ? onlyDigits(e.target.value).slice(0, 13) : null)
                   setMobilePhoneError(null)
                 }}
                 onBlur={(e) => update('mobile_phone', normalizeMobilePhone(e.target.value) || null)}
@@ -430,7 +431,15 @@ export function PersonForm({ initial, onSubmit, loading = false, readOnlyMetadat
             </div>
             <div>
               <label className={labelClass}>Telefone</label>
-              <input type="tel" value={toFormValue(form.phone)} onChange={(e) => update('phone', e.target.value || null)} className={inputClass} />
+              <input
+                type="tel"
+                inputMode="tel"
+                placeholder="551133334444"
+                maxLength={12}
+                value={toFormValue(form.phone)}
+                onChange={(e) => update('phone', e.target.value ? onlyDigits(e.target.value).slice(0, 12) : null)}
+                className={inputClass}
+              />
             </div>
             <div className="md:col-span-2">
               <label className={labelClass}>E-mail</label>

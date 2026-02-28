@@ -1,7 +1,5 @@
 'use client'
 
-import { Button } from '@/components/ui/Button'
-
 export type PdvProduct = {
   id: string
   sku: string
@@ -28,53 +26,56 @@ export function PdvProductCard({ product, onAdd, onReserve }: PdvProductCardProp
   const inStock = product.current_stock > 0
 
   return (
-    <div className="flex flex-col rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-      <div className="aspect-square bg-slate-100 relative">
+    <div className="flex flex-col rounded-xl border border-slate-200 bg-white shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all">
+      <div className="aspect-square bg-slate-100 relative rounded-t-xl overflow-hidden">
         {product.image_url ? (
           <img
             src={product.image_url}
-            alt=""
+            alt={product.name}
             className="w-full h-full object-cover"
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-slate-400 text-4xl font-light">
-            —
+          <div className="w-full h-full flex items-center justify-center text-slate-300 text-5xl font-light">
+            –
           </div>
         )}
-        <div className="absolute bottom-1 left-1 right-1 text-xs text-slate-600 bg-white/90 rounded px-2 py-1 truncate">
-          {product.name}
-        </div>
+        {!inStock && (
+          <div className="absolute inset-0 bg-slate-900/50 flex items-center justify-center">
+            <span className="bg-white/90 text-slate-700 text-xs font-semibold px-2 py-1 rounded-full">Sem estoque</span>
+          </div>
+        )}
       </div>
       <div className="p-3 flex flex-col flex-1 min-w-0">
-        <p className="font-medium text-slate-800 line-clamp-2 text-sm leading-tight" title={product.name}>
+        <p className="font-semibold text-slate-800 line-clamp-2 text-sm leading-snug" title={product.name}>
           {product.name}
         </p>
-        <p className="text-lg font-bold text-[#c62737] mt-1">
+        <p className="text-base font-bold text-[#c62737] mt-1.5">
           R$ {product.effective_price.toFixed(2)}
         </p>
-        <p className="text-xs text-slate-500 mt-0.5">
-          {inStock ? `Em estoque: ${product.current_stock}` : 'Sem estoque'}
-        </p>
-        <div className="mt-auto pt-2">
+        {inStock && (
+          <p className="text-[11px] text-slate-400 mt-0.5">
+            {product.current_stock} em estoque
+          </p>
+        )}
+        <div className="mt-auto pt-3">
           {inStock ? (
-            <Button
+            <button
               type="button"
-              size="sm"
-              className="w-full"
               onClick={() => onAdd(product)}
+              className="w-full py-2.5 rounded-xl bg-[#c62737] text-white text-sm font-semibold
+                         hover:bg-[#9e1f2e] active:scale-[0.97] transition-all shadow-sm"
             >
               Adicionar
-            </Button>
+            </button>
           ) : (
-            <Button
+            <button
               type="button"
-              variant="secondary"
-              size="sm"
-              className="w-full"
               onClick={() => onReserve(product)}
+              className="w-full py-2.5 rounded-xl border-2 border-slate-200 text-slate-600 text-sm font-semibold
+                         hover:border-slate-300 hover:bg-slate-50 active:scale-[0.97] transition-all"
             >
               Reservar
-            </Button>
+            </button>
           )}
         </div>
       </div>

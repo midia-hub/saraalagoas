@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAccess } from '@/lib/admin-api'
-import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { createSupabaseServerClient, createSupabaseAdminClient } from '@/lib/supabase-server'
 import { executeMetaPublish, executeMetaPublishWithUrls, type MediaEditInput } from '@/lib/publish-meta'
+
+export const dynamic = 'force-dynamic'
 
 const CRON_SECRET = process.env.CRON_SECRET
 
@@ -18,21 +20,11 @@ type ScheduledRow = {
 }
 
 /**
- * Processa postagens programadas cujo scheduled_at já passou.
- * Chamado pelo Painel ("Processar fila agora") ou por cron: POST com header "x-cron-secret: <CRON_SECRET>".
+ * Lógica central: busca e publica todas as postagens pendentes cujo scheduled_at já passou.
+ * Usada tanto pelo cron automático (GET) quanto pelo disparo manual do painel (POST).
  */
-export async function POST(request: NextRequest) {
-  const isCron =
-    typeof CRON_SECRET === 'string' &&
-    CRON_SECRET.length > 0 &&
-    request.headers.get('x-cron-secret') === CRON_SECRET
-
-  if (!isCron) {
-    const access = await requireAccess(request, { pageKey: 'instagram', action: 'edit' })
-    if (!access.ok) return access.response
-  }
-
-  const db = createSupabaseServerClient(request)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function processScheduledPosts(db: any) {
   const now = new Date().toISOString()
 
   const { data: rows, error: fetchError } = await db
@@ -62,8 +54,9 @@ export async function POST(request: NextRequest) {
         : { instagram: true, facebook: false }
     const mediaSpecs = Array.isArray(row.media_specs) ? row.media_specs : []
 
-    // Detectar se o post foi criado via "Nova Postagem" (URLs diretas) ou via galeria (Drive IDs)
-    const isDirectUrlPost = mediaSpecs.length > 0 && mediaSpecs.every((spec) => typeof spec.url === 'string' && spec.url.startsWith('http'))
+    const isDirectUrlPost =
+      mediaSpecs.length > 0 &&
+      mediaSpecs.every((spec) => typeof spec.url === 'string' && spec.url.startsWith('http'))
 
     await db
       .from('scheduled_social_posts')
@@ -74,7 +67,6 @@ export async function POST(request: NextRequest) {
       let failed: Array<{ ok: boolean; error?: string }> = []
 
       if (isDirectUrlPost) {
-        // Caminho de URLs diretas (Nova Postagem standalone)
         const imageUrls = mediaSpecs.map((s) => s.url as string)
         const { metaResults } = await executeMetaPublishWithUrls({
           db,
@@ -86,7 +78,6 @@ export async function POST(request: NextRequest) {
         })
         failed = metaResults.filter((r) => !r.ok)
       } else {
-        // Caminho legado: Drive IDs via álbum
         const mediaEdits: MediaEditInput[] = mediaSpecs
           .filter((spec) => typeof spec.id === 'string' && spec.id)
           .map((spec) => ({
@@ -140,4 +131,38 @@ export async function POST(request: NextRequest) {
   }
 
   return NextResponse.json({ processed: results.length, results })
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET — chamado automaticamente pelo Vercel Cron a cada 5 minutos
+//       Vercel envia: Authorization: Bearer <CRON_SECRET>
+//       Também aceita ?secret=<CRON_SECRET> para testes manuais
+// ─────────────────────────────────────────────────────────────────────────────
+export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url)
+  const querySecret  = searchParams.get('secret')
+  const headerSecret = request.headers.get('authorization')?.replace('Bearer ', '')
+
+  if (
+    CRON_SECRET &&
+    querySecret !== CRON_SECRET &&
+    headerSecret !== CRON_SECRET
+  ) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  // Cron usa service-role para não depender de sessão de usuário
+  const db = createSupabaseAdminClient()
+  return processScheduledPosts(db)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST — disparo manual pelo painel de admin
+// ─────────────────────────────────────────────────────────────────────────────
+export async function POST(request: NextRequest) {
+  const access = await requireAccess(request, { pageKey: 'instagram', action: 'edit' })
+  if (!access.ok) return access.response
+
+  const db = createSupabaseServerClient(request)
+  return processScheduledPosts(db)
 }

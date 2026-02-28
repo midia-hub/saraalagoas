@@ -327,22 +327,26 @@ export async function POST(request: NextRequest) {
     const telefoneFinal = (conversaoPayload.telefone as string) || (person?.mobile_phone as string) || ''
     const { data: settings } = await supabase.from('consolidation_settings').select('disparos_api_enabled').eq('id', 1).single()
     if (telefoneFinal && settings?.disparos_api_enabled) {
-      const { callDisparosWebhook } = await import('@/lib/disparos-webhook')
       const tipo = (conversionType === 'reconciled' ? 'reconciled' : 'accepted') as 'accepted' | 'reconciled'
-      const result = await callDisparosWebhook({
-        phone: telefoneFinal,
-        nome: (conversaoPayload.nome as string) || (person?.full_name as string) || '',
-        conversionType: tipo,
-      }).catch((err) => { console.error('Disparos webhook (admin upsert):', err); return null })
-      if (result) {
-        await supabase.from('disparos_log').insert({
-          phone: result.phone,
-          nome: result.nome,
-          conversion_type: tipo,
-          status_code: result.statusCode ?? null,
-          source: 'admin',
-        }).then(({ error }) => { if (error) console.error('disparos_log insert:', error) })
-      }
+      const nomeFinal = (conversaoPayload.nome as string) || (person?.full_name as string) || ''
+      void (async () => {
+        const { callDisparosWebhook } = await import('@/lib/disparos-webhook')
+        const result = await callDisparosWebhook({
+          phone: telefoneFinal,
+          nome: nomeFinal,
+          conversionType: tipo,
+        }).catch((err) => { console.error('Disparos webhook (admin upsert):', err); return null })
+
+        if (result) {
+          await supabase.from('disparos_log').insert({
+            phone: result.phone,
+            nome: result.nome,
+            conversion_type: tipo,
+            status_code: result.statusCode ?? null,
+            source: 'admin',
+          }).then(({ error }) => { if (error) console.error('disparos_log insert:', error) })
+        }
+      })()
     }
 
     // Criar followup automático para acompanhamento

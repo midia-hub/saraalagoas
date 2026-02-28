@@ -1,7 +1,7 @@
 export const siteConfig = {
   name: "Sara Sede Alagoas",
   description: "Igreja Sara Nossa Terra - Sede Alagoas. Um lugar de transformação, crescimento e restauração através do amor de Cristo.",
-  url: "https://sarasedealagoas.com.br",
+  url: "https://saraalagoas.com",
   
   whatsappNumber: "5582999999999",
   whatsappMessages: {

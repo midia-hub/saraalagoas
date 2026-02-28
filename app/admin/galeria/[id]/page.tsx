@@ -15,6 +15,7 @@ type Gallery = {
   title: string
   slug: string
   date: string
+  hidden_from_public: boolean
 }
 
 type GalleryFile = {
@@ -47,6 +48,7 @@ export default function AdminGaleriaAlbumPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [showDeleteAlbumModal, setShowDeleteAlbumModal] = useState(false)
   const [deletingAlbum, setDeletingAlbum] = useState(false)
+  const [togglingVisibility, setTogglingVisibility] = useState(false)
   const [toast, setToast] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
 
   useEffect(() => {
@@ -75,6 +77,29 @@ export default function AdminGaleriaAlbumPage() {
       })
       .finally(() => setLoading(false))
   }, [id])
+
+  const handleToggleVisibility = useCallback(async () => {
+    if (!gallery || togglingVisibility) return
+    const newValue = !gallery.hidden_from_public
+    setTogglingVisibility(true)
+    try {
+      await adminFetchJson(`/api/gallery/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ hidden_from_public: newValue }),
+      })
+      setGallery((prev) => prev ? { ...prev, hidden_from_public: newValue } : prev)
+      setToast({
+        type: 'ok',
+        text: newValue
+          ? 'Álbum ocultado da galeria pública.'
+          : 'Álbum visível na galeria pública.',
+      })
+    } catch {
+      setToast({ type: 'err', text: 'Não foi possível alterar a visibilidade.' })
+    } finally {
+      setTogglingVisibility(false)
+    }
+  }, [gallery, id, togglingVisibility])
 
   const handleConfirmDelete = useCallback(
     async (file: GalleryFile) => {
@@ -156,6 +181,25 @@ export default function AdminGaleriaAlbumPage() {
         <p className="text-slate-600 mt-1">
           {gallery.type === 'culto' ? 'Culto' : 'Evento'} • {gallery.date}
         </p>
+        {gallery.hidden_from_public && (
+          <div className="mt-2 flex items-center gap-2 rounded-lg bg-amber-50 border border-amber-200 px-4 py-2.5 text-sm text-amber-800">
+            <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+            </svg>
+            <span>
+              Este álbum está <strong>oculto da galeria pública</strong>. Ele só pode ser acessado pelo link direto:
+              {' '}
+              <a
+                href={publicPath}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline font-medium break-all"
+              >
+                {publicPath}
+              </a>
+            </span>
+          </div>
+        )}
         <div className="mt-4 flex flex-wrap gap-2">
           <a
             href={publicPath}
@@ -165,6 +209,31 @@ export default function AdminGaleriaAlbumPage() {
           >
             Ver galeria pública
           </a>
+          <button
+            type="button"
+            onClick={handleToggleVisibility}
+            disabled={togglingVisibility}
+            className={`inline-flex items-center gap-1.5 rounded-lg border px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50 ${
+              gallery.hidden_from_public
+                ? 'border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100'
+                : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+            }`}
+            title={gallery.hidden_from_public ? 'Tornar visível na galeria pública' : 'Ocultar da galeria pública'}
+          >
+            {togglingVisibility ? (
+              <span className="h-4 w-4 rounded-full border-2 border-current border-t-transparent animate-spin" />
+            ) : gallery.hidden_from_public ? (
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+              </svg>
+            ) : (
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+              </svg>
+            )}
+            {gallery.hidden_from_public ? 'Oculto (reexibir)' : 'Ocultar da galeria'}
+          </button>
           <Link
             href={`/admin/galeria/${gallery.id}/post/select`}
             className="inline-flex items-center rounded-lg bg-[#c62737] px-4 py-2 text-sm font-medium text-white hover:bg-[#a01f2d]"

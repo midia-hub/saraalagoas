@@ -22,10 +22,12 @@ export async function GET(request: NextRequest, { params }: Params) {
       .order('date', { ascending: true })
       .order('time_of_day', { ascending: true }),
     // Sem join — full_name vem do allPeople abaixo (evita erro silencioso de PostgREST)
+    // .range garante que todas as linhas sejam retornadas mesmo em escalas grandes
     supabase
       .from('escalas_respostas')
       .select('person_id, slot_id, disponivel, observacao')
-      .eq('link_id', params.id),
+      .eq('link_id', params.id)
+      .range(0, 9999),
     supabase
       .from('escalas_links')
       .select('ministry, month, year, status, church:churches(name)')
@@ -101,10 +103,14 @@ export async function GET(request: NextRequest, { params }: Params) {
     .map(([id, full_name]) => ({ id, full_name }))
     .sort((a, b) => a.full_name.localeCompare(b.full_name))
 
-  return NextResponse.json({ 
-    link, 
-    slots: slots ?? [], 
-    byPerson,
-    volunteers: volunteersList 
-  })
+  const NO_CACHE_HEADERS = {
+    'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+    'Pragma': 'no-cache',
+    'Surrogate-Control': 'no-store',
+  }
+
+  return NextResponse.json(
+    { link, slots: slots ?? [], byPerson, volunteers: volunteersList },
+    { headers: NO_CACHE_HEADERS }
+  )
 }

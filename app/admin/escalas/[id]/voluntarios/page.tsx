@@ -58,6 +58,8 @@ type EscalaPublicada = {
   gerada_em: string; publicada_em: string | null
 }
 
+type DisparoJobStatus = 'queued' | 'running' | 'completed' | 'failed'
+
 // ── Seletor de funções ──────────────────────────────────────────────────────
 function FuncoesSelector({
   value, options, onChange, disabled,
@@ -308,7 +310,51 @@ export default function EscalaVoluntariosPage() {
   const [disparosPhone, setDisparosPhone] = useState('')
   const [disparosNome, setDisparosNome] = useState('')
   const [disparosLoading, setDisparosLoading] = useState<string | null>(null)
+  const [disparosStatus, setDisparosStatus] = useState<Record<string, DisparoJobStatus | null>>({})
   const [disparosResult, setDisparosResult] = useState<Record<string, { enviados: number; erros: number; aviso?: string } | null>>({})
+
+  const acompanharDisparo = useCallback(async (tipo: string, jobId: string) => {
+    for (let attempt = 0; attempt < 120; attempt++) {
+      await new Promise(resolve => setTimeout(resolve, 2500))
+
+      const statusRes = await adminFetchJson<{
+        ok: boolean
+        job: {
+          status: DisparoJobStatus
+          result: { ok: boolean; enviados: number; erros: number; aviso?: string } | null
+          error: string | null
+        }
+      }>(`/api/admin/escalas/${id}/disparar?job_id=${jobId}`)
+
+      const status = statusRes.job.status
+      setDisparosStatus(prev => ({ ...prev, [tipo]: status }))
+
+      if (status === 'completed') {
+        const result = statusRes.job.result
+        if (result) {
+          setDisparosResult(prev => ({ ...prev, [tipo]: { enviados: result.enviados, erros: result.erros, aviso: result.aviso } }))
+          if (result.erros === 0) {
+            setToast({ type: 'ok', message: `Disparo "${tipo}" finalizado: ${result.enviados} enviado(s).` })
+          } else {
+            setToast({ type: 'err', message: `Disparo "${tipo}" finalizado com ${result.erros} erro(s).` })
+          }
+        } else {
+          setToast({ type: 'ok', message: `Disparo "${tipo}" finalizado.` })
+        }
+        setDisparosLoading(null)
+        return
+      }
+
+      if (status === 'failed') {
+        setDisparosLoading(null)
+        setToast({ type: 'err', message: statusRes.job.error || `Falha ao finalizar disparo "${tipo}".` })
+        return
+      }
+    }
+
+    setDisparosLoading(null)
+    setToast({ type: 'err', message: `Tempo de acompanhamento excedido para disparo "${tipo}".` })
+  }, [id])
 
   async function handleDisparar(tipo: string) {
     if (disparosTeste && !disparosPhone.trim()) {
@@ -318,7 +364,7 @@ export default function EscalaVoluntariosPage() {
     setDisparosLoading(tipo)
     setDisparosResult(prev => ({ ...prev, [tipo]: null }))
     try {
-      const res = await adminFetchJson<{ ok: boolean; enviados: number; erros: number; aviso?: string; resultados?: any[] }>(
+      const res = await adminFetchJson<{ ok: boolean; job_id: string; status: DisparoJobStatus }>(
         `/api/admin/escalas/${id}/disparar`,
         {
           method: 'POST',
@@ -330,15 +376,11 @@ export default function EscalaVoluntariosPage() {
           }),
         },
       )
-      setDisparosResult(prev => ({ ...prev, [tipo]: { enviados: res.enviados, erros: res.erros, aviso: res.aviso } }))
-      if (res.erros === 0) {
-        setToast({ type: 'ok', message: `Disparo "${tipo}" concluído: ${res.enviados} enviado(s).` })
-      } else {
-        setToast({ type: 'err', message: `Disparo concluído com ${res.erros} erro(s). Verifique os resultados.` })
-      }
+      setDisparosStatus(prev => ({ ...prev, [tipo]: res.status }))
+      setToast({ type: 'ok', message: `Disparo "${tipo}" iniciado. Você será notificado quando finalizar.` })
+      void acompanharDisparo(tipo, res.job_id)
     } catch (e) {
       setToast({ type: 'err', message: e instanceof Error ? e.message : 'Erro ao disparar.' })
-    } finally {
       setDisparosLoading(null)
     }
   }
@@ -824,12 +866,18 @@ export default function EscalaVoluntariosPage() {
             ] as const).map(({ tipo, icon, bg, title, desc }) => {
               const res = disparosResult[tipo]
               const isLoading = disparosLoading === tipo
+              const status = disparosStatus[tipo]
               return (
                 <div key={tipo} className="flex flex-wrap items-center gap-4 px-6 py-4 hover:bg-slate-50/60 transition-colors">
                   <div className={`w-9 h-9 rounded-xl ${bg} flex items-center justify-center shrink-0`}>{icon}</div>
                   <div className="flex-1 min-w-[180px]">
                     <p className="font-semibold text-slate-800 text-sm">{title}</p>
                     <p className="text-xs text-slate-400 mt-0.5">{desc}</p>
+                    {isLoading && (
+                      <p className="text-xs text-blue-600 mt-1">
+                        {status === 'queued' ? 'Disparo na fila de processamento...' : 'Disparo em processamento no backend...'}
+                      </p>
+                    )}
                     {res?.aviso && (
                       <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
                         <AlertCircle size={11} /> {res.aviso}
@@ -857,7 +905,7 @@ export default function EscalaVoluntariosPage() {
                     {isLoading
                       ? <Loader2 size={13} className="animate-spin" />
                       : <Send size={13} />}
-                    {isLoading ? 'Enviando…' : disparosTeste ? 'Testar' : 'Enviar'}
+                    {isLoading ? 'Processando…' : disparosTeste ? 'Testar' : 'Enviar'}
                   </button>
                 </div>
               )

@@ -290,10 +290,16 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
 /**
  * DELETE /api/admin/people/[id]
+ * Exclui o perfil (people) e, se existir, o usuário de autenticação vinculado.
  */
 export async function DELETE(request: NextRequest, context: RouteContext) {
   const access = await requireAccess(request, { pageKey: 'pessoas', action: 'delete' })
   if (!access.ok) return access.response
+
+  // Apenas administradores podem excluir pessoas
+  if (!access.snapshot.isAdmin) {
+    return NextResponse.json({ error: 'Apenas administradores podem excluir pessoas.' }, { status: 403 })
+  }
 
   const { id } = await context.params
   if (!id) {
@@ -306,18 +312,46 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
   }
 
   const supabase = createSupabaseAdminClient(request)
-  const { error } = await supabase.from('people').delete().eq('id', id)
 
-  if (error) {
-    if (error.code === '23503') {
+  // Verificar se existe usuário de autenticação vinculado
+  let linkedUserId: string | null = null
+  try {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('person_id', id)
+      .maybeSingle()
+    linkedUserId = profile?.id ?? null
+  } catch {
+    // Segue mesmo sem encontrar perfil
+  }
+
+  // Excluir o registro da pessoa (cascata para profiles via FK se configurado, caso contrário excluir manualmente)
+  const { error: deletePersonError } = await supabase.from('people').delete().eq('id', id)
+
+  if (deletePersonError) {
+    if (deletePersonError.code === '23503') {
       return NextResponse.json(
-        { error: 'Não é possível excluir: pessoa está vinculada a usuário ou conversões.' },
+        { error: 'Não é possível excluir: pessoa está vinculada a registros dependentes.' },
         { status: 409 }
       )
     }
-    console.error('Erro ao excluir pessoa:', error)
+    console.error('Erro ao excluir pessoa:', deletePersonError)
     return NextResponse.json({ error: 'Erro ao excluir pessoa' }, { status: 500 })
   }
 
-  return NextResponse.json({ success: true })
+  // Se havia usuário de autenticação vinculado, excluir do Auth também
+  if (linkedUserId) {
+    try {
+      const { error: authDeleteError } = await supabase.auth.admin.deleteUser(linkedUserId)
+      if (authDeleteError) {
+        console.error('Erro ao excluir usuário do Auth:', authDeleteError)
+        // Não retorna erro — o perfil já foi excluído, apenas loga o problema
+      }
+    } catch (e) {
+      console.error('Exceção ao excluir usuário do Auth:', e)
+    }
+  }
+
+  return NextResponse.json({ success: true, deletedAuthUser: !!linkedUserId })
 }

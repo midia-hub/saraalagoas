@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import { ShoppingCart, ArrowLeft, Search, LayoutGrid, List, Camera } from 'lucide-react'
 import { PageAccessGuard } from '@/app/admin/PageAccessGuard'
-import { Button } from '@/components/ui/Button'
+import { CustomSelect } from '@/components/ui/CustomSelect'
 import { Spinner } from '@/components/ui/Spinner'
 import { Toast } from '@/components/Toast'
 import { adminFetchJson, getAccessTokenOrThrow } from '@/lib/admin-client'
@@ -49,6 +49,7 @@ export default function PdvPage() {
     pos_id: string
     pos?: { id: string; name: string; external_id: string }
   } | null>(null)
+  const [enabledPaymentMethods, setEnabledPaymentMethods] = useState<string[] | undefined>(undefined)
   const tokenRef = useRef<string | null>(null)
 
   const loadProducts = useCallback(async () => {
@@ -89,6 +90,12 @@ export default function PdvPage() {
     )
       .then((s) => setSessaoAberta(s && typeof s === 'object' && s.id ? s : null))
       .catch(() => setSessaoAberta(null))
+  }, [])
+
+  useEffect(() => {
+    adminFetchJson<{ enabled: string[] }>('/api/admin/livraria/config/payment-methods/')
+      .then((d) => setEnabledPaymentMethods(d.enabled))
+      .catch(() => setEnabledPaymentMethods(undefined))
   }, [])
 
   useEffect(() => {
@@ -324,13 +331,13 @@ export default function PdvPage() {
   return (
     <PageAccessGuard pageKey="livraria_pdv">
       {!sessaoAberta && (
-        <div className="bg-amber-100 border-b border-amber-300 px-4 py-2 flex items-center justify-between gap-2 flex-wrap">
+        <div className="bg-amber-50 border-b border-amber-200 px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <p className="text-sm text-amber-900">
             <strong>Caixa fechado.</strong> Abra um caixa em Loja e Caixa (MP) para realizar vendas.
           </p>
           <Link
             href="/admin/livraria/loja-caixa"
-            className="text-sm font-medium text-amber-900 underline hover:no-underline"
+            className="inline-flex items-center text-sm font-semibold text-amber-900 underline hover:no-underline"
           >
             Abrir caixa →
           </Link>
@@ -339,76 +346,89 @@ export default function PdvPage() {
       <div className="flex flex-col h-full md:flex-row">
         {/* Coluna esquerda: busca + produtos */}
         <div className="flex-1 min-w-0 flex flex-col p-3 md:p-4 lg:w-[65%]">
+          {/* Barra de busca */}
           <div className="flex items-center gap-2 mb-3">
             <Link
               href="/admin/livraria/produtos"
-              className="p-2 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600"
+              className="flex-shrink-0 p-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600 transition-colors"
               aria-label="Voltar"
             >
               <ArrowLeft size={20} />
             </Link>
-            <div className="flex-1 flex items-center gap-2">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <input
-                  type="search"
-                  placeholder="Buscar por nome, SKU ou código"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg text-slate-800"
-                />
-              </div>
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                onClick={() => setBarcodeOpen(true)}
-                aria-label="Ler código de barras"
-              >
-                <Camera size={18} />
-                <span className="hidden sm:inline ml-1">Ler código</span>
-              </Button>
+            <div className="flex-1 relative">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+              <input
+                type="search"
+                placeholder="Nome, SKU ou código de barras"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm text-slate-800
+                           focus:border-[#c62737] focus:ring-2 focus:ring-[#c62737]/20 outline-none transition-all
+                           placeholder:text-slate-400"
+              />
             </div>
             <button
               type="button"
+              onClick={() => setBarcodeOpen(true)}
+              className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-colors"
+              aria-label="Ler código de barras"
+            >
+              <Camera size={17} />
+              <span className="hidden sm:inline">Ler código</span>
+            </button>
+            <button
+              type="button"
               onClick={() => setCartDrawerOpen(true)}
-              className="lg:hidden p-2 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 relative"
+              className="lg:hidden flex-shrink-0 p-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600 relative transition-colors"
               aria-label="Abrir sacola"
             >
               <ShoppingCart size={22} />
               {cart.filter((i) => i.mode === 'SALE').length > 0 && (
-                <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-[#c62737] text-white text-xs flex items-center justify-center">
+                <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] rounded-full bg-[#c62737] text-white text-[10px] font-bold flex items-center justify-center px-1">
                   {cart.filter((i) => i.mode === 'SALE').length}
                 </span>
               )}
             </button>
-            <div className="hidden lg:block w-10" aria-hidden />
           </div>
-          <div className="flex flex-wrap items-center gap-2 mb-3">
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="px-3 py-2 border border-slate-300 rounded-lg text-slate-800 text-sm"
-            >
-              <option value="">Todas as categorias</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
-            <div className="flex rounded-lg border border-slate-300 overflow-hidden">
+
+          {/* Filtros: categoria + toggle de visão */}
+          <div className="flex items-center gap-2 mb-3">
+            <div className="flex-1 min-w-0">
+              <CustomSelect
+                value={category}
+                onChange={setCategory}
+                options={[
+                  { value: '', label: 'Todas as categorias' },
+                  ...categories.map((c) => ({ value: c.id, label: c.name })),
+                ]}
+                placeholder="Todas as categorias"
+                allowEmpty={false}
+              />
+            </div>
+            <div className="flex-shrink-0 flex rounded-xl border border-slate-200 overflow-hidden">
               <button
                 type="button"
                 onClick={() => setViewMode('cards')}
-                className={`p-2 ${viewMode === 'cards' ? 'bg-[#c62737] text-white' : 'bg-white text-slate-600'}`}
-                aria-label="Visualização em cards"
+                className={`p-2.5 transition-colors ${
+                  viewMode === 'cards'
+                    ? 'bg-[#c62737] text-white'
+                    : 'bg-white text-slate-500 hover:bg-slate-50'
+                }`}
+                aria-label="Ver em grade"
+                title="Grade"
               >
                 <LayoutGrid size={18} />
               </button>
               <button
                 type="button"
                 onClick={() => setViewMode('list')}
-                className={`p-2 ${viewMode === 'list' ? 'bg-[#c62737] text-white' : 'bg-white text-slate-600'}`}
-                aria-label="Visualização em lista"
+                className={`p-2.5 border-l border-slate-200 transition-colors ${
+                  viewMode === 'list'
+                    ? 'bg-[#c62737] text-white'
+                    : 'bg-white text-slate-500 hover:bg-slate-50'
+                }`}
+                aria-label="Ver em lista"
+                title="Lista"
               >
                 <List size={18} />
               </button>
@@ -419,16 +439,16 @@ export default function PdvPage() {
               <Spinner size="lg" text="Carregando produtos..." />
             </div>
           ) : viewMode === 'list' ? (
-            <div className="overflow-auto rounded-xl border border-slate-200 bg-white">
+            <div className="overflow-auto rounded-xl border border-slate-200 bg-white pb-24 lg:pb-0">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-200">
-                    <th className="p-2 w-12"></th>
-                    <th className="p-2 text-left font-medium">Nome</th>
-                    <th className="p-2 text-left font-medium">SKU</th>
-                    <th className="p-2 text-left font-medium">Preço</th>
-                    <th className="p-2 text-left font-medium">Estoque</th>
-                    <th className="p-2"></th>
+                    <th className="px-3 py-3 w-14"></th>
+                    <th className="px-3 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Produto</th>
+                    <th className="px-3 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider hidden sm:table-cell">SKU</th>
+                    <th className="px-3 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Preço</th>
+                    <th className="px-3 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider hidden md:table-cell">Estoque</th>
+                    <th className="px-3 py-3"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -444,7 +464,7 @@ export default function PdvPage() {
               </table>
             </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 overflow-auto">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 overflow-auto pb-24 lg:pb-4">
               {products.map((p) => (
                 <PdvProductCard
                   key={p.id}
@@ -476,13 +496,26 @@ export default function PdvPage() {
         {/* Mobile: drawer da sacola */}
         {cartDrawerOpen && (
           <div className="lg:hidden fixed inset-0 z-40" aria-modal="true" aria-label="Sacola">
-            <div className="absolute inset-0 bg-black/50" onClick={() => setCartDrawerOpen(false)} aria-hidden />
-            <div className="absolute right-0 top-0 bottom-0 w-full max-w-sm bg-white shadow-xl flex flex-col">
-              <div className="flex items-center justify-between p-3 border-b border-slate-200">
-                <h3 className="font-semibold text-slate-800">Sacola</h3>
-                <Button type="button" variant="ghost" size="sm" onClick={() => setCartDrawerOpen(false)}>
-                  Fechar
-                </Button>
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setCartDrawerOpen(false)} aria-hidden />
+            <div className="absolute right-0 top-0 bottom-0 w-full max-w-sm bg-white shadow-2xl flex flex-col">
+              <div className="flex items-center justify-between px-4 py-3.5 border-b border-slate-200 bg-white">
+                <div className="flex items-center gap-2">
+                  <ShoppingCart size={18} className="text-[#c62737]" />
+                  <h3 className="font-bold text-slate-900">Sacola</h3>
+                  {cart.filter((i) => i.mode === 'SALE').length > 0 && (
+                    <span className="inline-flex items-center justify-center min-w-[20px] h-5 rounded-full bg-[#c62737]/10 text-[#c62737] text-xs font-bold px-1">
+                      {cart.filter((i) => i.mode === 'SALE').length}
+                    </span>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setCartDrawerOpen(false)}
+                  className="p-2 rounded-xl text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+                  aria-label="Fechar sacola"
+                >
+                  ✕
+                </button>
               </div>
               <div className="flex-1 min-h-0 overflow-auto">
                 <CartPanel
@@ -504,16 +537,16 @@ export default function PdvPage() {
         )}
 
         {/* Mobile: botão sacola flutuante */}
-        <div className="lg:hidden fixed bottom-4 right-4 z-30">
+        <div className="lg:hidden fixed bottom-5 right-4 z-30">
           <button
             type="button"
             onClick={() => setCartDrawerOpen(true)}
-            className="flex items-center justify-center w-14 h-14 rounded-full bg-[#c62737] text-white shadow-lg"
+            className="relative flex items-center justify-center w-14 h-14 rounded-full bg-[#c62737] text-white shadow-xl active:scale-95 transition-transform"
             aria-label="Abrir sacola"
           >
             <ShoppingCart size={24} />
             {saleItems.length > 0 && (
-              <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-white text-[#c62737] text-xs font-bold flex items-center justify-center">
+              <span className="absolute -top-1 -right-1 min-w-[20px] h-5 rounded-full bg-white text-[#c62737] text-xs font-bold flex items-center justify-center px-1">
                 {saleItems.length}
               </span>
             )}
@@ -539,6 +572,7 @@ export default function PdvPage() {
         onConfirm={confirmFinalize}
         onCancel={() => setFinalizeOpen(false)}
         loading={finalizeLoading}
+        enabledMethods={enabledPaymentMethods}
       />
       {mercadopagoModal && (
         <MercadoPagoCheckoutModal

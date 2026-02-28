@@ -146,8 +146,8 @@ export function AdminSidebar() {
   const toggleModule = (moduleId: string) => {
     setExpandedModules(prev =>
       prev.includes(moduleId)
-        ? prev.filter(id => id !== moduleId)
-        : [...prev, moduleId]
+        ? []
+        : [moduleId]
     )
   }
 
@@ -190,9 +190,31 @@ export function AdminSidebar() {
     return bestMatch
   }, [visibleModules, pathname])
 
-  const renderNavItems = (isMobile = false) => (
+  const renderNavItems = (isMobile = false) => {
+    const dashboardItem = visibleModules.find(m => m.id === 'dashboard')?.items[0]
+    const otherModules = visibleModules.filter(m => m.id !== 'dashboard')
+    const isHomeActive = activeItemHref === '/admin'
+
+    return (
     <nav className="flex-1 min-h-0 p-4 space-y-2 overflow-y-auto custom-scrollbar">
-      {visibleModules.map((module) => {
+      {dashboardItem && (
+        <Link
+          href={dashboardItem.href}
+          onClick={handleMenuClick(dashboardItem.href, isMobile)}
+          className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
+            isHomeActive
+              ? 'bg-red-600 text-white shadow-lg shadow-red-600/20'
+              : 'text-slate-300 hover:bg-white/5 hover:text-white'
+          }`}
+        >
+          {dashboardItem.icon && <dashboardItem.icon size={20} className="shrink-0" />}
+          <span className="flex-1">{dashboardItem.label}</span>
+          {pendingHref === dashboardItem.href ? (
+            <Loader2 size={13} className="shrink-0 animate-spin opacity-80" aria-hidden />
+          ) : null}
+        </Link>
+      )}
+      {otherModules.map((module) => {
         const isExpanded = expandedModules.includes(module.id)
         const hasActiveItem = module.items.some(item => item.href === activeItemHref)
 
@@ -253,21 +275,31 @@ export function AdminSidebar() {
         )
       })}
     </nav>
-  )
+    )
+  }
 
   const sidebarContent = (
     <div className="flex flex-col h-full min-h-0 bg-slate-900 text-slate-300 overflow-hidden">
       {/* Brand */}
       <div className="p-6 border-b border-white/5 shrink-0">
-        <Link href="/admin" className="flex items-center gap-3 group" onClick={closeMobileMenu}>
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center shadow-lg shadow-red-600/20 group-hover:scale-105 transition-transform duration-300">
-            <span className="text-white font-black text-xl">S</span>
-          </div>
-          <div className="min-w-0">
-            <h1 className="font-bold text-white text-lg leading-tight tracking-tight">Mídia Hub</h1>
-            <p className="text-red-500/80 text-[10px] font-bold uppercase tracking-[1.5px] mt-0.5">Sara Alagoas</p>
-          </div>
-        </Link>
+        <div className="flex items-center justify-between gap-2">
+          <Link href="/admin" className="flex items-center gap-3 group min-w-0" onClick={closeMobileMenu}>
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center shadow-lg shadow-red-600/20 group-hover:scale-105 transition-transform duration-300 shrink-0">
+              <span className="text-white font-black text-xl">S</span>
+            </div>
+            <div className="min-w-0">
+              <h1 className="font-bold text-white text-lg leading-tight tracking-tight">Sara Hub</h1>
+              <p className="text-red-500/80 text-[10px] font-bold uppercase tracking-[1.5px] mt-0.5">Sara Alagoas</p>
+            </div>
+          </Link>
+          <Link
+            href="/"
+            title="Voltar ao Site"
+            className="p-2 rounded-xl text-slate-400 hover:bg-white/5 hover:text-white transition-all shrink-0"
+          >
+            <Home size={18} />
+          </Link>
+        </div>
       </div>
 
       {/* Nav */}
@@ -275,39 +307,31 @@ export function AdminSidebar() {
 
       {/* Footer */}
       <div className="p-4 mt-auto border-t border-white/5 bg-slate-950/30">
-        <Link
-          href="/admin/conta"
-          className="block px-3 py-3 mb-2 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 hover:border-white/10 transition-all group"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl overflow-hidden bg-slate-700 flex items-center justify-center text-xs font-bold text-white shrink-0 group-hover:scale-105 transition-transform">
-              {access.avatarUrl ? (
-                <img src={access.avatarUrl} alt={access.profileName} className="w-full h-full object-cover" />
-              ) : (
-                access.profileName?.charAt(0).toUpperCase() || 'U'
-              )}
-            </div>
-            <div className="min-w-0">
-              <p className="text-[13px] font-bold text-white truncate leading-none mb-1 group-hover:text-red-400 transition-colors uppercase tracking-tight">{access.profileName || 'Usuário'}</p>
-              <p className="text-[10px] text-slate-400 truncate capitalize leading-none tracking-wider">{access.roleName || 'Perfil'}</p>
-            </div>
-          </div>
-        </Link>
-
-        <div className="space-y-1">
+        <div className="flex items-center gap-2">
           <Link
-            href="/"
-            className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium hover:bg-white/5 hover:text-white transition-all"
+            href="/admin/conta"
+            className="flex-1 min-w-0 px-3 py-3 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 hover:border-white/10 transition-all group"
           >
-            <Home size={18} />
-            <span>Voltar ao Site</span>
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl overflow-hidden bg-slate-700 flex items-center justify-center text-xs font-bold text-white shrink-0 group-hover:scale-105 transition-transform">
+                {access.avatarUrl ? (
+                  <img src={access.avatarUrl} alt={access.profileName} className="w-full h-full object-cover" />
+                ) : (
+                  access.profileName?.charAt(0).toUpperCase() || 'U'
+                )}
+              </div>
+              <div className="min-w-0">
+                <p className="text-[13px] font-bold text-white truncate leading-none mb-1 group-hover:text-red-400 transition-colors uppercase tracking-tight">{access.profileName || 'Usuário'}</p>
+                <p className="text-[10px] text-slate-400 truncate capitalize leading-none tracking-wider">{access.roleName || 'Perfil'}</p>
+              </div>
+            </div>
           </Link>
           <button
             onClick={handleSignOut}
-            className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium text-slate-400 hover:bg-red-500/10 hover:text-red-500 transition-all text-left"
+            title="Sair do Painel"
+            className="p-2.5 rounded-xl text-slate-400 hover:bg-red-500/10 hover:text-red-500 transition-all shrink-0"
           >
             <LogOut size={18} />
-            <span>Sair do Painel</span>
           </button>
         </div>
       </div>
@@ -328,7 +352,7 @@ export function AdminSidebar() {
           <div className="w-8 h-8 rounded-lg bg-red-600 flex items-center justify-center">
             <span className="text-white font-bold text-sm">S</span>
           </div>
-          <span className="font-bold text-white text-sm">Mídia Hub</span>
+          <span className="font-bold text-white text-sm">Sara Hub</span>
         </div>
         <div className="w-10" /> {/* Spacer */}
       </header>
@@ -351,7 +375,7 @@ export function AdminSidebar() {
                 <span className="text-white font-bold text-lg">S</span>
               </div>
               <div>
-                <h1 className="font-bold text-white text-base leading-tight">Mídia Hub</h1>
+                <h1 className="font-bold text-white text-base leading-tight">Sara Hub</h1>
                 <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Dashboard Admin</p>
               </div>
             </div>
@@ -364,34 +388,35 @@ export function AdminSidebar() {
           </div>
           {renderNavItems(true)}
 
-          <div className="p-4 border-t border-white/5 space-y-4">
-            <Link
-              href="/admin/conta"
-              onClick={closeMobileMenu}
-              className="block px-4 py-4 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 active:scale-[0.98] transition-all"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl overflow-hidden bg-slate-700 flex items-center justify-center text-sm font-bold text-white shrink-0">
-                  {access.avatarUrl ? (
-                    <img src={access.avatarUrl} alt={access.profileName} className="w-full h-full object-cover" />
-                  ) : (
-                    access.profileName?.charAt(0).toUpperCase() || 'U'
-                  )}
+          <div className="p-4 border-t border-white/5">
+            <div className="flex items-center gap-2">
+              <Link
+                href="/admin/conta"
+                onClick={closeMobileMenu}
+                className="flex-1 min-w-0 px-4 py-4 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 active:scale-[0.98] transition-all"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl overflow-hidden bg-slate-700 flex items-center justify-center text-sm font-bold text-white shrink-0">
+                    {access.avatarUrl ? (
+                      <img src={access.avatarUrl} alt={access.profileName} className="w-full h-full object-cover" />
+                    ) : (
+                      access.profileName?.charAt(0).toUpperCase() || 'U'
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[14px] font-bold text-white truncate leading-none mb-1.5 uppercase tracking-tight">{access.profileName || 'Usuário'}</p>
+                    <p className="text-[11px] text-slate-400 truncate capitalize leading-none tracking-wider">{access.roleName || 'Perfil'}</p>
+                  </div>
                 </div>
-                <div className="min-w-0">
-                  <p className="text-[14px] font-bold text-white truncate leading-none mb-1.5 uppercase tracking-tight">{access.profileName || 'Usuário'}</p>
-                  <p className="text-[11px] text-slate-400 truncate capitalize leading-none tracking-wider">{access.roleName || 'Perfil'}</p>
-                </div>
-              </div>
-            </Link>
-
-            <button
-              onClick={handleSignOut}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl bg-red-600/10 text-red-500 text-sm font-bold hover:bg-red-600 hover:text-white transition-all shadow-lg shadow-red-600/5"
-            >
-              <LogOut size={18} />
-              <span>Sair do Painel</span>
-            </button>
+              </Link>
+              <button
+                title="Sair do Painel"
+                onClick={handleSignOut}
+                className="p-3 rounded-2xl text-red-500 hover:bg-red-600/10 transition-all shrink-0"
+              >
+                <LogOut size={18} />
+              </button>
+            </div>
           </div>
         </div>
       </aside>

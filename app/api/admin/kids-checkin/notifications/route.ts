@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAccess } from '@/lib/admin-api'
 import { createSupabaseAdminClient } from '@/lib/supabase-server'
+import { getBackgroundJob, startBackgroundJob } from '@/lib/background-jobs'
 import {
   MESSAGE_ID_KIDS_ALERTA,
   MESSAGE_ID_KIDS_ENCERRAMENTO,
@@ -8,26 +9,17 @@ import {
   getNomeExibicao,
 } from '@/lib/disparos-webhook'
 
-export async function POST(request: NextRequest) {
-  const access = await requireAccess(request, { pageKey: 'pessoas', action: 'edit' })
-  if (!access.ok) return access.response
+type KidsNotificationType = 'alerta' | 'encerramento'
 
-  const body = await request.json()
-  const { type, checkinIds } = body
+type KidsJobResult = {
+  ok: true
+  summary: { success: number; errors: number; total: number }
+  results: Array<{ checkinId: string; success: boolean; error?: string }>
+}
 
-  if (!type || !checkinIds || !Array.isArray(checkinIds)) {
-    return NextResponse.json(
-      { error: 'Campos obrigatórios: type ("alerta" ou "encerramento") e checkinIds (array).' },
-      { status: 400 }
-    )
-  }
-
+async function executeKidsNotificationsJob(type: KidsNotificationType, checkinIds: string[]): Promise<KidsJobResult> {
   const messageId = type === 'alerta' ? MESSAGE_ID_KIDS_ALERTA : MESSAGE_ID_KIDS_ENCERRAMENTO
-  if (type !== 'alerta' && type !== 'encerramento') {
-    return NextResponse.json({ error: 'Tipo inválido.' }, { status: 400 })
-  }
-
-  const supabase = createSupabaseAdminClient(request)
+  const supabase = createSupabaseAdminClient()
 
   const { data: checkins, error: cError } = await supabase
     .from('kids_checkin')
@@ -38,19 +30,18 @@ export async function POST(request: NextRequest) {
     `)
     .in('id', checkinIds)
 
-  if (cError) {
-    console.error('[notifications POST]', cError)
-    return NextResponse.json({ error: cError.message }, { status: 500 })
-  }
+  if (cError) throw new Error(cError.message)
 
   let successCount = 0
   let errorCount = 0
 
-  // Disparos em paralelo (ou serial para evitar rate limits excessivos, mas como são poucos, paralelo deve ok)
   const results = await Promise.all(
-    checkins.map(async (c: any) => {
+    (checkins ?? []).map(async (c: any) => {
       const phone = c.guardian?.mobile_phone || c.guardian?.phone
-      if (!phone) return { checkinId: c.id, success: false, error: 'Sem telefone' }
+      if (!phone) {
+        errorCount++
+        return { checkinId: c.id, success: false, error: 'Sem telefone' }
+      }
 
       const sex = c.child?.sex?.toUpperCase() || ''
       const prefix = sex.startsWith('F') ? 'a ' : sex.startsWith('M') ? 'o ' : ''
@@ -71,9 +62,65 @@ export async function POST(request: NextRequest) {
     })
   )
 
+  return {
+    ok: true,
+    summary: { success: successCount, errors: errorCount, total: (checkins ?? []).length },
+    results,
+  }
+}
+
+export async function POST(request: NextRequest) {
+  const access = await requireAccess(request, { pageKey: 'pessoas', action: 'edit' })
+  if (!access.ok) return access.response
+
+  const body = await request.json()
+  const { type, checkinIds } = body
+
+  if (!type || !checkinIds || !Array.isArray(checkinIds)) {
+    return NextResponse.json(
+      { error: 'Campos obrigatórios: type ("alerta" ou "encerramento") e checkinIds (array).' },
+      { status: 400 }
+    )
+  }
+
+  if (type !== 'alerta' && type !== 'encerramento') {
+    return NextResponse.json({ error: 'Tipo inválido.' }, { status: 400 })
+  }
+
+  const job = await startBackgroundJob<KidsJobResult>({
+    kind: 'kids-notifications',
+    metadata: { type },
+    run: () => executeKidsNotificationsJob(type, checkinIds),
+  })
+
+  return NextResponse.json(
+    { ok: true, job_id: job.id, status: job.status, message: 'Notificações iniciadas em segundo plano.' },
+    { status: 202 },
+  )
+}
+
+export async function GET(request: NextRequest) {
+  const access = await requireAccess(request, { pageKey: 'pessoas', action: 'edit' })
+  if (!access.ok) return access.response
+
+  const jobId = request.nextUrl.searchParams.get('job_id')
+  if (!jobId) return NextResponse.json({ error: 'job_id é obrigatório.' }, { status: 400 })
+
+  const job = await getBackgroundJob<KidsJobResult>(jobId)
+  if (!job || job.kind !== 'kids-notifications') {
+    return NextResponse.json({ error: 'Job não encontrado.' }, { status: 404 })
+  }
+
   return NextResponse.json({
     ok: true,
-    summary: { success: successCount, errors: errorCount, total: checkins.length },
-    results,
+    job: {
+      id: job.id,
+      status: job.status,
+      created_at: job.createdAt,
+      started_at: job.startedAt,
+      finished_at: job.finishedAt,
+      result: job.result,
+      error: job.error,
+    },
   })
 }

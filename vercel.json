@@ -1,6 +1,10 @@
 {
   "crons": [
     {
+      "path": "/api/social/run-scheduled",
+      "schedule": "*/5 * * * *"
+    },
+    {
       "path": "/api/cron/escalas-lembretes?tipo=lembrete_3dias",
       "schedule": "30 11 * * *"
     },
@@ -18,6 +22,9 @@
       "maxDuration": 60
     },
     "app/api/social/run-scheduled/route.ts": {
+      "maxDuration": 60
+    },
+    "app/api/meta/account-posts/route.ts": {
       "maxDuration": 60
     }
   }

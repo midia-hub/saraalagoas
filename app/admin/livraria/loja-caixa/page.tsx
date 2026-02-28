@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, Building2, CreditCard, DoorOpen, DoorClosed, Plus, Loader2, Search, User, Pencil, Trash2 } from 'lucide-react'
+import { ArrowLeft, Building2, CreditCard, DoorOpen, DoorClosed, Plus, Loader2, Search, User, Pencil, Trash2, Settings } from 'lucide-react'
 import { PageAccessGuard } from '@/app/admin/PageAccessGuard'
 import { Button } from '@/components/ui/Button'
 import { Spinner } from '@/components/ui/Spinner'
@@ -82,6 +82,17 @@ export default function LivrariaLojaCaixaPage() {
   const [fecharNotes, setFecharNotes] = useState('')
   const [fecharLoading, setFecharLoading] = useState(false)
 
+  const ALL_PAYMENT_METHODS = [
+    { value: 'Dinheiro', label: 'Dinheiro' },
+    { value: 'Pix', label: 'Pix' },
+    { value: 'Cartão', label: 'Cartão' },
+    { value: 'Mercado Pago', label: 'Mercado Pago (Pix online)' },
+    { value: 'QR no caixa', label: 'QR no caixa (Mercado Pago)' },
+    { value: 'Outro', label: 'Outro' },
+  ]
+  const [enabledMethods, setEnabledMethods] = useState<string[]>(ALL_PAYMENT_METHODS.map((m) => m.value))
+  const [pmSaving, setPmSaving] = useState(false)
+
   const load = useCallback(async () => {
     setLoading(true)
     try {
@@ -107,6 +118,12 @@ export default function LivrariaLojaCaixaPage() {
   useEffect(() => {
     load()
   }, [load])
+
+  useEffect(() => {
+    adminFetchJson<{ enabled: string[] }>('/api/admin/livraria/config/payment-methods/')
+      .then((d) => { if (Array.isArray(d.enabled)) setEnabledMethods(d.enabled) })
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     supabase?.auth.getUser().then(({ data: { user } }) => {
@@ -377,6 +394,33 @@ export default function LivrariaLojaCaixaPage() {
 
   const sessoesAbertas = sessoes.filter((s) => s.status === 'OPENED')
   const sessoesFechadas = sessoes.filter((s) => s.status === 'CLOSED')
+
+  async function handleSavePaymentMethods(methods: string[]) {
+    setPmSaving(true)
+    try {
+      const token = await getAccessTokenOrThrow()
+      const res = await fetch('/api/admin/livraria/config/payment-methods/', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ enabled: methods }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Erro ao salvar.')
+      setEnabledMethods(data.enabled)
+      setToast({ type: 'ok', message: 'Formas de pagamento salvas.' })
+    } catch (e) {
+      setToast({ type: 'err', message: e instanceof Error ? e.message : 'Erro ao salvar.' })
+    } finally {
+      setPmSaving(false)
+    }
+  }
+
+  function handleToggleMethod(value: string) {
+    const updated = enabledMethods.includes(value)
+      ? enabledMethods.filter((m) => m !== value)
+      : [...enabledMethods, value]
+    setEnabledMethods(updated)
+  }
 
   return (
     <PageAccessGuard pageKey="livraria_pdv">
@@ -743,6 +787,59 @@ export default function LivrariaLojaCaixaPage() {
                   )}
                 </>
               )}
+            </section>
+
+            {/* Formas de Pagamento */}
+            <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+              <h2 className="flex items-center gap-2 text-lg font-semibold text-slate-800 mb-1">
+                <Settings size={20} /> Formas de pagamento
+              </h2>
+              <p className="text-sm text-slate-500 mb-5">
+                Ative ou desative as opções disponíveis no PDV ao finalizar uma venda.
+              </p>
+
+              <div className="space-y-3">
+                {ALL_PAYMENT_METHODS.map((method) => {
+                  const isEnabled = enabledMethods.includes(method.value)
+                  return (
+                    <label
+                      key={method.value}
+                      className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 px-4 py-3 cursor-pointer hover:border-slate-300 transition-colors"
+                    >
+                      <div>
+                        <span className="font-medium text-slate-800 text-sm">{method.label}</span>
+                      </div>
+                      <div
+                        onClick={() => handleToggleMethod(method.value)}
+                        className={`relative w-10 shrink-0 rounded-full transition-colors ${isEnabled ? 'bg-[#c62737]' : 'bg-slate-200'}`}
+                        style={{ height: '1.375rem' }}
+                        role="switch"
+                        aria-checked={isEnabled}
+                        tabIndex={0}
+                        onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && handleToggleMethod(method.value)}
+                      >
+                        <span
+                          className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${isEnabled ? 'translate-x-[1.125rem]' : 'translate-x-0'}`}
+                        />
+                      </div>
+                    </label>
+                  )
+                })}
+              </div>
+
+              <div className="mt-5 flex items-center gap-3">
+                <Button
+                  type="button"
+                  onClick={() => handleSavePaymentMethods(enabledMethods)}
+                  disabled={pmSaving || enabledMethods.length === 0}
+                >
+                  {pmSaving ? <Loader2 size={16} className="animate-spin" /> : null}
+                  <span className="ml-1">{pmSaving ? 'Salvando…' : 'Salvar configuração'}</span>
+                </Button>
+                {enabledMethods.length === 0 && (
+                  <p className="text-sm text-amber-600">Habilite ao menos uma forma de pagamento.</p>
+                )}
+              </div>
             </section>
           </div>
         )}

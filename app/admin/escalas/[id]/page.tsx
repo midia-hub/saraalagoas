@@ -76,7 +76,7 @@ export default function EscalaRespostasPage() {
     if (!silent) setLoading(true)
     else setRefreshing(true)
     try {
-      const res = await adminFetchJson<ApiPayload>(`/api/admin/escalas/${id}/respostas`)
+      const res = await adminFetchJson<ApiPayload>(`/api/admin/escalas/${id}/respostas?_t=${Date.now()}`, { cache: 'no-store' })
       setData(res)
       setLastUpdated(new Date())
       setError('')
@@ -98,8 +98,16 @@ export default function EscalaRespostasPage() {
     pollRef.current = setInterval(() => {
       if (document.visibilityState === 'visible') load(true)
     }, POLL_INTERVAL_MS)
+
+    // Atualiza imediatamente quando o admin volta para a aba
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') load(true)
+    }
+    document.addEventListener('visibilitychange', onVisible)
+
     return () => {
       if (pollRef.current) clearInterval(pollRef.current)
+      document.removeEventListener('visibilitychange', onVisible)
     }
   }, [id, load])
 
