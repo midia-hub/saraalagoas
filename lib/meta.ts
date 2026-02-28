@@ -715,6 +715,92 @@ export async function createInstagramCarouselContainer(params: {
 }
 
 // ============================================================
+// Reels & Stories
+// ============================================================
+
+/**
+ * Cria um container de Reel no Instagram.
+ * Requer: video_url publicamente acessível, max 90 segundos, aspect ratio 9:16 recomendado.
+ * @see https://developers.facebook.com/docs/instagram-platform/instagram-graph-api/content-publishing#reels
+ */
+export async function createInstagramReelContainer(params: {
+  igUserId: string
+  videoUrl: string
+  caption?: string
+  shareToFeed?: boolean
+  /** Offset em milissegundos para o frame de capa do Reel. */
+  thumbOffset?: number
+  accessToken: string
+}): Promise<{ id: string }> {
+  const { igUserId, videoUrl, caption, shareToFeed = true, thumbOffset, accessToken } = params
+
+  const body: Record<string, unknown> = {
+    video_url: videoUrl,
+    media_type: 'REELS',
+    caption: caption || '',
+    share_to_feed: shareToFeed,
+    access_token: accessToken,
+    ...(typeof thumbOffset === 'number' && thumbOffset > 0 ? { thumb_offset: thumbOffset } : {}),
+  }
+
+  const response = await fetch(`${META_MEDIA_API_BASE}/${igUserId}/media`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: { message: 'Failed to create reel container' } }))
+    throw new Error(`Meta create reel container failed: ${error.error?.message || response.statusText}`)
+  }
+
+  return response.json()
+}
+
+/**
+ * Cria um container de Story no Instagram.
+ * Suporta imagem (image_url) ou vídeo (video_url).
+ * Stories não têm legenda.
+ * @see https://developers.facebook.com/docs/instagram-platform/instagram-graph-api/content-publishing#stories
+ */
+export async function createInstagramStoryContainer(params: {
+  igUserId: string
+  imageUrl?: string
+  videoUrl?: string
+  accessToken: string
+}): Promise<{ id: string }> {
+  const { igUserId, imageUrl, videoUrl, accessToken } = params
+
+  if (!imageUrl && !videoUrl) {
+    throw new Error('imageUrl ou videoUrl é obrigatório para Stories')
+  }
+
+  const body: Record<string, unknown> = {
+    media_type: 'STORIES',
+    access_token: accessToken,
+  }
+
+  if (imageUrl) {
+    body.image_url = imageUrl
+  } else {
+    body.video_url = videoUrl
+  }
+
+  const response = await fetch(`${META_MEDIA_API_BASE}/${igUserId}/media`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: { message: 'Failed to create story container' } }))
+    throw new Error(`Meta create story container failed: ${error.error?.message || response.statusText}`)
+  }
+
+  return response.json()
+}
+
+// ============================================================
 // Collaboration / Collab Posts
 // ============================================================
 

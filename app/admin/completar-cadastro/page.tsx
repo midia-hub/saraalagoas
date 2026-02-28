@@ -280,7 +280,9 @@ export default function CompletarCadastroPage() {
           />
         </div>
 
-        <div className={styles.card} style={{ maxWidth: 620 }}>
+        {/* overflow:visible é obrigatório aqui para que o painel absoluto do DatePickerInput
+             não seja cortado pelo scroll container padrão do .card (Design System §3.2) */}
+        <div className={styles.card} style={{ maxWidth: 620, overflow: 'visible', maxHeight: 'none' }}>
           {submitting ? (
             <div className="flex flex-col items-center gap-4 py-8">
               <Loader2 size={36} className="animate-spin text-[#c62737]" />
@@ -320,94 +322,99 @@ export default function CompletarCadastroPage() {
                       onChange={(e) => updateField('full_name', e.target.value)}
                       className={styles.innerInput}
                       placeholder="Seu nome completo"
+                      autoComplete="name"
+                      style={{ fontSize: 16 }}
                       required
                     />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {/* Data de nascimento */}
-                  <div className={styles.field}>
-                    <label htmlFor="birth_date">Nascimento</label>
-                    <DatePickerInput
-                      id="birth_date"
-                      value={form.birth_date}
-                      onChange={(v) => updateField('birth_date', v)}
-                      placeholder="dd/mm/aaaa"
-                    />
-                  </div>
+                {/* Nascimento — DatePickerInput é position:absolute, portanto o
+                     campo fica em coluna única para o painel não ser cortado lateralmente */}
+                <div className={styles.field}>
+                  <label htmlFor="birth_date">Nascimento</label>
+                  <DatePickerInput
+                    id="birth_date"
+                    value={form.birth_date}
+                    onChange={(v) => updateField('birth_date', v)}
+                    placeholder="dd/mm/aaaa"
+                  />
+                </div>
 
-                  {/* Celular com máscara */}
-                  <div className={styles.field}>
-                    <label htmlFor="mobile_phone">Celular</label>
-                    <div className={styles.inputContainer}>
-                      <Phone size={18} className={styles.inputIcon} />
-                      <input
-                        id="mobile_phone"
-                        type="tel"
-                        inputMode="numeric"
-                        value={form.mobile_phone}
-                        onChange={(e) => updateField('mobile_phone', maskPhoneInput(e.target.value))}
-                        placeholder="(82) 99999-9999"
-                        className={styles.innerInput}
-                      />
-                    </div>
+                {/* Celular com máscara */}
+                <div className={styles.field}>
+                  <label htmlFor="mobile_phone">Celular</label>
+                  <div className={styles.inputContainer}>
+                    <Phone size={18} className={styles.inputIcon} />
+                    <input
+                      id="mobile_phone"
+                      type="tel"
+                      inputMode="numeric"
+                      value={form.mobile_phone}
+                      onChange={(e) => updateField('mobile_phone', maskPhoneInput(e.target.value))}
+                      placeholder="(82) 99999-9999"
+                      autoComplete="tel"
+                      style={{ fontSize: 16 }}
+                      className={styles.innerInput}
+                    />
                   </div>
                 </div>
 
-                {/* Senhas */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div className={styles.field}>
-                    <label htmlFor="senha">Senha *</label>
-                    <div className={styles.inputContainer}>
-                      <Lock size={18} className={styles.inputIcon} />
-                      <input
-                        id="senha"
-                        type={showSenha ? 'text' : 'password'}
-                        value={senha}
-                        onChange={(e) => setSenha(e.target.value)}
-                        minLength={6}
-                        required
-                        placeholder="Mín. 6 caracteres"
-                        className={styles.innerInput}
-                        style={{ paddingRight: '2.5rem' }}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowSenha((v) => !v)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
-                        tabIndex={-1}
-                        aria-label={showSenha ? 'Ocultar senha' : 'Mostrar senha'}
-                      >
-                        {showSenha ? <EyeOff size={16} /> : <Eye size={16} />}
-                      </button>
-                    </div>
+                {/* Senha */}
+                <div className={styles.field}>
+                  <label htmlFor="senha">Senha *</label>
+                  <div className={styles.inputContainer}>
+                    <Lock size={18} className={styles.inputIcon} />
+                    <input
+                      id="senha"
+                      type={showSenha ? 'text' : 'password'}
+                      value={senha}
+                      onChange={(e) => setSenha(e.target.value)}
+                      minLength={6}
+                      required
+                      placeholder="Mín. 6 caracteres"
+                      autoComplete="new-password"
+                      style={{ fontSize: 16 }}
+                      className={styles.innerInput}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowSenha((v) => !v)}
+                      className={styles.eyeButton}
+                      tabIndex={-1}
+                      aria-label={showSenha ? 'Ocultar senha' : 'Mostrar senha'}
+                    >
+                      {showSenha ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
                   </div>
-                  <div className={styles.field}>
-                    <label htmlFor="confirmarSenha">Confirmar senha *</label>
-                    <div className={styles.inputContainer}>
-                      <Lock size={18} className={styles.inputIcon} />
-                      <input
-                        id="confirmarSenha"
-                        type={showConfirmar ? 'text' : 'password'}
-                        value={confirmarSenha}
-                        onChange={(e) => setConfirmarSenha(e.target.value)}
-                        minLength={6}
-                        required
-                        placeholder="Repita a senha"
-                        className={styles.innerInput}
-                        style={{ paddingRight: '2.5rem' }}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowConfirmar((v) => !v)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
-                        tabIndex={-1}
-                        aria-label={showConfirmar ? 'Ocultar confirmação' : 'Mostrar confirmação'}
-                      >
-                        {showConfirmar ? <EyeOff size={16} /> : <Eye size={16} />}
-                      </button>
-                    </div>
+                </div>
+
+                {/* Confirmar senha */}
+                <div className={styles.field}>
+                  <label htmlFor="confirmarSenha">Confirmar senha *</label>
+                  <div className={styles.inputContainer}>
+                    <Lock size={18} className={styles.inputIcon} />
+                    <input
+                      id="confirmarSenha"
+                      type={showConfirmar ? 'text' : 'password'}
+                      value={confirmarSenha}
+                      onChange={(e) => setConfirmarSenha(e.target.value)}
+                      minLength={6}
+                      required
+                      placeholder="Repita a senha"
+                      autoComplete="new-password"
+                      style={{ fontSize: 16 }}
+                      className={styles.innerInput}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmar((v) => !v)}
+                      className={styles.eyeButton}
+                      tabIndex={-1}
+                      aria-label={showConfirmar ? 'Ocultar confirmação' : 'Mostrar confirmação'}
+                    >
+                      {showConfirmar ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
                   </div>
                 </div>
 

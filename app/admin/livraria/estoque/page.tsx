@@ -2,13 +2,24 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
-import { Package, ArrowLeft, Search, Trash2, Plus, FileSpreadsheet, ListChecks, CheckCircle2, AlertCircle, X } from 'lucide-react'
+import { useSearchParams, useRouter } from 'next/navigation'
+import { Package, ArrowLeft, Search, Trash2, Plus, FileSpreadsheet, ListChecks, CheckCircle2, AlertCircle, X, ArrowLeftRight, Download } from 'lucide-react'
 import { PageAccessGuard } from '@/app/admin/PageAccessGuard'
 import { Button } from '@/components/ui/Button'
 import { CustomSelect } from '@/components/ui/CustomSelect'
 import { adminFetchJson, getAccessTokenOrThrow } from '@/lib/admin-client'
 
 type Product = { id: string; sku: string; name: string; current_stock: number }
+type Movement = {
+  id: string
+  movement_type: string
+  quantity: number
+  reference_type: string | null
+  notes: string | null
+  created_at: string
+  bookstore_products: { sku: string; name: string } | null
+}
+
 const MOVEMENT_TYPES = [
   { value: 'ENTRY_PURCHASE', label: 'Entrada - Compra' },
   { value: 'ENTRY_ADJUSTMENT', label: 'Entrada - Ajuste' },
@@ -18,8 +29,39 @@ const MOVEMENT_TYPES = [
   { value: 'EXIT_INTERNAL_USE', label: 'Saída - Uso interno' },
   { value: 'EXIT_ADJUSTMENT', label: 'Saída - Ajuste' },
 ]
+const TYPE_LABELS: Record<string, string> = Object.fromEntries(MOVEMENT_TYPES.map((m) => [m.value, m.label]))
 
 export default function LivrariaEstoquePage() {
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const aba = searchParams.get('aba') === 'historico' ? 'historico' : 'movimentar'
+
+  // ── Estado: histórico ──
+  const [histItems, setHistItems] = useState<Movement[]>([])
+  const [histLoading, setHistLoading] = useState(false)
+  const [histFrom, setHistFrom] = useState('')
+  const [histTo, setHistTo] = useState('')
+  const [histType, setHistType] = useState('')
+
+  const loadHistorico = useCallback(async () => {
+    setHistLoading(true)
+    try {
+      const params = new URLSearchParams()
+      if (histFrom) params.set('from', histFrom)
+      if (histTo) params.set('to', histTo)
+      if (histType) params.set('type', histType)
+      const data = await adminFetchJson<{ items: Movement[] }>(`/api/admin/livraria/movimentacoes?${params}`)
+      setHistItems(data.items ?? [])
+    } catch {
+      setHistItems([])
+    } finally {
+      setHistLoading(false)
+    }
+  }, [histFrom, histTo, histType])
+
+  useEffect(() => {
+    if (aba === 'historico') loadHistorico()
+  }, [aba, loadHistorico])
   const [products, setProducts] = useState<Product[]>([])
   const [productSearch, setProductSearch] = useState('')
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
@@ -159,22 +201,149 @@ export default function LivrariaEstoquePage() {
       <div className="p-4 sm:p-6 md:p-8 max-w-5xl mx-auto">
 
         {/* Cabeçalho */}
-        <div className="mb-6 sm:mb-8 flex items-center gap-3">
-          <Link
-            href="/admin/livraria/produtos"
-            className="p-2 rounded-xl border border-slate-200 hover:bg-slate-50 hover:border-slate-300 text-slate-600 flex-shrink-0 touch-manipulation transition-colors"
-            aria-label="Voltar para produtos"
-          >
-            <ArrowLeft size={20} />
-          </Link>
-          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-[#c62737]/10 flex items-center justify-center flex-shrink-0">
-            <Package className="text-[#c62737]" size={22} />
+        <div className="mb-6 sm:mb-8 flex items-start sm:items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-3">
+            <Link
+              href="/admin/livraria/produtos"
+              className="p-2 rounded-xl border border-slate-200 hover:bg-slate-50 hover:border-slate-300 text-slate-600 flex-shrink-0 touch-manipulation transition-colors"
+              aria-label="Voltar para produtos"
+            >
+              <ArrowLeft size={20} />
+            </Link>
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-[#c62737]/10 flex items-center justify-center flex-shrink-0">
+              <Package className="text-[#c62737]" size={22} />
+            </div>
+            <div className="min-w-0">
+              <h1 className="text-xl sm:text-2xl font-bold text-slate-900 leading-tight">Estoque</h1>
+              <p className="text-slate-500 text-xs sm:text-sm mt-0.5">Movimentar e histórico de movimentações</p>
+            </div>
           </div>
-          <div className="min-w-0">
-            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 leading-tight">Estoque</h1>
-            <p className="text-slate-500 text-xs sm:text-sm mt-0.5">Movimentar estoque e atualização em massa</p>
-          </div>
+          {aba === 'historico' && (
+            <Button
+              variant="secondary"
+              onClick={() => window.open(`/api/admin/livraria/exportacao?type=movements&format=xlsx${histFrom ? `&from=${histFrom}` : ''}${histTo ? `&to=${histTo}` : ''}`, '_blank')}
+              className="w-full sm:w-auto touch-manipulation"
+            >
+              <Download size={18} />
+              Exportar XLSX
+            </Button>
+          )}
         </div>
+
+        {/* Tabs */}
+        <div className="flex rounded-xl border border-slate-200 overflow-hidden mb-6 w-full sm:w-auto sm:inline-flex">
+          <button
+            type="button"
+            onClick={() => router.replace('/admin/livraria/estoque')}
+            className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-medium transition-colors touch-manipulation ${
+              aba === 'movimentar'
+                ? 'bg-[#c62737] text-white'
+                : 'bg-white text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            <Package size={16} />
+            Movimentar
+          </button>
+          <button
+            type="button"
+            onClick={() => router.replace('/admin/livraria/estoque?aba=historico')}
+            className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-medium border-l border-slate-200 transition-colors touch-manipulation ${
+              aba === 'historico'
+                ? 'bg-[#c62737] text-white border-[#c62737]'
+                : 'bg-white text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            <ArrowLeftRight size={16} />
+            Histórico
+          </button>
+        </div>
+
+        {/* ════ ABA: HISTÓRICO ════ */}
+        {aba === 'historico' && (
+          <div>
+            <div className="mb-4 sm:mb-6 grid grid-cols-2 sm:flex sm:flex-wrap gap-3 sm:gap-4">
+              <div className="min-w-0">
+                <label className="block text-xs font-medium text-slate-700 mb-1">Data inicial</label>
+                <input
+                  type="date"
+                  value={histFrom}
+                  onChange={(e) => setHistFrom(e.target.value)}
+                  className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:border-[#c62737] focus:ring-2 focus:ring-[#c62737]/20 outline-none transition-all"
+                />
+              </div>
+              <div className="min-w-0">
+                <label className="block text-xs font-medium text-slate-700 mb-1">Data final</label>
+                <input
+                  type="date"
+                  value={histTo}
+                  onChange={(e) => setHistTo(e.target.value)}
+                  className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:border-[#c62737] focus:ring-2 focus:ring-[#c62737]/20 outline-none transition-all"
+                />
+              </div>
+              <div className="col-span-2 sm:col-span-1 min-w-0">
+                <label className="block text-xs font-medium text-slate-700 mb-1">Tipo</label>
+                <CustomSelect
+                  value={histType}
+                  onChange={setHistType}
+                  options={MOVEMENT_TYPES}
+                  placeholder="Todos"
+                  allowEmpty
+                />
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl border border-slate-200">
+              {histLoading ? (
+                <div className="p-6 sm:p-8 text-center text-slate-500">Carregando...</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-slate-50 border-b border-slate-200">
+                      <tr>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-slate-600 uppercase tracking-wide">Data/Hora</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-slate-600 uppercase tracking-wide">Produto</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-slate-600 uppercase tracking-wide">Tipo</th>
+                        <th className="text-right py-3 px-4 text-xs font-semibold text-slate-600 uppercase tracking-wide">Qtd</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-slate-600 uppercase tracking-wide hidden md:table-cell">Referência</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-slate-600 uppercase tracking-wide hidden lg:table-cell">Observação</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {histItems.map((row) => (
+                        <tr key={row.id} className="hover:bg-slate-50">
+                          <td className="py-3 px-4 text-slate-600 whitespace-nowrap">{new Date(row.created_at).toLocaleString('pt-BR')}</td>
+                          <td className="py-3 px-4">
+                            <span className="font-medium text-slate-800">{row.bookstore_products?.sku ?? '—'}</span>
+                            <span className="text-slate-500 ml-1 hidden sm:inline">— {row.bookstore_products?.name ?? '—'}</span>
+                          </td>
+                          <td className="py-3 px-4">
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                              row.movement_type.startsWith('ENTRY')
+                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                : 'bg-red-50 text-red-600 border border-red-200'
+                            }`}>
+                              {TYPE_LABELS[row.movement_type] ?? row.movement_type}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-right font-semibold text-slate-800">{row.quantity}</td>
+                          <td className="py-3 px-4 text-slate-500 hidden md:table-cell">{row.reference_type ?? '—'}</td>
+                          <td className="py-3 px-4 text-slate-500 hidden lg:table-cell">{row.notes ?? '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              {!histLoading && histItems.length === 0 && (
+                <div className="p-6 sm:p-8 text-center text-slate-500">Nenhuma movimentação no período.</div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ════ ABA: MOVIMENTAR ════ */}
+        {aba === 'movimentar' && (
+        <div>
 
         {/* ─── Seção: Movimentação individual ─── */}
         <section className="bg-white rounded-xl border border-slate-200 mb-6">
@@ -604,6 +773,8 @@ export default function LivrariaEstoquePage() {
             )}
           </div>
         </section>
+        </div>
+        )}
       </div>
     </PageAccessGuard>
   )

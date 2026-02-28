@@ -189,8 +189,7 @@ export default function LivrariaDashboardPage() {
                 { href: '/admin/livraria/produtos', label: 'Produtos' },
                 { href: '/admin/livraria/vendas/historico', label: 'Histórico' },
                 { href: '/admin/livraria/estoque', label: 'Estoque' },
-                { href: '/admin/livraria/fiado', label: 'Fiado' },
-                { href: '/admin/livraria/clientes', label: 'Clientes' },
+                { href: '/admin/livraria/clientes', label: 'Clientes / Fiado' },
               ].map((l) => (
                 <Link
                   key={l.href}
@@ -597,7 +596,7 @@ export default function LivrariaDashboardPage() {
                     <div className="bg-white rounded-xl border border-slate-200 overflow-hidden mb-4">
                       <div className="px-4 sm:px-5 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/60">
                         <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Clientes com saldo pendente</h3>
-                        <Link href="/admin/livraria/fiado" className="text-xs font-medium text-[#c62737] hover:underline flex items-center gap-1">
+                        <Link href="/admin/livraria/clientes?tab=fiado" className="text-xs font-medium text-[#c62737] hover:underline flex items-center gap-1">
                           Ver todos <ExternalLink size={10} />
                         </Link>
                       </div>

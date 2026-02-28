@@ -45,7 +45,11 @@ export default function AdminLayout({
 
   const loadPermissions = useCallback(async () => {
     const client = supabase
-    if (!client) return
+    if (!client) {
+      clearAccessState()
+      setLoading(false)
+      return
+    }
 
     const session = await getSessionWithRecovery(client)
     const currentUser = session?.user ?? null
@@ -176,7 +180,7 @@ export default function AdminLayout({
       ['/admin/instagram',                      'Instagram'],
       ['/admin/midia/agenda-social',            'Agenda Mídia/Social'],
       ['/admin/midia/demandas',                 'Demandas de Mídia'],
-      ['/admin/livraria/movimentacoes',         'Movimentações — Livraria'],
+      ['/admin/livraria/estoque',              'Estoque — Livraria'],
       ['/admin/livraria',                       'Livraria'],
       ['/admin/reservas/salas',                 'Salas — Reservas'],
       ['/admin/reservas',                       'Reservas'],
