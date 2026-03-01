@@ -15,29 +15,41 @@ import { siteConfig } from '@/config/site'
 /**
  * GET /api/cron/escalas-lembretes
  *
- * Chamada via GitHub Actions (.github/workflows/cron-escalas-lembretes.yml).
- * Agenda (UTC / BRT):
- *   Todos os lembretes → 15:50 UTC = 12:50 BRT
+ * Chamada via Supabase pg_cron ou Admin UI.
+ *
+ * Horário Sugerido (BRT): 13:30
  *
  * Query params:
- *   tipo  : 'lembrete_3dias' | 'lembrete_1dia' | 'dia_da_escala'  (obrigatório)
- *   secret: valor de CRON_SECRET env var         (proteção básica)
+ *   tipo  : 'lembrete_3dias' | 'lembrete_1dia' | 'dia_da_escala' | 'automatico'
+ *   secret: valor de CRON_SECRET env var
  */
 export async function GET(request: NextRequest) {
-  // Proteção: Vercel envia Authorization: Bearer <CRON_SECRET>
-  // Também aceita ?secret= para testes manuais
+  // Proteção: Vercel/Supabase envia Authorization: Bearer <CRON_SECRET>
+  // Também aceita ?secret= para compatibilidade
   const { searchParams } = new URL(request.url)
-  const querySecret  = searchParams.get('secret')
+  const querySecret  = searchParams.get('secret') || searchParams.get('token')
   const headerSecret = request.headers.get('authorization')?.replace('Bearer ', '')
   const cronSecret   = process.env.CRON_SECRET
 
+  console.log('[cron/debug] secrets:', { querySecret, headerSecret, cronSecret: cronSecret ? 'set' : 'not set' })
+
   if (cronSecret && querySecret !== cronSecret && headerSecret !== cronSecret) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    return NextResponse.json({ error: 'Unauthorized', debug: { match: false, has_cron_secret: !!cronSecret } }, { status: 401 })
   }
 
-  const tipo = searchParams.get('tipo') as 'lembrete_3dias' | 'lembrete_1dia' | 'dia_da_escala' | null
+  let tipo = searchParams.get('tipo') as any
 
-  if (!tipo || !['lembrete_3dias', 'lembrete_1dia', 'dia_da_escala'].includes(tipo)) {
+  // Se for automático, dispara todos os tipos relevantes para o momento
+  if (tipo === 'automatico' || !tipo) {
+    const results = await Promise.all([
+      fetch(`${request.nextUrl.origin}/api/cron/escalas-lembretes?tipo=lembrete_3dias&token=${cronSecret}`).then(r => r.json()),
+      fetch(`${request.nextUrl.origin}/api/cron/escalas-lembretes?tipo=lembrete_1dia&token=${cronSecret}`).then(r => r.json()),
+      fetch(`${request.nextUrl.origin}/api/cron/escalas-lembretes?tipo=dia_da_escala&token=${cronSecret}`).then(r => r.json()),
+    ])
+    return NextResponse.json({ ok: true, results })
+  }
+
+  if (!['lembrete_3dias', 'lembrete_1dia', 'dia_da_escala'].includes(tipo)) {
     return NextResponse.json({ error: 'Parâmetro tipo inválido.' }, { status: 400 })
   }
 
