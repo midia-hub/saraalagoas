@@ -100,30 +100,31 @@ export async function POST(request: NextRequest) {
   const disparosLogEntries: { phone: string; nome: string; status_code: number | null; source: string; conversion_type: string }[] = []
 
   for (const link of links) {
-    const { data: publicada } = await supabase
-      .from('escalas_publicadas')
-      .select('status, dados')
+    // Busca assignments diretamente da tabela escalas_assignments (fonte de verdade)
+    const { data: assignments, error: assignErr } = await supabase
+      .from('escalas_assignments')
+      .select(`
+        person_id,
+        funcao,
+        slot:escalas_slots!inner(id, type, label, date, time_of_day)
+      `)
       .eq('link_id', link.id)
-      .maybeSingle()
+      .eq('slot.date', targetDate)
 
-    if (!publicada || publicada.status !== 'publicada') continue
+    if (assignErr) {
+      console.error(`[disparar-lembretes] erro ao buscar assignments link_id=${link.id}:`, assignErr)
+      continue
+    }
 
-    const slots: any[] = (publicada.dados as any)?.slots ?? []
-    const slotsForDate = slots.filter((s: any) => s.date === targetDate)
+    if (!assignments || assignments.length === 0) continue
 
-    // Nota: o filtro de janela de 6h do dia_da_escala é desativado no disparo manual
-    // para permitir reprocessar qualquer horário do dia.
-
-    if (!slotsForDate.length) continue
-
-    const allPersonIds: string[] = Array.from(new Set(
-      slotsForDate.flatMap((s: any) => s.assignments.map((a: any) => a.person_id))
-    ))
+    // Carrega dados das pessoas escaladas
+    const personIds = Array.from(new Set(assignments.map((a: any) => a.person_id)))
 
     const { data: people } = await supabase
       .from('people')
       .select('id, full_name, mobile_phone, phone')
-      .in('id', allPersonIds)
+      .in('id', personIds)
 
     const personMap: Record<string, { full_name: string; phone: string | null }> = {}
     for (const p of people ?? []) {
@@ -133,45 +134,63 @@ export async function POST(request: NextRequest) {
     const churchName = (link.church as any)?.name ?? link.ministry
     const whatsLider = process.env.WHATS_LIDER || siteConfig.whatsappNumber
 
-    for (const slot of slotsForDate) {
-      for (const a of slot.assignments ?? []) {
-        const person = personMap[a.person_id]
+    // Agrupar por (slot, pessoa) — uma mensagem por slot por pessoa
+    const slotMap: Record<string, { slot: any; byPerson: Record<string, string[]> }> = {}
+    for (const a of assignments as any[]) {
+      const slot = a.slot as any
+      if (!slotMap[slot.id]) slotMap[slot.id] = { slot, byPerson: {} }
+      if (!slotMap[slot.id].byPerson[a.person_id]) slotMap[slot.id].byPerson[a.person_id] = []
+      if (!slotMap[slot.id].byPerson[a.person_id].includes(a.funcao))
+        slotMap[slot.id].byPerson[a.person_id].push(a.funcao)
+    }
+
+    // Dedup por phone:slotId (evita reenvio em caso de re-disparo)
+    const sentKeys = new Set<string>()
+
+    for (const { slot, byPerson } of Object.values(slotMap)) {
+      for (const [pId, funcoes] of Object.entries(byPerson)) {
+        const person = personMap[pId]
         if (!person?.phone) { totalErros++; continue }
 
-        // Pula se já foi enviado hoje (a menos que force=true)
-        if (jaSentPhones.has(person.phone)) continue
+        const sentKey = `${person.phone}:${slot.id}`
+        if (sentKeys.has(sentKey) || (!force && jaSentPhones.has(person.phone))) continue
 
+        const functionsStr = funcoes.join(', ')
         const nomeExib = getNomeExibicao(person.full_name)
+
         const variables: Record<string, string> =
           tipo === 'lembrete_3dias' || tipo === 'lembrete_1dia'
             ? {
                 nome:       nomeExib,
-                dia_semana: getDiaSemana(slot.date),
-                data:       formatDateFullBr(slot.date),
-                funcao:     a.funcao,
+                dia_semana: getDiaSemana(targetDate),
+                data:       formatDateFullBr(targetDate),
+                funcao:     functionsStr,
                 hora:       slot.time_of_day,
                 local:      `${slot.label} — ${churchName}`,
               }
             : {
                 nome:        nomeExib,
-                funcao:      a.funcao,
+                funcao:      functionsStr,
                 hora:        slot.time_of_day,
                 local:       `${slot.label} — ${churchName}`,
                 whats_lider: whatsLider,
               }
 
         const result = await sendDisparoRaw({ phone: person.phone, messageId: MESSAGE_ID!, variables })
-        if (result.success) totalEnviados++; else totalErros++
-
-        if (person.phone) {
-          disparosLogEntries.push({
-            phone: person.phone,
-            nome: nomeExib,
-            status_code: result.statusCode ?? null,
-            source: 'escala',
-            conversion_type: `escala_${tipo}`,
-          })
+        if (result.success) {
+          totalEnviados++
+          sentKeys.add(sentKey)
+        } else {
+          totalErros++
         }
+
+        disparosLogEntries.push({
+          phone: person.phone,
+          nome: nomeExib,
+          status_code: result.statusCode ?? null,
+          source: 'escala',
+          conversion_type: `escala_${tipo}`,
+        })
       }
     }
   }

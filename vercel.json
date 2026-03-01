@@ -8,6 +8,9 @@
     },
     "app/api/meta/account-posts/route.ts": {
       "maxDuration": 60
+    },
+    "app/api/cron/escalas-lembretes/route.ts": {
+      "maxDuration": 60
     }
   }
 }
