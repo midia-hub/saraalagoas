@@ -13,7 +13,7 @@ export const ALL_PAYMENT_METHODS = [
   'Outro',
 ] as const
 
-/** GET - Retorna as formas de pagamento habilitadas no PDV da livraria. */
+/*** GET - Retorna as formas de pagamento habilitadas no PDV da livraria. */
 export async function GET(request: NextRequest) {
   const access = await requireAccess(request, { pageKey: 'livraria_pdv', action: 'view' })
   if (!access.ok) return access.response
