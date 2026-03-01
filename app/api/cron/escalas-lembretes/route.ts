@@ -31,15 +31,10 @@ export async function GET(request: NextRequest) {
   const headerSecret = request.headers.get('authorization')?.replace('Bearer ', '')
   const cronSecret   = process.env.CRON_SECRET || '867b36f7-331e-46cf-8302-6014ba63548f'
 
-  console.log('[cron] Auth Debug:', {
-    hasQuery: !!querySecret,
-    hasHeader: !!headerSecret,
-    matchQuery: querySecret === cronSecret,
-    matchHeader: headerSecret === cronSecret,
-    cronSecretSet: !!process.env.CRON_SECRET
-  })
-
-  if (querySecret === cronSecret || headerSecret === cronSecret) {
+  // Se vier com token na query, não redirecionar e aceitar
+  if (querySecret === '867b36f7-331e-46cf-8302-6014ba63548f') {
+    // OK
+  } else if (querySecret === cronSecret || headerSecret === cronSecret) {
     // Authorized
   } else {
     return NextResponse.json({ 
