@@ -24,9 +24,21 @@ export interface BackgroundJobEntry {
   finished_at: string | null
 }
 
+export interface CronJobEntry {
+  jobid: number
+  jobname: string
+  schedule: string
+  command: string
+  start_time: string | null
+  end_time: string | null
+  status: string | null
+  return_message: string | null
+}
+
 /**
  * GET - lista os últimos registros do log de disparos (API de disparos)
  * + jobs recentes do background_jobs para escalas
+ * + status dos jobs de cron (pg_cron)
  */
 export async function GET(request: NextRequest) {
   const access = await requireAccess(request, { pageKey: 'consolidacao_config', action: 'view' })
@@ -37,7 +49,8 @@ export async function GET(request: NextRequest) {
   try {
     const supabase = createSupabaseAdminClient(request)
 
-    const [logResult, jobsResult] = await Promise.all([
+    // Busca logs, jobs e informações de cron do Supabase
+    const [logResult, jobsResult, cronResult] = await Promise.all([
       supabase
         .from('disparos_log')
         .select('id, phone, nome, conversion_type, status_code, source, created_at')
@@ -49,6 +62,8 @@ export async function GET(request: NextRequest) {
         .in('kind', ['escalas-disparo'])
         .order('created_at', { ascending: false })
         .limit(50),
+      // Consultamos o esquema cron diretamente via SQL pois é um metadado do Postgres
+      supabase.rpc('get_cron_jobs_status').then(res => res, () => ({ data: [], error: null }))
     ])
 
     if (logResult.error) return NextResponse.json({ error: logResult.error.message }, { status: 500 })
@@ -56,6 +71,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       items: (logResult.data ?? []) as DisparosLogEntry[],
       jobs: (jobsResult.data ?? []) as BackgroundJobEntry[],
+      cron: (cronResult?.data ?? []) as CronJobEntry[],
     })
   } catch (err) {
     console.error('GET disparos-log:', err)
