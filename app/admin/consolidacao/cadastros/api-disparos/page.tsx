@@ -30,6 +30,17 @@ export interface BackgroundJobEntry {
   finished_at: string | null
 }
 
+export interface CronJobEntry {
+  jobid: number
+  jobname: string
+  schedule: string
+  command: string
+  start_time: string | null
+  end_time: string | null
+  status: string | null
+  return_message: string | null
+}
+
 // ── Labels descritivos para cada conversion_type ─────────────────────────
 const TIPO_LABELS: Record<string, { label: string; color: string }> = {
   accepted:                  { label: 'Aceitou',          color: 'bg-green-100 text-green-700' },
@@ -101,6 +112,7 @@ export default function ApiDisparosPage() {
   const [disparosLog, setDisparosLog] = useState<DisparosLogEntry[]>([])
   const [disparosLogLoading, setDisparosLogLoading] = useState(true)
   const [jobs, setJobs] = useState<BackgroundJobEntry[]>([])
+  const [cronJobs, setCronJobs] = useState<CronJobEntry[]>([])
 
   // Disparo manual de lembretes de escala
   const [triggerLoading, setTriggerLoading] = useState<Record<string, boolean>>({})
@@ -128,9 +140,10 @@ export default function ApiDisparosPage() {
   const loadLog = useCallback(async () => {
     setDisparosLogLoading(true)
     try {
-      const data = await adminFetchJson<{ items: DisparosLogEntry[]; jobs?: BackgroundJobEntry[] }>('/api/admin/disparos-log?limit=200')
+      const data = await adminFetchJson<{ items: DisparosLogEntry[]; jobs?: BackgroundJobEntry[]; cron?: CronJobEntry[] }>('/api/admin/disparos-log?limit=200')
       setDisparosLog(data.items ?? [])
       setJobs(data.jobs ?? [])
+      setCronJobs(data.cron ?? [])
     } catch (err) {
       console.error('[API disparos] Erro ao carregar log:', err)
       setDisparosLog([])
@@ -465,6 +478,69 @@ export default function ApiDisparosPage() {
                   )}
                 </span>
                 <span>{jobs.length} job{jobs.length !== 1 ? 's' : ''} no total</span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Agendamentos Supabase (pg_cron) */}
+        <div className="mt-10">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
+            <div>
+              <h3 className="font-semibold text-slate-800 flex items-center gap-2">
+                <Clock className="text-[#c62737]" size={20} />
+                Agendamentos do Sistema (Supabase)
+              </h3>
+              <p className="text-sm text-slate-500 mt-0.5">
+                Rotinas automáticas configuradas diretamente no banco de dados para maior confiabilidade.
+              </p>
+            </div>
+          </div>
+
+          {!disparosLogLoading && cronJobs.length === 0 ? (
+             <div className="bg-white rounded-xl border border-dashed border-slate-200 p-8 text-center text-slate-500">
+               Nenhum agendamento encontrado no Supabase.
+             </div>
+          ) : (
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-100 bg-slate-50/50">
+                      <th className="text-left py-3 px-4 font-semibold text-slate-600">ID / Nome</th>
+                      <th className="text-left py-3 px-4 font-semibold text-slate-600">Cron (Expressão)</th>
+                      <th className="text-left py-3 px-4 font-semibold text-slate-600">Última Execução</th>
+                      <th className="text-left py-3 px-4 font-semibold text-slate-600">Próxima Execução</th>
+                      <th className="text-center py-3 px-4 font-semibold text-slate-600">Status SQL</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {cronJobs.map((cj) => (
+                      <tr key={cj.jobid} className="hover:bg-slate-50/40 transition-colors">
+                        <td className="py-3 px-4">
+                          <div className="font-medium text-slate-900">{cj.jobname || `#${cj.jobid}`}</div>
+                          <div className="text-[10px] text-slate-400 font-mono truncate max-w-[200px]" title={cj.command}>
+                            {cj.command}
+                          </div>
+                        </td>
+                        <td className="py-3 px-4 font-mono text-xs text-[#c62737] font-bold">
+                          {cj.schedule}
+                        </td>
+                        <td className="py-3 px-4 text-slate-600 text-xs">
+                          {cj.last_run ? new Date(cj.last_run).toLocaleString('pt-BR') : 'Nunca executou'}
+                        </td>
+                        <td className="py-3 px-4 text-slate-600 text-xs font-semibold">
+                          {cj.next_run ? new Date(cj.next_run).toLocaleString('pt-BR') : '—'}
+                        </td>
+                        <td className="py-3 px-4 text-center">
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${cj.last_status === 'succeeded' ? 'bg-green-100 text-green-700' : cj.last_status === 'failed' ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-600'}`}>
+                            {cj.last_status?.toUpperCase() || 'AGUARDANDO'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           )}
