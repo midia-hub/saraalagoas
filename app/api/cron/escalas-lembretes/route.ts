@@ -31,9 +31,16 @@ export async function GET(request: NextRequest) {
   const headerSecret = request.headers.get('authorization')?.replace('Bearer ', '')
   const cronSecret   = process.env.CRON_SECRET
 
-  console.log('[cron/debug] secrets:', { querySecret, headerSecret, cronSecret: cronSecret ? 'set' : 'not set' })
+  // DEBUG: Removido após validação
+  if (!cronSecret) {
+    console.warn('[cron] CRON_SECRET not set in env')
+  }
 
-  if (cronSecret && querySecret !== cronSecret && headerSecret !== cronSecret) {
+  if (cronSecret && (querySecret === cronSecret || headerSecret === cronSecret)) {
+    // Authorized
+  } else if (!cronSecret && querySecret === '867b36f7-331e-46cf-8302-6014ba63548f') {
+    // Fallback manual se a env sumir
+  } else {
     return NextResponse.json({ error: 'Unauthorized', debug: { match: false, has_cron_secret: !!cronSecret } }, { status: 401 })
   }
 
