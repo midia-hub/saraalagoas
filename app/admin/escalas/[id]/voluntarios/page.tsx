@@ -45,6 +45,15 @@ type ApiData = {
   volunteers: VolunteerRow[]
 }
 
+type RecipientPreview = {
+  person_id: string
+  person_name: string
+  phone: string | null
+  phone_last4: string | null
+  has_phone: boolean
+  slots: { slot_id: string; label: string; date: string; time_of_day: string; type: string; funcao: string }[]
+}
+
 type AssignmentRow = { funcao: string; person_id: string; person_name: string; trocado?: boolean }
 type SlotResult = {
   slot_id: string; type: string; label: string; date: string
@@ -312,6 +321,14 @@ export default function EscalaVoluntariosPage() {
   const [disparosLoading, setDisparosLoading] = useState<string | null>(null)
   const [disparosStatus, setDisparosStatus] = useState<Record<string, DisparoJobStatus | null>>({})
   const [disparosResult, setDisparosResult] = useState<Record<string, { enviados: number; erros: number; aviso?: string } | null>>({})
+
+  // Prévia de destinatários de disparo
+  const [showMsgPreview, setShowMsgPreview] = useState(false)
+  const [previewTipo, setPreviewTipo] = useState<'mes' | 'lembrete_3dias' | 'lembrete_1dia' | 'dia_da_escala'>('mes')
+  const [recipientsData, setRecipientsData] = useState<RecipientPreview[] | null>(null)
+  const [recipientsLoading, setRecipientsLoading] = useState(false)
+  const [recipientsSemTel, setRecipientsSemTel] = useState(0)
+  const [recipientsComTel, setRecipientsComTel] = useState(0)
 
   const acompanharDisparo = useCallback(async (tipo: string, jobId: string) => {
     for (let attempt = 0; attempt < 120; attempt++) {
@@ -778,6 +795,317 @@ export default function EscalaVoluntariosPage() {
         )}
       </div>
 
+      {/* ── Prévia / Destinatários dos Disparos ──────────────────────────── */}
+      {publicadaInfo?.dados?.slots && publicadaInfo.dados.slots.length > 0 && (() => {
+        const DIAS_SEMANA = ['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado']
+        function getDiaSemana(d: string) {
+          const [y, m, day] = d.split('-').map(Number)
+          return DIAS_SEMANA[new Date(y, m - 1, day).getDay()]
+        }
+        function formatBr(d: string) {
+          const [, m, day] = d.split('-')
+          return `${day}/${m}`
+        }
+        const link = data?.link
+        const churchName = link?.church?.name ?? link?.ministry ?? ''
+
+        async function fetchRecipients() {
+          if (recipientsLoading || recipientsData) return
+          setRecipientsLoading(true)
+          try {
+            const res = await adminFetchJson<{
+              ok: boolean; recipients: RecipientPreview[]
+              com_telefone: number; sem_telefone: number; total: number
+            }>(`/api/admin/escalas/${id}/preview-disparos`)
+            setRecipientsData(res.recipients)
+            setRecipientsComTel(res.com_telefone)
+            setRecipientsSemTel(res.sem_telefone)
+          } catch {
+            setRecipientsData([])
+          } finally {
+            setRecipientsLoading(false)
+          }
+        }
+
+        // Montagem da prévia de mensagem por tipo: agrupa por pessoa a partir de publicadaInfo
+        const slotsData = publicadaInfo.dados.slots
+        const byPersonMsg: Record<string, { name: string; pSlots: Array<{ label: string; date: string; time: string; funcao: string }> }> = {}
+        for (const slot of slotsData) {
+          for (const a of slot.assignments) {
+            if (!byPersonMsg[a.person_id]) byPersonMsg[a.person_id] = { name: a.person_name, pSlots: [] }
+            byPersonMsg[a.person_id].pSlots.push({ label: slot.label, date: slot.date, time: slot.time_of_day, funcao: a.funcao })
+          }
+        }
+        const slotsOrdenados = [...slotsData]
+          .filter(s => s.assignments.length > 0)
+          .sort((a, b) => a.date.localeCompare(b.date) || a.time_of_day.localeCompare(b.time_of_day))
+
+        const totalMsgs = previewTipo === 'mes'
+          ? Object.keys(byPersonMsg).length
+          : slotsOrdenados.reduce((acc, s) => acc + new Set(s.assignments.map(a => a.person_id)).size, 0)
+
+        return (
+          <div className="mx-6 md:mx-8 mb-8 bg-white rounded-2xl border border-slate-200 shadow-sm">
+            {/* Header colapsável */}
+            <button
+              type="button"
+              onClick={() => {
+                const next = !showMsgPreview
+                setShowMsgPreview(next)
+                if (next) fetchRecipients()
+              }}
+              className="w-full flex items-center justify-between px-6 py-4 hover:bg-slate-50/60 transition-colors rounded-2xl"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-green-50 flex items-center justify-center shrink-0">
+                  <MessageSquare size={16} className="text-green-600" />
+                </div>
+                <div className="text-left">
+                  <h2 className="font-bold text-slate-800 text-base leading-tight">Destinatários dos Disparos</h2>
+                  <p className="text-xs text-slate-400">
+                    {recipientsData
+                      ? <>
+                          <span className="text-green-600 font-semibold">{recipientsComTel} com telefone</span>
+                          {recipientsSemTel > 0 && <span className="text-red-500 font-semibold"> · {recipientsSemTel} sem telefone</span>}
+                          <span className="text-slate-400"> · {previewTipo === 'mes' ? Object.keys(byPersonMsg).length : totalMsgs} mensagens a enviar</span>
+                        </>
+                      : 'Veja quem vai receber cada tipo de disparo e verifique telefones.'}
+                  </p>
+                </div>
+              </div>
+              <ChevronDown size={18} className={`text-slate-400 transition-transform duration-200 ${showMsgPreview ? 'rotate-180' : ''}`} />
+            </button>
+
+            {showMsgPreview && (
+              <div className="border-t border-slate-100">
+                {/* Seletor de tipo */}
+                <div className="flex flex-wrap gap-2 px-6 pt-5 pb-4">
+                  {([
+                    { tipo: 'mes' as const, label: 'Escala do Mês', color: 'bg-violet-100 text-violet-700 hover:bg-violet-200' },
+                    { tipo: 'lembrete_3dias' as const, label: 'Lembrete 3 dias', color: 'bg-amber-100 text-amber-700 hover:bg-amber-200' },
+                    { tipo: 'lembrete_1dia' as const, label: 'Lembrete 1 dia', color: 'bg-blue-100 text-blue-700 hover:bg-blue-200' },
+                    { tipo: 'dia_da_escala' as const, label: 'No dia', color: 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' },
+                  ]).map(({ tipo, label, color }) => (
+                    <button
+                      key={tipo}
+                      type="button"
+                      onClick={() => setPreviewTipo(tipo)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${
+                        previewTipo === tipo ? 'bg-[#c62737] text-white shadow-sm' : color
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* ─── Tabela de destinatários ─── */}
+                <div className="px-6 pb-6 space-y-5">
+                  <div className="rounded-xl border border-slate-200 overflow-hidden">
+                    <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center gap-2">
+                      <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                        {previewTipo === 'mes' ? 'Receberão a escala do mês' : `Receberão o lembrete "${previewTipo.replace(/_/g,' ')}"`}
+                      </span>
+                      {recipientsLoading && <Loader2 size={13} className="animate-spin text-slate-400 ml-auto" />}
+                      {recipientsData && !recipientsLoading && (
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); setRecipientsData(null); fetchRecipients() }}
+                          className="ml-auto text-[10px] text-slate-400 hover:text-slate-600 flex items-center gap-1"
+                        >
+                          <RefreshCw size={11} /> Atualizar
+                        </button>
+                      )}
+                    </div>
+
+                    {recipientsLoading ? (
+                      <div className="py-10 flex items-center justify-center gap-2 text-slate-400 text-sm">
+                        <Loader2 size={18} className="animate-spin text-[#c62737]" /> Verificando telefones…
+                      </div>
+                    ) : !recipientsData ? (
+                      <div className="py-8 text-center text-slate-400 text-sm">Abrindo…</div>
+                    ) : recipientsData.length === 0 ? (
+                      <div className="py-8 text-center text-slate-400 text-sm italic">Nenhum voluntário na escala.</div>
+                    ) : (() => {
+                      const rows: RecipientPreview[] = recipientsData
+                      const semTel = rows.filter(r => !r.has_phone)
+                      return (
+                        <>
+                          {semTel.length > 0 && (
+                            <div className="px-4 py-3 bg-red-50 border-b border-red-100 flex items-start gap-2">
+                              <AlertCircle size={14} className="text-red-500 shrink-0 mt-0.5" />
+                              <p className="text-xs text-red-600">
+                                <strong>{semTel.length} voluntário{semTel.length !== 1 ? 's' : ''} sem telefone cadastrado</strong> — não receberão mensagem.{' '}
+                                {semTel.slice(0, 3).map(r => r.person_name.split(' ')[0]).join(', ')}{semTel.length > 3 ? ` e mais ${semTel.length - 3}` : ''}.
+                              </p>
+                            </div>
+                          )}
+                          <div className="divide-y divide-slate-100">
+                            {rows.map(r => {
+                              const slotsOrdered = [...r.slots].sort((a,b) => a.date.localeCompare(b.date))
+                              return (
+                                <div key={r.person_id} className={`flex flex-wrap items-start gap-3 px-4 py-3 hover:bg-slate-50/50 transition-colors ${!r.has_phone ? 'opacity-60' : ''}`}>
+                                  <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-[11px] font-bold ${
+                                    r.has_phone ? 'bg-gradient-to-br from-[#c62737] to-[#9b1e2b] text-white' : 'bg-slate-200 text-slate-500'
+                                  }`}>
+                                    {r.person_name.charAt(0).toUpperCase()}
+                                  </div>
+                                  <div className="flex-1 min-w-[160px]">
+                                    <p className="text-sm font-semibold text-slate-800 leading-tight">{r.person_name}</p>
+                                    <div className="flex flex-wrap gap-1 mt-1">
+                                      {slotsOrdered.map((s, i) => (
+                                        <span key={i} className="inline-flex items-center gap-1 text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">
+                                          <span className="font-semibold text-[#c62737]">{s.funcao}</span>
+                                          <span className="text-slate-400">·</span>
+                                          {getDiaSemana(s.date).slice(0,3)}, {formatBr(s.date)} {s.time_of_day}h
+                                        </span>
+                                      ))}
+                                    </div>
+                                  </div>
+                                  <div className="shrink-0 flex items-center gap-1.5 ml-auto">
+                                    {r.has_phone ? (
+                                      <>
+                                        <CheckCircleIcon size={14} className="text-green-500" />
+                                        <span className="text-xs text-slate-500 font-mono">••••{r.phone_last4}</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <XCircleIcon size={14} className="text-red-400" />
+                                        <span className="text-xs text-red-400 font-semibold">Sem telefone</span>
+                                      </>
+                                    )}
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+                          <div className="px-4 py-3 bg-slate-50 border-t border-slate-100 flex items-center gap-3 text-xs flex-wrap">
+                            <span className="text-slate-500">Total: <strong>{rows.length}</strong></span>
+                            <span className="text-green-600">Receberão: <strong>{rows.filter(r => r.has_phone).length}</strong></span>
+                            {semTel.length > 0 && <span className="text-red-500">Sem telefone: <strong>{semTel.length}</strong></span>}
+                          </div>
+                        </>
+                      )
+                    })()}
+                  </div>
+
+                  {/* ─── Prévia das mensagens ─── */}
+                  <div>
+                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Prévia das mensagens</p>
+
+                    {previewTipo === 'mes' ? (
+                      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                        {Object.values(byPersonMsg).length === 0 ? (
+                          <p className="text-sm text-slate-400 italic text-center py-6 col-span-full">Nenhum voluntário escalado.</p>
+                        ) : Object.values(byPersonMsg).map(({ name, pSlots }) => {
+                          const firstName = name.split(' ')[0]
+                          return (
+                            <div key={name} className="rounded-xl border border-slate-200 overflow-hidden">
+                              <div className="px-3 py-2 bg-slate-50 border-b border-slate-200 flex items-center gap-2">
+                                <div className="w-6 h-6 rounded-full bg-violet-100 flex items-center justify-center text-[10px] font-bold text-violet-700 shrink-0">{name.charAt(0)}</div>
+                                <span className="text-xs font-semibold text-slate-700 truncate">{name}</span>
+                                <span className="text-[10px] text-slate-400 ml-auto shrink-0">{pSlots.length} culto{pSlots.length !== 1 ? 's' : ''}</span>
+                              </div>
+                              <div className="bg-[#e5ddd5] p-2.5">
+                                <div className="bg-white rounded-lg rounded-tl-none px-3 py-2.5 shadow-sm max-w-[90%] text-[11px] text-slate-700 leading-relaxed space-y-0.5">
+                                  <p><strong>Olá, {firstName}! 👋</strong></p>
+                                  <p>Sua escala de <strong>{MONTHS[(link?.month ?? 1) - 1]}/{link?.year}</strong> — <em>{churchName}</em>:</p>
+                                  <div className="mt-1 pt-1.5 border-t border-slate-100 space-y-0.5">
+                                    {pSlots.map((s, i) => (
+                                      <p key={i} className="text-[10px] text-slate-600">
+                                        📅 <strong>{getDiaSemana(s.date)}, {formatBr(s.date)}</strong> · {s.time}h
+                                        <span className="text-slate-400"> — {s.label} · </span>
+                                        <span className="text-[#c62737] font-semibold">{s.funcao}</span>
+                                      </p>
+                                    ))}
+                                  </div>
+                                  <p className="pt-1 mt-1 border-t border-slate-100 text-slate-500">Obrigado por servir! 🙏</p>
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {slotsOrdenados.length === 0 ? (
+                          <p className="text-sm text-slate-400 italic text-center py-6">Nenhum slot com voluntários escalados.</p>
+                        ) : slotsOrdenados.map(slot => {
+                          const byPersonSlot: Record<string, { name: string; funcoes: string[] }> = {}
+                          for (const a of slot.assignments) {
+                            if (!byPersonSlot[a.person_id]) byPersonSlot[a.person_id] = { name: a.person_name, funcoes: [] }
+                            if (!byPersonSlot[a.person_id].funcoes.includes(a.funcao)) byPersonSlot[a.person_id].funcoes.push(a.funcao)
+                          }
+                          const pessoas = Object.values(byPersonSlot)
+                          const diaSemana = getDiaSemana(slot.date)
+                          const dataBr = formatBr(slot.date)
+                          const local = `${slot.label} — ${churchName}`
+                          return (
+                            <div key={slot.slot_id} className="rounded-xl border border-slate-200 overflow-hidden">
+                              <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center gap-2">
+                                <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider shrink-0 ${
+                                  slot.type === 'culto' ? 'bg-[#c62737]/10 text-[#c62737]'
+                                  : slot.type === 'arena' ? 'bg-purple-100 text-purple-700'
+                                  : 'bg-amber-100 text-amber-700'
+                                }`}>{slot.type}</span>
+                                <span className="text-xs font-bold text-slate-800">{slot.label}</span>
+                                <span className="text-[11px] text-slate-500">📅 {diaSemana}, {dataBr} · ⏰ {slot.time_of_day}h</span>
+                                <span className="text-[11px] text-slate-400 ml-auto">{pessoas.length} voluntário{pessoas.length !== 1 ? 's' : ''}</span>
+                              </div>
+                              <div className="bg-[#e5ddd5] p-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                                {pessoas.map(({ name, funcoes: fs }) => {
+                                  const firstName = name.split(' ')[0]
+                                  const funcaoStr = fs.join(', ')
+                                  const semFone = recipientsData?.find(r => r.person_name === name && !r.has_phone)
+                                  return (
+                                    <div key={name} className={`bg-white rounded-lg rounded-tl-none px-3 py-2.5 shadow-sm text-[11px] text-slate-700 leading-relaxed ${semFone ? 'opacity-50 border border-red-200' : ''}`}>
+                                      {previewTipo === 'lembrete_3dias' && (
+                                        <>
+                                          <p><strong>Olá, {firstName}! 👋</strong></p>
+                                          <p className="mt-0.5">Você está escalado(a) em <span className="text-[#c62737] font-semibold">{funcaoStr}</span> no culto de <strong>{diaSemana}, {dataBr}</strong> às <strong>{slot.time_of_day}h</strong>.</p>
+                                          <p className="mt-0.5">📍 {local}</p>
+                                          <p className="mt-0.5 text-slate-500">Conta com você! 🙌</p>
+                                        </>
+                                      )}
+                                      {previewTipo === 'lembrete_1dia' && (
+                                        <>
+                                          <p><strong>Olá, {firstName}! 👋</strong></p>
+                                          <p className="mt-0.5">Lembrete: <strong>amanhã</strong> você está escalado(a) em <span className="text-[#c62737] font-semibold">{funcaoStr}</span> — <strong>{diaSemana}, {dataBr}</strong> às <strong>{slot.time_of_day}h</strong>.</p>
+                                          <p className="mt-0.5">📍 {local}</p>
+                                          <p className="mt-0.5 text-slate-500">A gente conta com você! 🙏</p>
+                                        </>
+                                      )}
+                                      {previewTipo === 'dia_da_escala' && (
+                                        <>
+                                          <p><strong>Bom dia, {firstName}! ☀️</strong></p>
+                                          <p className="mt-0.5">Hoje é dia de servir! Você está escalado(a) em <span className="text-[#c62737] font-semibold">{funcaoStr}</span> às <strong>{slot.time_of_day}h</strong>.</p>
+                                          <p className="mt-0.5">📍 {local}</p>
+                                        </>
+                                      )}
+                                      <div className="flex items-center justify-between mt-1.5 pt-1.5 border-t border-slate-100">
+                                        <span className="text-[9px] text-slate-400 font-semibold truncate max-w-[70%]">{name}</span>
+                                        {semFone
+                                          ? <span className="text-[9px] text-red-400 font-semibold flex items-center gap-0.5"><XCircleIcon size={9} /> sem telefone</span>
+                                          : <span className="text-[9px] text-green-500 flex items-center gap-0.5"><CheckCircleIcon size={9} /> enviará</span>
+                                        }
+                                      </div>
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )
+      })()}
+
       {/* ── Seção de Disparos ──────────────────────────── */}
       {publicadaInfo?.status === 'publicada' && (
         <div className="mx-6 md:mx-8 mb-8 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
@@ -913,6 +1241,321 @@ export default function EscalaVoluntariosPage() {
           </div>
         </div>
       )}
+
+      {/* bloco removido — prévia está acima */}
+      {false && (() => {
+        function getDiaSemana(_d: string) { return '' }
+        function formatBr(_d: string) { return '' }
+        const link = data?.link
+        const churchName = link?.church?.name ?? link?.ministry ?? ''
+
+        async function fetchRecipients() {
+          if (recipientsLoading || recipientsData) return
+          setRecipientsLoading(true)
+          try {
+            const res = await adminFetchJson<{
+              ok: boolean; recipients: RecipientPreview[]
+              com_telefone: number; sem_telefone: number; total: number
+            }>(`/api/admin/escalas/${id}/preview-disparos`)
+            setRecipientsData(res.recipients)
+            setRecipientsComTel(res.com_telefone)
+            setRecipientsSemTel(res.sem_telefone)
+          } catch {
+            setRecipientsData([])
+          } finally {
+            setRecipientsLoading(false)
+          }
+        }
+
+        // Montagem da prévia de mensagem por tipo: agrupa por pessoa a partir de publicadaInfo
+        const slotsData = publicadaInfo.dados.slots
+        const byPersonMsg: Record<string, { name: string; pSlots: Array<{ label: string; date: string; time: string; funcao: string }> }> = {}
+        for (const slot of slotsData) {
+          for (const a of slot.assignments) {
+            if (!byPersonMsg[a.person_id]) byPersonMsg[a.person_id] = { name: a.person_name, pSlots: [] }
+            byPersonMsg[a.person_id].pSlots.push({ label: slot.label, date: slot.date, time: slot.time_of_day, funcao: a.funcao })
+          }
+        }
+        const slotsOrdenados = [...slotsData]
+          .filter(s => s.assignments.length > 0)
+          .sort((a, b) => a.date.localeCompare(b.date) || a.time_of_day.localeCompare(b.time_of_day))
+
+        const totalMsgs = previewTipo === 'mes'
+          ? Object.keys(byPersonMsg).length
+          : slotsOrdenados.reduce((acc, s) => acc + new Set(s.assignments.map(a => a.person_id)).size, 0)
+
+        return (
+          <div className="mx-6 md:mx-8 mb-8 bg-white rounded-2xl border border-slate-200 shadow-sm">
+            {/* Header colapsável */}
+            <button
+              type="button"
+              onClick={() => {
+                const next = !showMsgPreview
+                setShowMsgPreview(next)
+                if (next) fetchRecipients()
+              }}
+              className="w-full flex items-center justify-between px-6 py-4 hover:bg-slate-50/60 transition-colors rounded-2xl"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-green-50 flex items-center justify-center shrink-0">
+                  <MessageSquare size={16} className="text-green-600" />
+                </div>
+                <div className="text-left">
+                  <h2 className="font-bold text-slate-800 text-base leading-tight">Destinatários dos Disparos</h2>
+                  <p className="text-xs text-slate-400">
+                    {recipientsData
+                      ? <>
+                          <span className="text-green-600 font-semibold">{recipientsComTel} com telefone</span>
+                          {recipientsSemTel > 0 && <span className="text-red-500 font-semibold"> · {recipientsSemTel} sem telefone</span>}
+                          <span className="text-slate-400"> · {previewTipo === 'mes' ? Object.keys(byPersonMsg).length : totalMsgs} mensagens a enviar</span>
+                        </>
+                      : 'Veja quem vai receber cada tipo de disparo e verifique telefones.'}
+                  </p>
+                </div>
+              </div>
+              <ChevronDown size={18} className={`text-slate-400 transition-transform duration-200 ${showMsgPreview ? 'rotate-180' : ''}`} />
+            </button>
+
+            {showMsgPreview && (
+              <div className="border-t border-slate-100">
+                {/* Seletor de tipo */}
+                <div className="flex flex-wrap gap-2 px-6 pt-5 pb-4">
+                  {([
+                    { tipo: 'mes' as const, label: 'Escala do Mês', color: 'bg-violet-100 text-violet-700 hover:bg-violet-200' },
+                    { tipo: 'lembrete_3dias' as const, label: 'Lembrete 3 dias', color: 'bg-amber-100 text-amber-700 hover:bg-amber-200' },
+                    { tipo: 'lembrete_1dia' as const, label: 'Lembrete 1 dia', color: 'bg-blue-100 text-blue-700 hover:bg-blue-200' },
+                    { tipo: 'dia_da_escala' as const, label: 'No dia', color: 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' },
+                  ]).map(({ tipo, label, color }) => (
+                    <button
+                      key={tipo}
+                      type="button"
+                      onClick={() => setPreviewTipo(tipo)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${
+                        previewTipo === tipo ? 'bg-[#c62737] text-white shadow-sm' : color
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* ─── Tabela de destinatários ─── */}
+                <div className="px-6 pb-6 space-y-5">
+                  <div className="rounded-xl border border-slate-200 overflow-hidden">
+                    <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center gap-2">
+                      <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                        {previewTipo === 'mes' ? 'Receberão a escala do mês' : `Receberão o lembrete "${previewTipo.replace(/_/g,' ')}"`}
+                      </span>
+                      {recipientsLoading && <Loader2 size={13} className="animate-spin text-slate-400 ml-auto" />}
+                      {recipientsData && !recipientsLoading && (
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); setRecipientsData(null); fetchRecipients() }}
+                          className="ml-auto text-[10px] text-slate-400 hover:text-slate-600 flex items-center gap-1"
+                        >
+                          <RefreshCw size={11} /> Atualizar
+                        </button>
+                      )}
+                    </div>
+
+                    {recipientsLoading ? (
+                      <div className="py-10 flex items-center justify-center gap-2 text-slate-400 text-sm">
+                        <Loader2 size={18} className="animate-spin text-[#c62737]" /> Verificando telefones…
+                      </div>
+                    ) : !recipientsData ? (
+                      <div className="py-8 text-center text-slate-400 text-sm">Abrindo…</div>
+                    ) : recipientsData.length === 0 ? (
+                      <div className="py-8 text-center text-slate-400 text-sm italic">Nenhum voluntário na escala.</div>
+                    ) : (() => {
+                      // Filtra quem vai receber de acordo com tipo
+                      let rows: RecipientPreview[] = []
+                      if (previewTipo === 'mes') {
+                        rows = recipientsData
+                      } else {
+                        // Para lembretes, mostra TODOS escalados (já que qualquer slot pode ser o alvo)
+                        // e marca quantos cultos cada um tem
+                        rows = recipientsData
+                      }
+                      const semTel = rows.filter(r => !r.has_phone)
+                      return (
+                        <>
+                          {semTel.length > 0 && (
+                            <div className="px-4 py-3 bg-red-50 border-b border-red-100 flex items-start gap-2">
+                              <AlertCircle size={14} className="text-red-500 shrink-0 mt-0.5" />
+                              <p className="text-xs text-red-600">
+                                <strong>{semTel.length} voluntário{semTel.length !== 1 ? 's' : ''} sem telefone cadastrado</strong> — não receberão mensagem.{' '}
+                                {semTel.slice(0, 3).map(r => r.person_name.split(' ')[0]).join(', ')}{semTel.length > 3 ? ` e mais ${semTel.length - 3}` : ''}.
+                              </p>
+                            </div>
+                          )}
+                          <div className="divide-y divide-slate-100">
+                            {rows.map(r => {
+                              const slotsOrdered = [...r.slots].sort((a,b) => a.date.localeCompare(b.date))
+                              return (
+                                <div key={r.person_id} className={`flex flex-wrap items-start gap-3 px-4 py-3 hover:bg-slate-50/50 transition-colors ${!r.has_phone ? 'opacity-60' : ''}`}>
+                                  {/* Avatar */}
+                                  <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-[11px] font-bold ${
+                                    r.has_phone ? 'bg-gradient-to-br from-[#c62737] to-[#9b1e2b] text-white' : 'bg-slate-200 text-slate-500'
+                                  }`}>
+                                    {r.person_name.charAt(0).toUpperCase()}
+                                  </div>
+                                  {/* Nome + cultos */}
+                                  <div className="flex-1 min-w-[160px]">
+                                    <p className="text-sm font-semibold text-slate-800 leading-tight">{r.person_name}</p>
+                                    <div className="flex flex-wrap gap-1 mt-1">
+                                      {slotsOrdered.map((s, i) => (
+                                        <span key={i} className="inline-flex items-center gap-1 text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">
+                                          <span className="font-semibold text-[#c62737]">{s.funcao}</span>
+                                          <span className="text-slate-400">·</span>
+                                          {getDiaSemana(s.date).slice(0,3)}, {formatBr(s.date)} {s.time_of_day}h
+                                        </span>
+                                      ))}
+                                    </div>
+                                  </div>
+                                  {/* Status telefone */}
+                                  <div className="shrink-0 flex items-center gap-1.5 ml-auto">
+                                    {r.has_phone ? (
+                                      <>
+                                        <CheckCircleIcon size={14} className="text-green-500" />
+                                        <span className="text-xs text-slate-500 font-mono">••••{r.phone_last4}</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <XCircleIcon size={14} className="text-red-400" />
+                                        <span className="text-xs text-red-400 font-semibold">Sem telefone</span>
+                                      </>
+                                    )}
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+                          <div className="px-4 py-3 bg-slate-50 border-t border-slate-100 flex items-center gap-3 text-xs flex-wrap">
+                            <span className="text-slate-500">Total: <strong>{rows.length}</strong></span>
+                            <span className="text-green-600">Receberão: <strong>{rows.filter(r => r.has_phone).length}</strong></span>
+                            {semTel.length > 0 && <span className="text-red-500">Sem telefone: <strong>{semTel.length}</strong></span>}
+                          </div>
+                        </>
+                      )
+                    })()}
+                  </div>
+
+                  {/* ─── Prévia das mensagens ─── */}
+                  <div>
+                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Prévia das mensagens</p>
+
+                    {previewTipo === 'mes' ? (
+                      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                        {Object.values(byPersonMsg).length === 0 ? (
+                          <p className="text-sm text-slate-400 italic text-center py-6 col-span-full">Nenhum voluntário escalado.</p>
+                        ) : Object.values(byPersonMsg).map(({ name, pSlots }) => {
+                          const firstName = name.split(' ')[0]
+                          return (
+                            <div key={name} className="rounded-xl border border-slate-200 overflow-hidden">
+                              <div className="px-3 py-2 bg-slate-50 border-b border-slate-200 flex items-center gap-2">
+                                <div className="w-6 h-6 rounded-full bg-violet-100 flex items-center justify-center text-[10px] font-bold text-violet-700 shrink-0">{name.charAt(0)}</div>
+                                <span className="text-xs font-semibold text-slate-700 truncate">{name}</span>
+                                <span className="text-[10px] text-slate-400 ml-auto shrink-0">{pSlots.length} culto{pSlots.length !== 1 ? 's' : ''}</span>
+                              </div>
+                              <div className="bg-[#e5ddd5] p-2.5">
+                                <div className="bg-white rounded-lg rounded-tl-none px-3 py-2.5 shadow-sm max-w-[90%] text-[11px] text-slate-700 leading-relaxed space-y-0.5">
+                                  <p><strong>Olá, {firstName}! 👋</strong></p>
+                                  <p>Sua escala de <strong>{MONTHS[(link?.month ?? 1) - 1]}/{link?.year}</strong> — <em>{churchName}</em>:</p>
+                                  <div className="mt-1 pt-1.5 border-t border-slate-100 space-y-0.5">
+                                    {pSlots.map((s, i) => (
+                                      <p key={i} className="text-[10px] text-slate-600">
+                                        📅 <strong>{getDiaSemana(s.date)}, {formatBr(s.date)}</strong> · {s.time}h
+                                        <span className="text-slate-400"> — {s.label} · </span>
+                                        <span className="text-[#c62737] font-semibold">{s.funcao}</span>
+                                      </p>
+                                    ))}
+                                  </div>
+                                  <p className="pt-1 mt-1 border-t border-slate-100 text-slate-500">Obrigado por servir! 🙏</p>
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {slotsOrdenados.length === 0 ? (
+                          <p className="text-sm text-slate-400 italic text-center py-6">Nenhum slot com voluntários escalados.</p>
+                        ) : slotsOrdenados.map(slot => {
+                          const byPersonSlot: Record<string, { name: string; funcoes: string[] }> = {}
+                          for (const a of slot.assignments) {
+                            if (!byPersonSlot[a.person_id]) byPersonSlot[a.person_id] = { name: a.person_name, funcoes: [] }
+                            if (!byPersonSlot[a.person_id].funcoes.includes(a.funcao)) byPersonSlot[a.person_id].funcoes.push(a.funcao)
+                          }
+                          const pessoas = Object.values(byPersonSlot)
+                          const diaSemana = getDiaSemana(slot.date)
+                          const dataBr = formatBr(slot.date)
+                          const local = `${slot.label} — ${churchName}`
+                          return (
+                            <div key={slot.slot_id} className="rounded-xl border border-slate-200 overflow-hidden">
+                              <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center gap-2">
+                                <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider shrink-0 ${
+                                  slot.type === 'culto' ? 'bg-[#c62737]/10 text-[#c62737]'
+                                  : slot.type === 'arena' ? 'bg-purple-100 text-purple-700'
+                                  : 'bg-amber-100 text-amber-700'
+                                }`}>{slot.type}</span>
+                                <span className="text-xs font-bold text-slate-800">{slot.label}</span>
+                                <span className="text-[11px] text-slate-500">📅 {diaSemana}, {dataBr} · ⏰ {slot.time_of_day}h</span>
+                                <span className="text-[11px] text-slate-400 ml-auto">{pessoas.length} voluntário{pessoas.length !== 1 ? 's' : ''}</span>
+                              </div>
+                              <div className="bg-[#e5ddd5] p-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                                {pessoas.map(({ name, funcoes: fs }) => {
+                                  const firstName = name.split(' ')[0]
+                                  const funcaoStr = fs.join(', ')
+                                  const semFone = recipientsData?.find(r => r.person_name === name && !r.has_phone)
+                                  return (
+                                    <div key={name} className={`bg-white rounded-lg rounded-tl-none px-3 py-2.5 shadow-sm text-[11px] text-slate-700 leading-relaxed ${semFone ? 'opacity-50 border border-red-200' : ''}`}>
+                                      {previewTipo === 'lembrete_3dias' && (
+                                        <>
+                                          <p><strong>Olá, {firstName}! 👋</strong></p>
+                                          <p className="mt-0.5">Você está escalado(a) em <span className="text-[#c62737] font-semibold">{funcaoStr}</span> no culto de <strong>{diaSemana}, {dataBr}</strong> às <strong>{slot.time_of_day}h</strong>.</p>
+                                          <p className="mt-0.5">📍 {local}</p>
+                                          <p className="mt-0.5 text-slate-500">Conta com você! 🙌</p>
+                                        </>
+                                      )}
+                                      {previewTipo === 'lembrete_1dia' && (
+                                        <>
+                                          <p><strong>Olá, {firstName}! 👋</strong></p>
+                                          <p className="mt-0.5">Lembrete: <strong>amanhã</strong> você está escalado(a) em <span className="text-[#c62737] font-semibold">{funcaoStr}</span> — <strong>{diaSemana}, {dataBr}</strong> às <strong>{slot.time_of_day}h</strong>.</p>
+                                          <p className="mt-0.5">📍 {local}</p>
+                                          <p className="mt-0.5 text-slate-500">A gente conta com você! 🙏</p>
+                                        </>
+                                      )}
+                                      {previewTipo === 'dia_da_escala' && (
+                                        <>
+                                          <p><strong>Bom dia, {firstName}! ☀️</strong></p>
+                                          <p className="mt-0.5">Hoje é dia de servir! Você está escalado(a) em <span className="text-[#c62737] font-semibold">{funcaoStr}</span> às <strong>{slot.time_of_day}h</strong>.</p>
+                                          <p className="mt-0.5">📍 {local}</p>
+                                        </>
+                                      )}
+                                      <div className="flex items-center justify-between mt-1.5 pt-1.5 border-t border-slate-100">
+                                        <span className="text-[9px] text-slate-400 font-semibold truncate max-w-[70%]">{name}</span>
+                                        {semFone
+                                          ? <span className="text-[9px] text-red-400 font-semibold flex items-center gap-0.5"><XCircleIcon size={9} /> sem telefone</span>
+                                          : <span className="text-[9px] text-green-500 flex items-center gap-0.5"><CheckCircleIcon size={9} /> enviará</span>
+                                        }
+                                      </div>
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )
+      })()}
 
       <Toast visible={!!toast} message={toast?.message ?? ''} type={toast?.type ?? 'ok'} onClose={() => setToast(null)} />
 
