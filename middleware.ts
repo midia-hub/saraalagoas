@@ -46,7 +46,7 @@ export function middleware(request: NextRequest) {
       pathname.length > 1 && pathname.endsWith('/') ? pathname.slice(0, -1) : pathname
     
     // Bypass para Cron (Supabase/GitHub)
-    if (normalizedPath.startsWith('/api/cron/')) {
+    if (normalizedPath.startsWith('/api/cron')) {
       return applySecurityHeaders(NextResponse.next())
     }
 
