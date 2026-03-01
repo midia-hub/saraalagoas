@@ -51,10 +51,10 @@ function localDateBRT(offsetDays = 0) {
  * Processa um tipo de lembrete para a data alvo.
  *
  * Para cada escala do mês, busca os slots na data alvo e,
- * para cada slot, envia UMA mensagem para cada volunt�rio escalado naquele slot,
- * informando o culto/evento espec�fico e as fun��es dele naquele culto.
+ * para cada slot, envia UMA mensagem para cada voluntário escalado naquele slot,
+ * informando o culto/evento específico e as funções dele naquele culto.
  *
- * Se o volunt�rio est� em 2 cultos no mesmo dia, recebe 2 mensagens separadas.
+ * Se o voluntário está em 2 cultos no mesmo dia, recebe 2 mensagens separadas.
  */
 async function processarTipo(
   supabase: ReturnType<typeof createClient>,
@@ -73,7 +73,7 @@ async function processarTipo(
     return { tipo, targetDate, enviados: 0, erros: 0, aviso: `Nenhuma escala para ${targetDate}` }
   }
 
-  // Dedup cross-run: carrega phones que j� receberam este tipo hoje (evita reenvio se cron rodar 2x)
+  // Dedup cross-run: carrega phones que já receberam este tipo hoje (evita reenvio se cron rodar 2x)
   const todayStart = `${targetDate}T00:00:00.000Z`
   const todayEnd = `${targetDate}T23:59:59.999Z`
   const { data: jaSentRows } = await supabase
@@ -194,19 +194,19 @@ async function processarTipo(
 /**
  * GET /api/cron/escalas-lembretes
  *
- * Chamada via Supabase pg_cron (diariamente às 14:30 BRT).
+ * Chamada via Supabase pg_cron (diariamente às 15:00 BRT).
  *
  * Query params:
  *   tipo  : 'lembrete_3dias' | 'lembrete_1dia' | 'dia_da_escala' | 'automatico'
  *   token : valor de CRON_SECRET env var
  *
- * Modo autom�tico (padr�o � sem tipo): processa os 3 tipos em paralelo.
- *   - lembrete_3dias ? volunt�rios escalados daqui a 3 dias
- *   - lembrete_1dia  ? volunt�rios escalados amanh�
- *   - dia_da_escala  ? volunt�rios escalados hoje
+ * Modo automático (padrão — sem tipo): processa os 3 tipos em paralelo.
+ *   - lembrete_3dias → voluntários escalados daqui a 3 dias
+ *   - lembrete_1dia  → voluntários escalados amanhã
+ *   - dia_da_escala  → voluntários escalados hoje
  *
- * Regra por volunt�rio: UMA mensagem por culto/evento em que est� escalado na data.
- * Se est� em 2 cultos, recebe 2 mensagens � cada uma com o culto e fun��es corretos.
+ * Regra por voluntário: UMA mensagem por culto/evento em que está escalado na data.
+ * Se está em 2 cultos, recebe 2 mensagens — cada uma com o culto e funções corretos.
  */
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
@@ -225,7 +225,7 @@ export async function GET(request: NextRequest) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   )
 
-  // Modo autom�tico: processa os 3 tipos em paralelo na mesma invoca��o (sem self-HTTP calls)
+  // Modo automático: processa os 3 tipos em paralelo na mesma invocação (sem self-HTTP calls)
   if (!tipo || tipo === 'automatico') {
     const results = await Promise.all(
       TIPOS_VALIDOS.map((t) => processarTipo(supabase, t, localDateBRT(OFFSETS[t])))
@@ -234,7 +234,7 @@ export async function GET(request: NextRequest) {
   }
 
   if (!TIPOS_VALIDOS.includes(tipo as TipoLembrete)) {
-    return NextResponse.json({ error: 'Par�metro tipo inv�lido.' }, { status: 400 })
+    return NextResponse.json({ error: 'Parâmetro tipo inválido.' }, { status: 400 })
   }
 
   const targetDate = localDateBRT(OFFSETS[tipo as TipoLembrete])
