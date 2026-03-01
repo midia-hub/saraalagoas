@@ -29,19 +29,19 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const querySecret  = searchParams.get('secret') || searchParams.get('token')
   const headerSecret = request.headers.get('authorization')?.replace('Bearer ', '')
-  const cronSecret   = process.env.CRON_SECRET
+  const cronSecret   = process.env.CRON_SECRET || '867b36f7-331e-46cf-8302-6014ba63548f'
 
-  // DEBUG: Removido após validação
-  if (!cronSecret) {
-    console.warn('[cron] CRON_SECRET not set in env')
-  }
-
-  if (cronSecret && (querySecret === cronSecret || headerSecret === cronSecret)) {
+  if (querySecret === cronSecret || headerSecret === cronSecret) {
     // Authorized
-  } else if (!cronSecret && querySecret === '867b36f7-331e-46cf-8302-6014ba63548f') {
-    // Fallback manual se a env sumir
   } else {
-    return NextResponse.json({ error: 'Unauthorized', debug: { match: false, has_cron_secret: !!cronSecret } }, { status: 401 })
+    return NextResponse.json({ 
+      error: 'Unauthorized', 
+      debug: { 
+        match: false, 
+        received: querySecret?.substring(0, 4) + '...',
+        expected: cronSecret.substring(0, 4) + '...'
+      } 
+    }, { status: 401 })
   }
 
   let tipo = searchParams.get('tipo') as any
