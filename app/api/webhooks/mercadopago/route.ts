@@ -56,13 +56,14 @@ export async function POST(request: NextRequest) {
     }
 
     const type = body.type as string | undefined
+    const action = body.action as string | undefined
     // data.id pode vir no body ou nos query params (doc MP: validação usa valor em minúsculas)
     const url = request.nextUrl ?? new URL(request.url)
-    const dataIdFromQuery = url.searchParams.get('data.id')
-    const dataId = (body.data?.id ?? dataIdFromQuery) as string | undefined
+    const dataIdFromQuery = url.searchParams.get('data.id') ?? url.searchParams.get('id')
+    const dataId = (body.data?.id ?? body.id ?? dataIdFromQuery) as string | undefined
     const rawNotification = { ...body, _received_at: new Date().toISOString() }
 
-    console.log('[webhook mercadopago]', { type, dataId })
+    console.log('[webhook mercadopago]', { type, action, dataId, bodyId: body.id })
 
     if (!dataId) {
       return NextResponse.json({ ok: true, message: 'Evento sem id' })
@@ -80,7 +81,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Notificação de order (QR no caixa): external_reference = sale_id, status processed = pago
-    if (type === 'order') {
+    // O MP pode enviar type: "merchant_order" ou action: "merchant_order.created/updated"
+    if (type === 'order' || type === 'merchant_order' || action === 'merchant_order.updated') {
       try {
         const supabase = createSupabaseServiceClient()
         const result = await markSalePaidFromOrder(String(dataId), supabase, {
