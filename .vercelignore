@@ -4,6 +4,7 @@
 # Scripts e ferramentas locais
 scripts/
 *.mjs
+!postcss.config.mjs
 
 # Documentação
 docs/
