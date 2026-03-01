@@ -44,6 +44,12 @@ export function middleware(request: NextRequest) {
     }
     const normalizedPath =
       pathname.length > 1 && pathname.endsWith('/') ? pathname.slice(0, -1) : pathname
+    
+    // Bypass para Cron (Supabase/GitHub)
+    if (normalizedPath.startsWith('/api/cron')) {
+      return applySecurityHeaders(NextResponse.next())
+    }
+
     const isXp26ResultadosPage = normalizedPath === '/xp26-resultados'
     const isXp26ResultadosApi = normalizedPath === '/api/public/xp26-resultados'
 
