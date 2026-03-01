@@ -17,7 +17,7 @@ import { siteConfig } from '@/config/site'
  *
  * Chamada via GitHub Actions (.github/workflows/cron-escalas-lembretes.yml).
  * Agenda (UTC / BRT):
- *   Todos os lembretes → 15:35 UTC = 12:35 BRT
+ *   Todos os lembretes → 15:50 UTC = 12:50 BRT
  *
  * Query params:
  *   tipo  : 'lembrete_3dias' | 'lembrete_1dia' | 'dia_da_escala'  (obrigatório)
@@ -120,15 +120,22 @@ export async function GET(request: NextRequest) {
       .eq('link_id', link.id)
       .maybeSingle()
 
-    if (!publicada || publicada.status !== 'publicada') continue
+    if (!publicada || publicada.status !== 'publicada') {
+      console.log(`[cron] link_id=${link.id} status=${publicada?.status || 'n/a'} (pula)`)
+      continue
+    }
 
     const slots: any[] = (publicada.dados as any)?.slots ?? []
-    let slotsForDate = slots.filter((s: any) => s.date === targetDate)
+    // Filtro robusto: aceita '2026-03-01' ou '2026-03-01T00:00:00...'
+    let slotsForDate = slots.filter((s: any) => s.date && s.date.startsWith(targetDate))
     
-    if (!slotsForDate.length) continue
+    if (!slotsForDate.length) {
+      console.log(`[cron] no slots for date ${targetDate} in link_id=${link.id}`)
+      continue
+    }
 
     const allPersonIds: string[] = Array.from(new Set(
-      slotsForDate.flatMap((s: any) => s.assignments.map((a: any) => a.person_id))
+      slotsForDate.flatMap((s: any) => (s.assignments ?? []).map((a: any) => a.person_id))
     ))
 
     const { data: people } = await supabase

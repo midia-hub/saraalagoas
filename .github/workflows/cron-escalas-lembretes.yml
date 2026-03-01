@@ -1,7 +1,7 @@
 ﻿name: Cron – Lembretes de Escala
 
 # Horários em UTC (BRT = UTC-3)
-# Todos os lembretes configurados para 12:35 BRT (15:35 UTC)
+# Todos os lembretes configurados para 12:50 BRT (15:50 UTC)
 #
 # ⚠ GitHub Actions pode atrasar até ~15 min no plano gratuito.
 #
@@ -11,8 +11,8 @@
 
 on:
   schedule:
-    # 15:35 UTC = 12:35 BRT diariamente
-    - cron: '35 15 * * *'
+    # 15:50 UTC = 12:50 BRT diariamente
+    - cron: '50 15 * * *'
 
   # Permite disparar manualmente pela aba Actions no GitHub
   workflow_dispatch:
@@ -30,7 +30,7 @@ on:
 jobs:
   lembrete_3dias:
     name: Lembrete 3 dias antes
-    if: github.event.schedule == '35 15 * * *' || (github.event_name == 'workflow_dispatch' && github.event.inputs.tipo == 'lembrete_3dias')
+    if: github.event.schedule == '50 15 * * *' || (github.event_name == 'workflow_dispatch' && github.event.inputs.tipo == 'lembrete_3dias')
     runs-on: ubuntu-latest
     steps:
       - name: Chamar endpoint de lembrete
@@ -49,7 +49,7 @@ jobs:
 
   lembrete_1dia:
     name: Lembrete 1 dia antes
-    if: github.event.schedule == '35 15 * * *' || (github.event_name == 'workflow_dispatch' && github.event.inputs.tipo == 'lembrete_1dia')
+    if: github.event.schedule == '50 15 * * *' || (github.event_name == 'workflow_dispatch' && github.event.inputs.tipo == 'lembrete_1dia')
     runs-on: ubuntu-latest
     steps:
       - name: Chamar endpoint de lembrete
@@ -67,8 +67,8 @@ jobs:
           fi
 
   dia_da_escala:
-    name: Lembrete no dia (12:35 BRT)
-    if: github.event.schedule == '35 15 * * *' || (github.event_name == 'workflow_dispatch' && github.event.inputs.tipo == 'dia_da_escala')
+    name: Lembrete no dia (12:50 BRT)
+    if: github.event.schedule == '50 15 * * *' || (github.event_name == 'workflow_dispatch' && github.event.inputs.tipo == 'dia_da_escala')
     runs-on: ubuntu-latest
     steps:
       - name: Chamar endpoint de lembrete
