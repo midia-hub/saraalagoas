@@ -70,6 +70,34 @@ export async function POST(request: NextRequest, { params }: Params) {
     return NextResponse.json({ error: 'Erro ao salvar.' }, { status: 500 })
   }
 
+  // ── 2.5 Atualizar escalas_assignments (Tabela Unificada) ──────────────────
+  if (status === 'publicada') {
+    // 1. Limpa assignments anteriores deste link
+    await supabase.from('escalas_assignments').delete().eq('link_id', params.id)
+
+    // 2. Extrai novos assignments dos dados publicados
+    const slots = (dados as any)?.slots || []
+    const newAssignments: any[] = []
+
+    for (const slot of slots) {
+      if (!slot.assignments) continue
+      for (const ass of slot.assignments) {
+        if (!ass.person_id) continue
+        newAssignments.push({
+          link_id: params.id,
+          slot_id: slot.slot_id,
+          person_id: ass.person_id,
+          funcao: ass.funcao
+        })
+      }
+    }
+
+    if (newAssignments.length > 0) {
+      const { error: insErr } = await supabase.from('escalas_assignments').insert(newAssignments)
+      if (insErr) console.error('Erro ao atualizar escalas_assignments:', insErr)
+    }
+  }
+
   // Se for publicação final, fechamos o link de disponibilidade para novas respostas
   if (status === 'publicada') {
     await supabase
