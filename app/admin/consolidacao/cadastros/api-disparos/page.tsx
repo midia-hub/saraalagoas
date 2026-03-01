@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import Link from 'next/link'
-import { Send, ArrowLeft, Save, RefreshCw, CheckCircle2, XCircle, Activity, Filter, Loader2, Clock, Bell } from 'lucide-react'
+import { Send, ArrowLeft, Save, RefreshCw, CheckCircle2, XCircle, Activity, Filter, Loader2, Clock, Bell, ChevronDown, MessageSquare } from 'lucide-react'
 import { PageAccessGuard } from '@/app/admin/PageAccessGuard'
 import { Button } from '@/components/ui/Button'
 import { adminFetchJson } from '@/lib/admin-client'
@@ -118,6 +118,7 @@ export default function ApiDisparosPage() {
   const [triggerLoading, setTriggerLoading] = useState<Record<string, boolean>>({})
   const [triggerResult, setTriggerResult] = useState<Record<string, { enviados: number; erros: number; aviso?: string } | { error: string } | null>>({})
   const [triggerForce, setTriggerForce] = useState<Record<string, boolean>>({})
+  const [showPreview, setShowPreview] = useState<Record<string, boolean>>({})
 
   // Filtros do log
   const [filterSource, setFilterSource] = useState('')
@@ -301,66 +302,151 @@ export default function ApiDisparosPage() {
             </div>
             <div className="p-6 flex flex-wrap gap-3">
               {([
-                { tipo: 'lembrete_3dias', label: 'Lembrete 3 dias',  desc: 'Data alvo: hoje + 3' },
-                { tipo: 'lembrete_1dia',  label: 'Lembrete 1 dia',   desc: 'Data alvo: amanhã'  },
-                { tipo: 'dia_da_escala', label: 'Lembrete no dia',  desc: 'Data alvo: hoje (sem filtro de horário)' },
-              ] as const).map(({ tipo, label, desc }) => {
+                {
+                  tipo: 'lembrete_3dias',
+                  label: 'Lembrete 3 dias',
+                  desc: 'Data alvo: hoje + 3',
+                  messageId: '91915ca1-0419-43b5-a70c-df0c0b92379f',
+                  preview: [
+                    'Olá, *{{nome}}*! 👋',
+                    '',
+                    'Você está escalado(a) na *{{funcao}}* no culto de *{{dia_semana}}, {{data}}* às *{{hora}}h*.',
+                    '',
+                    '📍 Local: {{local}}',
+                    '',
+                    'Conte com você! 🙌',
+                  ],
+                },
+                {
+                  tipo: 'lembrete_1dia',
+                  label: 'Lembrete 1 dia',
+                  desc: 'Data alvo: amanhã',
+                  messageId: '96a161e3-087c-4755-b31e-0c127c36d6b9',
+                  preview: [
+                    'Olá, *{{nome}}*! 👋',
+                    '',
+                    'Lembrete: amanhã você está escalado(a) na *{{funcao}}* — *{{dia_semana}}, {{data}}* às *{{hora}}h*.',
+                    '',
+                    '📍 Local: {{local}}',
+                    '',
+                    'A gente conta com você! 🙏',
+                  ],
+                },
+                {
+                  tipo: 'dia_da_escala',
+                  label: 'Lembrete no dia',
+                  desc: 'Data alvo: hoje (sem filtro de horário)',
+                  messageId: '27eb5277-f8d8-45b3-98cc-15f9e0b55d0c',
+                  preview: [
+                    'Bom dia, *{{nome}}*! ☀️',
+                    '',
+                    'Hoje é dia de servir! Você está escalado(a) na *{{funcao}}* às *{{hora}}h*.',
+                    '',
+                    '📍 Local: {{local}}',
+                    '',
+                    'Dúvidas? Fale com o líder: {{whats_lider}} 💬',
+                  ],
+                },
+              ] as const).map(({ tipo, label, desc, messageId, preview }) => {
                 const res = triggerResult[tipo]
                 const busy = !!triggerLoading[tipo]
                 const isForce = !!triggerForce[tipo]
+                const isPreviewing = !!showPreview[tipo]
                 return (
-                  <div key={tipo} className="flex-1 min-w-[220px] border border-slate-200 rounded-xl p-4 flex flex-col gap-3">
-                    <div>
-                      <p className="text-sm font-semibold text-slate-800">{label}</p>
-                      <p className="text-xs text-slate-400 mt-0.5">{desc}</p>
+                  <div key={tipo} className="flex-1 min-w-[260px] border border-slate-200 rounded-xl flex flex-col">
+                    {/* Cabeçalho do card */}
+                    <div className="p-4 flex flex-col gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-slate-800">{label}</p>
+                        <p className="text-xs text-slate-400 mt-0.5">{desc}</p>
+                      </div>
+
+                      {/* ID da mensagem */}
+                      <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5">
+                        <MessageSquare size={11} className="text-slate-400 shrink-0" />
+                        <span className="text-[10px] text-slate-400 font-mono truncate" title={messageId}>{messageId}</span>
+                      </div>
+
+                      {/* Toggle preview */}
+                      <button
+                        type="button"
+                        onClick={() => setShowPreview(prev => ({ ...prev, [tipo]: !isPreviewing }))}
+                        className="inline-flex items-center gap-1.5 text-xs text-[#c62737] font-medium hover:underline w-fit"
+                      >
+                        <ChevronDown size={13} className={`transition-transform ${isPreviewing ? 'rotate-180' : ''}`} />
+                        {isPreviewing ? 'Ocultar prévia' : 'Ver prévia da mensagem'}
+                      </button>
+
+                      {/* Preview da mensagem */}
+                      {isPreviewing && (
+                        <div className="bg-[#e5ddd5] rounded-xl p-3">
+                          <div className="bg-white rounded-lg rounded-tl-none px-3 py-2 shadow-sm max-w-[90%]">
+                            {preview.map((line, i) =>
+                              line === '' ? (
+                                <div key={i} className="h-2" />
+                              ) : (
+                                <p key={i} className="text-[11px] text-slate-700 leading-relaxed"
+                                  dangerouslySetInnerHTML={{
+                                    __html: line
+                                      .replace(/\*([^*]+)\*/g, '<strong>$1</strong>')
+                                      .replace(/\{\{([^}]+)\}\}/g, '<span class="text-[#c62737] font-mono bg-red-50 px-0.5 rounded">{{$1}}</span>'),
+                                  }}
+                                />
+                              )
+                            )}
+                            <p className="text-[10px] text-slate-400 text-right mt-1">template · WhatsApp</p>
+                          </div>
+                        </div>
+                      )}
+
+                      <button
+                        disabled={busy}
+                        onClick={async () => {
+                          setTriggerLoading(prev => ({ ...prev, [tipo]: true }))
+                          setTriggerResult(prev => ({ ...prev, [tipo]: null }))
+                          try {
+                            const data = await adminFetchJson<{ ok: boolean; enviados: number; erros: number; aviso?: string; error?: string }>(
+                              '/api/admin/escalas/disparar-lembretes',
+                              { method: 'POST', body: JSON.stringify({ tipo, force: isForce }) },
+                            )
+                            setTriggerResult(prev => ({ ...prev, [tipo]: data.error ? { error: data.error } : { enviados: data.enviados ?? 0, erros: data.erros ?? 0, aviso: data.aviso } }))
+                          } catch (err: any) {
+                            setTriggerResult(prev => ({ ...prev, [tipo]: { error: err?.message ?? 'Erro desconhecido' } }))
+                          } finally {
+                            setTriggerLoading(prev => ({ ...prev, [tipo]: false }))
+                            loadLog()
+                          }
+                        }}
+                        className="inline-flex items-center justify-center gap-2 text-sm font-medium px-4 py-2 rounded-lg bg-[#c62737] text-white hover:bg-[#a31f2d] disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+                      >
+                        {busy ? <Loader2 size={14} className="animate-spin" /> : <Bell size={14} />}
+                        {busy ? 'Disparando…' : 'Disparar agora'}
+                      </button>
+                      <label className="inline-flex items-center gap-2 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={isForce}
+                          onChange={e => setTriggerForce(prev => ({ ...prev, [tipo]: e.target.checked }))}
+                          className="w-4 h-4 rounded border-slate-300 text-[#c62737] focus:ring-[#c62737]"
+                        />
+                        <span className="text-xs text-slate-500">Forçar reenvio (ignorar duplicatas)</span>
+                      </label>
+                      {res && (
+                        'error' in res ? (
+                          <p className="text-xs text-red-600 font-medium">
+                            <XCircle size={12} className="inline mr-1" />{res.error}
+                          </p>
+                        ) : (
+                          <p className="text-xs">
+                            <CheckCircle2 size={12} className="inline mr-1 text-green-500" />
+                            <span className="text-green-700 font-semibold">{res.enviados} enviados</span>
+                            {res.erros > 0 && <span className="text-red-500 ml-1">, {res.erros} com erro</span>}
+                            {res.aviso && <span className="text-yellow-600 ml-1 italic">— {res.aviso}</span>}
+                            {res.enviados === 0 && res.erros === 0 && !res.aviso && <span className="text-slate-400 ml-1">(nenhum slot encontrado para a data)</span>}
+                          </p>
+                        )
+                      )}
                     </div>
-                    <button
-                      disabled={busy}
-                      onClick={async () => {
-                        setTriggerLoading(prev => ({ ...prev, [tipo]: true }))
-                        setTriggerResult(prev => ({ ...prev, [tipo]: null }))
-                        try {
-                          const data = await adminFetchJson<{ ok: boolean; enviados: number; erros: number; aviso?: string; error?: string }>(
-                            '/api/admin/escalas/disparar-lembretes',
-                            { method: 'POST', body: JSON.stringify({ tipo, force: isForce }) },
-                          )
-                          setTriggerResult(prev => ({ ...prev, [tipo]: data.error ? { error: data.error } : { enviados: data.enviados ?? 0, erros: data.erros ?? 0, aviso: data.aviso } }))
-                        } catch (err: any) {
-                          setTriggerResult(prev => ({ ...prev, [tipo]: { error: err?.message ?? 'Erro desconhecido' } }))
-                        } finally {
-                          setTriggerLoading(prev => ({ ...prev, [tipo]: false }))
-                          loadLog()
-                        }
-                      }}
-                      className="inline-flex items-center justify-center gap-2 text-sm font-medium px-4 py-2 rounded-lg bg-[#c62737] text-white hover:bg-[#a31f2d] disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
-                    >
-                      {busy ? <Loader2 size={14} className="animate-spin" /> : <Bell size={14} />}
-                      {busy ? 'Disparando…' : 'Disparar agora'}
-                    </button>
-                    <label className="inline-flex items-center gap-2 cursor-pointer select-none">
-                      <input
-                        type="checkbox"
-                        checked={isForce}
-                        onChange={e => setTriggerForce(prev => ({ ...prev, [tipo]: e.target.checked }))}
-                        className="w-4 h-4 rounded border-slate-300 text-[#c62737] focus:ring-[#c62737]"
-                      />
-                      <span className="text-xs text-slate-500">Forçar reenvio (ignorar duplicatas)</span>
-                    </label>
-                    {res && (
-                      'error' in res ? (
-                        <p className="text-xs text-red-600 font-medium">
-                          <XCircle size={12} className="inline mr-1" />{res.error}
-                        </p>
-                      ) : (
-                        <p className="text-xs">
-                          <CheckCircle2 size={12} className="inline mr-1 text-green-500" />
-                          <span className="text-green-700 font-semibold">{res.enviados} enviados</span>
-                          {res.erros > 0 && <span className="text-red-500 ml-1">, {res.erros} com erro</span>}
-                          {res.aviso && <span className="text-yellow-600 ml-1 italic">— {res.aviso}</span>}
-                          {res.enviados === 0 && res.erros === 0 && !res.aviso && <span className="text-slate-400 ml-1">(nenhum slot encontrado para a data)</span>}
-                        </p>
-                      )
-                    )}
                   </div>
                 )
               })}
