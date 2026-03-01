@@ -136,12 +136,17 @@ export default function MercadoPagoRetornoPage() {
             <h1 className="text-xl font-semibold text-slate-800 mb-2">{title}</h1>
             <p className="text-slate-600 text-sm mb-6">{message}</p>
 
+            {!saleId && (
+              <p className="text-slate-500 text-sm">
+                Nenhuma venda em acompanhamento. Volte ao PDV para iniciar um pagamento.
+              </p>
+            )}
             {saleId && status !== 'failure' && (
               <div className="w-full space-y-2">
                 {pollStatus && pollStatus.status !== 'PAID' && (
                   <div className="flex items-center justify-center gap-2 text-slate-500 text-sm">
                     <Loader2 className="animate-spin" size={18} />
-                    Consultando status...
+                    Consultando status do pagamento...
                   </div>
                 )}
                 {pollError && (

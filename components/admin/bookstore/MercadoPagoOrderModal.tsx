@@ -20,6 +20,7 @@ interface MercadoPagoOrderModalProps {
 
 const QR_IMAGE_BASE = 'https://api.qrserver.com/v1/create-qr-code/'
 const POLL_INTERVAL_MS = 2500
+const ORDER_POLL_INTERVAL_MS = 3000
 const MAX_CONSECUTIVE_ERRORS = 4
 
 export function MercadoPagoOrderModal({
@@ -33,6 +34,7 @@ export function MercadoPagoOrderModal({
   const [paymentStatus, setPaymentStatus] = useState<'pending' | 'paid' | 'failed' | null>(null)
   const [pollingUnavailable, setPollingUnavailable] = useState(false)
 
+  // Poll da venda (status PAID vem do webhook ou do sync-sale)
   useEffect(() => {
     if (!open || !saleId) return
     setPaymentStatus('pending')
@@ -69,6 +71,44 @@ export function MercadoPagoOrderModal({
     }, POLL_INTERVAL_MS)
     return () => clearInterval(id)
   }, [open, saleId])
+
+  // Fallback: poll da order no MP e sync quando processed (quando webhook não retorna a tempo)
+  useEffect(() => {
+    if (!open || !orderId || !saleId) return
+    let cancelled = false
+    const pollOrder = async () => {
+      if (cancelled) return
+      try {
+        const order = await adminFetchJson<{ status?: string }>(
+          `/api/admin/livraria/mercadopago/orders/${encodeURIComponent(orderId)}`
+        )
+        if (cancelled) return
+        const status = (order?.status ?? '').toLowerCase()
+        if (status === 'processed') {
+          const sync = await adminFetchJson<{ ok?: boolean; error?: string }>(
+            `/api/admin/livraria/mercadopago/orders/${encodeURIComponent(orderId)}/sync-sale`,
+            { method: 'POST' }
+          )
+          if (!cancelled && sync?.ok === true) {
+            setPaymentStatus('paid')
+          }
+          return
+        }
+        if (status === 'cancelled' || status === 'expired') {
+          setPaymentStatus('failed')
+          return
+        }
+      } catch {
+        // Ignora erro; o poll da venda pode já ter retornado PAID
+      }
+    }
+    pollOrder()
+    const id = setInterval(pollOrder, ORDER_POLL_INTERVAL_MS)
+    return () => {
+      cancelled = true
+      clearInterval(id)
+    }
+  }, [open, orderId, saleId])
 
   const [countdown, setCountdown] = useState(REDIRECT_DELAY_SEC)
   useEffect(() => {
