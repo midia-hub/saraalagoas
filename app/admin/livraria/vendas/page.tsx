@@ -31,6 +31,7 @@ export default function PdvPage() {
   const [finalizeOpen, setFinalizeOpen] = useState(false)
   const [finalizeLoading, setFinalizeLoading] = useState(false)
   const [cartDrawerOpen, setCartDrawerOpen] = useState(false)
+  const [isBarcodeChecking, setIsBarcodeChecking] = useState(false)
   const [toast, setToast] = useState<{ type: 'ok' | 'err'; message: string } | null>(null)
   const [mercadopagoModal, setMercadopagoModal] = useState<{
     saleId: string
@@ -104,21 +105,6 @@ export default function PdvPage() {
       .catch(() => { tokenRef.current = null })
   }, [])
 
-  useEffect(() => {
-    const closeMinhaSessao = () => {
-      const t = tokenRef.current
-      if (t)
-        fetch('/api/admin/livraria/mercadopago/sessoes/close-mine/', {
-          method: 'POST',
-          keepalive: true,
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` },
-          body: JSON.stringify({ notes: 'Fechamento automático ao sair da plataforma.' }),
-        }).catch(() => {})
-    }
-    window.addEventListener('beforeunload', closeMinhaSessao)
-    return () => window.removeEventListener('beforeunload', closeMinhaSessao)
-  }, [])
-
   const saleItems = cart.filter((i) => i.mode === 'SALE')
   const hasReserveInCart = cart.some((i) => i.mode === 'RESERVE')
   const subtotal = saleItems.reduce((s, i) => s + i.unit_price * i.quantity, 0)
@@ -168,8 +154,9 @@ export default function PdvPage() {
     setCart((prev) => prev.filter((i) => !(i.product_id === productId && i.mode === mode)))
   }
 
-  function handleBarcodeDetected(code: string) {
+  const handleBarcodeDetected = useCallback((code: string) => {
     setBarcodeOpen(false)
+    setIsBarcodeChecking(true)
     adminFetchJson<PdvProduct>(`/api/admin/livraria/pdv/barcode/?code=${encodeURIComponent(code)}`)
       .then((product) => {
         if (product.current_stock > 0) {
@@ -177,14 +164,23 @@ export default function PdvPage() {
         } else {
           openQuantity(product, 'RESERVE')
         }
+        setSearch('') // Limpa a busca após encontrar
       })
-      .catch(() => {
+      .catch((err) => {
         setToast({
           type: 'err',
-          message: 'Não encontramos esse código. Você pode buscar pelo nome ou SKU.',
+          message: err?.message || 'Não encontramos esse código. Você pode buscar pelo nome ou SKU.',
         })
       })
-  }
+      .finally(() => setIsBarcodeChecking(false))
+  }, [])
+
+  useEffect(() => {
+    // Se digitou algo que parece um EAN-13 (13 dígitos numéricos)
+    if (/^\d{13}$/.test(search.trim()) && !isBarcodeChecking) {
+      handleBarcodeDetected(search.trim())
+    }
+  }, [search, handleBarcodeDetected, isBarcodeChecking])
 
   function handleFinalize() {
     if (saleItems.length === 0) return

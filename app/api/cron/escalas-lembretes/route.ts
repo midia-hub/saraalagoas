@@ -17,7 +17,7 @@ import { siteConfig } from '@/config/site'
  *
  * Chamada via GitHub Actions (.github/workflows/cron-escalas-lembretes.yml).
  * Agenda (UTC / BRT):
- *   Todos os lembretes → 15:00 UTC = 12:00 BRT
+ *   Todos os lembretes → 15:35 UTC = 12:35 BRT
  *
  * Query params:
  *   tipo  : 'lembrete_3dias' | 'lembrete_1dia' | 'dia_da_escala'  (obrigatório)

@@ -3,10 +3,11 @@
 import { useState, useEffect, useCallback, Suspense } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { ArrowLeft, Plus, Pencil, Search, Eye, CreditCard, User, DollarSign, FileText } from 'lucide-react'
+import { ArrowLeft, Plus, Pencil, Search, Eye, CreditCard, User, DollarSign, FileText, Bookmark } from 'lucide-react'
 import { PageAccessGuard } from '@/app/admin/PageAccessGuard'
 import { Button } from '@/components/ui/Button'
 import { Spinner } from '@/components/ui/Spinner'
+import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { Toast } from '@/components/Toast'
 import { adminFetchJson, getAccessTokenOrThrow } from '@/lib/admin-client'
 import { CustomerFormModal, type CustomerFormData } from '@/components/admin/bookstore/CustomerFormModal'
@@ -40,13 +41,27 @@ type FiadoResponse = {
   total_clientes: number
 }
 
-type Tab = 'clientes' | 'fiado'
+type ReservationItem = {
+  id: string
+  status: string
+  customer_name: string | null
+  customer_phone: string | null
+  notes: string | null
+  created_at: string
+  created_by: string | null
+  items: Array<{ name: string; quantity: number; unit_price: number; total_price: number }>
+  total_amount: number
+}
+
+type Tab = 'clientes' | 'fiado' | 'reservas'
 
 function LivrariaClientesInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const tabParam = searchParams.get('tab') as Tab | null
-  const [activeTab, setActiveTab] = useState<Tab>(tabParam === 'fiado' ? 'fiado' : 'clientes')
+  const [activeTab, setActiveTab] = useState<Tab>(
+    tabParam === 'fiado' ? 'fiado' : tabParam === 'reservas' ? 'reservas' : 'clientes'
+  )
 
   // ── Clientes state ──────────────────────────────────────────────
   const [items, setItems] = useState<Customer[]>([])
@@ -67,6 +82,13 @@ function LivrariaClientesInner() {
   const [vencidos, setVencidos] = useState(false)
   const [paymentModal, setPaymentModal] = useState<FiadoItem | null>(null)
   const [paymentLoading, setPaymentLoading] = useState(false)
+
+  // ── Reservas state ──────────────────────────────────────────────
+  const [reservas, setReservas] = useState<ReservationItem[]>([])
+  const [loadingReservas, setLoadingReservas] = useState(false)
+  const [reservationStatus, setReservationStatus] = useState('')
+  const [cancelTarget, setCancelTarget] = useState<ReservationItem | null>(null)
+  const [cancelLoading, setCancelLoading] = useState(false)
 
   // ── Shared state ────────────────────────────────────────────────
   const [toast, setToast] = useState<{ type: 'ok' | 'err'; message: string } | null>(null)
@@ -108,6 +130,20 @@ function LivrariaClientesInner() {
     }
   }, [fiadoSearch, pendenteMin, vencidos])
 
+  const loadReservas = useCallback(async () => {
+    setLoadingReservas(true)
+    try {
+      const params = new URLSearchParams()
+      if (reservationStatus) params.set('status', reservationStatus)
+      const data = await adminFetchJson<{ items: ReservationItem[] }>(`/api/admin/livraria/vendas/reservas?${params}`)
+      setReservas(data.items ?? [])
+    } catch {
+      setReservas([])
+    } finally {
+      setLoadingReservas(false)
+    }
+  }, [reservationStatus])
+
   useEffect(() => {
     if (activeTab === 'clientes') loadClientes()
   }, [activeTab, loadClientes])
@@ -116,10 +152,14 @@ function LivrariaClientesInner() {
     if (activeTab === 'fiado') loadFiado()
   }, [activeTab, loadFiado])
 
+  useEffect(() => {
+    if (activeTab === 'reservas') loadReservas()
+  }, [activeTab, loadReservas])
+
   // ── Tab switch ──────────────────────────────────────────────────
   function switchTab(tab: Tab) {
     setActiveTab(tab)
-    const url = tab === 'fiado' ? '/admin/livraria/clientes?tab=fiado' : '/admin/livraria/clientes'
+    const url = tab !== 'clientes' ? `/admin/livraria/clientes?tab=${tab}` : '/admin/livraria/clientes'
     router.replace(url, { scroll: false })
   }
 
@@ -185,6 +225,28 @@ function LivrariaClientesInner() {
     }
   }
 
+  // ── Reservas handlers ───────────────────────────────────────────
+  async function handleCancelReservation() {
+    if (!cancelTarget) return
+    setCancelLoading(true)
+    try {
+      await adminFetchJson(`/api/admin/livraria/vendas/reservas/${cancelTarget.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ action: 'cancel' }),
+      })
+      setToast({ type: 'ok', message: 'Reserva cancelada.' })
+      setCancelTarget(null)
+      loadReservas()
+    } catch (e) {
+      setToast({ type: 'err', message: e instanceof Error ? e.message : 'Erro ao cancelar reserva.' })
+    } finally {
+      setCancelLoading(false)
+    }
+  }
+
+  const formatDate = (s: string) => new Date(s).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
+  const reservationStatusLabels: Record<string, string> = { OPEN: 'Aberta', CANCELLED: 'Cancelada', CONVERTED: 'Convertida' }
+
   // ── Render ──────────────────────────────────────────────────────
   return (
     <PageAccessGuard pageKey="livraria_clientes">
@@ -199,8 +261,8 @@ function LivrariaClientesInner() {
             <ArrowLeft size={20} />
           </Link>
           <div className="flex-1">
-            <h1 className="text-xl sm:text-2xl font-bold text-slate-800">Clientes &amp; Fiado</h1>
-            <p className="text-slate-500 text-sm">Gestão de clientes e controle de pendências</p>
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-800">Clientes, Fiado & Reservas</h1>
+            <p className="text-slate-500 text-sm">Gestão de clientes, pendências e reservas</p>
           </div>
           {activeTab === 'clientes' && (
             <Button onClick={() => { setEditing(null); setModalOpen(true) }}>
@@ -244,6 +306,18 @@ function LivrariaClientesInner() {
           >
             <CreditCard size={16} />
             Fiado
+          </button>
+          <button
+            type="button"
+            onClick={() => switchTab('reservas')}
+            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
+              activeTab === 'reservas'
+                ? 'border-[#c62737] text-[#c62737]'
+                : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+            }`}
+          >
+            <Bookmark size={16} />
+            Reservas
           </button>
         </div>
 
@@ -499,6 +573,82 @@ function LivrariaClientesInner() {
                 loading={paymentLoading}
               />
             )}
+          </>
+        )}
+
+        {/* ── Tab: Reservas ───────────────────────────────────────── */}
+        {activeTab === 'reservas' && (
+          <>
+            <div className="mb-4">
+              <select
+                value={reservationStatus}
+                onChange={(e) => setReservationStatus(e.target.value)}
+                className="px-3 py-2 border border-slate-200 rounded-xl text-slate-800 text-sm focus:border-[#c62737] focus:ring-2 focus:ring-[#c62737]/20 outline-none bg-white"
+              >
+                <option value="">Todos os status</option>
+                <option value="OPEN">Aberta</option>
+                <option value="CANCELLED">Cancelada</option>
+                <option value="CONVERTED">Convertida</option>
+              </select>
+            </div>
+
+            {loadingReservas ? (
+              <div className="flex justify-center py-12">
+                <Spinner size="lg" text="Carregando..." />
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {reservas.map((r) => (
+                  <div key={r.id} className="rounded-xl border border-slate-200 bg-white p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <span className="font-medium text-slate-800">{formatDate(r.created_at)}</span>
+                        <span className="ml-2 text-sm text-slate-500">
+                          {r.customer_name || 'Sem nome'} · {reservationStatusLabels[r.status] ?? r.status}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-slate-800">R$ {r.total_amount.toFixed(2)}</span>
+                        {r.status === 'OPEN' && (
+                          <Button
+                            type="button"
+                            variant="danger"
+                            size="sm"
+                            onClick={() => setCancelTarget(r)}
+                          >
+                            Cancelar
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                    <ul className="mt-2 text-sm text-slate-600 list-disc list-inside">
+                      {r.items.map((i, idx) => (
+                        <li key={idx}>
+                          {i.name} × {i.quantity} — R$ {i.total_price.toFixed(2)}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+                {reservas.length === 0 && (
+                  <div className="rounded-xl border border-slate-200 bg-white p-8 text-center text-slate-500">
+                    Nenhuma reserva encontrada.
+                  </div>
+                )}
+              </div>
+            )}
+
+            <ConfirmDialog
+              open={!!cancelTarget}
+              title="Cancelar reserva"
+              message="Tem certeza que deseja cancelar esta reserva? Esta ação não pode ser desfeita."
+              confirmLabel="Cancelar reserva"
+              cancelLabel="Voltar"
+              variant="danger"
+              loading={cancelLoading}
+              onConfirm={handleCancelReservation}
+              onCancel={() => setCancelTarget(null)}
+            />
           </>
         )}
 
