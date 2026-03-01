@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
+import { ChevronDown, ChevronUp } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { CustomSelect } from '@/components/ui/CustomSelect'
 import { CustomerPicker, type CustomerOption } from './CustomerPicker'
@@ -74,6 +75,7 @@ export function FinalizeSaleModal({
   const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discount_amount: number } | null>(null)
   const [couponLoading, setCouponLoading] = useState(false)
   const [couponError, setCouponError] = useState<string | null>(null)
+  const [discountExpanded, setDiscountExpanded] = useState(false)
   const [paidAmount, setPaidAmount] = useState('')
 
   const canSelectCredit = !!customer?.can_buy_on_credit
@@ -217,14 +219,25 @@ export function FinalizeSaleModal({
           {/* Forma de pagamento */}
           {saleType === 'PAID' && (
             <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1.5">Forma de pagamento <span className="text-[#c62737]">*</span></label>
-              <CustomSelect
-                value={paymentMethod}
-                onChange={setPaymentMethod}
-                options={visibleOptions}
-                placeholder="Selecionar..."
-                allowEmpty={false}
-              />
+              <label className="block text-xs font-medium text-slate-700 mb-2">
+                Forma de pagamento <span className="text-[#c62737]">*</span>
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                {visibleOptions.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setPaymentMethod(option.value)}
+                    className={`px-3 py-2.5 rounded-xl border-2 text-xs font-semibold transition-all text-center flex items-center justify-center min-h-[48px] ${
+                      paymentMethod === option.value
+                        ? 'border-[#c62737] bg-[#c62737]/5 text-[#c62737]'
+                        : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 
@@ -276,90 +289,108 @@ export function FinalizeSaleModal({
           )}
 
           {/* Desconto */}
-          <div>
-            <label className="block text-xs font-medium text-slate-700 mb-1.5">Desconto</label>
-            {appliedCoupon ? (
-              <div className="flex items-center justify-between gap-2 p-3 rounded-xl bg-emerald-50 border border-emerald-200">
-                <span className="text-sm text-emerald-800">Cupom <strong>{appliedCoupon.code}</strong>: − R$ {appliedCoupon.discount_amount.toFixed(2)}</span>
-                <button type="button" onClick={clearCoupon} className="text-sm font-medium text-emerald-700 hover:underline">Remover</button>
-              </div>
-            ) : (
-              <>
-                <div className="grid grid-cols-2 gap-2 mb-2">
-                  <button
-                    type="button"
-                    onClick={() => setDiscountType('value')}
-                    className={`py-2.5 rounded-xl border-2 text-sm font-semibold transition-all ${
-                      discountType === 'value'
-                        ? 'border-[#c62737] bg-[#c62737]/5 text-[#c62737]'
-                        : 'border-slate-200 text-slate-600 hover:border-slate-300'
-                    }`}
-                  >
-                    Valor (R$)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setDiscountType('percent')}
-                    className={`py-2.5 rounded-xl border-2 text-sm font-semibold transition-all ${
-                      discountType === 'percent'
-                        ? 'border-[#c62737] bg-[#c62737]/5 text-[#c62737]'
-                        : 'border-slate-200 text-slate-600 hover:border-slate-300'
-                    }`}
-                  >
-                    Porcentagem (%)
-                  </button>
-                </div>
-                <input
-                  type="number"
-                  step={discountType === 'percent' ? '1' : '0.01'}
-                  min="0"
-                  max={discountType === 'percent' ? 100 : total}
-                  value={discountValue}
-                  onChange={(e) => setDiscountValue(e.target.value)}
-                  placeholder={discountType === 'percent' ? 'Ex: 10' : '0,00'}
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm text-slate-800
-                             focus:border-[#c62737] focus:ring-2 focus:ring-[#c62737]/20 outline-none transition-all
-                             placeholder:text-slate-400 mb-2"
-                />
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={couponCode}
-                    onChange={(e) => { setCouponCode(e.target.value); setCouponError(null) }}
-                    placeholder="Código do cupom"
-                    className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm text-slate-800
-                               focus:border-[#c62737] focus:ring-2 focus:ring-[#c62737]/20 outline-none transition-all
-                               placeholder:text-slate-400"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleApplyCoupon}
-                    disabled={couponLoading || !couponCode.trim()}
-                    className="px-4 py-2.5 rounded-xl border-2 border-slate-200 text-slate-700 text-sm font-semibold hover:border-slate-300 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                  >
-                    {couponLoading ? '...' : 'Aplicar'}
-                  </button>
-                </div>
-                {couponError && <p className="mt-1 text-xs text-amber-600">{couponError}</p>}
-                {discount > 0 && (
-                  <p className="mt-1 text-xs text-emerald-700 font-medium">Desconto: − R$ {discount.toFixed(2)}</p>
+          <div className="border border-slate-100 rounded-2xl overflow-hidden bg-slate-50/30">
+            <button
+              type="button"
+              onClick={() => setDiscountExpanded(!discountExpanded)}
+              className="w-full flex items-center justify-between px-4 py-3 bg-white hover:bg-slate-50 transition-colors border-b border-slate-100"
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-semibold text-slate-700">Adicionar desconto</span>
+                {(discount > 0 || appliedCoupon) && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-[#c62737]/10 text-[#c62737] text-[10px] font-bold">
+                    Ativo
+                  </span>
                 )}
-              </>
-            )}
-          </div>
+              </div>
+              {discountExpanded ? (
+                <ChevronUp size={18} className="text-slate-400" />
+              ) : (
+                <ChevronDown size={18} className="text-slate-400" />
+              )}
+            </button>
 
-          {/* Observação */}
-          <div>
-            <label className="block text-xs font-medium text-slate-700 mb-1.5">Observação <span className="text-slate-400 font-normal">(opcional)</span></label>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={2}
-              placeholder="Ex: presente embrulhado, retirar segunda..."
-              className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm text-slate-800
-                         focus:border-[#c62737] focus:ring-2 focus:ring-[#c62737]/20 outline-none transition-all resize-none
-                         placeholder:text-slate-400"
-            />
+            {discountExpanded && (
+              <div className="p-4 space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
+                {appliedCoupon ? (
+                  <div className="flex items-center justify-between gap-2 p-3 rounded-xl bg-emerald-50 border border-emerald-200">
+                    <span className="text-sm text-emerald-800">
+                      Cupom <strong>{appliedCoupon.code}</strong>: − R$ {appliedCoupon.discount_amount.toFixed(2)}
+                    </span>
+                    <button type="button" onClick={clearCoupon} className="text-sm font-medium text-emerald-700 hover:underline">
+                      Remover
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setDiscountType('value')}
+                        className={`py-2 rounded-xl border-2 text-xs font-semibold transition-all ${
+                          discountType === 'value'
+                            ? 'border-[#c62737] bg-[#c62737]/5 text-[#c62737]'
+                            : 'border-slate-200 text-slate-600 hover:border-slate-300 bg-white'
+                        }`}
+                      >
+                        Valor (R$)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDiscountType('percent')}
+                        className={`py-2 rounded-xl border-2 text-xs font-semibold transition-all ${
+                          discountType === 'percent'
+                            ? 'border-[#c62737] bg-[#c62737]/5 text-[#c62737]'
+                            : 'border-slate-200 text-slate-600 hover:border-slate-300 bg-white'
+                        }`}
+                      >
+                        Porcentagem (%)
+                      </button>
+                    </div>
+
+                    <input
+                      type="number"
+                      step={discountType === 'percent' ? '1' : '0.01'}
+                      min="0"
+                      max={discountType === 'percent' ? 100 : total}
+                      value={discountValue}
+                      onChange={(e) => setDiscountValue(e.target.value)}
+                      placeholder={discountType === 'percent' ? 'Ex: 10' : '0,00'}
+                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm text-slate-800
+                                 focus:border-[#c62737] focus:ring-2 focus:ring-[#c62737]/20 outline-none transition-all
+                                 placeholder:text-slate-400"
+                    />
+
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={couponCode}
+                        onChange={(e) => {
+                          setCouponCode(e.target.value)
+                          setCouponError(null)
+                        }}
+                        placeholder="Código do cupom"
+                        className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm text-slate-800
+                                   focus:border-[#c62737] focus:ring-2 focus:ring-[#c62737]/20 outline-none transition-all
+                                   placeholder:text-slate-400"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleApplyCoupon}
+                        disabled={couponLoading || !couponCode.trim()}
+                        className="px-4 py-2.5 rounded-xl border-2 border-slate-200 text-slate-700 bg-white text-xs font-semibold hover:border-slate-300 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                      >
+                        {couponLoading ? '...' : 'Aplicar'}
+                      </button>
+                    </div>
+                    {couponError && <p className="mt-1 text-xs text-amber-600">{couponError}</p>}
+                    {discount > 0 && (
+                      <p className="mt-1 text-xs text-emerald-700 font-medium">Desconto: − R$ {discount.toFixed(2)}</p>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Ações */}

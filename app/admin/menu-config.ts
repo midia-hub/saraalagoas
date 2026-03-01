@@ -243,12 +243,6 @@ export const menuModules: MenuModule[] = [
                 permission: 'livraria_vendas'
             },
             {
-                href: '/admin/livraria/vendas/reservas',
-                label: 'Reservas de Livros',
-                icon: Bookmark,
-                permission: 'livraria_reservas'
-            },
-            {
                 href: '/admin/livraria/produtos',
                 label: 'Catálogo de Produtos',
                 icon: Package,
@@ -262,9 +256,9 @@ export const menuModules: MenuModule[] = [
             },
             {
                 href: '/admin/livraria/clientes',
-                label: 'Clientes & Fiado',
+                label: 'Clientes, Fiado & Reservas',
                 icon: UserCheck,
-                permission: ['livraria_clientes', 'livraria_fiado']
+                permission: ['livraria_clientes', 'livraria_fiado', 'livraria_reservas']
             },
         ],
     },

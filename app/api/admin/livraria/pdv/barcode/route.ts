@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
         bookstore_categories(name),
         bookstore_product_images(id, image_path, sort_order)
       `)
-      .or(`barcode.eq.${code},sku.eq.${code}`)
+      .or(`barcode.eq."${code}",sku.eq."${code}"`)
       .eq('active', true)
       .maybeSingle()
 

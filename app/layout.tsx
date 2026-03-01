@@ -5,6 +5,7 @@ import { siteConfig } from '@/config/site'
 import { getSiteConfig } from '@/lib/site-config-server'
 import { SiteConfigProvider } from '@/lib/site-config-context'
 import { SpeedInsights } from '@vercel/speed-insights/next'
+import { Analytics } from '@vercel/analytics/react'
 
 const outfit = Outfit({
   subsets: ['latin'],
@@ -85,6 +86,7 @@ export default async function RootLayout({
           {children}
         </SiteConfigProvider>
         <SpeedInsights />
+        <Analytics />
       </body>
     </html>
   )
