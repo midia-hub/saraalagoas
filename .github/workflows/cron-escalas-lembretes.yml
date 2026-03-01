@@ -1,9 +1,9 @@
 name: Cron – Lembretes de Escala
 
 # Horários em UTC (BRT = UTC-3)
-# lembrete_3dias → 08:30 BRT = 11:30 UTC
-# lembrete_1dia  → 08:00 BRT = 11:00 UTC
-# dia_da_escala  → 09:00 BRT = 12:00 UTC
+# lembrete_3dias → 12:00 BRT = 15:00 UTC
+# lembrete_1dia  → 12:00 BRT = 15:00 UTC
+# dia_da_escala  → 12:00 BRT = 15:00 UTC
 #
 # ⚠ GitHub Actions pode atrasar até ~15 min no plano gratuito.
 # Isso é aceitável pois removemos o filtro de janela horária.
@@ -14,12 +14,8 @@ name: Cron – Lembretes de Escala
 
 on:
   schedule:
-    # lembrete_3dias – 11:30 UTC diariamente
-    - cron: '30 11 * * *'
-    # lembrete_1dia  – 11:00 UTC diariamente
-    - cron: '0 11 * * *'
-    # dia_da_escala  – 12:00 UTC diariamente
-    - cron: '0 12 * * *'
+    # Todos os lembretes configurados para 12:00 BRT (15:00 UTC)
+    - cron: '0 15 * * *'
 
   # Permite disparar manualmente pela aba Actions no GitHub
   workflow_dispatch:
@@ -41,8 +37,8 @@ jobs:
     if: github.event.schedule == '30 11 * * *' || (github.event_name == 'workflow_dispatch' && github.event.inputs.tipo == 'lembrete_3dias')
     runs-on: ubuntu-latest
     steps:
-      - name: Chamar endpoint de lembrete
-        run: |
+      - name: Chamar endpoint d5:00 UTC ou quando disparado manualmente com este tipo
+    if: github.event.schedule == '0 15
           HTTP_STATUS=$(curl -sL -o /tmp/response.txt -w "%{http_code}" \
             -X GET \
             "${{ secrets.APP_URL }}/api/cron/escalas-lembretes?tipo=lembrete_3dias" \
@@ -57,7 +53,7 @@ jobs:
 
   lembrete_1dia:
     name: Lembrete 1 dia antes
-    if: github.event.schedule == '0 11 * * *' || (github.event_name == 'workflow_dispatch' && github.event.inputs.tipo == 'lembrete_1dia')
+    if: github.event.schedule == '0 15 * * *' || (github.event_name == 'workflow_dispatch' && github.event.inputs.tipo == 'lembrete_1dia')
     runs-on: ubuntu-latest
     steps:
       - name: Chamar endpoint de lembrete
@@ -75,8 +71,8 @@ jobs:
           fi
 
   dia_da_escala:
-    name: Lembrete no dia (9h BRT)
-    if: github.event.schedule == '0 12 * * *' || (github.event_name == 'workflow_dispatch' && github.event.inputs.tipo == 'dia_da_escala')
+    name: Lembrete no dia (12h BRT)
+    if: github.event.schedule == '0 15 * * *' || (github.event_name == 'workflow_dispatch' && github.event.inputs.tipo == 'dia_da_escala')
     runs-on: ubuntu-latest
     steps:
       - name: Chamar endpoint de lembrete
