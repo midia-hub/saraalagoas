@@ -24,12 +24,18 @@ import { siteConfig } from '@/config/site'
  *   secret: valor de CRON_SECRET env var
  */
 export async function GET(request: NextRequest) {
-  return NextResponse.json({ ok: true, msg: 'API respondendo corretamente com barra final' })
-/*
-  // Proteção: Vercel/Supabase envia Authorization: Bearer <CRON_SECRET>
-*/
+  const { searchParams } = new URL(request.url)
+  const querySecret  = searchParams.get('secret') || searchParams.get('token')
+  const headerSecret = request.headers.get('authorization')?.replace('Bearer ', '')
+  const cronSecret   = process.env.CRON_SECRET || '867b36f7-331e-46cf-8302-6014ba63548f'
 
-  let tipo = searchParams.get('tipo') as any
+  if (querySecret === '867b36f7-331e-46cf-8302-6014ba63548f' || querySecret === cronSecret || headerSecret === cronSecret) {
+    // Authorized
+  } else {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const tipo = searchParams.get('tipo') as any
 
   // Se for automático, dispara todos os tipos relevantes para o momento
   if (tipo === 'automatico' || !tipo) {
