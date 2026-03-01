@@ -278,6 +278,9 @@ export default function PdvPage() {
                 const msg = resData.error || resData.message || `Erro ${res.status} ao criar order no caixa.`
                 throw new Error(msg)
               }
+              if (typeof sessionStorage !== 'undefined') {
+                sessionStorage.setItem('mercadopago_pending_sale_id', data.sale_id)
+              }
               setOrderModal({
                 saleId: data.sale_id,
                 saleNumber: data.sale_number ?? undefined,

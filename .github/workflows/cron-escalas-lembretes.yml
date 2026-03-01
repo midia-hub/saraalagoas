@@ -43,7 +43,7 @@ jobs:
     steps:
       - name: Chamar endpoint de lembrete
         run: |
-          HTTP_STATUS=$(curl -s -o /tmp/response.txt -w "%{http_code}" \
+          HTTP_STATUS=$(curl -sL -o /tmp/response.txt -w "%{http_code}" \
             -X GET \
             "${{ secrets.APP_URL }}/api/cron/escalas-lembretes?tipo=lembrete_3dias" \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}")
@@ -62,7 +62,7 @@ jobs:
     steps:
       - name: Chamar endpoint de lembrete
         run: |
-          HTTP_STATUS=$(curl -s -o /tmp/response.txt -w "%{http_code}" \
+          HTTP_STATUS=$(curl -sL -o /tmp/response.txt -w "%{http_code}" \
             -X GET \
             "${{ secrets.APP_URL }}/api/cron/escalas-lembretes?tipo=lembrete_1dia" \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}")
@@ -81,7 +81,7 @@ jobs:
     steps:
       - name: Chamar endpoint de lembrete
         run: |
-          HTTP_STATUS=$(curl -s -o /tmp/response.txt -w "%{http_code}" \
+          HTTP_STATUS=$(curl -sL -o /tmp/response.txt -w "%{http_code}" \
             -X GET \
             "${{ secrets.APP_URL }}/api/cron/escalas-lembretes?tipo=dia_da_escala" \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}")
