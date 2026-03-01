@@ -1,4 +1,4 @@
-name: Cron – Lembretes de Escala
+﻿name: Cron – Lembretes de Escala
 
 # Horários em UTC (BRT = UTC-3)
 # lembrete_3dias → 12:00 BRT = 15:00 UTC
@@ -33,12 +33,12 @@ on:
 jobs:
   lembrete_3dias:
     name: Lembrete 3 dias antes
-    # Roda quando agendado às 11:30 UTC ou quando disparado manualmente com este tipo
-    if: github.event.schedule == '30 11 * * *' || (github.event_name == 'workflow_dispatch' && github.event.inputs.tipo == 'lembrete_3dias')
+    # Roda quando agendado às 15:00 UTC ou quando disparado manualmente com este tipo
+    if: github.event.schedule == '0 15 * * *' || (github.event_name == 'workflow_dispatch' && github.event.inputs.tipo == 'lembrete_3dias')
     runs-on: ubuntu-latest
     steps:
-      - name: Chamar endpoint d5:00 UTC ou quando disparado manualmente com este tipo
-    if: github.event.schedule == '0 15
+      - name: Chamar endpoint de lembrete
+        run: |
           HTTP_STATUS=$(curl -sL -o /tmp/response.txt -w "%{http_code}" \
             -X GET \
             "${{ secrets.APP_URL }}/api/cron/escalas-lembretes?tipo=lembrete_3dias" \
