@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import type { LucideIcon } from 'lucide-react'
 import { ArrowLeft } from 'lucide-react'
+import { notifyNavigation } from '@/lib/loading-overlay'
 
 export interface AdminPageHeaderProps {
   /** Ícone exibido no quadrado ao lado do título */
@@ -34,6 +35,7 @@ export function AdminPageHeader({
         {backLink && (
           <Link
             href={backLink.href}
+            onClick={() => notifyNavigation()}
             className="inline-flex items-center gap-2 text-slate-600 hover:text-[#c62737] text-sm font-medium"
           >
             <ArrowLeft size={18} />

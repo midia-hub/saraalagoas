@@ -9,6 +9,7 @@ import type { PermissionMap } from '@/lib/rbac-types'
 import { clearSupabaseLocalSession, getSessionWithRecovery } from '@/lib/auth-recovery'
 import { AdminLoadingScreen } from '@/app/admin/AdminLoadingScreen'
 import { AdminSidebar } from '@/app/admin/AdminSidebar'
+import { GlobalLoadingOverlay } from '@/components/admin/GlobalLoadingOverlay'
 
 export default function AdminLayout({
   children,
@@ -229,6 +230,7 @@ export default function AdminLayout({
         <main className="flex-1 overflow-auto pt-14 md:pt-0">
           {children}
         </main>
+        <GlobalLoadingOverlay />
       </div>
     </AdminAccessProvider>
   )

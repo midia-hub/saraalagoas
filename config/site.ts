@@ -154,4 +154,16 @@ export const siteConfig = {
     { id: "oracao", label: "Pedido de Oração" },
     { id: "localizacao", label: "Onde Estamos" },
   ],
+  layout: [
+    "hero",
+    "services",
+    "cell",
+    "leadership",
+    "social",
+    "prayer",
+    "location",
+    "mission",
+    "gallery"
+  ],
+  hiddenSections: [] as string[],
 }

@@ -2,8 +2,10 @@ import { Suspense } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { GaleriaLoading } from '@/components/GaleriaLoading'
-import { Camera } from 'lucide-react'
+import { Camera, Calendar as CalendarIcon } from 'lucide-react'
 import { supabaseServer } from '@/lib/supabase-server'
+import { listFolderImages } from '@/lib/drive'
+import { DateFilters } from './_components/DateFilters'
 
 type GalleryItem = {
   id: string
@@ -11,8 +13,24 @@ type GalleryItem = {
   title: string
   slug: string
   date: string
+  drive_folder_id?: string
   gallery_files: { drive_file_id: string }[]
 }
+
+const MONTHS = [
+  { value: '01', label: 'Janeiro' },
+  { value: '02', label: 'Fevereiro' },
+  { value: '03', label: 'Março' },
+  { value: '04', label: 'Abril' },
+  { value: '05', label: 'Maio' },
+  { value: '06', label: 'Junho' },
+  { value: '07', label: 'Julho' },
+  { value: '08', label: 'Agosto' },
+  { value: '09', label: 'Setembro' },
+  { value: '10', label: 'Outubro' },
+  { value: '11', label: 'Novembro' },
+  { value: '12', label: 'Dezembro' },
+]
 
 function formatDatePtBr(iso: string): string {
   try {
@@ -30,29 +48,40 @@ function formatDatePtBr(iso: string): string {
 const THUMB_SIZE = 160
 
 function AlbumThumbnails({ fileIds }: { fileIds: string[] }) {
-  if (fileIds.length === 0) {
+  if (!fileIds || fileIds.length === 0) {
     return (
       <div className="h-[120px] bg-gray-100 flex items-center justify-center">
         <Camera className="text-gray-300" size={40} />
       </div>
     )
   }
-  const list = [...fileIds, ...fileIds]
-  const duration = Math.max(fileIds.length * 3, 15)
+  
+  // Garantir pelo menos 8 itens para o loop de scroll ser contínuo
+  let displayList = [...fileIds]
+  while (displayList.length > 0 && displayList.length < 8) {
+    displayList = [...displayList, ...fileIds]
+  }
+  const finalItems = [...displayList, ...displayList]
+  
+  const duration = Math.max(displayList.length * 4, 15)
+  
   return (
-    <div className="h-[120px] overflow-hidden bg-gray-100">
+    <div className="h-[120px] overflow-hidden bg-gray-100 relative group/thumb">
       <div
-        className="flex gap-1 h-full w-max items-stretch animate-gallery-scroll"
-        style={{ animationDuration: `${duration}s` }}
+        className="flex gap-1 h-full animate-gallery-scroll group-hover/thumb:[animation-play-state:paused]"
+        style={{ 
+          animationDuration: `${duration}s`
+        }}
       >
-        {list.map((id, i) => (
-          <div key={`${id}-${i}`} className="relative flex-shrink-0 w-24 h-full overflow-hidden">
+        {finalItems.map((id, i) => (
+          <div key={`${id}-${i}`} className="relative flex-shrink-0 w-32 h-full overflow-hidden">
             <Image
               src={`/api/gallery/image?fileId=${encodeURIComponent(id)}&mode=thumb&size=${THUMB_SIZE}`}
               alt=""
               fill
               className="object-cover"
-              sizes="96px"
+              sizes="128px"
+              unoptimized
             />
           </div>
         ))}
@@ -61,12 +90,12 @@ function AlbumThumbnails({ fileIds }: { fileIds: string[] }) {
   )
 }
 
-async function GaleriaContent({ typeFilter }: { typeFilter: string }) {
+async function GaleriaContent({ typeFilter, monthFilter, yearFilter }: { typeFilter: string, monthFilter: string, yearFilter: string }) {
   let items: GalleryItem[] = []
   try {
     let query = supabaseServer
       .from('galleries')
-      .select('id, type, title, slug, date, gallery_files(drive_file_id)')
+      .select('id, type, title, slug, date, drive_folder_id, gallery_files(drive_file_id)')
       .eq('hidden_from_public', false)
       .order('date', { ascending: false })
       .order('created_at', { ascending: false })
@@ -75,8 +104,53 @@ async function GaleriaContent({ typeFilter }: { typeFilter: string }) {
       query = query.eq('type', typeFilter)
     }
 
-    const { data } = await query.limit(40)
+    if (yearFilter) {
+      if (monthFilter) {
+        // Filtrar por mês específico
+        const startDate = `${yearFilter}-${monthFilter}-01`
+        const lastDay = new Date(parseInt(yearFilter), parseInt(monthFilter), 0).getDate()
+        const endDate = `${yearFilter}-${monthFilter}-${lastDay}`
+        query = query.gte('date', startDate).lte('date', endDate)
+      } else {
+        // Filtrar por todo o ano
+        query = query.gte('date', `${yearFilter}-01-01`).lte('date', `${yearFilter}-12-31`)
+      }
+    }
+
+    const { data, error: selectError } = await query.limit(100)
+    if (selectError) {
+      console.error('[Galeria] Erro Supabase:', selectError)
+    }
     items = (data || []) as unknown as GalleryItem[]
+
+    // Sincronização em tempo real para álbuns sem fotos no banco
+    const syncPromises = items
+      .filter(item => (!item.gallery_files || item.gallery_files.length === 0) && item.drive_folder_id)
+      .map(async (item) => {
+        try {
+          const files = await listFolderImages(item.drive_folder_id!)
+          if (files.length > 0) {
+            const upsertPayload = files.slice(0, 10).map((file) => ({
+              gallery_id: item.id,
+              drive_file_id: file.id,
+              name: file.name,
+              web_view_link: file.webViewLink,
+              thumbnail_link: file.thumbnailLink,
+              mime_type: file.mimeType,
+              created_time: file.createdTime,
+            }))
+            await supabaseServer.from('gallery_files').upsert(upsertPayload, { onConflict: 'drive_file_id' })
+            item.gallery_files = files.slice(0, 10).map(f => ({ drive_file_id: f.id }))
+          }
+        } catch (e) {
+          console.error(`[Galeria] Falha ao sincronizar album ${item.id}:`, e)
+        }
+      })
+    
+    if (syncPromises.length > 0) {
+      await Promise.all(syncPromises)
+    }
+
   } catch (err) {
     console.error('[Galeria] Erro ao carregar galerias:', err)
   }
@@ -87,6 +161,9 @@ async function GaleriaContent({ typeFilter }: { typeFilter: string }) {
       : typeFilter === 'evento'
         ? 'Galeria de Eventos'
         : 'Galeria de Fotos'
+
+  const currentYear = new Date().getFullYear()
+  const years = Array.from({ length: 5 }, (_, i) => (currentYear - i).toString())
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -100,34 +177,45 @@ async function GaleriaContent({ typeFilter }: { typeFilter: string }) {
           </p>
         </div>
 
-        <div className="flex flex-wrap gap-2 mb-6 justify-center">
-          <Link
-            href="/galeria"
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${!typeFilter
-              ? 'bg-sara-red text-white'
-              : 'bg-white text-sara-gray-dark border border-gray-200 hover:border-sara-red/40'
-              }`}
-          >
-            Todos
-          </Link>
-          <Link
-            href="/galeria?type=culto"
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${typeFilter === 'culto'
-              ? 'bg-sara-red text-white'
-              : 'bg-white text-sara-gray-dark border border-gray-200 hover:border-sara-red/40'
-              }`}
-          >
-            Cultos
-          </Link>
-          <Link
-            href="/galeria?type=evento"
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${typeFilter === 'evento'
-              ? 'bg-sara-red text-white'
-              : 'bg-white text-sara-gray-dark border border-gray-200 hover:border-sara-red/40'
-              }`}
-          >
-            Eventos
-          </Link>
+        <div className="flex flex-col md:flex-row gap-6 mb-12 items-center justify-center">
+          <div className="flex flex-wrap gap-2 justify-center">
+            <Link
+              href="/galeria"
+              className={`px-5 py-2.5 rounded-xl text-sm font-bold uppercase tracking-wider transition-all duration-300 ${!typeFilter && !yearFilter && !monthFilter
+                ? 'bg-sara-red text-white shadow-lg shadow-sara-red/20'
+                : 'bg-white text-slate-600 border border-slate-200 hover:border-sara-red/40 hover:shadow-md'
+                }`}
+            >
+              Todos
+            </Link>
+            <Link
+              href={`/galeria?type=culto${yearFilter ? `&year=${yearFilter}` : ''}${monthFilter ? `&month=${monthFilter}` : ''}`}
+              className={`px-5 py-2.5 rounded-xl text-sm font-bold uppercase tracking-wider transition-all duration-300 ${typeFilter === 'culto'
+                ? 'bg-sara-red text-white shadow-lg shadow-sara-red/20'
+                : 'bg-white text-slate-600 border border-slate-200 hover:border-sara-red/40 hover:shadow-md'
+                }`}
+            >
+              Cultos
+            </Link>
+            <Link
+              href={`/galeria?type=evento${yearFilter ? `&year=${yearFilter}` : ''}${monthFilter ? `&month=${monthFilter}` : ''}`}
+              className={`px-5 py-2.5 rounded-xl text-sm font-bold uppercase tracking-wider transition-all duration-300 ${typeFilter === 'evento'
+                ? 'bg-sara-red text-white shadow-lg shadow-sara-red/20'
+                : 'bg-white text-slate-600 border border-slate-200 hover:border-sara-red/40 hover:shadow-md'
+                }`}
+            >
+              Eventos
+            </Link>
+          </div>
+
+          <div className="h-px w-12 bg-slate-200 hidden md:block" />
+
+          <DateFilters
+            yearFilter={yearFilter}
+            monthFilter={monthFilter}
+            years={years}
+            months={MONTHS}
+          />
         </div>
 
         {items.length === 0 ? (
@@ -181,13 +269,17 @@ async function GaleriaContent({ typeFilter }: { typeFilter: string }) {
   )
 }
 
-export default async function GaleriaPublicaPage(props: { searchParams: Promise<{ type?: string }> | { type?: string } }) {
+export default async function GaleriaPublicaPage(props: { searchParams: Promise<{ type?: string, month?: string, year?: string }> | { type?: string, month?: string, year?: string } }) {
   const searchParams = await Promise.resolve(props.searchParams)
+  const currentYear = new Date().getFullYear().toString()
+  
   const typeFilter = searchParams?.type || ''
+  const monthFilter = searchParams?.month || ''
+  const yearFilter = searchParams?.year || currentYear
   
   return (
     <Suspense
-      key={typeFilter}
+      key={`${typeFilter}-${monthFilter}-${yearFilter}`}
       fallback={
         <div className="min-h-screen bg-gray-50">
           <div className="container mx-auto px-4 md:px-6 lg:px-8 py-12">
@@ -201,7 +293,7 @@ export default async function GaleriaPublicaPage(props: { searchParams: Promise<
         </div>
       }
     >
-      <GaleriaContent typeFilter={typeFilter} />
+      <GaleriaContent typeFilter={typeFilter} monthFilter={monthFilter} yearFilter={yearFilter} />
     </Suspense>
   )
 }

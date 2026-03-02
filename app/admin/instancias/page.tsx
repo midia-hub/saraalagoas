@@ -1,12 +1,19 @@
-'use client'
+﻿'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { PageAccessGuard } from '@/app/admin/PageAccessGuard'
 import { AdminPageHeader } from '@/app/admin/AdminPageHeader'
 import { adminFetchJson } from '@/lib/admin-client'
-import { Facebook, Instagram, Youtube, CheckCircle, XCircle, AlertCircle, Loader2, Unlink, Link2, Trash2, Video } from 'lucide-react'
+import {
+  Facebook, Instagram, Youtube, CheckCircle, XCircle, AlertCircle,
+  Loader2, Layers, Trash2, Video, Plus, Pencil, Link2,
+  ChevronDown, ChevronUp, Settings, Users, UserCheck, UserMinus,
+} from 'lucide-react'
+import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { CustomSelect } from '@/components/ui/CustomSelect'
+
+// ─── Tipos ───────────────────────────────────────────────────────────────────
 
 type MetaIntegration = {
   id: string
@@ -34,56 +41,118 @@ type MetaIntegration = {
   }
 }
 
-// ─── Tipo YouTube ────────────────────────────────────────────────────────────
 type YouTubeIntegration = {
-  id:                    string
-  created_at:            string
-  updated_at:            string
-  channel_id:            string | null
-  channel_title:         string | null
-  channel_custom_url:    string | null
+  id: string
+  created_at: string
+  updated_at: string
+  channel_id: string | null
+  channel_title: string | null
+  channel_custom_url: string | null
   channel_thumbnail_url: string | null
-  token_expires_at:      string | null
-  scopes:                string[] | null
-  is_active:             boolean
-  metadata:              Record<string, unknown>
+  token_expires_at: string | null
+  scopes: string[] | null
+  is_active: boolean
+  metadata: Record<string, unknown>
+}
+
+type GroupAccount = {
+  id: string
+  group_id: string
+  account_type: 'meta' | 'youtube'
+  account_id: string
+}
+
+type PublicationGroup = {
+  id: string
+  created_at: string
+  updated_at: string
+  name: string
+  description: string | null
+  color: string
+  is_active: boolean
+  accounts: GroupAccount[]
 }
 
 type YouTubePostModal = {
   integrationId: string
-  channelTitle:  string
-  open:          boolean
+  channelTitle: string
+  open: boolean
 }
+
+type GroupFormData = {
+  name: string
+  description: string
+  color: string
+}
+
+type GroupUserProfile = {
+  id: string
+  email: string | null
+  full_name: string | null
+}
+
+const PRESET_COLORS = [
+  '#c62737', '#1877f2', '#0a66c2', '#e1306c',
+  '#ff0000', '#4f46e5', '#059669', '#d97706',
+  '#7c3aed', '#0891b2',
+]
+
+// ─── Componente principal ─────────────────────────────────────────────────────
 
 export default function AdminInstanciasPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
+
+  // ── Estado: contas ──
   const [integrations, setIntegrations] = useState<MetaIntegration[]>([])
   const [loading, setLoading] = useState(true)
   const [connecting, setConnecting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+
+  // ── Estado: YouTube ──
+  const [ytIntegrations, setYtIntegrations] = useState<YouTubeIntegration[]>([])
+  const [ytLoading, setYtLoading] = useState(true)
+  const [ytConnecting, setYtConnecting] = useState(false)
+  const [ytTogglingId, setYtTogglingId] = useState<string | null>(null)
+  const [ytDeletingId, setYtDeletingId] = useState<string | null>(null)
+  const [ytDeleteConfirmId, setYtDeleteConfirmId] = useState<string | null>(null)
+  const [ytPostModal, setYtPostModal] = useState<YouTubePostModal | null>(null)
+  const [ytPostForm, setYtPostForm] = useState({
+    videoUrl: '', title: '', description: '', privacyStatus: 'public', tags: '',
+  })
+  const [ytPosting, setYtPosting] = useState(false)
+
+  // ── Estado: instâncias ──
+  const [groups, setGroups] = useState<PublicationGroup[]>([])
+  const [groupsLoading, setGroupsLoading] = useState(true)
+  const [groupForm, setGroupForm] = useState<GroupFormData>({ name: '', description: '', color: '#c62737' })
+  const [groupFormOpen, setGroupFormOpen] = useState(false)
+  const [editingGroupId, setEditingGroupId] = useState<string | null>(null)
+  const [groupSaving, setGroupSaving] = useState(false)
+  const [deleteGroupId, setDeleteGroupId] = useState<string | null>(null)
+  const [deletingGroupId, setDeletingGroupId] = useState<string | null>(null)
+
+  // ── Estado: gerenciar contas na instância ──
+  const [manageAccountsGroupId, setManageAccountsGroupId] = useState<string | null>(null)
+  const [accountsUpdating, setAccountsUpdating] = useState(false)
+
+  // ── Estado: desvincular Meta ──
   const [unlinkModalId, setUnlinkModalId] = useState<string | null>(null)
   const [unlinking, setUnlinking] = useState(false)
   const [revinkingId, setRevinkingId] = useState<string | null>(null)
 
-  // ── YouTube ──
-  const [ytIntegrations, setYtIntegrations]   = useState<YouTubeIntegration[]>([])
-  const [ytLoading, setYtLoading]             = useState(true)
-  const [ytConnecting, setYtConnecting]       = useState(false)
-  const [ytTogglingId, setYtTogglingId]       = useState<string | null>(null)
-  const [ytDeletingId, setYtDeletingId]       = useState<string | null>(null)
-  const [ytDeleteModalId, setYtDeleteModalId] = useState<string | null>(null)
-  const [ytPostModal, setYtPostModal]         = useState<YouTubePostModal | null>(null)
-  const [ytPostForm, setYtPostForm]           = useState({
-    videoUrl:      '',
-    title:         '',
-    description:   '',
-    privacyStatus: 'public',
-    tags:          '',
-  })
-  const [ytPosting, setYtPosting]             = useState(false)
+  // ── Estado: expandir seção de contas ──
+  const [accountsSectionOpen, setAccountsSectionOpen] = useState(false)
 
+  // ── Estado: gerenciar usuários da instância ──
+  const [manageUsersGroupId, setManageUsersGroupId] = useState<string | null>(null)
+  const [groupUserLinkedIds, setGroupUserLinkedIds] = useState<string[]>([])
+  const [allUsers, setAllUsers] = useState<GroupUserProfile[]>([])
+  const [groupUsersLoading, setGroupUsersLoading] = useState(false)
+  const [usersUpdating, setUsersUpdating] = useState(false)
+
+  // ── Escopos Instagram ──
   const instagramScopeLabels: Record<string, string> = {
     pages_show_list: 'Listagem de páginas',
     pages_read_engagement: 'Leitura de engajamento da página',
@@ -92,21 +161,24 @@ export default function AdminInstanciasPage() {
     pages_manage_posts: 'Publicar posts na Página do Facebook',
   }
 
-  async function loadIntegrations() {
+  // ───────────────────────────────────────────────────────────────────────────
+  // Loaders
+  // ───────────────────────────────────────────────────────────────────────────
+
+  const loadIntegrations = useCallback(async () => {
     setLoading(true)
-    setError(null)
     try {
       const data = await adminFetchJson<{ integrations: MetaIntegration[] }>('/api/meta/integrations?all=1')
       setIntegrations(data.integrations || [])
-    } catch (e) {
-      setError('Não foi possível carregar as integrações. Tente novamente.')
+    } catch {
+      setError('Não foi possível carregar as integrações Meta. Tente novamente.')
       setIntegrations([])
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
-  async function loadYtIntegrations() {
+  const loadYtIntegrations = useCallback(async () => {
     setYtLoading(true)
     try {
       const data = await adminFetchJson<{ integrations: YouTubeIntegration[] }>('/api/admin/youtube/integrations')
@@ -116,34 +188,82 @@ export default function AdminInstanciasPage() {
     } finally {
       setYtLoading(false)
     }
+  }, [])
+
+  const loadGroups = useCallback(async () => {
+    setGroupsLoading(true)
+    try {
+      const data = await adminFetchJson<{ groups: PublicationGroup[] }>('/api/admin/publication-groups')
+      setGroups(data.groups || [])
+    } catch {
+      setGroups([])
+    } finally {
+      setGroupsLoading(false)
+    }
+  }, [])
+
+  async function openManageUsers(groupId: string) {
+    setManageUsersGroupId(groupId)
+    setGroupUsersLoading(true)
+    setGroupUserLinkedIds([])
+    setAllUsers([])
+    try {
+      const data = await adminFetchJson<{ linkedUserIds: string[]; users: GroupUserProfile[] }>(
+        `/api/admin/publication-groups/${groupId}/users`
+      )
+      setGroupUserLinkedIds(data.linkedUserIds || [])
+      setAllUsers(data.users || [])
+    } catch {
+      setError('Não foi possível carregar os usuários.')
+    } finally {
+      setGroupUsersLoading(false)
+    }
+  }
+
+  async function handleToggleGroupUser(groupId: string, userId: string, isLinkedNow: boolean) {
+    setUsersUpdating(true)
+    try {
+      if (isLinkedNow) {
+        await adminFetchJson(`/api/admin/publication-groups/${groupId}/users`, {
+          method: 'DELETE',
+          body: JSON.stringify({ user_id: userId }),
+        })
+        setGroupUserLinkedIds((prev) => prev.filter((id) => id !== userId))
+      } else {
+        await adminFetchJson(`/api/admin/publication-groups/${groupId}/users`, {
+          method: 'POST',
+          body: JSON.stringify({ user_id: userId }),
+        })
+        setGroupUserLinkedIds((prev) => [...prev, userId])
+      }
+    } catch {
+      setError('Não foi possível atualizar os usuários da instância.')
+    } finally {
+      setUsersUpdating(false)
+    }
   }
 
   useEffect(() => {
     loadIntegrations()
     loadYtIntegrations()
-  }, [])
+    loadGroups()
+  }, [loadIntegrations, loadYtIntegrations, loadGroups])
 
-  // Tratar retorno por query params (fluxo sem popup / fallback)
+  // Tratar retorno OAuth por query params
   useEffect(() => {
     const connected = searchParams?.get('connected')
-    const instagram = searchParams?.get('instagram')
     const errorParam = searchParams?.get('error')
     const errorDescRaw = searchParams?.get('error_description')
     let errorDesc: string | null = null
     if (errorDescRaw) {
-      try {
-        errorDesc = decodeURIComponent(errorDescRaw)
-      } catch {
-        errorDesc = errorDescRaw
-      }
+      try { errorDesc = decodeURIComponent(errorDescRaw) } catch { errorDesc = errorDescRaw }
     }
-
     if (connected === '1') {
       const count = searchParams?.get('count')
       const instagramParam = searchParams?.get('instagram')
       let msg = 'Conectado com sucesso!'
       if (count && Number(count) > 1) {
-        msg = `${count} contas conectadas. Todas aparecem na lista abaixo.`
+        msg = `${count} contas conectadas.`
       } else if (instagramParam) {
         const handles = instagramParam.split(',').map((s) => `@${s.trim()}`).filter(Boolean)
         msg = handles.length > 0 ? `Conectado! Instagram: ${handles.join(', ')}` : msg
@@ -152,34 +272,30 @@ export default function AdminInstanciasPage() {
       setTimeout(() => loadIntegrations(), 800)
       router.replace('/admin/instancias')
     } else if (errorParam) {
-      setError(errorDesc || 'Não foi possível conectar a conta. Tente novamente.')
+      setError(errorDesc || 'Não foi possível conectar a conta.')
       router.replace('/admin/instancias')
     }
-  }, [searchParams, router])
+  }, [searchParams, router, loadIntegrations])
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Funções: Conectar Meta
+  // ───────────────────────────────────────────────────────────────────────────
 
   async function handleConnect() {
     setConnecting(true)
     setError(null)
     setSuccess(null)
     try {
-      const data = await adminFetchJson<{ url: string }>('/api/meta/oauth/start?popup=1', {
-        method: 'GET',
-      })
-      const width = 560
-      const height = 640
+      const data = await adminFetchJson<{ url: string }>('/api/meta/oauth/start?popup=1')
+      const width = 560, height = 640
       const left = Math.round((window.screen.width - width) / 2)
       const top = Math.round((window.screen.height - height) / 2)
-      const popup = window.open(
-        data.url,
-        'meta-oauth',
-        `width=${width},height=${height},left=${left},top=${top},scrollbars=yes,resizable=yes`
-      )
+      const popup = window.open(data.url, 'meta-oauth', `width=${width},height=${height},left=${left},top=${top},scrollbars=yes,resizable=yes`)
       if (!popup) {
-        setError('O popup foi bloqueado. Permita popups para este site e tente novamente.')
+        setError('O popup foi bloqueado. Permita popups para este site.')
         setConnecting(false)
         return
       }
-
       const handleMessage = (event: MessageEvent) => {
         if (event.origin !== window.location.origin) return
         const msg = event.data
@@ -188,120 +304,99 @@ export default function AdminInstanciasPage() {
         clearInterval(intervalId)
         setConnecting(false)
         if (msg.error) {
-          setError(
-            msg.errorDescription || 'Não foi possível conectar a conta. Tente novamente.'
-          )
+          setError(msg.errorDescription || 'Não foi possível conectar. Tente novamente.')
         } else if (msg.connected) {
           const n = msg.count ? Number(msg.count) : 0
-          if (n > 1) {
-            setSuccess(`${n} contas conectadas. Todas aparecem na lista abaixo.`)
-          } else if (msg.instagram) {
+          if (n > 1) setSuccess(`${n} contas conectadas.`)
+          else if (msg.instagram) {
             const handles = String(msg.instagram).split(',').map((s) => `@${s.trim()}`).filter(Boolean)
-            setSuccess(handles.length ? `Conectado! Instagram: ${handles.join(', ')}` : 'Conectado com sucesso!')
+            setSuccess(handles.length ? `Conectado! Instagram: ${handles.join(', ')}` : 'Conectado!')
           } else {
             setSuccess('Conectado com sucesso!')
           }
           loadIntegrations()
         } else if (msg.selectPage) {
-          setSuccess('Selecione a página e o Instagram na janela que abriu.')
+          setSuccess('Selecione a página na janela que abriu.')
           loadIntegrations()
         }
       }
-
       const intervalId = setInterval(() => {
-        if (popup.closed) {
-          clearInterval(intervalId)
-          window.removeEventListener('message', handleMessage)
-          setConnecting(false)
-        }
+        if (popup.closed) { clearInterval(intervalId); window.removeEventListener('message', handleMessage); setConnecting(false) }
       }, 300)
-
       window.addEventListener('message', handleMessage)
     } catch (e) {
       setConnecting(false)
       const msg = e instanceof Error ? e.message : null
-      setError(msg && msg !== 'Erro 500' ? msg : 'Não foi possível iniciar a conexão. Verifique as configurações do servidor (Meta) e tente novamente.')
+      setError(msg || 'Não foi possível iniciar a conexão Meta.')
     }
   }
 
   async function handleToggleActive(id: string, currentActive: boolean) {
-    setError(null)
     try {
       await adminFetchJson(`/api/meta/integrations/${id}`, {
         method: 'PATCH',
         body: JSON.stringify({ is_active: !currentActive }),
       })
       await loadIntegrations()
-    } catch (e) {
+    } catch {
       setError('Não foi possível atualizar. Tente novamente.')
     }
-  }
-
-  function openUnlinkModal(id: string) {
-    setUnlinkModalId(id)
   }
 
   async function confirmUnlink() {
     const id = unlinkModalId
     if (!id) return
     setUnlinking(true)
-    setError(null)
     setUnlinkModalId(null)
     try {
       await adminFetchJson(`/api/meta/integrations/${id}`, {
         method: 'PATCH',
         body: JSON.stringify({ show_in_list: false }),
       })
-      setSuccess('Conta desvinculada da lista. Ela continua disponível ao escolher onde postar.')
+      setSuccess('Conta desvinculada da lista.')
       await loadIntegrations()
-    } catch (e) {
-      setError('Não foi possível desvincular. Tente novamente.')
+    } catch {
+      setError('Não foi possível desvincular.')
     } finally {
       setUnlinking(false)
     }
   }
 
   function isLinked(integration: MetaIntegration) {
-    return (integration.metadata as { show_in_list?: boolean })?.show_in_list !== false
+    return integration.metadata?.show_in_list !== false
   }
 
   async function handleRevincular(id: string) {
     setRevinkingId(id)
-    setError(null)
     try {
       await adminFetchJson(`/api/meta/integrations/${id}`, {
         method: 'PATCH',
         body: JSON.stringify({ show_in_list: true }),
       })
-      setSuccess('Conta revinculada. Ela voltou à lista de integrações.')
+      setSuccess('Conta revinculada.')
       await loadIntegrations()
-    } catch (e) {
-      setError('Não foi possível revincular. Tente novamente.')
+    } catch {
+      setError('Não foi possível revincular.')
     } finally {
       setRevinkingId(null)
     }
   }
 
-  // ──────────────────────────────────────────────────────────────────────────
-  // Funções YouTube
-  // ──────────────────────────────────────────────────────────────────────────
+  // ───────────────────────────────────────────────────────────────────────────
+  // Funções: YouTube
+  // ───────────────────────────────────────────────────────────────────────────
+
   async function handleConnectYouTube() {
     setYtConnecting(true)
     setError(null)
-    setSuccess(null)
     try {
       const data = await adminFetchJson<{ url: string }>('/api/youtube/oauth/start?popup=1')
-      const width  = 520
-      const height = 640
-      const left   = Math.round((window.screen.width  - width)  / 2)
-      const top    = Math.round((window.screen.height - height) / 2)
-      const popup  = window.open(
-        data.url,
-        'youtube-oauth',
-        `width=${width},height=${height},left=${left},top=${top},scrollbars=yes,resizable=yes`
-      )
+      const width = 520, height = 640
+      const left = Math.round((window.screen.width - width) / 2)
+      const top = Math.round((window.screen.height - height) / 2)
+      const popup = window.open(data.url, 'youtube-oauth', `width=${width},height=${height},left=${left},top=${top},scrollbars=yes,resizable=yes`)
       if (!popup) {
-        setError('Popup bloqueado. Permita popups para este site e tente novamente.')
+        setError('Popup bloqueado.')
         setYtConnecting(false)
         return
       }
@@ -325,8 +420,7 @@ export default function AdminInstanciasPage() {
       window.addEventListener('message', handleMsg)
     } catch (e) {
       setYtConnecting(false)
-      const msg = e instanceof Error ? e.message : null
-      setError(msg || 'Não foi possível iniciar a conexão com o YouTube. Configure YOUTUBE_CLIENT_ID e YOUTUBE_CLIENT_SECRET no .env.')
+      setError(e instanceof Error ? e.message : 'Erro ao conectar YouTube.')
     }
   }
 
@@ -339,23 +433,23 @@ export default function AdminInstanciasPage() {
       })
       await loadYtIntegrations()
     } catch {
-      setError('Não foi possível atualizar. Tente novamente.')
+      setError('Não foi possível atualizar.')
     } finally {
       setYtTogglingId(null)
     }
   }
 
   async function confirmDeleteYoutube() {
-    const id = ytDeleteModalId
+    const id = ytDeleteConfirmId
     if (!id) return
     setYtDeletingId(id)
-    setYtDeleteModalId(null)
+    setYtDeleteConfirmId(null)
     try {
       await adminFetchJson(`/api/admin/youtube/integrations/${id}`, { method: 'DELETE' })
       setSuccess('Canal do YouTube removido.')
       await loadYtIntegrations()
     } catch {
-      setError('Não foi possível remover. Tente novamente.')
+      setError('Não foi possível remover.')
     } finally {
       setYtDeletingId(null)
     }
@@ -364,27 +458,25 @@ export default function AdminInstanciasPage() {
   async function handlePostToYouTube() {
     if (!ytPostModal) return
     if (!ytPostForm.videoUrl) { setError('Informe a URL do vídeo.'); return }
-    if (!ytPostForm.title)    { setError('Informe o título do vídeo.'); return }
+    if (!ytPostForm.title) { setError('Informe o título.'); return }
     setYtPosting(true)
     setError(null)
     try {
-      const tags = ytPostForm.tags
-        ? ytPostForm.tags.split(',').map((t) => t.trim()).filter(Boolean)
-        : []
+      const tags = ytPostForm.tags ? ytPostForm.tags.split(',').map((t) => t.trim()).filter(Boolean) : []
       const result = await adminFetchJson<{ videoId: string; videoUrl: string }>('/api/admin/youtube/post', {
         method: 'POST',
         body: JSON.stringify({
           integrationId: ytPostModal.integrationId,
-          videoUrl:      ytPostForm.videoUrl,
-          title:         ytPostForm.title,
-          description:   ytPostForm.description,
+          videoUrl: ytPostForm.videoUrl,
+          title: ytPostForm.title,
+          description: ytPostForm.description,
           privacyStatus: ytPostForm.privacyStatus,
           tags,
         }),
       })
       setYtPostModal(null)
       setYtPostForm({ videoUrl: '', title: '', description: '', privacyStatus: 'public', tags: '' })
-      setSuccess(`Vídeo enviado ao YouTube! ${result.videoUrl}`)
+      setSuccess(`Vídeo enviado! ${result.videoUrl}`)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro ao publicar vídeo.')
     } finally {
@@ -392,582 +484,848 @@ export default function AdminInstanciasPage() {
     }
   }
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // Funções: Grupos (Instâncias)
+  // ───────────────────────────────────────────────────────────────────────────
+
+  function openCreateGroup() {
+    setEditingGroupId(null)
+    setGroupForm({ name: '', description: '', color: '#c62737' })
+    setGroupFormOpen(true)
+  }
+
+  function openEditGroup(group: PublicationGroup) {
+    setEditingGroupId(group.id)
+    setGroupForm({ name: group.name, description: group.description ?? '', color: group.color })
+    setGroupFormOpen(true)
+  }
+
+  async function handleSaveGroup() {
+    if (!groupForm.name.trim()) { setError('Informe o nome da instância.'); return }
+    setGroupSaving(true)
+    setError(null)
+    try {
+      if (editingGroupId) {
+        await adminFetchJson(`/api/admin/publication-groups/${editingGroupId}`, {
+          method: 'PATCH',
+          body: JSON.stringify(groupForm),
+        })
+        setSuccess('Instância atualizada.')
+      } else {
+        await adminFetchJson('/api/admin/publication-groups', {
+          method: 'POST',
+          body: JSON.stringify(groupForm),
+        })
+        setSuccess('Instância criada!')
+      }
+      setGroupFormOpen(false)
+      setEditingGroupId(null)
+      await loadGroups()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Erro ao salvar instância.')
+    } finally {
+      setGroupSaving(false)
+    }
+  }
+
+  async function handleDeleteGroup() {
+    const id = deleteGroupId
+    if (!id) return
+    setDeletingGroupId(id)
+    setDeleteGroupId(null)
+    try {
+      await adminFetchJson(`/api/admin/publication-groups/${id}`, { method: 'DELETE' })
+      setSuccess('Instância removida.')
+      await loadGroups()
+    } catch {
+      setError('Não foi possível remover a instância.')
+    } finally {
+      setDeletingGroupId(null)
+    }
+  }
+
+  async function handleToggleGroupAccount(
+    groupId: string,
+    accountType: 'meta' | 'youtube',
+    accountId: string,
+    isLinkedNow: boolean
+  ) {
+    setAccountsUpdating(true)
+    try {
+      if (isLinkedNow) {
+        await adminFetchJson(`/api/admin/publication-groups/${groupId}/accounts`, {
+          method: 'DELETE',
+          body: JSON.stringify({ account_type: accountType, account_id: accountId }),
+        })
+      } else {
+        await adminFetchJson(`/api/admin/publication-groups/${groupId}/accounts`, {
+          method: 'POST',
+          body: JSON.stringify({ account_type: accountType, account_id: accountId }),
+        })
+      }
+      await loadGroups()
+    } catch {
+      setError('Não foi possível atualizar as contas da instância.')
+    } finally {
+      setAccountsUpdating(false)
+    }
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Helpers de UI
+  // ───────────────────────────────────────────────────────────────────────────
+
   function getStatusBadge(integration: MetaIntegration) {
     if (integration.metadata?.pending_page_selection) {
-      return (
-        <span className="inline-flex items-center gap-1 text-sm px-2 py-1 rounded-full bg-yellow-100 text-yellow-800">
-          <AlertCircle size={14} />
-          Aguardando seleção
-        </span>
-      )
+      return <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800"><AlertCircle size={12} /> Aguardando seleção</span>
     }
-    
     if (!integration.is_active) {
-      return (
-        <span className="inline-flex items-center gap-1 text-sm px-2 py-1 rounded-full bg-slate-100 text-slate-600">
-          <XCircle size={14} />
-          Inativa
-        </span>
-      )
+      return <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600"><XCircle size={12} /> Inativa</span>
     }
-
     const expiresAt = integration.token_expires_at ? new Date(integration.token_expires_at) : null
-    const isExpired = expiresAt && expiresAt < new Date()
-
-    if (isExpired) {
-      return (
-        <span className="inline-flex items-center gap-1 text-sm px-2 py-1 rounded-full bg-red-100 text-red-700">
-          <XCircle size={14} />
-          Token expirado
-        </span>
-      )
+    if (expiresAt && expiresAt < new Date()) {
+      return <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700"><XCircle size={12} /> Token expirado</span>
     }
-
-    return (
-      <span className="inline-flex items-center gap-1 text-sm px-2 py-1 rounded-full bg-green-100 text-green-700">
-        <CheckCircle size={14} />
-        Ativa
-      </span>
-    )
+    return <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700"><CheckCircle size={12} /> Ativa</span>
   }
 
   function getInstagramChecklist(integration: MetaIntegration) {
     const readiness = integration.readiness?.instagram
     const missingScopes = readiness?.missingScopes || []
     return [
-      {
-        ok: !!integration.is_active,
-        label: 'Integração ativa',
-      },
-      {
-        ok: readiness ? readiness.hasInstagramBusinessAccount : !!integration.instagram_username,
-        label: 'Conta Instagram Business vinculada',
-      },
-      {
-        ok: readiness ? readiness.hasPageAccessToken : true,
-        label: 'Token de página disponível',
-      },
-      {
-        ok: readiness ? !readiness.tokenExpired : true,
-        label: 'Token válido (não expirado)',
-      },
+      { ok: !!integration.is_active, label: 'Integração ativa' },
+      { ok: readiness ? readiness.hasInstagramBusinessAccount : !!integration.instagram_username, label: 'Conta Instagram Business vinculada' },
+      { ok: readiness ? readiness.hasPageAccessToken : true, label: 'Token de página disponível' },
+      { ok: readiness ? !readiness.tokenExpired : true, label: 'Token válido (não expirado)' },
       {
         ok: missingScopes.length === 0,
-        label:
-          missingScopes.length === 0
-            ? 'Permissões de publicação no Instagram concedidas'
-            : `Permissões ausentes: ${missingScopes
-                .map((scope) => instagramScopeLabels[scope] || scope)
-                .join(', ')}`,
+        label: missingScopes.length === 0
+          ? 'Permissões de publicação concedidas'
+          : `Permissões ausentes: ${missingScopes.map((s) => instagramScopeLabels[s] || s).join(', ')}`,
       },
     ]
   }
+
+  // Retorna as contas de cada tipo vinculadas a um grupo
+  function getGroupAccountDetails(group: PublicationGroup) {
+    const metaIds = group.accounts.filter((a) => a.account_type === 'meta').map((a) => a.account_id)
+    const ytIds = group.accounts.filter((a) => a.account_type === 'youtube').map((a) => a.account_id)
+    const metaAccounts = integrations.filter((i) => metaIds.includes(i.id))
+    const ytAccounts = ytIntegrations.filter((i) => ytIds.includes(i.id))
+    const igAccounts = metaAccounts.filter((i) => i.instagram_username)
+    const fbAccounts = metaAccounts.filter((i) => i.page_id)
+    return { igAccounts, fbAccounts, ytAccounts }
+  }
+
+  const manageGroup = groups.find((g) => g.id === manageAccountsGroupId) ?? null
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Render
+  // ───────────────────────────────────────────────────────────────────────────
 
   return (
     <PageAccessGuard pageKey="instagram">
       <div className="p-6 md:p-8">
         <AdminPageHeader
-          icon={Link2}
-          title="Contas Conectadas"
-          subtitle="Gerencie as integrações com Instagram, Facebook e YouTube para publicar diretamente da plataforma."
+          icon={Layers}
+          title="Instâncias de Publicação"
+          subtitle="Agrupe as contas de redes sociais em instâncias (Sara Alagoas, Arena Sede, etc.) para direcionar postagens com facilidade."
         />
 
-        {/* Mensagens de sucesso/erro */}
+        {/* Mensagens */}
         {success && (
           <div className="mb-4 rounded-lg border border-green-200 bg-green-50 p-3 text-green-700 flex items-start gap-2">
             <CheckCircle size={18} className="shrink-0 mt-0.5" />
             <span>{success}</span>
+            <button onClick={() => setSuccess(null)} className="ml-auto text-green-500 hover:text-green-700"><XCircle size={16} /></button>
           </div>
         )}
         {error && (
           <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-red-700 flex items-start gap-2">
             <AlertCircle size={18} className="shrink-0 mt-0.5" />
             <span>{error}</span>
+            <button onClick={() => setError(null)} className="ml-auto text-red-500 hover:text-red-700"><XCircle size={16} /></button>
           </div>
         )}
 
-        {/* Login / Conectar Instagram e Facebook */}
-        <div className="mb-6 rounded-xl border-2 border-[#c62737]/20 bg-white p-5">
-          <h2 className="text-lg font-semibold text-slate-900 mb-2">Conectar Instagram e Facebook</h2>
-          <p className="text-slate-600 text-sm mb-4">
-            O login é validado para publicação no Instagram (escopos obrigatórios + conta Instagram Business). Faça login com a conta Meta que administra a página e o perfil do Instagram.
-          </p>
-          <button
-            onClick={handleConnect}
-            disabled={connecting}
-            className="inline-flex items-center gap-2 rounded-lg bg-[#1877f2] px-5 py-2.5 text-white font-medium hover:bg-[#166fe5] disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
-          >
-            {connecting ? (
-              <>
-                <Loader2 size={18} className="animate-spin" />
-                Abrindo login...
-              </>
-            ) : (
-              <>
-                <Facebook size={18} />
-                Conectar conta (login Meta / Instagram)
-              </>
-            )}
-          </button>
-          <p className="mt-3 text-xs text-slate-500">
-            Para usar outras páginas da mesma conta, use &quot;Adicionar outra página&quot; na integração abaixo.
-          </p>
-        </div>
-
-        {/* Conectar YouTube */}
-        <div className="mb-6 rounded-xl border-2 border-red-100 bg-white p-5">
-          <h2 className="text-lg font-semibold text-slate-900 mb-2 flex items-center gap-2">
-            <Youtube size={20} className="text-red-600" />
-            Conectar YouTube
-          </h2>
-          <p className="text-slate-600 text-sm mb-4">
-            Faça login com a conta Google que administra o canal. O acesso permite fazer upload de vídeos
-            diretamente pelo painel. Necessário configurar <strong>YOUTUBE_CLIENT_ID</strong> e{' '}
-            <strong>YOUTUBE_CLIENT_SECRET</strong> (Google Cloud Console &rarr; APIs &amp; Services &rarr; Credentials).
-          </p>
-          <button
-            onClick={handleConnectYouTube}
-            disabled={ytConnecting}
-            className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-5 py-2.5 text-white font-medium hover:bg-red-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
-          >
-            {ytConnecting ? (
-              <><Loader2 size={18} className="animate-spin" /> Abrindo login...</>
-            ) : (
-              <><Youtube size={18} /> Conectar canal do YouTube</>
-            )}
-          </button>
-          <p className="mt-3 text-xs text-slate-500">
-            O canal vinculado aparecerá na lista abaixo. Cada conta Google pode ter apenas um canal por conexão.
-          </p>
-        </div>
-
-        {/* Resumo: contas disponíveis para postagem */}
-        {!loading && integrations.length > 0 && (
-          <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-            <div className="rounded-xl border border-slate-200 bg-white p-4">
-              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Total integrações</p>
-              <p className="mt-1 text-2xl font-semibold text-slate-900">{integrations.length}</p>
+        {/* ── Seção: Instâncias ─────────────────────────────────────────── */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-900">Instâncias</h2>
+              <p className="text-sm text-slate-500">Cada instância agrupa contas do Facebook, Instagram e YouTube.</p>
             </div>
-            <div className="rounded-xl border border-slate-200 bg-white p-4">
-              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Instagram (ativas)</p>
-              <p className="mt-1 text-2xl font-semibold text-pink-600">
-                {integrations.filter((i) => i.instagram_username && i.is_active).length}
-              </p>
-              <p className="text-xs text-slate-500 mt-0.5">disponíveis para postar</p>
-            </div>
-            <div className="rounded-xl border border-slate-200 bg-white p-4">
-              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Instagram prontas</p>
-              <p className="mt-1 text-2xl font-semibold text-emerald-600">
-                {integrations.filter((i) => i.instagram_username && i.readiness?.instagram?.ready).length}
-              </p>
-              <p className="text-xs text-slate-500 mt-0.5">com checklist completo</p>
-            </div>
-            <div className="rounded-xl border border-slate-200 bg-white p-4">
-              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Facebook (ativas)</p>
-              <p className="mt-1 text-2xl font-semibold text-[#1877f2]">
-                {integrations.filter((i) => i.page_id && i.is_active).length}
-              </p>
-              <p className="text-xs text-slate-500 mt-0.5">disponíveis para postar</p>
-            </div>
-            <div className="rounded-xl border border-slate-200 bg-white p-4">
-              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Na lista / Desvinculadas</p>
-              <p className="mt-1 text-2xl font-semibold text-slate-900">
-                {integrations.filter(isLinked).length} / {integrations.filter((i) => !isLinked(i)).length}
-              </p>
-            </div>
-            <div className="rounded-xl border border-red-100 bg-white p-4">
-              <p className="text-xs font-medium uppercase tracking-wide text-slate-500 flex items-center gap-1">
-                <Youtube size={12} className="text-red-600" /> YouTube (ativo)
-              </p>
-              <p className="mt-1 text-2xl font-semibold text-red-600">
-                {ytIntegrations.filter((i) => i.is_active).length}
-              </p>
-              <p className="text-xs text-slate-500 mt-0.5">canais conectados</p>
-            </div>
+            <button
+              onClick={openCreateGroup}
+              className="inline-flex items-center gap-2 rounded-xl bg-[#c62737] px-4 py-2 text-sm font-medium text-white hover:bg-[#a01f2d] transition-colors"
+            >
+              <Plus size={16} /> Nova instância
+            </button>
           </div>
-        )}
 
-        {/* Lista de integrações: separada em Instagram e Facebook */}
-        {loading ? (
-          <div className="rounded-xl border border-slate-200 bg-white p-8 flex items-center justify-center">
-            <Loader2 size={24} className="animate-spin text-slate-400" />
-          </div>
-        ) : integrations.length === 0 ? (
-          <div className="rounded-xl border border-slate-200 bg-white p-8 text-center text-slate-600">
-            Nenhuma integração conectada. Clique em &quot;Conectar conta Meta&quot; para começar.
-          </div>
-        ) : (
-          <div className="space-y-8">
-            {/* Canais YouTube */}
-            <div className="rounded-xl border border-red-200 bg-white">
-              <div className="border-b border-red-100 px-4 py-3 bg-red-50/50">
-                <h2 className="font-semibold text-slate-900 flex items-center gap-2">
-                  <Youtube size={20} className="text-red-600" />
-                  Canais YouTube
-                </h2>
-                <p className="text-xs text-slate-500 mt-0.5">Canais do YouTube conectados via OAuth Google.</p>
-              </div>
-              {ytLoading ? (
-                <div className="p-6 flex items-center justify-center">
-                  <Loader2 size={20} className="animate-spin text-slate-400" />
-                </div>
-              ) : ytIntegrations.length === 0 ? (
-                <p className="p-5 text-sm text-slate-500">Nenhum canal conectado. Clique em &quot;Conectar canal do YouTube&quot; acima.</p>
-              ) : (
-                <div className="divide-y divide-slate-100">
-                  {ytIntegrations.map((yt) => {
-                    const expiresAt = yt.token_expires_at ? new Date(yt.token_expires_at) : null
-                    const isExpired = expiresAt ? expiresAt < new Date() : false
-                    return (
-                      <div key={yt.id} className="p-5 hover:bg-slate-50 flex flex-wrap items-start justify-between gap-4">
-                        <div className="min-w-0 flex items-start gap-3">
-                          {yt.channel_thumbnail_url ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={yt.channel_thumbnail_url} alt={yt.channel_title ?? ''} className="w-10 h-10 rounded-full shrink-0 border border-slate-200" />
+          {groupsLoading ? (
+            <div className="rounded-xl border border-slate-200 bg-white p-8 flex items-center justify-center">
+              <Loader2 size={24} className="animate-spin text-slate-400" />
+            </div>
+          ) : groups.length === 0 ? (
+            <div className="rounded-xl border-2 border-dashed border-slate-200 bg-white p-10 text-center">
+              <Layers size={40} className="mx-auto mb-3 text-slate-300" />
+              <p className="text-slate-600 font-medium mb-1">Nenhuma instância criada ainda</p>
+              <p className="text-sm text-slate-400 mb-4">Crie a primeira instância para organizar as contas por perfil de publicação.</p>
+              <button
+                onClick={openCreateGroup}
+                className="inline-flex items-center gap-2 rounded-xl bg-[#c62737] px-5 py-2.5 text-sm font-medium text-white hover:bg-[#a01f2d]"
+              >
+                <Plus size={16} /> Criar primeira instância
+              </button>
+            </div>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {groups.map((group) => {
+                const { igAccounts, fbAccounts, ytAccounts } = getGroupAccountDetails(group)
+                const isBeingDeleted = deletingGroupId === group.id
+                return (
+                  <div
+                    key={group.id}
+                    className="rounded-xl border border-slate-200 bg-white flex flex-col"
+                    style={{ borderTopColor: group.color, borderTopWidth: 3 }}
+                  >
+                    {/* Header do card */}
+                    <div className="px-5 pt-4 pb-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 mb-0.5">
+                            <span
+                              className="w-3 h-3 rounded-full shrink-0"
+                              style={{ backgroundColor: group.color }}
+                            />
+                            <h3 className="font-semibold text-slate-900 truncate">{group.name}</h3>
+                            {!group.is_active && (
+                              <span className="text-xs px-1.5 py-0.5 rounded bg-slate-100 text-slate-500">Inativa</span>
+                            )}
+                          </div>
+                          {group.description && (
+                            <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{group.description}</p>
+                          )}
+                        </div>
+                        <div className="flex gap-1 shrink-0">
+                          <button
+                            onClick={() => openEditGroup(group)}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+                            title="Editar instância"
+                          >
+                            <Pencil size={14} />
+                          </button>
+                          <button
+                            onClick={() => setDeleteGroupId(group.id)}
+                            disabled={isBeingDeleted}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 disabled:opacity-50"
+                            title="Excluir instância"
+                          >
+                            {isBeingDeleted ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Contas vinculadas */}
+                    <div className="px-5 pb-3 flex-1">
+                      <div className="space-y-2">
+                        <div className="flex items-start gap-2">
+                          <Instagram size={14} className="text-pink-500 mt-0.5 shrink-0" />
+                          {igAccounts.length === 0 ? (
+                            <span className="text-xs text-slate-400">Nenhum Instagram vinculado</span>
                           ) : (
-                            <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center shrink-0">
-                              <Youtube size={18} className="text-red-600" />
+                            <div className="flex flex-wrap gap-1">
+                              {igAccounts.map((i) => (
+                                <span key={i.id} className="text-xs bg-pink-50 text-pink-700 px-2 py-0.5 rounded-full border border-pink-100">
+                                  @{i.instagram_username}
+                                </span>
+                              ))}
                             </div>
                           )}
-                          <div>
-                            <div className="flex flex-wrap items-center gap-2 mb-0.5">
-                              {yt.is_active && !isExpired ? (
-                                <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700">
-                                  <CheckCircle size={12} /> Ativa
-                                </span>
-                              ) : isExpired ? (
-                                <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700">
-                                  <XCircle size={12} /> Token expirado
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
-                                  <XCircle size={12} /> Inativa
-                                </span>
-                              )}
-                              <span className="font-medium text-slate-900">{yt.channel_title || 'Canal sem nome'}</span>
-                            </div>
-                            <div className="text-xs text-slate-500 space-y-0.5">
-                              {yt.channel_custom_url && <p>Handle: {yt.channel_custom_url}</p>}
-                              {yt.channel_id && <p>ID: {yt.channel_id}</p>}
-                              <p>Atualizado: {new Date(yt.updated_at).toLocaleString('pt-BR')}</p>
-                              {expiresAt && (
-                                <p className={isExpired ? 'text-red-600 font-medium' : ''}>
-                                  Token {isExpired ? 'expirou' : 'expira'}: {expiresAt.toLocaleDateString('pt-BR')}
-                                  {isExpired && ' — Reconecte o canal'}
-                                </p>
-                              )}
-                            </div>
-                          </div>
                         </div>
-                        <div className="flex flex-wrap gap-2 shrink-0">
-                          {isExpired && (
-                            <button
-                              onClick={handleConnectYouTube}
-                              disabled={ytConnecting}
-                              className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-sm text-amber-800 hover:bg-amber-100 disabled:opacity-50 flex items-center gap-1"
-                            >
-                              {ytConnecting && <Loader2 className="w-3 h-3 animate-spin" />}
+                        <div className="flex items-start gap-2">
+                          <Facebook size={14} className="text-[#1877f2] mt-0.5 shrink-0" />
+                          {fbAccounts.length === 0 ? (
+                            <span className="text-xs text-slate-400">Nenhuma página Facebook vinculada</span>
+                          ) : (
+                            <div className="flex flex-wrap gap-1">
+                              {fbAccounts.map((i) => (
+                                <span key={i.id} className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full border border-blue-100">
+                                  {i.page_name || 'Página FB'}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <Youtube size={14} className="text-red-600 mt-0.5 shrink-0" />
+                          {ytAccounts.length === 0 ? (
+                            <span className="text-xs text-slate-400">Nenhum canal YouTube vinculado</span>
+                          ) : (
+                            <div className="flex flex-wrap gap-1">
+                              {ytAccounts.map((yt) => (
+                                <span key={yt.id} className="text-xs bg-red-50 text-red-700 px-2 py-0.5 rounded-full border border-red-100">
+                                  {yt.channel_title || 'Canal YT'}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Rodapé do card */}
+                    <div className="px-5 py-3 border-t border-slate-100 bg-slate-50 rounded-b-xl flex items-center justify-between gap-3">
+                      <button
+                        onClick={() => setManageAccountsGroupId(group.id)}
+                        className="inline-flex items-center gap-1.5 text-xs font-medium text-[#c62737] hover:text-[#a01f2d] transition-colors"
+                      >
+                        <Settings size={13} /> Contas vinculadas
+                      </button>
+                      <button
+                        onClick={() => openManageUsers(group.id)}
+                        className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 transition-colors"
+                      >
+                        <Users size={13} /> Usuários permitidos
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* ── Seção: Contas conectadas (expansível) ─────────────────────── */}
+        <div className="rounded-xl border border-slate-200 bg-white mb-6">
+          <button
+            onClick={() => setAccountsSectionOpen((v) => !v)}
+            className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-slate-50 transition-colors rounded-xl"
+          >
+            <div className="flex items-center gap-2">
+              <Link2 size={18} className="text-slate-500" />
+              <span className="font-semibold text-slate-900">Contas conectadas</span>
+              <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">
+                {loading ? '…' : integrations.length} Meta · {ytLoading ? '…' : ytIntegrations.length} YouTube
+              </span>
+            </div>
+            {accountsSectionOpen ? <ChevronUp size={18} className="text-slate-400" /> : <ChevronDown size={18} className="text-slate-400" />}
+          </button>
+
+          {accountsSectionOpen && (
+            <div className="border-t border-slate-100 px-5 py-5 space-y-6">
+              {/* Botões de conexão */}
+              <div className="flex flex-wrap gap-3">
+                <button
+                  onClick={handleConnect}
+                  disabled={connecting}
+                  className="inline-flex items-center gap-2 rounded-xl bg-[#1877f2] px-4 py-2.5 text-sm text-white font-medium hover:bg-[#166fe5] disabled:opacity-60 transition-colors"
+                >
+                  {connecting ? <Loader2 size={16} className="animate-spin" /> : <Facebook size={16} />}
+                  {connecting ? 'Abrindo login...' : 'Conectar Instagram / Facebook'}
+                </button>
+                <button
+                  onClick={handleConnectYouTube}
+                  disabled={ytConnecting}
+                  className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm text-white font-medium hover:bg-red-700 disabled:opacity-60 transition-colors"
+                >
+                  {ytConnecting ? <Loader2 size={16} className="animate-spin" /> : <Youtube size={16} />}
+                  {ytConnecting ? 'Abrindo login...' : 'Conectar YouTube'}
+                </button>
+              </div>
+
+              {/* Pendentes */}
+              {integrations.filter((i) => isLinked(i) && i.metadata?.pending_page_selection).length > 0 && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50/40 p-4 space-y-2">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">Pendentes — selecione a página</p>
+                  {integrations.filter((i) => isLinked(i) && i.metadata?.pending_page_selection).map((intg) => (
+                    <div key={intg.id} className="flex items-center justify-between gap-2">
+                      <span className="text-sm text-slate-700">{intg.facebook_user_name || 'Conta Meta'}</span>
+                      <div className="flex gap-2">
+                        <button onClick={() => router.push(`/admin/instancias/select?integration_id=${intg.id}`)} className="rounded-lg bg-[#c62737] px-3 py-1.5 text-xs text-white hover:bg-[#a01f2c]">Selecionar página</button>
+                        <button onClick={() => setUnlinkModalId(intg.id)} className="rounded-lg border border-red-300 px-3 py-1.5 text-xs text-red-700 hover:bg-red-50">Desvincular</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Lista integrações Meta */}
+              {loading ? (
+                <div className="flex items-center justify-center py-6"><Loader2 size={20} className="animate-spin text-slate-400" /></div>
+              ) : integrations.filter(isLinked).length === 0 ? (
+                <p className="text-sm text-slate-500">Nenhuma integração Meta conectada.</p>
+              ) : (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-3">Integrações Meta</p>
+                  <div className="rounded-xl border border-slate-200 divide-y divide-slate-100">
+                    {integrations.filter(isLinked).map((intg) => (
+                      <div key={intg.id} className="p-4 flex flex-wrap items-start justify-between gap-3 hover:bg-slate-50">
+                        <div className="min-w-0 space-y-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            {getStatusBadge(intg)}
+                            {intg.instagram_username && (
+                              <span className="font-medium text-slate-900 text-sm">@{intg.instagram_username}</span>
+                            )}
+                            {intg.page_name && (
+                              <span className="text-sm text-slate-700">{intg.instagram_username ? `· ${intg.page_name}` : intg.page_name}</span>
+                            )}
+                          </div>
+                          {intg.readiness?.instagram && (
+                            <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50 p-2.5">
+                              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1.5">Checklist Instagram</p>
+                              <ul className="space-y-1">
+                                {getInstagramChecklist(intg).map((item) => (
+                                  <li key={item.label} className="flex items-start gap-1.5 text-xs text-slate-700">
+                                    {item.ok ? <CheckCircle size={12} className="mt-0.5 shrink-0 text-green-600" /> : <XCircle size={12} className="mt-0.5 shrink-0 text-red-500" />}
+                                    <span>{item.label}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex flex-wrap gap-1.5 shrink-0">
+                          {!intg.readiness?.instagram?.ready && (
+                            <button onClick={handleConnect} disabled={connecting} className="rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs text-amber-800 hover:bg-amber-100 disabled:opacity-50">
                               Reconectar
                             </button>
                           )}
-                          {yt.is_active && !isExpired && (
-                            <button
-                              onClick={() => {
-                                setYtPostForm({ videoUrl: '', title: yt.channel_title ? `Novo vídeo — ${yt.channel_title}` : '', description: '', privacyStatus: 'public', tags: '' })
-                                setYtPostModal({ integrationId: yt.id, channelTitle: yt.channel_title ?? '', open: true })
-                              }}
-                              className="rounded-lg bg-red-600 px-3 py-1.5 text-sm text-white hover:bg-red-700 flex items-center gap-1"
-                            >
-                              <Video size={14} /> Publicar vídeo
+                          <button onClick={() => router.push(`/admin/instancias/add-page?integration_id=${intg.id}`)} className="rounded-lg border border-slate-300 px-2.5 py-1 text-xs hover:bg-slate-100">+ Página</button>
+                          <button onClick={() => handleToggleActive(intg.id, intg.is_active)} className="rounded-lg border border-slate-300 px-2.5 py-1 text-xs hover:bg-slate-100">{intg.is_active ? 'Desativar' : 'Ativar'}</button>
+                          <button onClick={() => setUnlinkModalId(intg.id)} className="rounded-lg border border-red-300 px-2.5 py-1 text-xs text-red-700 hover:bg-red-50">Desvincular</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Contas desvinculadas */}
+              {integrations.filter((i) => !isLinked(i)).length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-3">Desvinculadas (ainda disponíveis para postagem)</p>
+                  <div className="rounded-xl border border-amber-200 bg-amber-50/30 divide-y divide-amber-100">
+                    {integrations.filter((i) => !isLinked(i)).map((intg) => (
+                      <div key={intg.id} className="p-4 flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 text-sm">
+                          {getStatusBadge(intg)}
+                          <span className="text-slate-700">
+                            {intg.instagram_username ? `@${intg.instagram_username}` : (intg.page_name || `Integração #${intg.id.slice(0, 8)}`)}
+                          </span>
+                        </div>
+                        <div className="flex gap-1.5">
+                          <button onClick={() => handleRevincular(intg.id)} disabled={revinkingId === intg.id} className="rounded-lg bg-[#1877f2] px-2.5 py-1 text-xs text-white hover:bg-[#166fe5] disabled:opacity-50 inline-flex items-center gap-1">
+                            {revinkingId === intg.id && <Loader2 size={12} className="animate-spin" />} Revincular
+                          </button>
+                          <button onClick={() => handleToggleActive(intg.id, intg.is_active)} className="rounded-lg border border-slate-300 px-2.5 py-1 text-xs hover:bg-slate-100">{intg.is_active ? 'Desativar' : 'Ativar'}</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* YouTube */}
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-3">Canais YouTube</p>
+                {ytLoading ? (
+                  <div className="flex items-center justify-center py-6"><Loader2 size={20} className="animate-spin text-slate-400" /></div>
+                ) : ytIntegrations.length === 0 ? (
+                  <p className="text-sm text-slate-500">Nenhum canal YouTube conectado.</p>
+                ) : (
+                  <div className="rounded-xl border border-slate-200 divide-y divide-slate-100">
+                    {ytIntegrations.map((yt) => {
+                      const expired = yt.token_expires_at ? new Date(yt.token_expires_at) < new Date() : false
+                      return (
+                        <div key={yt.id} className="p-4 flex flex-wrap items-start justify-between gap-3 hover:bg-slate-50">
+                          <div className="flex items-center gap-3 min-w-0">
+                            {yt.channel_thumbnail_url ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={yt.channel_thumbnail_url} alt={yt.channel_title ?? ''} className="w-9 h-9 rounded-full border border-slate-200 shrink-0" />
+                            ) : (
+                              <div className="w-9 h-9 rounded-full bg-red-100 flex items-center justify-center shrink-0">
+                                <Youtube size={16} className="text-red-600" />
+                              </div>
+                            )}
+                            <div>
+                              <div className="flex items-center gap-2 mb-0.5">
+                                {yt.is_active && !expired
+                                  ? <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700"><CheckCircle size={11} /> Ativa</span>
+                                  : expired
+                                    ? <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700"><XCircle size={11} /> Expirado</span>
+                                    : <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600"><XCircle size={11} /> Inativa</span>
+                                }
+                                <span className="font-medium text-sm text-slate-900">{yt.channel_title || 'Canal sem nome'}</span>
+                              </div>
+                              {yt.channel_custom_url && <p className="text-xs text-slate-500">{yt.channel_custom_url}</p>}
+                            </div>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5 shrink-0">
+                            {expired && (
+                              <button onClick={handleConnectYouTube} disabled={ytConnecting} className="rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs text-amber-800 hover:bg-amber-100 disabled:opacity-50">Reconectar</button>
+                            )}
+                            {yt.is_active && !expired && (
+                              <button
+                                onClick={() => {
+                                  setYtPostForm({ videoUrl: '', title: yt.channel_title ? `Novo vídeo — ${yt.channel_title}` : '', description: '', privacyStatus: 'public', tags: '' })
+                                  setYtPostModal({ integrationId: yt.id, channelTitle: yt.channel_title ?? '', open: true })
+                                }}
+                                className="rounded-lg bg-red-600 px-2.5 py-1 text-xs text-white hover:bg-red-700 inline-flex items-center gap-1"
+                              >
+                                <Video size={12} /> Publicar vídeo
+                              </button>
+                            )}
+                            <button onClick={() => handleToggleYoutubeActive(yt.id, yt.is_active)} disabled={ytTogglingId === yt.id} className="rounded-lg border border-slate-300 px-2.5 py-1 text-xs hover:bg-slate-100 disabled:opacity-50">
+                              {ytTogglingId === yt.id ? <Loader2 size={12} className="animate-spin" /> : (yt.is_active ? 'Desativar' : 'Ativar')}
                             </button>
-                          )}
-                          <button
-                            onClick={() => handleToggleYoutubeActive(yt.id, yt.is_active)}
-                            disabled={ytTogglingId === yt.id}
-                            className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-100 disabled:opacity-50"
-                          >
-                            {ytTogglingId === yt.id ? <Loader2 size={14} className="animate-spin" /> : (yt.is_active ? 'Desativar' : 'Ativar')}
-                          </button>
-                          <button
-                            onClick={() => setYtDeleteModalId(yt.id)}
-                            disabled={ytDeletingId === yt.id}
-                            className="rounded-lg border border-red-300 px-3 py-1.5 text-sm text-red-700 hover:bg-red-50 flex items-center gap-1 disabled:opacity-50"
-                          >
-                            {ytDeletingId === yt.id ? <Loader2 size={14} className="animate-spin" /> : <><Trash2 size={14} /> Remover</>}
-                          </button>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-
-            {/* Pendentes (sem página escolhida) - só vinculadas */}
-            {integrations.filter((i) => isLinked(i) && i.metadata?.pending_page_selection).length > 0 && (
-              <div className="rounded-xl border border-slate-200 bg-white">
-                <div className="border-b border-slate-200 px-4 py-3 bg-slate-50">
-                  <h2 className="font-semibold text-slate-900">Pendentes</h2>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Conclua a seleção da página. Se as páginas que aparecerem não forem da conta que você quer conectar, use &quot;Desvincular&quot; para remover esta conexão e conectar de novo com a conta correta.
-                  </p>
-                </div>
-                <div className="divide-y divide-slate-200">
-                  {integrations
-                    .filter((i) => isLinked(i) && i.metadata?.pending_page_selection)
-                    .map((integration) => (
-                      <div key={integration.id} className="p-5 flex flex-wrap items-center justify-between gap-4">
-                        <div className="flex items-center gap-2">
-                          {getStatusBadge(integration)}
-                          <span className="text-slate-700">{integration.facebook_user_name || 'Conta Meta'}</span>
-                        </div>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => router.push(`/admin/instancias/select?integration_id=${integration.id}`)}
-                            className="rounded-lg bg-[#c62737] px-4 py-2 text-sm text-white hover:bg-[#a01f2c]"
-                          >
-                            Selecionar página
-                          </button>
-                          <button
-                            onClick={() => openUnlinkModal(integration.id)}
-                            className="rounded-lg border border-red-300 px-4 py-2 text-sm text-red-700 hover:bg-red-50"
-                          >
-                            Desvincular
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                </div>
-              </div>
-            )}
-
-            {/* Contas Instagram (vinculadas) */}
-            <div className="rounded-xl border border-slate-200 bg-white">
-              <div className="border-b border-slate-200 px-4 py-3 bg-pink-50/50">
-                <h2 className="font-semibold text-slate-900 flex items-center gap-2">
-                  <Instagram size={20} className="text-pink-600" />
-                  Contas Instagram
-                </h2>
-                <p className="text-xs text-slate-500 mt-0.5">Contas do Instagram na lista (vinculadas) para publicar.</p>
-              </div>
-              {integrations.filter((i) => i.instagram_username && isLinked(i)).length === 0 ? (
-                <p className="p-5 text-sm text-slate-500">Nenhuma conta Instagram vinculada.</p>
-              ) : (
-                <div className="divide-y divide-slate-200">
-                  {integrations
-                    .filter((i) => i.instagram_username && isLinked(i))
-                    .map((integration) => (
-                      <div key={integration.id} className="p-5 hover:bg-slate-50 flex flex-wrap items-start justify-between gap-4">
-                        <div className="min-w-0">
-                          <div className="flex flex-wrap items-center gap-2 mb-1">
-                            {getStatusBadge(integration)}
-                            {integration.readiness?.instagram?.ready ? (
-                              <span className="text-xs px-2 py-0.5 rounded bg-emerald-100 text-emerald-700">Pronta para postar no Instagram</span>
-                            ) : integration.is_active ? (
-                              <span className="text-xs px-2 py-0.5 rounded bg-amber-100 text-amber-700">Pendências para Instagram</span>
-                            ) : null}
-                            <span className="font-medium text-slate-900">@{integration.instagram_username}</span>
-                          </div>
-                          <div className="text-xs text-slate-500 space-y-0.5">
-                            {integration.page_name && <p>Página Facebook: {integration.page_name}</p>}
-                            {integration.facebook_user_name && <p>Usuário Meta: {integration.facebook_user_name}</p>}
-                            <p>Atualizado: {new Date(integration.updated_at).toLocaleString('pt-BR')}</p>
-                            {integration.token_expires_at && (
-                              <p>Token expira: {new Date(integration.token_expires_at).toLocaleDateString('pt-BR')}</p>
-                            )}
-                          </div>
-                          <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
-                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">Checklist Instagram</p>
-                            <ul className="mt-2 space-y-1.5 text-xs text-slate-700">
-                              {getInstagramChecklist(integration).map((item) => (
-                                <li key={item.label} className="flex items-start gap-2">
-                                  {item.ok ? (
-                                    <CheckCircle size={14} className="mt-0.5 shrink-0 text-emerald-600" />
-                                  ) : (
-                                    <XCircle size={14} className="mt-0.5 shrink-0 text-red-500" />
-                                  )}
-                                  <span>{item.label}</span>
-                                </li>
-                              ))}
-                            </ul>
-                            {(integration.readiness?.instagram?.missingScopes?.length ?? 0) > 0 && (
-                              <p className="mt-2 text-xs text-slate-600 border-t border-slate-200 pt-2">
-                                Já ativou essas permissões no app Meta (ex.: Mídia_sara_alagoas)? Clique em <strong>Reconectar permissões</strong> para obter um novo token e liberar a publicação.
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex flex-wrap gap-2 shrink-0">
-                          {!integration.readiness?.instagram?.ready && (
-                            <button
-                              onClick={handleConnect}
-                              disabled={connecting}
-                              className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-sm text-amber-800 hover:bg-amber-100 disabled:opacity-50 flex items-center gap-2"
-                              title="Reconecta a conta Meta para atualizar permissões e liberar postagem no Instagram"
-                            >
-                              {connecting && <Loader2 className="w-3 h-3 animate-spin" />}
-                              {connecting ? 'Reconectando...' : 'Reconectar permissões'}
+                            <button onClick={() => setYtDeleteConfirmId(yt.id)} disabled={ytDeletingId === yt.id} className="rounded-lg border border-red-300 px-2.5 py-1 text-xs text-red-700 hover:bg-red-50 inline-flex items-center gap-1 disabled:opacity-50">
+                              {ytDeletingId === yt.id ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />} Remover
                             </button>
-                          )}
-                          <button
-                            onClick={() => router.push(`/admin/instancias/add-page?integration_id=${integration.id}`)}
-                            className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-100"
-                          >
-                            Adicionar outra página
-                          </button>
-                          <button
-                            onClick={() => handleToggleActive(integration.id, integration.is_active)}
-                            className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-100"
-                          >
-                            {integration.is_active ? 'Desativar' : 'Ativar'}
-                          </button>
-                          <button
-                            onClick={() => openUnlinkModal(integration.id)}
-                            className="rounded-lg border border-red-300 px-3 py-1.5 text-sm text-red-700 hover:bg-red-50"
-                          >
-                            Desvincular
-                          </button>
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                </div>
-              )}
-            </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
 
-            {/* Contas Facebook (vinculadas) */}
-            <div className="rounded-xl border border-slate-200 bg-white">
-              <div className="border-b border-slate-200 px-4 py-3 bg-[#1877f2]/5">
-                <h2 className="font-semibold text-slate-900 flex items-center gap-2">
-                  <Facebook size={20} className="text-[#1877f2]" />
-                  Contas Facebook (páginas)
+              <p className="text-xs text-slate-400">Para revogar o app no Facebook: Configurações → Apps e sites.</p>
+            </div>
+          )}
+        </div>
+
+        {/* ────────────────────────────────────────────────────────────────────
+          Modal: Criar / Editar instância
+        ──────────────────────────────────────────────────────────────────── */}
+        {groupFormOpen && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+            onClick={() => !groupSaving && setGroupFormOpen(false)}
+            role="dialog"
+            aria-modal="true"
+          >
+            <div
+              className="w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-6 border-b border-slate-100">
+                <h2 className="text-lg font-semibold text-slate-900">
+                  {editingGroupId ? 'Editar instância' : 'Nova instância'}
                 </h2>
-                <p className="text-xs text-slate-500 mt-0.5">Páginas do Facebook na lista (vinculadas) para publicar.</p>
+                <p className="text-sm text-slate-500 mt-0.5">
+                  {editingGroupId ? 'Altere os dados da instância.' : 'Defina o nome e a cor da nova instância.'}
+                </p>
               </div>
-              {integrations.filter((i) => i.page_id && isLinked(i)).length === 0 ? (
-                <p className="p-5 text-sm text-slate-500">Nenhuma página do Facebook vinculada.</p>
-              ) : (
-                <div className="divide-y divide-slate-200">
-                  {integrations
-                    .filter((i) => i.page_id && isLinked(i))
-                    .map((integration) => (
-                      <div key={integration.id} className="p-5 hover:bg-slate-50 flex flex-wrap items-start justify-between gap-4">
-                        <div className="min-w-0">
-                          <div className="flex flex-wrap items-center gap-2 mb-1">
-                            {getStatusBadge(integration)}
-                            {integration.is_active && (
-                              <span className="text-xs px-2 py-0.5 rounded bg-green-100 text-green-700">Disponível para postagem</span>
-                            )}
-                            <span className="font-medium text-slate-900">
-                              {integration.page_name || 'Página do Facebook'}
-                            </span>
-                          </div>
-                          <div className="text-xs text-slate-500 space-y-0.5">
-                            {integration.instagram_username && <p>Instagram: @{integration.instagram_username}</p>}
-                            {integration.facebook_user_name && <p>Usuário Meta: {integration.facebook_user_name}</p>}
-                            <p>Atualizado: {new Date(integration.updated_at).toLocaleString('pt-BR')}</p>
-                            {integration.token_expires_at && (
-                              <p>Token expira: {new Date(integration.token_expires_at).toLocaleDateString('pt-BR')}</p>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex flex-wrap gap-2 shrink-0">
-                          <button
-                            onClick={() => router.push(`/admin/instancias/add-page?integration_id=${integration.id}`)}
-                            className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-100"
-                          >
-                            Adicionar outra página
-                          </button>
-                          <button
-                            onClick={() => handleToggleActive(integration.id, integration.is_active)}
-                            className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-100"
-                          >
-                            {integration.is_active ? 'Desativar' : 'Ativar'}
-                          </button>
-                          <button
-                            onClick={() => openUnlinkModal(integration.id)}
-                            className="rounded-lg border border-red-300 px-3 py-1.5 text-sm text-red-700 hover:bg-red-50"
-                          >
-                            Desvincular
-                          </button>
-                        </div>
-                      </div>
-                    ))}
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">Nome da instância <span className="text-red-500">*</span></label>
+                  <input
+                    value={groupForm.name}
+                    onChange={(e) => setGroupForm({ ...groupForm, name: e.target.value })}
+                    placeholder="Ex: Sara Alagoas, Arena Sede Maceió..."
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm text-slate-800 focus:border-[#c62737] focus:ring-2 focus:ring-[#c62737]/20 outline-none transition-all placeholder:text-slate-400"
+                  />
                 </div>
-              )}
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">Descrição (opcional)</label>
+                  <input
+                    value={groupForm.description}
+                    onChange={(e) => setGroupForm({ ...groupForm, description: e.target.value })}
+                    placeholder="Breve descrição desta instância..."
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm text-slate-800 focus:border-[#c62737] focus:ring-2 focus:ring-[#c62737]/20 outline-none transition-all placeholder:text-slate-400"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 mb-2">Cor de identificação</label>
+                  <div className="flex flex-wrap gap-2">
+                    {PRESET_COLORS.map((color) => (
+                      <button
+                        key={color}
+                        onClick={() => setGroupForm({ ...groupForm, color })}
+                        className="w-8 h-8 rounded-full border-2 transition-all"
+                        style={{
+                          backgroundColor: color,
+                          borderColor: groupForm.color === color ? '#0f172a' : 'transparent',
+                          boxShadow: groupForm.color === color ? '0 0 0 2px white, 0 0 0 4px #0f172a' : 'none',
+                        }}
+                        title={color}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-3 justify-end px-6 pb-6">
+                <button
+                  type="button"
+                  onClick={() => !groupSaving && setGroupFormOpen(false)}
+                  disabled={groupSaving}
+                  className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveGroup}
+                  disabled={groupSaving || !groupForm.name.trim()}
+                  className="rounded-xl bg-[#c62737] px-4 py-2 text-sm font-medium text-white hover:bg-[#a01f2d] disabled:opacity-50 inline-flex items-center gap-2"
+                >
+                  {groupSaving ? <Loader2 size={15} className="animate-spin" /> : null}
+                  {editingGroupId ? 'Salvar alterações' : 'Criar instância'}
+                </button>
+              </div>
             </div>
-
-            {/* Contas desvinculadas (ainda disponíveis para postagem) */}
-            {integrations.filter((i) => !isLinked(i)).length > 0 && (
-              <div className="rounded-xl border border-amber-200 bg-amber-50/30">
-                <div className="border-b border-amber-200 px-4 py-3 bg-amber-100/50">
-                  <h2 className="font-semibold text-slate-900 flex items-center gap-2">
-                    <Unlink size={20} className="text-amber-700" />
-                    Contas desvinculadas da lista
-                  </h2>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Não aparecem na lista principal, mas continuam disponíveis ao escolher onde postar. Use &quot;Revincular&quot; para trazer de volta.
-                  </p>
-                </div>
-                <div className="divide-y divide-amber-200/50 p-4">
-                  {integrations
-                    .filter((i) => !isLinked(i))
-                    .map((integration) => (
-                      <div key={integration.id} className="py-4 first:pt-0 flex flex-wrap items-start justify-between gap-4">
-                        <div className="min-w-0">
-                          <div className="flex flex-wrap items-center gap-2 mb-1">
-                            {getStatusBadge(integration)}
-                            {integration.is_active && (
-                              <span className="text-xs px-2 py-0.5 rounded bg-green-100 text-green-700">Disponível para postagem</span>
-                            )}
-                            {integration.instagram_username && (
-                              <span className="font-medium text-slate-900">@{integration.instagram_username}</span>
-                            )}
-                            {integration.page_name && (
-                              <span className="font-medium text-slate-900">
-                                {integration.instagram_username ? ` · ${integration.page_name}` : integration.page_name}
-                              </span>
-                            )}
-                            {!integration.instagram_username && !integration.page_name && (
-                              <span className="text-slate-600">Integração #{integration.id.slice(0, 8)}</span>
-                            )}
-                          </div>
-                          <div className="text-xs text-slate-500 space-y-0.5">
-                            {integration.facebook_user_name && <p>Usuário Meta: {integration.facebook_user_name}</p>}
-                            <p>Atualizado: {new Date(integration.updated_at).toLocaleString('pt-BR')}</p>
-                            {integration.token_expires_at && (
-                              <p>Token expira: {new Date(integration.token_expires_at).toLocaleDateString('pt-BR')}</p>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex flex-wrap gap-2 shrink-0">
-                          <button
-                            onClick={() => handleRevincular(integration.id)}
-                            disabled={revinkingId === integration.id}
-                            className="rounded-lg bg-[#1877f2] px-3 py-1.5 text-sm text-white hover:bg-[#166fe5] disabled:opacity-50 inline-flex items-center gap-1"
-                          >
-                            {revinkingId === integration.id ? <Loader2 size={14} className="animate-spin" /> : null}
-                            Revincular
-                          </button>
-                          <button
-                            onClick={() => handleToggleActive(integration.id, integration.is_active)}
-                            className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-100"
-                          >
-                            {integration.is_active ? 'Desativar' : 'Ativar'}
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                </div>
-              </div>
-            )}
           </div>
         )}
 
-        <p className="mt-4 text-xs text-slate-500">
-          Para revogar o app no Facebook: Configurações → Apps e sites.
-        </p>
+        {/* ────────────────────────────────────────────────────────────────────
+          Modal: Gerenciar contas da instância
+        ──────────────────────────────────────────────────────────────────── */}
+        {manageAccountsGroupId && manageGroup && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 overflow-y-auto"
+            onClick={() => !accountsUpdating && setManageAccountsGroupId(null)}
+            role="dialog"
+            aria-modal="true"
+          >
+            <div
+              className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white shadow-xl my-8"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-6 border-b border-slate-100">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="w-3 h-3 rounded-full" style={{ backgroundColor: manageGroup.color }} />
+                  <h2 className="text-lg font-semibold text-slate-900">Contas — {manageGroup.name}</h2>
+                </div>
+                <p className="text-sm text-slate-500">Marque as contas que devem receber postagens desta instância.</p>
+              </div>
+              <div className="p-6 space-y-5 max-h-[65vh] overflow-y-auto">
+                {/* Instagram / Meta */}
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2 flex items-center gap-1.5">
+                    <Instagram size={13} className="text-pink-500" /> Contas Instagram / Meta
+                  </p>
+                  {integrations.filter((i) => i.instagram_username).length === 0 ? (
+                    <p className="text-sm text-slate-400">Nenhuma conta Instagram conectada ainda.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {integrations.filter((i) => i.instagram_username).map((intg) => {
+                        const isSelected = manageGroup.accounts.some((a) => a.account_type === 'meta' && a.account_id === intg.id)
+                        return (
+                          <label key={intg.id} className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${isSelected ? 'border-[#c62737]/40 bg-[#c62737]/5' : 'border-slate-200 hover:bg-slate-50'}`}>
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              disabled={accountsUpdating}
+                              onChange={() => handleToggleGroupAccount(manageGroup.id, 'meta', intg.id, isSelected)}
+                              className="mt-0.5 accent-[#c62737]"
+                            />
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-1.5 text-sm font-medium text-slate-800">
+                                <Instagram size={13} className="text-pink-500 shrink-0" />
+                                @{intg.instagram_username}
+                              </div>
+                              {intg.page_name && <p className="text-xs text-slate-500 mt-0.5">Página FB: {intg.page_name}</p>}
+                              {intg.readiness?.instagram?.ready
+                                ? <p className="text-xs text-green-600 mt-0.5">Pronta para postar</p>
+                                : <p className="text-xs text-amber-600 mt-0.5">Verificar checklist</p>
+                              }
+                            </div>
+                          </label>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
 
-        {/* Modal YouTube: Publicar Vídeo */}
+                {/* Facebook sem Instagram */}
+                {integrations.filter((i) => i.page_id && !i.instagram_username).length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2 flex items-center gap-1.5">
+                      <Facebook size={13} className="text-[#1877f2]" /> Páginas Facebook (sem Instagram)
+                    </p>
+                    <div className="space-y-2">
+                      {integrations.filter((i) => i.page_id && !i.instagram_username).map((intg) => {
+                        const isSelected = manageGroup.accounts.some((a) => a.account_type === 'meta' && a.account_id === intg.id)
+                        return (
+                          <label key={intg.id} className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${isSelected ? 'border-[#c62737]/40 bg-[#c62737]/5' : 'border-slate-200 hover:bg-slate-50'}`}>
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              disabled={accountsUpdating}
+                              onChange={() => handleToggleGroupAccount(manageGroup.id, 'meta', intg.id, isSelected)}
+                              className="mt-0.5 accent-[#c62737]"
+                            />
+                            <div>
+                              <div className="flex items-center gap-1.5 text-sm font-medium text-slate-800">
+                                <Facebook size={13} className="text-[#1877f2] shrink-0" />
+                                {intg.page_name || 'Página do Facebook'}
+                              </div>
+                              {intg.is_active && <p className="text-xs text-green-600 mt-0.5">Ativa</p>}
+                            </div>
+                          </label>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* YouTube */}
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2 flex items-center gap-1.5">
+                    <Youtube size={13} className="text-red-600" /> Canais YouTube
+                  </p>
+                  {ytIntegrations.length === 0 ? (
+                    <p className="text-sm text-slate-400">Nenhum canal YouTube conectado ainda.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {ytIntegrations.map((yt) => {
+                        const isSelected = manageGroup.accounts.some((a) => a.account_type === 'youtube' && a.account_id === yt.id)
+                        return (
+                          <label key={yt.id} className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${isSelected ? 'border-[#c62737]/40 bg-[#c62737]/5' : 'border-slate-200 hover:bg-slate-50'}`}>
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              disabled={accountsUpdating}
+                              onChange={() => handleToggleGroupAccount(manageGroup.id, 'youtube', yt.id, isSelected)}
+                              className="mt-0.5 accent-[#c62737]"
+                            />
+                            <div className="flex items-center gap-2 min-w-0">
+                              {yt.channel_thumbnail_url
+                                // eslint-disable-next-line @next/next/no-img-element
+                                ? <img src={yt.channel_thumbnail_url} alt={yt.channel_title ?? ''} className="w-7 h-7 rounded-full border border-slate-200 shrink-0" />
+                                : <div className="w-7 h-7 rounded-full bg-red-100 flex items-center justify-center shrink-0"><Youtube size={13} className="text-red-600" /></div>
+                              }
+                              <div>
+                                <p className="text-sm font-medium text-slate-800">{yt.channel_title || 'Canal sem nome'}</p>
+                                {yt.channel_custom_url && <p className="text-xs text-slate-500">{yt.channel_custom_url}</p>}
+                              </div>
+                            </div>
+                          </label>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="px-6 py-4 border-t border-slate-100 flex justify-end">
+                <button
+                  onClick={() => setManageAccountsGroupId(null)}
+                  disabled={accountsUpdating}
+                  className="rounded-xl bg-[#c62737] px-5 py-2 text-sm font-medium text-white hover:bg-[#a01f2d] disabled:opacity-50 inline-flex items-center gap-2"
+                >
+                  {accountsUpdating && <Loader2 size={14} className="animate-spin" />}
+                  Concluir
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ────────────────────────────────────────────────────────────────────
+          Modal: Usuários da instância
+        ──────────────────────────────────────────────────────────────────── */}
+        {manageUsersGroupId && (() => {
+          const usersGroup = groups.find((g) => g.id === manageUsersGroupId)
+          if (!usersGroup) return null
+          return (
+            <div
+              className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 overflow-y-auto"
+              onClick={() => !usersUpdating && setManageUsersGroupId(null)}
+              role="dialog"
+              aria-modal="true"
+            >
+              <div
+                className="w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-xl my-8"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Header */}
+                <div className="p-6 border-b border-slate-100">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: usersGroup.color }} />
+                    <h2 className="text-lg font-semibold text-slate-900">Usuários — {usersGroup.name}</h2>
+                  </div>
+                  <p className="text-sm text-slate-500">Defina quais usuários estão autorizados a publicar por esta instância.</p>
+                </div>
+
+                {/* Corpo */}
+                <div className="p-6 max-h-[60vh] overflow-y-auto">
+                  {groupUsersLoading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 size={22} className="animate-spin text-slate-400" />
+                    </div>
+                  ) : allUsers.length === 0 ? (
+                    <div className="py-8 text-center text-slate-500 text-sm border border-dashed border-slate-200 rounded-xl">
+                      Nenhum usuário cadastrado no sistema.
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {allUsers.map((user) => {
+                        const isLinked = groupUserLinkedIds.includes(user.id)
+                        const displayName = user.full_name || user.email || user.id
+                        return (
+                          <label
+                            key={user.id}
+                            className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
+                              isLinked
+                                ? 'border-[#c62737]/40 bg-[#c62737]/5'
+                                : 'border-slate-200 hover:bg-slate-50'
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isLinked}
+                              disabled={usersUpdating}
+                              onChange={() => handleToggleGroupUser(manageUsersGroupId, user.id, isLinked)}
+                              className="accent-[#c62737] shrink-0"
+                            />
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2">
+                                {isLinked
+                                  ? <UserCheck size={14} className="text-[#c62737] shrink-0" />
+                                  : <UserMinus size={14} className="text-slate-400 shrink-0" />}
+                                <span className="text-sm font-medium text-slate-800 truncate">{displayName}</span>
+                              </div>
+                              {user.full_name && user.email && (
+                                <p className="text-xs text-slate-500 mt-0.5 truncate">{user.email}</p>
+                              )}
+                            </div>
+                            {isLinked && (
+                              <span className="text-xs bg-[#c62737]/10 text-[#c62737] px-2 py-0.5 rounded-full font-medium shrink-0">Permitido</span>
+                            )}
+                          </label>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Rodapé */}
+                <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-between gap-3">
+                  <p className="text-xs text-slate-400">
+                    {groupUserLinkedIds.length === 0
+                      ? 'Nenhum usuário autorizado'
+                      : `${groupUserLinkedIds.length} usuário${groupUserLinkedIds.length !== 1 ? 's' : ''} autorizado${groupUserLinkedIds.length !== 1 ? 's' : ''}`}
+                  </p>
+                  <button
+                    onClick={() => setManageUsersGroupId(null)}
+                    disabled={usersUpdating}
+                    className="rounded-xl bg-[#c62737] px-5 py-2 text-sm font-medium text-white hover:bg-[#a01f2d] disabled:opacity-50 inline-flex items-center gap-2"
+                  >
+                    {usersUpdating && <Loader2 size={14} className="animate-spin" />}
+                    Concluir
+                  </button>
+                </div>
+              </div>
+            </div>
+          )
+        })()}
+
+        {/* ────────────────────────────────────────────────────────────────────
+          Modal: YouTube — Publicar Vídeo
+        ──────────────────────────────────────────────────────────────────── */}
         {ytPostModal?.open && (
           <div
             className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
@@ -981,7 +1339,7 @@ export default function AdminInstanciasPage() {
               onClick={(e) => e.stopPropagation()}
             >
               <div className="p-6 border-b border-slate-100">
-                <div className="flex items-center gap-3 mb-1">
+                <div className="flex items-center gap-3">
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-red-100">
                     <Youtube size={18} className="text-red-600" />
                   </div>
@@ -993,189 +1351,102 @@ export default function AdminInstanciasPage() {
               </div>
               <div className="p-6 space-y-4">
                 <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">URL do vídeo <span className="text-red-500">*</span></label>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">URL do vídeo <span className="text-red-500">*</span></label>
                   <input
                     value={ytPostForm.videoUrl}
                     onChange={(e) => setYtPostForm({ ...ytPostForm, videoUrl: e.target.value })}
                     placeholder="https://drive.google.com/... ou URL pública do vídeo"
-                    className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 hover:border-slate-300 focus:border-[#c62737] focus:ring-1 focus:ring-[#c62737] outline-none transition-colors"
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm focus:border-[#c62737] focus:ring-2 focus:ring-[#c62737]/20 outline-none transition-all placeholder:text-slate-400"
                   />
-                  <p className="text-[10px] text-slate-400 mt-1">O arquivo de vídeo deve ser acessível publicamente (URL direta).</p>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">Título <span className="text-red-500">*</span></label>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">Título <span className="text-red-500">*</span></label>
                   <input
                     value={ytPostForm.title}
                     onChange={(e) => setYtPostForm({ ...ytPostForm, title: e.target.value })}
                     maxLength={100}
-                    placeholder="Título do vídeo (max 100 caracteres)"
-                    className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 hover:border-slate-300 focus:border-[#c62737] focus:ring-1 focus:ring-[#c62737] outline-none transition-colors"
+                    placeholder="Título do vídeo"
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm focus:border-[#c62737] focus:ring-2 focus:ring-[#c62737]/20 outline-none transition-all placeholder:text-slate-400"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">Descrição</label>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">Descrição</label>
                   <textarea
                     value={ytPostForm.description}
                     onChange={(e) => setYtPostForm({ ...ytPostForm, description: e.target.value })}
                     rows={3}
                     placeholder="Descrição do vídeo..."
-                    className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 hover:border-slate-300 focus:border-[#c62737] focus:ring-1 focus:ring-[#c62737] outline-none transition-colors resize-none"
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm focus:border-[#c62737] focus:ring-2 focus:ring-[#c62737]/20 outline-none transition-all placeholder:text-slate-400 resize-none"
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1">Visibilidade</label>
+                    <label className="block text-xs font-medium text-slate-700 mb-1">Visibilidade</label>
                     <CustomSelect
                       value={ytPostForm.privacyStatus}
                       onChange={(v) => setYtPostForm({ ...ytPostForm, privacyStatus: v })}
                       options={[
-                        { value: 'public',   label: 'Público' },
+                        { value: 'public', label: 'Público' },
                         { value: 'unlisted', label: 'Não listado' },
-                        { value: 'private',  label: 'Privado' },
+                        { value: 'private', label: 'Privado' },
                       ]}
                       allowEmpty={false}
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1">Tags (vírgula)</label>
+                    <label className="block text-xs font-medium text-slate-700 mb-1">Tags (vírgula)</label>
                     <input
                       value={ytPostForm.tags}
                       onChange={(e) => setYtPostForm({ ...ytPostForm, tags: e.target.value })}
                       placeholder="Sara, Alagoas, culto"
-                      className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 hover:border-slate-300 focus:border-[#c62737] focus:ring-1 focus:ring-[#c62737] outline-none transition-colors"
+                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm focus:border-[#c62737] focus:ring-2 focus:ring-[#c62737]/20 outline-none transition-all placeholder:text-slate-400"
                     />
                   </div>
                 </div>
               </div>
               <div className="flex gap-3 justify-end px-6 pb-6">
-                <button
-                  type="button"
-                  onClick={() => !ytPosting && setYtPostModal(null)}
-                  disabled={ytPosting}
-                  className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  onClick={handlePostToYouTube}
-                  disabled={ytPosting}
-                  className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50 inline-flex items-center gap-2"
-                >
-                  {ytPosting ? (
-                    <><Loader2 size={16} className="animate-spin" /> Enviando vídeo...</>
-                  ) : (
-                    <><Youtube size={16} /> Publicar no YouTube</>
-                  )}
+                <button type="button" onClick={() => !ytPosting && setYtPostModal(null)} disabled={ytPosting} className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50">Cancelar</button>
+                <button type="button" onClick={handlePostToYouTube} disabled={ytPosting} className="rounded-xl bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50 inline-flex items-center gap-2">
+                  {ytPosting ? <><Loader2 size={16} className="animate-spin" /> Enviando...</> : <><Youtube size={16} /> Publicar</>}
                 </button>
               </div>
             </div>
           </div>
         )}
 
-        {/* Modal YouTube: Confirmar remoção */}
-        {ytDeleteModalId && (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
-            onClick={() => setYtDeleteModalId(null)}
-            role="dialog"
-            aria-modal="true"
-          >
-            <div
-              className="w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-xl"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="p-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100">
-                    <Trash2 size={20} className="text-red-600" />
-                  </div>
-                  <h2 className="text-lg font-semibold text-slate-900">Remover canal do YouTube</h2>
-                </div>
-                <p className="text-slate-600 text-sm mb-4">
-                  O canal será desconectado da plataforma. Para reconectar, faça o OAuth novamente.
-                </p>
-              </div>
-              <div className="flex gap-3 justify-end px-6 pb-6">
-                <button
-                  type="button"
-                  onClick={() => setYtDeleteModalId(null)}
-                  className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  onClick={confirmDeleteYoutube}
-                  className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 inline-flex items-center gap-2"
-                >
-                  <Trash2 size={16} /> Remover canal
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* ────────────────────────────────────────────────────────────────────
+          ConfirmDialogs (usa componente canônico do Design System)
+        ──────────────────────────────────────────────────────────────────── */}
 
-        {/* Modal Desvincular */}
-        {unlinkModalId && (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
-            onClick={() => !unlinking && setUnlinkModalId(null)}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="unlink-modal-title"
-          >
-            <div
-              className="w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-xl"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="p-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-100">
-                    <Unlink size={20} className="text-amber-700" />
-                  </div>
-                  <h2 id="unlink-modal-title" className="text-lg font-semibold text-slate-900">
-                    Desvincular conta
-                  </h2>
-                </div>
-                <p className="text-slate-600 text-sm mb-1">
-                  A conta sairá da lista de integrações aqui na plataforma.
-                </p>
-                <p className="text-slate-600 text-sm mb-4">
-                  Ela <strong>continuará disponível</strong> ao escolher onde postar (Instagram/Facebook).
-                </p>
-                <p className="text-xs text-slate-500">
-                  Para revogar o app no Facebook: Configurações → Apps e sites.
-                </p>
-              </div>
-              <div className="flex gap-3 justify-end px-6 pb-6">
-                <button
-                  type="button"
-                  onClick={() => !unlinking && setUnlinkModalId(null)}
-                  disabled={unlinking}
-                  className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  onClick={confirmUnlink}
-                  disabled={unlinking}
-                  className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50 inline-flex items-center gap-2"
-                >
-                  {unlinking ? (
-                    <>
-                      <Loader2 size={16} className="animate-spin" />
-                      Desvinculando...
-                    </>
-                  ) : (
-                    'Desvincular'
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        <ConfirmDialog
+          open={!!deleteGroupId}
+          title="Excluir instância"
+          message="Esta instância será removida permanentemente com todas as suas vinculações de contas. As contas em si não serão desconectadas."
+          confirmLabel="Excluir instância"
+          variant="danger"
+          onConfirm={handleDeleteGroup}
+          onCancel={() => setDeleteGroupId(null)}
+        />
+
+        <ConfirmDialog
+          open={!!ytDeleteConfirmId}
+          title="Remover canal do YouTube"
+          message="O canal será desconectado da plataforma. Para reconectar, faça o OAuth novamente."
+          confirmLabel="Remover canal"
+          variant="danger"
+          onConfirm={confirmDeleteYoutube}
+          onCancel={() => setYtDeleteConfirmId(null)}
+        />
+
+        <ConfirmDialog
+          open={!!unlinkModalId}
+          title="Desvincular conta"
+          message="A conta sairá da lista de integrações. Ela continuará disponível ao escolher onde postar, mas não aparecerá na listagem principal."
+          confirmLabel={unlinking ? 'Desvinculando...' : 'Desvincular'}
+          variant="primary"
+          onConfirm={confirmUnlink}
+          onCancel={() => setUnlinkModalId(null)}
+        />
       </div>
     </PageAccessGuard>
   )

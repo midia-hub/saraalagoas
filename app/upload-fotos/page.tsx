@@ -21,9 +21,61 @@ type WorshipService = { id: string; name: string }
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
-const MAX_MB = 10
+const MAX_MB = 50                          // limite de seleção (arquivo bruto do celular)
 const MAX_SIZE = MAX_MB * 1024 * 1024
 const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif']
+
+// ─── Compressão client-side (evita Erro 413 no Vercel) ───────────────────────
+// Fotos de celular chegam com 10–15 MB; comprimimos para < 3 MB antes do envio.
+const COMPRESS_MAX_PX = 1920        // dimensão máxima (px) após redução
+const COMPRESS_QUALITY = 0.85       // qualidade JPEG/WebP
+const COMPRESS_THRESHOLD = 3 * 1024 * 1024  // só comprime se > 3 MB
+
+/**
+ * Reduz e comprime uma imagem usando a Canvas API.
+ * GIFs são devolvidos intactos (canvas perderia a animação).
+ * Arquivos já pequenos (< COMPRESS_THRESHOLD) passam sem alteração.
+ */
+function compressImage(file: File): Promise<File> {
+  return new Promise((resolve) => {
+    if (file.type === 'image/gif' || file.size <= COMPRESS_THRESHOLD) {
+      resolve(file)
+      return
+    }
+    const img = document.createElement('img')
+    const url = URL.createObjectURL(file)
+    img.onload = () => {
+      URL.revokeObjectURL(url)
+      let { width, height } = img
+      if (width > COMPRESS_MAX_PX || height > COMPRESS_MAX_PX) {
+        const ratio = Math.min(COMPRESS_MAX_PX / width, COMPRESS_MAX_PX / height)
+        width = Math.round(width * ratio)
+        height = Math.round(height * ratio)
+      }
+      const canvas = document.createElement('canvas')
+      canvas.width = width
+      canvas.height = height
+      const ctx = canvas.getContext('2d')
+      if (!ctx) { resolve(file); return }
+      ctx.drawImage(img, 0, 0, width, height)
+      const outType = file.type === 'image/webp' ? 'image/webp' : 'image/jpeg'
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) { resolve(file); return }
+          // Se (raro) compressão ficou maior que o original, usa o original
+          const out = blob.size < file.size
+            ? new File([blob], file.name, { type: outType, lastModified: file.lastModified })
+            : file
+          resolve(out)
+        },
+        outType,
+        COMPRESS_QUALITY
+      )
+    }
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(file) }
+    img.src = url
+  })
+}
 
 const DAY_NAMES: Record<number, string> = { 0: 'Domingo', 2: 'Terça', 6: 'Sábado' }
 const SUGGESTED_WEEKDAYS = [0, 2, 6]
@@ -161,7 +213,7 @@ export default function UploadFotosPage() {
         return
       }
       if (f.size > MAX_SIZE) {
-        setError(`Arquivo muito grande. Máximo ${MAX_MB} MB por imagem.`)
+        setError(`Arquivo muito grande. Máximo ${MAX_MB} MB por imagem (imagens serão comprimidas automaticamente antes do envio).`)
         return
       }
     }
@@ -206,13 +258,14 @@ export default function UploadFotosPage() {
       setTotalCount(total)
       let ok = 0
 
-      // 2. Envia arquivos um a um
+      // 2. Envia arquivos um a um (com compressão client-side antes de cada envio)
       for (let i = 0; i < files.length; i++) {
         setFileStatuses((prev) => {
           const next = [...prev]; next[i] = { ...next[i], status: 'uploading', progress: 0 }; return next
         })
         try {
-          await uploadFile(galleryId, files[i], uploaderName.trim(), (p) => {
+          const fileToUpload = await compressImage(files[i])
+          await uploadFile(galleryId, fileToUpload, uploaderName.trim(), (p) => {
             setFileStatuses((prev) => {
               const next = [...prev]; next[i] = { ...next[i], progress: p }; return next
             })

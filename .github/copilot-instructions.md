@@ -2,7 +2,7 @@
 
 ## ⚠️ Regra obrigatória — Design System
 
-**Antes de criar ou editar qualquer componente de UI, formulário, tela ou página, o arquivo `docs/DESIGN-SYSTEM.md` DEVE ser consultado.**
+- Antes de criar ou editar qualquer componente de UI, formulário, tela ou página, o arquivo `docs/DESIGN-SYSTEM.md` DEVE ser consultado.**
 
 Isso se aplica especialmente a:
 - Listas suspensas / dropdowns / selects

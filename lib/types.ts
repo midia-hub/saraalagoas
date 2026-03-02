@@ -81,4 +81,6 @@ export interface SiteConfig {
     url: string
   }
   menuItems: MenuItem[]
+  layout: string[]
+  hiddenSections: string[]
 }

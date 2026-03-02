@@ -20,7 +20,7 @@ export async function GET(
   const db = createSupabaseServerClient(request)
   const { data, error } = await db
     .from('scheduled_social_posts')
-    .select('id, album_id, created_by, scheduled_at, instance_ids, destinations, caption, media_specs, status, published_at, error_message, created_at, updated_at')
+    .select('id, album_id, created_by, scheduled_at, instance_ids, destinations, caption, media_specs, status, published_at, error_message, created_at, updated_at, publication_group_id')
     .eq('id', id)
     .single()
 

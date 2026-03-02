@@ -6,6 +6,8 @@ import { getSiteConfig } from '@/lib/site-config-server'
 import { SiteConfigProvider } from '@/lib/site-config-context'
 import { SpeedInsights } from '@vercel/speed-insights/next'
 import { Analytics } from '@vercel/analytics/react'
+import { NavigationProgressBar } from '@/components/NavigationProgressBar'
+import { Suspense } from 'react'
 
 const outfit = Outfit({
   subsets: ['latin'],
@@ -83,6 +85,9 @@ export default async function RootLayout({
       </head>
       <body className={`${outfit.variable} ${inter.variable} antialiased`}>
         <SiteConfigProvider initialConfig={initialConfig}>
+          <Suspense fallback={null}>
+            <NavigationProgressBar />
+          </Suspense>
           {children}
         </SiteConfigProvider>
         <SpeedInsights />

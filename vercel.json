@@ -1,5 +1,8 @@
 {
   "functions": {
+    "app/api/public/gallery/[id]/upload/route.ts": {
+      "maxDuration": 60
+    },
     "app/api/midia/nova-postagem/route.ts": {
       "maxDuration": 60
     },

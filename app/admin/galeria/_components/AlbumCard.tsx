@@ -129,7 +129,7 @@ export function AlbumCard({ album, onCopyLink, onVisible, canDeleteAlbum, onDele
             </div>
           )}
 
-          {/* Photo count — bottom right, always visible */}}
+          {/* Photo count — bottom right, always visible */}
           {album.photosCount != null && (
             <div className="absolute bottom-2.5 right-2.5">
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/50 text-white text-[11px] font-semibold backdrop-blur-sm">
