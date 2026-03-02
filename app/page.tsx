@@ -5,6 +5,7 @@ import Footer from '@/components/Footer'
 const FloatingWhatsApp = dynamic(() => import('@/components/FloatingWhatsApp'), { ssr: false })
 import { redirect } from 'next/navigation'
 import { getConfiguredHomeRoute } from '@/lib/home-route'
+import { getSiteConfig } from '@/lib/site-config-server'
 
 import SectionSkeleton from '@/components/SectionSkeleton'
 import ServicesSection from '@/components/ServicesSection'
@@ -44,19 +45,30 @@ export default async function Home() {
     redirect(homeRoute)
   }
 
+  const siteConfig = await getSiteConfig()
+  const layout = siteConfig.layout || [
+    'hero', 'services', 'cell', 'leadership', 'social', 'prayer', 'location', 'mission', 'gallery'
+  ]
+  const hiddenSections: string[] = (siteConfig as any).hiddenSections || []
+  const visibleLayout = layout.filter(id => !hiddenSections.includes(id))
+
+  const sectionMap: Record<string, React.ReactNode> = {
+    hero: <Hero key="hero" />,
+    services: <ServicesSection key="services" />,
+    cell: <CellSection key="cell" />,
+    leadership: <LeadershipSection key="leadership" />,
+    social: <SocialSection key="social" />,
+    prayer: <PrayerSection key="prayer" />,
+    location: <LocationSection key="location" />,
+    mission: <MissionSection key="mission" />,
+    gallery: <GallerySection key="gallery" />
+  }
+
   return (
     <>
       <Header />
       <main>
-        <Hero />
-        <ServicesSection />
-        <CellSection />
-        <LeadershipSection />
-        <SocialSection />
-        <PrayerSection />
-        <LocationSection />
-        <MissionSection />
-        <GallerySection />
+        {visibleLayout.map(id => sectionMap[id])}
       </main>
       <Footer />
       <FloatingWhatsApp />

@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
-import { Download, ChevronLeft, ChevronRight, ArrowLeft } from 'lucide-react'
+import { Download, ChevronLeft, ChevronRight, ArrowLeft, X, Loader2 } from 'lucide-react'
 import { GaleriaLoading } from '@/components/GaleriaLoading'
 import { Xp26Background } from '@/components/Xp26Background'
 import { Orbitron } from 'next/font/google'
@@ -40,6 +40,7 @@ export default function GalleryDetailPage() {
   const [files, setFiles] = useState<DriveFile[]>([])
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<DriveFile | null>(null)
+  const [imageLoading, setImageLoading] = useState(false)
 
   const isXp26 = params?.slug === 'xp26-alagoas'
 
@@ -87,13 +88,21 @@ export default function GalleryDetailPage() {
 
   const goPrev = useCallback(() => {
     if (!hasPrev || !selected) return
+    setImageLoading(true)
     setSelected(files[selectedIndex - 1])
   }, [files, hasPrev, selected, selectedIndex])
 
   const goNext = useCallback(() => {
     if (!hasNext || !selected) return
+    setImageLoading(true)
     setSelected(files[selectedIndex + 1])
   }, [files, hasNext, selected, selectedIndex])
+
+  useEffect(() => {
+    if (selected) {
+      setImageLoading(true)
+    }
+  }, [selected?.id])
 
   useEffect(() => {
     if (!selected) return
@@ -187,63 +196,89 @@ export default function GalleryDetailPage() {
         </div>
 
         {selected ? (
-          <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setSelected(null)}>
-            <div className="relative max-w-4xl w-full flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-              {hasPrev ? (
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); goPrev() }}
-                  className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-2 md:-translate-x-14 z-10 flex items-center justify-center w-12 h-12 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors border border-white/10"
-                  aria-label="Imagem anterior"
-                >
-                  <ChevronLeft size={28} />
-                </button>
-              ) : null}
-              <img src={imageUrl(selected.id, 'full')} alt={selected.name} className="w-full max-h-[85vh] object-contain rounded-lg shadow-2xl" />
-              {hasNext ? (
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); goNext() }}
-                  className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-2 md:translate-x-14 z-10 flex items-center justify-center w-12 h-12 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors border border-white/10"
-                  aria-label="Próxima imagem"
-                >
-                  <ChevronRight size={28} />
-                </button>
-              ) : null}
+          <div 
+            className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center backdrop-blur-md transition-all duration-300" 
+            onClick={() => setSelected(null)}
+          >
+            {/* Botão de Fechar Superior Direito */}
+            <button
+              className="absolute top-6 right-6 z-[60] text-white/50 p-3 hover:text-white hover:bg-white/10 rounded-full transition-all duration-200 group"
+              onClick={() => setSelected(null)}
+              title="Fechar (Esc)"
+            >
+              <X size={32} className="group-hover:scale-110 transition-transform" />
+            </button>
+
+            <div className="relative w-full h-full flex items-center justify-center p-4 md:p-12" onClick={(e) => e.stopPropagation()}>
+              {/* Botão Anterior - Área de toque expandida */}
+              <button
+                type="button"
+                disabled={!hasPrev}
+                onClick={(e) => { e.stopPropagation(); goPrev() }}
+                className={`absolute left-0 top-0 bottom-0 w-24 md:w-32 z-50 flex items-center justify-center group transition-opacity ${!hasPrev ? 'opacity-0 cursor-default' : 'opacity-100'}`}
+                aria-label="Imagem anterior"
+              >
+                <div className="flex items-center justify-center w-14 h-14 rounded-full bg-black/20 text-white/40 group-hover:bg-white/10 group-hover:text-white group-active:scale-95 transition-all border border-white/5 backdrop-blur-sm shadow-xl">
+                  <ChevronLeft size={36} className="group-hover:-translate-x-0.5 transition-transform" />
+                </div>
+              </button>
+
+              {/* Container da Imagem */}
+              <div className="relative max-w-5xl w-full h-full flex items-center justify-center pointer-events-none">
+                {imageLoading && (
+                  <div className="absolute inset-0 flex items-center justify-center z-10">
+                    <Loader2 size={48} className="text-white animate-spin opacity-50" />
+                  </div>
+                )}
+                <img 
+                  src={imageUrl(selected.id, 'full')} 
+                  alt={selected.name} 
+                  className={`max-w-full max-h-[80vh] object-contain rounded shadow-[0_0_50px_rgba(0,0,0,0.5)] pointer-events-auto select-none transition-opacity duration-300 ${imageLoading ? 'opacity-0' : 'opacity-100'}`}
+                  onLoad={() => setImageLoading(false)}
+                  onContextMenu={(e) => e.preventDefault()}
+                />
+              </div>
+
+              {/* Botão Próximo - Área de toque expandida */}
+              <button
+                type="button"
+                disabled={!hasNext}
+                onClick={(e) => { e.stopPropagation(); goNext() }}
+                className={`absolute right-0 top-0 bottom-0 w-24 md:w-32 z-50 flex items-center justify-center group transition-opacity ${!hasNext ? 'opacity-0 cursor-default' : 'opacity-100'}`}
+                aria-label="Próxima imagem"
+              >
+                <div className="flex items-center justify-center w-14 h-14 rounded-full bg-black/20 text-white/40 group-hover:bg-white/10 group-hover:text-white group-active:scale-95 transition-all border border-white/5 backdrop-blur-sm shadow-xl">
+                  <ChevronRight size={36} className="group-hover:translate-x-0.5 transition-transform" />
+                </div>
+              </button>
             </div>
-            <div className="absolute bottom-4 left-4 right-4 flex flex-wrap items-center justify-between gap-3 text-white px-4">
-              <span className={`truncate ${isXp26 ? 'font-medium' : ''}`}>{selected.name}</span>
-              <div className="flex items-center gap-3">
+
+            {/* Rodapé de Informações e Ações */}
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-6 pb-10 flex flex-col md:flex-row items-center justify-between gap-4 text-white z-50" onClick={(e) => e.stopPropagation()}>
+              <div className="flex flex-col items-center md:items-start">
+                <span className={`text-lg transition-all duration-300 ${isXp26 ? 'font-medium tracking-wide text-neon' : 'text-white'}`} style={isXp26 ? { color: NEON } : {}}>
+                  {selected.name}
+                </span>
+                <span className="text-xs text-white/40 mt-1 uppercase tracking-widest">
+                  Imagem {selectedIndex + 1} de {files.length}
+                </span>
+              </div>
+              
+              <div className="flex items-center gap-4">
                 <a
                   href={imageUrl(selected.id, 'full')}
                   download={selected.name}
-                  className={`inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-bold uppercase tracking-wider transition-all duration-300 ${isXp26
-                      ? 'bg-neon text-dark hover:shadow-[0_0_20px_rgba(182,255,59,0.5)]'
-                      : 'bg-white/20 hover:bg-white/30'
+                  className={`inline-flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-bold uppercase tracking-widest transition-all duration-300 group ${isXp26
+                      ? 'bg-neon hover:shadow-[0_0_25px_rgba(182,255,59,0.4)]'
+                      : 'bg-white text-slate-900 hover:bg-sara-red hover:text-white'
                     }`}
                   style={isXp26 ? { backgroundColor: NEON, color: '#0B0F2A' } : {}}
                 >
-                  <Download size={18} aria-hidden />
-                  Download
-                </a>
-                <a
-                  href={selected.webViewLink || selected.viewUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm opacity-70 hover:opacity-100 transition-opacity flex items-center gap-1"
-                >
-                  Google Drive
+                  <Download size={20} className="group-hover:bounce-slow" aria-hidden />
+                  BAIXAR FOTO
                 </a>
               </div>
             </div>
-            <button
-              className="absolute top-4 right-4 text-white p-2 hover:bg-white/10 rounded-full transition-colors"
-              onClick={() => setSelected(null)}
-            >
-              <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path d="M18 6L6 18M6 6l12 12" />
-              </svg>
-            </button>
           </div>
         ) : null}
       </div>

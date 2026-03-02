@@ -76,12 +76,35 @@ export async function POST(request: NextRequest) {
   if (!access.ok) return access.response
 
   const body = await request.json().catch(() => ({}))
+  const db = createSupabaseServerClient(request)
 
-  const instanceIds: string[] = Array.isArray(body.instanceIds)
+  let instanceIds: string[] = Array.isArray(body.instanceIds)
     ? body.instanceIds
         .filter((v: unknown): v is string => typeof v === 'string')
         .slice(0, 20)
     : []
+
+  // Suporte a Grupos de Publicação
+  if (body.groupId && typeof body.groupId === 'string') {
+    const { data: groupAccounts, error: groupError } = await db
+      .from('publication_group_accounts')
+      .select('account_id')
+      .eq('group_id', body.groupId)
+
+    if (groupError) {
+      return NextResponse.json(
+        { error: `Falha ao carregar grupo: ${groupError.message}` },
+        { status: 500 }
+      )
+    }
+
+    if (groupAccounts && groupAccounts.length > 0) {
+      // Adiciona os IDs das contas do grupo à lista de instâncias
+      // Preservando o formato esperado pelo extrator (meta_ig:uuid)
+      const groupInstanceIds = groupAccounts.map(a => `meta_ig:${a.account_id}`)
+      instanceIds = Array.from(new Set([...instanceIds, ...groupInstanceIds]))
+    }
+  }
 
   const isUuid = (value: string) =>
     /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
@@ -284,6 +307,7 @@ export async function POST(request: NextRequest) {
         caption: text,
         media_specs: mediaSpecs,
         status: 'pending',
+        publication_group_id: (body.groupId && typeof body.groupId === 'string') ? body.groupId : null,
         // Campo extra para contexto (não bloqueia se não existir na tabela)
         ...(postType !== 'feed' ? { post_type: postType } : {}),
       })
@@ -337,6 +361,7 @@ export async function POST(request: NextRequest) {
       error_message: failedResults.length > 0 ? failedResults.map((r) => r.error).filter(Boolean).join('; ') : null,
       created_at: now,
       updated_at: now,
+      publication_group_id: (body.groupId && typeof body.groupId === 'string') ? body.groupId : null,
     })
     if (logError) {
       console.error('[nova-postagem] falha ao registrar log da postagem imediata:', logError.message)

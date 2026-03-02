@@ -92,7 +92,8 @@ export async function GET(request: NextRequest) {
       people:person_id (
         id,
         full_name,
-        email
+        email,
+        mobile_phone
       ),
       access_profiles (
         id,
@@ -113,10 +114,23 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: usersError.message }, { status: 500 })
   }
 
+  // Tratamento para unificar nomes e garantir que não apareçam vazios
+  const users = (usersData || []).map(u => {
+    const person = u.people as any
+    return {
+      ...u,
+      // Se profiles.full_name for nulo, tenta pegar de people.full_name
+      full_name: u.full_name || person?.full_name || u.email?.split('@')[0] || 'Usuário sem nome',
+      // Garante que o email também tenha fallback
+      email: u.email || person?.email || '',
+      phone: person?.mobile_phone || ''
+    }
+  })
+
   return NextResponse.json({
     pages,
     profiles: profilesData || [],
-    users: usersData || [],
+    users,
   })
 }
 

@@ -3,12 +3,12 @@ import { requireAccess } from '@/lib/admin-api'
 import { supabaseServer } from '@/lib/supabase-server'
 
 // Chaves válidas e seus rótulos
-export const IA_CONFIG_KEYS = ['system_prompt', 'album_instructions', 'standard_instructions'] as const
+export const IA_CONFIG_KEYS = ['system_prompt', 'album_instructions', 'standard_instructions', 'few_shot_examples'] as const
 export type IaConfigKey = typeof IA_CONFIG_KEYS[number]
 
 // ──────────────────────────────────────────────────────────────────────────────
 // GET /api/admin/ia-config
-// Retorna { system_prompt, album_instructions, standard_instructions }
+// Retorna { system_prompt, album_instructions, standard_instructions, few_shot_examples }
 // ──────────────────────────────────────────────────────────────────────────────
 export async function GET(request: NextRequest) {
   const access = await requireAccess(request, { pageKey: 'instagram', action: 'view' })

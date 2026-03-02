@@ -27,6 +27,20 @@ const DEFAULT_ALBUM_INSTRUCTIONS = `IMPORTANTE: Este evento JÁ ACONTECEU. Estam
 const DEFAULT_STANDARD_INSTRUCTIONS = `- Se fizer sentido, termine com um convite ou chamada para ação
 - NUNCA mencione fotos ou registros, foque nas pessoas e no impacto`
 
+const DEFAULT_FEW_SHOT_EXAMPLES = `EXEMPLO 1 (Álbum / Batismo):
+O céu estava em festa ontem! Ver cada vida descendo às águas é a confirmação de que o amor de Jesus continua transformando histórias. 
+
+Que alegria ver essa decisão pública de fé. O batismo não é o fim, mas o começo de uma caminhada extraordinária com o Pai.
+
+Parabéns a todos que deram esse passo. Estamos em família celebrando com vocês! 🔥🙌
+
+EXEMPLO 2 (Post Avulso / Reflexão):
+Às vezes, tudo o que precisamos é parar um pouco e ouvir a voz que acalma a tempestade. 
+
+No meio da correria, nunca esqueça: Aquele que prometeu é fiel para cumprir. Descanse o seu coração na certeza de que Ele está cuidando de tudo.
+
+"O Senhor é o meu pastor; nada me faltará." (Salmos 23:1) 📖✨`
+
 async function loadPrompts() {
   try {
     const { data } = await supabaseServer.from('ia_config').select('key, value')
@@ -36,9 +50,15 @@ async function loadPrompts() {
       systemPrompt:        map['system_prompt']        || DEFAULT_SYSTEM_PROMPT,
       albumInstructions:   map['album_instructions']   || DEFAULT_ALBUM_INSTRUCTIONS,
       standardInstructions: map['standard_instructions'] || DEFAULT_STANDARD_INSTRUCTIONS,
+      fewShotExamples:     map['few_shot_examples']     || DEFAULT_FEW_SHOT_EXAMPLES,
     }
   } catch {
-    return { systemPrompt: DEFAULT_SYSTEM_PROMPT, albumInstructions: DEFAULT_ALBUM_INSTRUCTIONS, standardInstructions: DEFAULT_STANDARD_INSTRUCTIONS }
+    return { 
+      systemPrompt: DEFAULT_SYSTEM_PROMPT, 
+      albumInstructions: DEFAULT_ALBUM_INSTRUCTIONS, 
+      standardInstructions: DEFAULT_STANDARD_INSTRUCTIONS,
+      fewShotExamples: DEFAULT_FEW_SHOT_EXAMPLES,
+    }
   }
 }
 
@@ -123,7 +143,7 @@ export async function POST(request: NextRequest) {
   const dayLabel = albumDateRaw ? relativeDayLabel(albumDateRaw) : ''
 
   // Carrega prompts do banco (com fallback para defaults)
-  const { systemPrompt, albumInstructions, standardInstructions } = await loadPrompts()
+  const { systemPrompt, albumInstructions, standardInstructions, fewShotExamples } = await loadPrompts()
 
   const hashtagLine = hashtags
     ? '\n- Inclua de 3 a 8 hashtags relevantes ao final'
@@ -146,12 +166,18 @@ export async function POST(request: NextRequest) {
 - Use emojis com moderação para dar personalidade
 ${albumInstructionsBlock}
 
+Abaixo estão alguns EXEMPLOS de estilo e tom que você deve seguir:
+${fewShotExamples}
+
 Escreva diretamente a legenda, sem prefixos ou labels.`
 
   const textPrompt = isAlbumPost
     ? `Crie uma legenda para ${platformDesc} sobre um evento que já aconteceu e que estamos celebrando.
 
 ${albumInstructionsBlock}${dayLabel ? `\n- Este evento aconteceu ${dayLabel}` : ''}
+
+Abaixo estão alguns EXEMPLOS de estilo e tom que você deve seguir:
+${fewShotExamples}
 
 Detalhes:
 - Tom: ${toneDesc}
@@ -166,6 +192,9 @@ Escreva diretamente a legenda, sem prefixos ou labels.`
 - Máximo de ${maxChars} caracteres${hashtagLine}
 - Use emojis com moderação para dar personalidade
 ${albumInstructionsBlock}
+
+Abaixo estão alguns EXEMPLOS de estilo e tom que você deve seguir:
+${fewShotExamples}
 
 Escreva diretamente a legenda, sem prefixos ou labels.`
 

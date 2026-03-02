@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Calendar, Plus, Link2, Copy, Eye, Trash2, CheckCircle, XCircle, ChevronRight, Loader2, Music, MapPin, CalendarDays, Clock, Sparkles, ArrowLeft, Check, Tags, X, Users } from 'lucide-react'
+import { Calendar, Plus, Link2, Copy, Eye, Trash2, CheckCircle, XCircle, ChevronRight, Loader2, Music, MapPin, CalendarDays, Clock, Sparkles, ArrowLeft, Check, Tags, X, Users, Bell } from 'lucide-react'
 import { PageAccessGuard } from '@/app/admin/PageAccessGuard'
 import { AdminPageHeader } from '@/app/admin/AdminPageHeader'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
@@ -275,13 +275,15 @@ export default function EscalasPage() {
           title="Escalas"
           subtitle="Gere links de disponibilidade por ministério e mês."
           actions={
-            <button
-              type="button"
-              onClick={() => { resetModal(); setModalOpen(true) }}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#c62737] text-white font-semibold hover:bg-[#a62030] transition-all shadow-lg shadow-[#c62737]/20"
-            >
-              <Plus size={18} /> Nova Escala
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => { resetModal(); setModalOpen(true) }}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#c62737] text-white font-semibold hover:bg-[#a62030] transition-all shadow-lg shadow-[#c62737]/20"
+              >
+                <Plus size={18} /> Nova Escala
+              </button>
+            </div>
           }
         />
 

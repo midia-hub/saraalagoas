@@ -27,6 +27,19 @@ REGRAS OBRIGATÓRIAS — siga sem exceção:
 - Convide quem vê a marcar quem estava lá`,
   standard_instructions: `- Se fizer sentido, termine com um convite ou chamada para ação
 - NUNCA mencione fotos ou registros, foque nas pessoas e no impacto`,
+  few_shot_examples: `EXEMPLO 1 (Álbum / Batismo):
+O céu estava em festa ontem! Ver cada vida descendo às águas é a confirmação de que o amor de Jesus continua transformando histórias. 
+
+Que alegria ver essa decisão pública de fé. O batismo não é o fim, mas o começo de uma caminhada extraordinária com o Pai.
+
+Parabéns a todos que deram esse passo. Estamos em família celebrando com vocês! 🔥🙌
+
+EXEMPLO 2 (Post Avulso / Reflexão):
+Às vezes, tudo o que precisamos é parar um pouco e ouvir a voz que acalma a tempestade. 
+
+No meio da correria, nunca esqueça: Aquele que prometeu é fiel para cumprir. Descanse o seu coração na certeza de que Ele está cuidando de tudo.
+
+"O Senhor é o meu pastor; nada me faltará." (Salmos 23:1) 📖✨`,
 }
 
 type PromptKey = keyof typeof DEFAULTS
@@ -37,6 +50,12 @@ const FIELDS: Array<{ key: PromptKey; label: string; description: string; rows: 
     label: 'Prompt do sistema',
     description: 'Instrução base enviada à IA em todas as requisições. Define o tom geral e as regras da geração.',
     rows: 6,
+  },
+  {
+    key: 'few_shot_examples',
+    label: 'Exemplos de Referência (Few-shot)',
+    description: 'Exemplos reais de como você deseja que as legendas sejam escritas. A IA usará isso como base de estilo.',
+    rows: 8,
   },
   {
     key: 'album_instructions',
@@ -65,6 +84,7 @@ function IaConfigContent() {
           system_prompt:        data.system_prompt        ?? prev.system_prompt,
           album_instructions:   data.album_instructions   ?? prev.album_instructions,
           standard_instructions: data.standard_instructions ?? prev.standard_instructions,
+          few_shot_examples:     data.few_shot_examples     ?? prev.few_shot_examples,
         }))
       })
       .catch(() => {/* mantém defaults */})

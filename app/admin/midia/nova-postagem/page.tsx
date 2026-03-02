@@ -44,13 +44,15 @@ import { Toast } from '@/components/Toast'
 // Tipos
 // ─────────────────────────────────────────────────────────────────────────────
 
-type SocialInstance = {
+type PublicationInstance = {
   id: string
   name: string
-  provider: string
-  status: string
-  has_instagram?: boolean
-  has_facebook?: boolean
+  description?: string
+  color?: string
+  has_instagram: boolean
+  has_facebook: boolean
+  has_youtube: boolean
+  accounts?: any[]
 }
 
 /** Tipo de postagem */
@@ -1386,7 +1388,7 @@ const QUICK_EMOJIS = ['😊', '🙏', '🔥', '❤️', '✨', '👏', '🎉', '
 function NovaPostagemContent() {
   const searchParams = useSearchParams()
   const replayId = searchParams?.get('replay') || ''
-  const [instances, setInstances] = useState<SocialInstance[]>([])
+  const [instances, setInstances] = useState<PublicationInstance[]>([])
   const [loadingInstances, setLoadingInstances] = useState(true)
   const [loadingReplay, setLoadingReplay] = useState(false)
 
@@ -1442,8 +1444,8 @@ function NovaPostagemContent() {
   }, [])
 
   useEffect(() => {
-    adminFetchJson<SocialInstance[]>(
-      '/api/admin/instagram/instances?forPosting=1&metaOnly=1'
+    adminFetchJson<PublicationInstance[]>(
+      '/api/admin/publication-groups?forPosting=1'
     )
       .then((data) => setInstances(Array.isArray(data) ? data : []))
       .catch(() => setInstances([]))
@@ -1455,16 +1457,22 @@ function NovaPostagemContent() {
     setLoadingReplay(true)
     adminFetchJson<{
       id: string
+      publication_group_id?: string
       instance_ids?: string[]
       destinations?: { instagram?: boolean; facebook?: boolean }
       caption?: string
       media_specs?: Array<{ id?: string; url?: string }>
     }>(`/api/social/scheduled/${replayId}`)
       .then((post) => {
-        const ids = Array.isArray(post.instance_ids) ? post.instance_ids : []
-        const integrationId = ids.length > 0 ? normalizeIntegrationId(String(ids[0])) : ''
-        if (integrationId) {
-          setSelectedInstanceId(integrationId)
+        if (post.publication_group_id) {
+          setSelectedInstanceId(post.publication_group_id)
+        } else {
+          const ids = Array.isArray(post.instance_ids) ? post.instance_ids : []
+          if (ids.length > 0) {
+            // Nota: Se for um post antigo sem group_id, tentamos mapear se possível, 
+            // mas aqui apenas selecionamos o ID bruto se ele coincidir com algum grupo (improvável)
+            setSelectedInstanceId('') 
+          }
         }
         setDestinations({
           instagram: Boolean(post.destinations?.instagram ?? true),
@@ -1508,12 +1516,7 @@ function NovaPostagemContent() {
   }, [replayId, normalizeIntegrationId, showToast])
 
   useEffect(() => {
-    const normalizedSelectedId = normalizeIntegrationId(selectedInstanceId)
-    const inst = instances.find(
-      (i) =>
-        i.id === selectedInstanceId ||
-        normalizeIntegrationId(i.id) === normalizedSelectedId
-    )
+    const inst = instances.find((i) => i.id === selectedInstanceId)
     if (!inst) return
     const hasIG = inst.has_instagram !== false
     const hasFB = inst.has_facebook !== false
@@ -1527,7 +1530,7 @@ function NovaPostagemContent() {
       }
       return next
     })
-  }, [selectedInstanceId, instances, normalizeIntegrationId])
+  }, [selectedInstanceId, instances])
 
   // Reset capa do Reel quando a mídia ou tipo muda
   useEffect(() => {
@@ -1535,13 +1538,8 @@ function NovaPostagemContent() {
     setReelVideoDurationMs(0)
   }, [media.length, postType])
 
-  const normalizedSelectedId = normalizeIntegrationId(selectedInstanceId)
   const selectedInstance =
-    instances.find(
-      (i) =>
-        i.id === selectedInstanceId ||
-        normalizeIntegrationId(i.id) === normalizedSelectedId
-    ) ?? null
+    instances.find((i) => i.id === selectedInstanceId) ?? null
   const pageName = selectedInstance?.name ?? ''
 
   // ── Adicionar upload local ─────────────────────────────────────────────────
@@ -1638,7 +1636,7 @@ function NovaPostagemContent() {
   async function handlePublish() {
     setNotice(null)
     if (!selectedInstanceId) {
-      showToast('Selecione um perfil.', 'err')
+      showToast('Selecione uma instância.', 'err')
       return
     }
     if (!destinations.instagram && !destinations.facebook) {
@@ -1680,16 +1678,6 @@ function NovaPostagemContent() {
 
     setPublishing(true)
     try {
-      const integrationId = normalizeIntegrationId(selectedInstanceId)
-      if (!integrationId) {
-        throw new Error('Selecione pelo menos uma integraÃ§Ã£o Meta vÃ¡lida.')
-      }
-      const instanceIds: string[] = []
-      if (destinations.instagram)
-        instanceIds.push(`meta_ig:${integrationId}`)
-      if (destinations.facebook)
-        instanceIds.push(`meta_fb:${integrationId}`)
-
       const orderedMedia = media.map((m) =>
         m.type === 'upload'
           ? { type: 'upload' as const, value: m.dataUrl }
@@ -1711,7 +1699,7 @@ function NovaPostagemContent() {
       }>('/api/midia/nova-postagem', {
         method: 'POST',
         body: JSON.stringify({
-          instanceIds,
+          groupId: selectedInstanceId,
           destinations,
           text,
           postType,
@@ -1925,30 +1913,30 @@ function NovaPostagemContent() {
               </h2>
             </div>
             <div className="px-5 py-4 space-y-4">
-              {/* Seletor de conta */}
+              {/* Seletor de instância */}
               {loadingInstances ? (
                 <div className="flex items-center gap-2 text-sm text-slate-400">
-                  <Loader2 className="h-4 w-4 animate-spin" /> Carregando contas…
+                  <Loader2 className="h-4 w-4 animate-spin" /> Carregando instâncias…
                 </div>
               ) : instances.length === 0 ? (
                 <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                  Nenhuma conta conectada.{' '}
+                  Nenhuma instância configurada.{' '}
                   <a
                     href="/admin/instancias"
                     className="font-semibold underline hover:text-amber-900"
                   >
-                    Conectar conta
+                    Configurar instâncias
                   </a>
                 </div>
               ) : (
                 <div>
                   <label className="block text-xs font-medium text-slate-700 mb-1.5">
-                    Conta de destino
+                    Instância de destino
                   </label>
                   <CustomSelect
                     value={selectedInstanceId}
                     onChange={(v) => setSelectedInstanceId(v)}
-                    placeholder="Selecione um perfil…"
+                    placeholder="Selecione uma instância…"
                     options={instances.map((inst) => ({
                       value: inst.id,
                       label: inst.name,
@@ -2038,10 +2026,10 @@ function NovaPostagemContent() {
                     )}
                   </button>
                 </div>
-                {selectedInstance?.has_facebook === false && (
+                {selectedInstanceId && selectedInstance?.has_facebook === false && (
                   <p className="mt-2 flex items-center gap-1.5 text-xs text-amber-600">
                     <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />
-                    Conta sem página do Facebook vinculada.
+                    Esta instância não possui Facebook vinculado.
                   </p>
                 )}
               </div>

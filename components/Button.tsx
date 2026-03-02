@@ -1,11 +1,13 @@
 import React from 'react'
+import { Loader2 } from 'lucide-react'
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'outline'
+  variant?: 'primary' | 'secondary' | 'outline' | 'danger'
   size?: 'sm' | 'md' | 'lg'
   children: React.ReactNode
   asLink?: boolean
   href?: string
+  loading?: boolean
 }
 
 export default function Button({
@@ -15,14 +17,17 @@ export default function Button({
   className = '',
   asLink = false,
   href,
+  loading = false,
+  disabled,
   ...props
 }: ButtonProps) {
-  const baseStyles = 'font-bold rounded-xl transition-all duration-300 inline-flex items-center justify-center gap-2 uppercase tracking-[1px]'
+  const baseStyles = 'font-bold rounded-xl transition-all duration-300 inline-flex items-center justify-center gap-2 uppercase tracking-[1px] disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none'
   
   const variantStyles = {
     primary: 'bg-sara-cta text-white hover:-translate-y-[3px] shadow-lg hover:shadow-sara-cta-hover active:-translate-y-[1px]',
     secondary: 'bg-sara-gray-dark text-white hover:-translate-y-[3px] shadow-lg hover:shadow-sara-cta-hover active:-translate-y-[1px]',
     outline: 'border-2 border-sara-red text-sara-red hover:bg-sara-red hover:text-white hover:-translate-y-[3px]',
+    danger: 'bg-red-600 text-white hover:-translate-y-[3px] shadow-lg hover:shadow-red-600/20 active:-translate-y-[1px]',
   }
   
   const sizeStyles = {
@@ -47,7 +52,12 @@ export default function Button({
   }
   
   return (
-    <button className={combinedClassName} {...props}>
+    <button 
+      className={combinedClassName} 
+      disabled={disabled || loading}
+      {...props}
+    >
+      {loading && <Loader2 className="w-4 h-4 animate-spin" />}
       {children}
     </button>
   )

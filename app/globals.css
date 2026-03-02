@@ -117,14 +117,15 @@
   0% {
     transform: translateX(0);
   }
-
   100% {
     transform: translateX(-50%);
   }
 }
 
 .animate-gallery-scroll {
-  animation: gallery-scroll linear infinite;
+  animation: gallery-scroll linear infinite !important;
+  display: flex !important;
+  width: max-content !important;
 }
 
 .home-content-ready {

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Save, Shield, AlertCircle, Loader2, Eye, Pencil, PlusCircle, Trash2, Zap, User, X } from 'lucide-react'
+import { Save, Shield, AlertCircle, Loader2, Eye, Pencil, PlusCircle, Trash2, Zap, User, X, CheckCircle2, ChevronDown, ListTree } from 'lucide-react'
 import { useRouter, useParams } from 'next/navigation'
 import { useRBAC } from '@/lib/hooks/useRBAC'
 import { PageAccessGuard } from '@/app/admin/PageAccessGuard'
@@ -11,6 +11,7 @@ import { adminFetchJson } from '@/lib/admin-client'
 import { Toast } from '@/components/Toast'
 import type { Role, Resource, Permission } from '@/lib/rbac-types'
 import { menuModules } from '../../menu-config'
+import { PermissionTree } from '../PermissionTree'
 
 interface RoleWithPermissions extends Role {
   role_permissions?: Array<{
@@ -71,6 +72,7 @@ export default function EditRolePage() {
   const [availableUsers, setAvailableUsers] = useState<RoleUser[]>([])
   const [selectedUserId, setSelectedUserId] = useState('')
   const [savingUserAction, setSavingUserAction] = useState(false)
+  const [usersExpanded, setUsersExpanded] = useState(false)
 
 
   async function loadRoleUsers() {
@@ -201,6 +203,17 @@ export default function EditRolePage() {
       const prevResource = prev[resourceId] || {}
       const newResource = { ...prevResource, [permissionId]: !prevResource[permissionId] }
       return { ...prev, [resourceId]: newResource }
+    })
+  }
+
+  function handleModuleToggle(resourceIds: string[], permissionId: string, value: boolean) {
+    setSelectedPermissions((prev) => {
+      const next = { ...prev }
+      resourceIds.forEach(resId => {
+        const currentResource = next[resId] || {}
+        next[resId] = { ...currentResource, [permissionId]: value }
+      })
+      return next
     })
   }
 
@@ -460,266 +473,137 @@ export default function EditRolePage() {
 
           {/* Card de usuários da role */}
           {!isNew && (
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-              <div className="flex items-center justify-between mb-5">
-                <h2 className="text-base font-bold text-slate-800 flex items-center gap-2">
-                  <User className="w-4 h-4 text-sky-500" /> Usuários com esta função
-                </h2>
-                <span className="text-sm font-semibold px-3 py-1 rounded-full bg-sky-100 text-sky-700">
-                  {roleUsers.length} usuário{roleUsers.length !== 1 ? 's' : ''}
-                </span>
-              </div>
-
-              <div className="mb-4 p-4 rounded-2xl border border-slate-200 bg-gradient-to-br from-white to-slate-50">
-                <div className="flex items-center justify-between mb-3">
-                  <p className="text-xs font-bold text-slate-700 uppercase tracking-wider">Adicionar usuário pela Pessoa vinculada</p>
-                  {availableUsers.length > 0 && (
-                    <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700">
-                      {availableUsers.length} disponível{availableUsers.length !== 1 ? 's' : ''}
-                    </span>
-                  )}
-                </div>
-                <div className="flex flex-col md:flex-row gap-3">
-                  <div className="flex-1">
-                    <CustomSelect
-                      value={selectedUserId}
-                      onChange={setSelectedUserId}
-                      disabled={savingUserAction || availableUsers.length === 0}
-                      placeholder="Selecione um usuário (Pessoa)"
-                      searchPlaceholder="Pesquisar por nome ou email..."
-                      showIcon={true}
-                      options={availableUsers.map((u) => ({
-                        value: u.id,
-                        label: u.people?.full_name || u.full_name || u.email || u.id,
-                        description: u.email || 'sem email',
-                      }))}
-                    />
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setUsersExpanded(!usersExpanded)}
+                className="w-full flex items-center justify-between p-6 hover:bg-slate-50 transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-sky-50 flex items-center justify-center">
+                    <User className="w-5 h-5 text-sky-500" />
                   </div>
-                  <button
-                    type="button"
-                    onClick={handleAddUserToRole}
-                    disabled={!selectedUserId || savingUserAction}
-                    className="px-6 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 md:whitespace-nowrap"
-                  >
-                    {savingUserAction ? (
-                      <>
-                        <span className="inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        Salvando...
-                      </>
-                    ) : (
-                      '+ Adicionar'
-                    )}
-                  </button>
+                  <div className="text-left">
+                    <h2 className="text-base font-bold text-slate-800">
+                      Usuários com esta função
+                    </h2>
+                    <p className="text-xs text-slate-500">
+                      {roleUsers.length} usuário{roleUsers.length !== 1 ? 's' : ''} vinculado{roleUsers.length !== 1 ? 's' : ''}
+                    </p>
+                  </div>
                 </div>
-                <p className="text-[11px] text-slate-500 mt-3 flex items-center gap-1.5">
-                  <span className="text-xs">ℹ️</span>
-                  Somente usuários já vinculados a uma Pessoa aparecem na lista.
-                </p>
-              </div>
+                <div className={`p-2 rounded-lg bg-slate-100 text-slate-500 transition-transform duration-200 ${usersExpanded ? 'rotate-180' : ''}`}>
+                  <ChevronDown size={20} />
+                </div>
+              </button>
 
-              {loadingUsers ? (
-                <div className="py-8 text-center">
-                  <div className="w-6 h-6 border-2 border-slate-300 border-t-[#c62737] rounded-full animate-spin mx-auto" />
-                </div>
-              ) : roleUsers.length === 0 ? (
-                <div className="py-8 text-center text-slate-500 text-sm border border-dashed border-slate-200 rounded-lg">
-                  Nenhum usuário tem esta função
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {roleUsers.map((user) => (
-                    <div
-                      key={user.id}
-                      className="flex items-center justify-between p-3 rounded-xl border border-slate-200 hover:bg-slate-50 transition-colors"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-sky-100 flex items-center justify-center flex-shrink-0">
-                          <User className="w-4 h-4 text-sky-600" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-slate-800">{user.people?.full_name || user.full_name || user.email}</p>
-                          <p className="text-xs text-slate-500">{user.email}</p>
-                          {user.person_id && (
-                            <button
-                              type="button"
-                              onClick={() => router.push(`/admin/pessoas/${user.person_id}`)}
-                              className="text-[11px] text-[#c62737] hover:underline mt-0.5"
-                            >
-                              Ver cadastro da Pessoa
-                            </button>
-                          )}
-                        </div>
+              {usersExpanded && (
+                <div className="p-6 border-t border-slate-100 space-y-6 animate-in fade-in slide-in-from-top-2 duration-300">
+                  <div className="p-4 rounded-2xl border border-slate-200 bg-gradient-to-br from-white to-slate-50">
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="text-xs font-bold text-slate-700 uppercase tracking-wider">Adicionar usuário pela Pessoa vinculada</p>
+                      {availableUsers.length > 0 && (
+                        <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700">
+                          {availableUsers.length} disponível{availableUsers.length !== 1 ? 's' : ''}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex flex-col md:flex-row gap-3">
+                      <div className="flex-1">
+                        <CustomSelect
+                          value={selectedUserId}
+                          onChange={setSelectedUserId}
+                          disabled={savingUserAction || availableUsers.length === 0}
+                          placeholder="Selecione um usuário (Pessoa)"
+                          searchPlaceholder="Pesquisar por nome ou email..."
+                          showIcon={true}
+                          options={availableUsers.map((u) => ({
+                            value: u.id,
+                            label: u.people?.full_name || u.full_name || u.email || u.id,
+                            description: u.email || 'sem email',
+                          }))}
+                        />
                       </div>
                       <button
                         type="button"
-                        onClick={() => handleRemoveUserFromRole(user.id)}
-                        disabled={savingUserAction}
-                        className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition disabled:opacity-40"
-                        title="Remover usuário desta função"
+                        onClick={handleAddUserToRole}
+                        disabled={!selectedUserId || savingUserAction}
+                        className="px-6 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 md:whitespace-nowrap"
                       >
-                        <X className="w-4 h-4" />
+                        {savingUserAction ? (
+                          <>
+                            <span className="inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            Salvando...
+                          </>
+                        ) : (
+                          '+ Adicionar'
+                        )}
                       </button>
                     </div>
-                  ))}
+                    <p className="text-[11px] text-slate-500 mt-3 flex items-center gap-1.5">
+                      <span className="text-xs">ℹ️</span>
+                      Somente usuários já vinculados a uma Pessoa aparecem na lista.
+                    </p>
+                  </div>
+
+                  {loadingUsers ? (
+                    <div className="py-8 text-center">
+                      <div className="w-6 h-6 border-2 border-slate-300 border-t-[#c62737] rounded-full animate-spin mx-auto" />
+                    </div>
+                  ) : roleUsers.length === 0 ? (
+                    <div className="py-8 text-center text-slate-500 text-sm border border-dashed border-slate-200 rounded-lg">
+                      Nenhum usuário tem esta função
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {roleUsers.map((user) => (
+                        <div
+                          key={user.id}
+                          className="flex items-center justify-between p-3 rounded-xl border border-slate-200 hover:bg-slate-50 transition-colors"
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-8 h-8 rounded-full bg-sky-100 flex items-center justify-center flex-shrink-0">
+                              <User className="w-4 h-4 text-sky-600" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold text-slate-800 truncate">{user.people?.full_name || user.full_name || user.email}</p>
+                              <p className="text-[11px] text-slate-500 truncate">{user.email}</p>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveUserFromRole(user.id)}
+                            disabled={savingUserAction}
+                            className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition disabled:opacity-40"
+                            title="Remover usuário desta função"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
           )}
 
           {!formData.is_admin && (isNew || !role?.is_system) && (
-            <div className="space-y-4">
-              <h2 className="text-base font-bold text-slate-800 px-1 flex items-center gap-2">
-                <Zap className="w-4 h-4 text-violet-500" /> Permissões por Módulo
-              </h2>
+            <div className="space-y-6">
+              <div className="flex items-center justify-between px-1">
+                <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                  <ListTree className="w-5 h-5 text-[#c62737]" /> Permissões de Acesso
+                </h2>
+              </div>
 
-              {menuModules.filter(m => m.id !== 'dashboard').map((module) => {
-                const moduleResources = resources.filter(res =>
-                  res.key === module.permission ||
-                  module.items.some(item => item.permission === res.key)
-                )
-                if (moduleResources.length === 0) return null
-
-                // Count selected permissions for this module
-                const totalPossible = moduleResources.length * permissions.length
-                const totalSelected = moduleResources.reduce((acc, res) => {
-                  return acc + permissions.filter(p => selectedPermissions[res.id]?.[p.id]).length
-                }, 0)
-
-                return (
-                  <div key={module.id} className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                    <div className="bg-slate-50 px-5 py-3.5 border-b border-slate-200 flex items-center gap-3">
-                      <div className="p-2 bg-white rounded-xl shadow-sm">
-                        <module.icon size={18} className="text-[#c62737]" />
-                      </div>
-                      <div className="flex-1">
-                        <h3 className="font-bold text-slate-800 text-sm">{module.title}</h3>
-                      </div>
-                      {totalSelected > 0 && (
-                        <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-[#c62737]/10 text-[#c62737]">
-                          {totalSelected}/{totalPossible}
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="p-5 space-y-5">
-                      {moduleResources.map((resource) => (
-                        <div key={resource.id} className="space-y-2.5">
-                          <div className="flex items-center justify-between gap-2">
-                            <div>
-                              <h4 className="text-sm font-semibold text-slate-700">{resource.name}</h4>
-                              {resource.description && (
-                                <p className="text-xs text-slate-400">{resource.description}</p>
-                              )}
-                            </div>
-                            {/* Select all for resource */}
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const allSelected = permissions.every(p => selectedPermissions[resource.id]?.[p.id])
-                                if (allSelected) {
-                                  // deselect all
-                                  setSelectedPermissions(prev => ({ ...prev, [resource.id]: {} }))
-                                } else {
-                                  // select all
-                                  const all: Record<string, boolean> = {}
-                                  permissions.forEach(p => { all[p.id] = true })
-                                  setSelectedPermissions(prev => ({ ...prev, [resource.id]: all }))
-                                }
-                              }}
-                              className={`text-[10px] font-bold px-2.5 py-1 rounded-lg border transition-colors flex-shrink-0 ${
-                                permissions.every(p => selectedPermissions[resource.id]?.[p.id])
-                                  ? 'bg-violet-600 border-violet-600 text-white'
-                                  : 'bg-white border-slate-200 text-slate-400 hover:border-violet-400 hover:text-violet-600'
-                              }`}
-                            >
-                              TUDO
-                            </button>
-                          </div>
-
-                          <div className="flex flex-wrap gap-2">
-                            {permissions.map((permission) => {
-                              const checked = selectedPermissions[resource.id]?.[permission.id] || false
-                              const style = actionStyle(permission.action)
-                              return (
-                                <label
-                                  key={permission.id}
-                                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all cursor-pointer select-none ${
-                                    checked
-                                      ? style.pill + ' shadow-sm'
-                                      : 'bg-slate-50 border-transparent text-slate-400 hover:bg-slate-100 hover:text-slate-600'
-                                  }`}
-                                >
-                                  <input
-                                    type="checkbox"
-                                    checked={checked}
-                                    onChange={() => togglePermission(resource.id, permission.id)}
-                                    className="sr-only"
-                                  />
-                                  {checked && style.icon}
-                                  <span className="text-[11px] font-bold uppercase tracking-wider">{permission.name}</span>
-                                </label>
-                              )
-                            })}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )
-              })}
-
-              {/* Orphan resources */}
-              {resources.filter(res =>
-                res.key !== 'dashboard' &&
-                !menuModules.some(m =>
-                  res.key === m.permission ||
-                  m.items.some(item => item.permission === res.key)
-                )
-              ).length > 0 && (
-                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                  <div className="bg-slate-50 px-5 py-3.5 border-b border-slate-200">
-                    <h3 className="font-bold text-slate-800 text-sm">Outros Recursos</h3>
-                  </div>
-                  <div className="p-5 space-y-5">
-                    {resources.filter(res =>
-                      res.key !== 'dashboard' &&
-                      !menuModules.some(m =>
-                        res.key === m.permission ||
-                        m.items.some(item => item.permission === res.key)
-                      )
-                    ).map((resource) => (
-                      <div key={resource.id} className="space-y-2.5">
-                        <h4 className="text-sm font-semibold text-slate-700">{resource.name}</h4>
-                        <div className="flex flex-wrap gap-2">
-                          {permissions.map((permission) => {
-                            const checked = selectedPermissions[resource.id]?.[permission.id] || false
-                            const style = actionStyle(permission.action)
-                            return (
-                              <label
-                                key={permission.id}
-                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all cursor-pointer select-none ${
-                                  checked
-                                    ? style.pill + ' shadow-sm'
-                                    : 'bg-slate-50 border-transparent text-slate-400 hover:bg-slate-100'
-                                }`}
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={checked}
-                                  onChange={() => togglePermission(resource.id, permission.id)}
-                                  className="sr-only"
-                                />
-                                {checked && style.icon}
-                                <span className="text-[11px] font-bold uppercase tracking-wider">{permission.name}</span>
-                              </label>
-                            )
-                          })}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+              <PermissionTree
+                resources={resources}
+                permissions={permissions}
+                selectedPermissions={selectedPermissions}
+                onChange={togglePermission}
+                onToggleModule={handleModuleToggle}
+                readOnly={!canEditRole}
+              />
             </div>
           )}
 
