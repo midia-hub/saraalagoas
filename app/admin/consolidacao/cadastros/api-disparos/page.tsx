@@ -427,7 +427,6 @@ export default function ApiDisparosPage() {
               </div>
             </div>
           )}
-        </div>
       </div>
     </PageAccessGuard>
   )
