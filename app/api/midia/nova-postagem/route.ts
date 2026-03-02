@@ -235,7 +235,6 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  const db = createSupabaseServerClient(request)
   const userId = access.snapshot.userId
   const batchKey = `direct-${Date.now()}-${userId.slice(0, 8)}`
 
