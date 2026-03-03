@@ -189,7 +189,7 @@ export async function POST(request: NextRequest) {
       ? body.scheduledAt.trim()
       : null
 
-  const userId = access.user.id
+  const userId = access.snapshot.userId
   const batchKey = `${Date.now()}-${userId}`
 
   // Processar capa customizada se existir
