@@ -9,6 +9,7 @@ import {
   Facebook, Instagram, Youtube, CheckCircle, XCircle, AlertCircle,
   Loader2, Layers, Trash2, Video, Plus, Pencil, Link2,
   ChevronDown, ChevronUp, Settings, Users, UserCheck, UserMinus,
+  Music2,
 } from 'lucide-react'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { CustomSelect } from '@/components/ui/CustomSelect'
@@ -55,10 +56,23 @@ type YouTubeIntegration = {
   metadata: Record<string, unknown>
 }
 
+type TikTokIntegration = {
+  id: string
+  created_at: string
+  updated_at: string
+  open_id: string | null
+  display_name: string | null
+  handle: string | null
+  avatar_url: string | null
+  token_expires_at: string | null
+  is_active: boolean
+  metadata: Record<string, unknown>
+}
+
 type GroupAccount = {
   id: string
   group_id: string
-  account_type: 'meta' | 'youtube'
+  account_type: 'meta' | 'youtube' | 'tiktok'
   account_id: string
 }
 
@@ -122,6 +136,14 @@ export default function AdminInstanciasPage() {
     videoUrl: '', title: '', description: '', privacyStatus: 'public', tags: '',
   })
   const [ytPosting, setYtPosting] = useState(false)
+
+  // ── Estado: TikTok ──
+  const [tkIntegrations, setTkIntegrations] = useState<TikTokIntegration[]>([])
+  const [tkLoading, setTkLoading] = useState(true)
+  const [tkConnecting, setTkConnecting] = useState(false)
+  const [tkTogglingId, setTkTogglingId] = useState<string | null>(null)
+  const [tkDeletingId, setTkDeletingId] = useState<string | null>(null)
+  const [tkDeleteConfirmId, setTkDeleteConfirmId] = useState<string | null>(null)
 
   // ── Estado: instâncias ──
   const [groups, setGroups] = useState<PublicationGroup[]>([])
@@ -190,6 +212,18 @@ export default function AdminInstanciasPage() {
     }
   }, [])
 
+  const loadTkIntegrations = useCallback(async () => {
+    setTkLoading(true)
+    try {
+      const integrations = await adminFetchJson<TikTokIntegration[]>('/api/admin/tiktok/integrations')
+      setTkIntegrations(integrations || [])
+    } catch {
+      setTkIntegrations([])
+    } finally {
+      setTkLoading(false)
+    }
+  }, [])
+
   const loadGroups = useCallback(async () => {
     setGroupsLoading(true)
     try {
@@ -246,8 +280,9 @@ export default function AdminInstanciasPage() {
   useEffect(() => {
     loadIntegrations()
     loadYtIntegrations()
+    loadTkIntegrations()
     loadGroups()
-  }, [loadIntegrations, loadYtIntegrations, loadGroups])
+  }, [loadIntegrations, loadYtIntegrations, loadTkIntegrations, loadGroups])
 
   // Tratar retorno OAuth por query params
   useEffect(() => {
@@ -485,6 +520,79 @@ export default function AdminInstanciasPage() {
   }
 
   // ───────────────────────────────────────────────────────────────────────────
+  // Funções: TikTok
+  // ───────────────────────────────────────────────────────────────────────────
+
+  async function handleConnectTikTok() {
+    setTkConnecting(true)
+    setError(null)
+    try {
+      const data = await adminFetchJson<{ url: string }>('/api/tiktok/oauth/start?popup=1')
+      const width = 520, height = 700
+      const left = Math.round((window.screen.width - width) / 2)
+      const top = Math.round((window.screen.height - height) / 2)
+      const popup = window.open(data.url, 'tiktok-oauth', `width=${width},height=${height},left=${left},top=${top},scrollbars=yes,resizable=yes`)
+      if (!popup) {
+        setError('Popup bloqueado.')
+        setTkConnecting(false)
+        return
+      }
+      const handleMsg = (event: MessageEvent) => {
+        if (event.origin !== window.location.origin) return
+        if (event.data?.type !== 'tiktok-oauth-done') return
+        window.removeEventListener('message', handleMsg)
+        clearInterval(timer)
+        setTkConnecting(false)
+        if (event.data.connected) {
+          const label = event.data.display_name ? `Perfil: ${event.data.display_name}` : 'Perfil conectado!'
+          setSuccess(`TikTok conectado! ${label}`)
+          loadTkIntegrations()
+        } else {
+          setError(event.data.error || 'Não foi possível conectar o TikTok.')
+        }
+      }
+      const timer = setInterval(() => {
+        if (popup.closed) { clearInterval(timer); window.removeEventListener('message', handleMsg); setTkConnecting(false) }
+      }, 400)
+      window.addEventListener('message', handleMsg)
+    } catch (e) {
+      setTkConnecting(false)
+      setError(e instanceof Error ? e.message : 'Erro ao conectar TikTok.')
+    }
+  }
+
+  async function handleToggleTikTokActive(id: string, current: boolean) {
+    setTkTogglingId(id)
+    try {
+      await adminFetchJson(`/api/admin/tiktok/integrations/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ is_active: !current }),
+      })
+      await loadTkIntegrations()
+    } catch {
+      setError('Não foi possível atualizar o TikTok.')
+    } finally {
+      setTkTogglingId(null)
+    }
+  }
+
+  async function confirmDeleteTikTok() {
+    const id = tkDeleteConfirmId
+    if (!id) return
+    setTkDeletingId(id)
+    setTkDeleteConfirmId(null)
+    try {
+      await adminFetchJson(`/api/admin/tiktok/integrations/${id}`, { method: 'DELETE' })
+      setSuccess('Perfil do TikTok removido.')
+      await loadTkIntegrations()
+    } catch {
+      setError('Não foi possível remover o TikTok.')
+    } finally {
+      setTkDeletingId(null)
+    }
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
   // Funções: Grupos (Instâncias)
   // ───────────────────────────────────────────────────────────────────────────
 
@@ -546,7 +654,7 @@ export default function AdminInstanciasPage() {
 
   async function handleToggleGroupAccount(
     groupId: string,
-    accountType: 'meta' | 'youtube',
+    accountType: 'meta' | 'youtube' | 'tiktok',
     accountId: string,
     isLinkedNow: boolean
   ) {
@@ -610,11 +718,13 @@ export default function AdminInstanciasPage() {
   function getGroupAccountDetails(group: PublicationGroup) {
     const metaIds = group.accounts.filter((a) => a.account_type === 'meta').map((a) => a.account_id)
     const ytIds = group.accounts.filter((a) => a.account_type === 'youtube').map((a) => a.account_id)
+    const tkIds = group.accounts.filter((a) => a.account_type === 'tiktok').map((a) => a.account_id)
     const metaAccounts = integrations.filter((i) => metaIds.includes(i.id))
     const ytAccounts = ytIntegrations.filter((i) => ytIds.includes(i.id))
+    const tkAccounts = tkIntegrations.filter((i) => tkIds.includes(i.id))
     const igAccounts = metaAccounts.filter((i) => i.instagram_username)
     const fbAccounts = metaAccounts.filter((i) => i.page_id)
-    return { igAccounts, fbAccounts, ytAccounts }
+    return { igAccounts, fbAccounts, ytAccounts, tkAccounts }
   }
 
   const manageGroup = groups.find((g) => g.id === manageAccountsGroupId) ?? null
@@ -682,7 +792,7 @@ export default function AdminInstanciasPage() {
           ) : (
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {groups.map((group) => {
-                const { igAccounts, fbAccounts, ytAccounts } = getGroupAccountDetails(group)
+                const { igAccounts, fbAccounts, ytAccounts, tkAccounts } = getGroupAccountDetails(group)
                 const isBeingDeleted = deletingGroupId === group.id
                 return (
                   <div
@@ -773,6 +883,20 @@ export default function AdminInstanciasPage() {
                             </div>
                           )}
                         </div>
+                        <div className="flex items-start gap-2">
+                          <Music2 size={14} className="text-slate-900 mt-0.5 shrink-0" />
+                          {tkAccounts.length === 0 ? (
+                            <span className="text-xs text-slate-400">Nenhum TikTok vinculado</span>
+                          ) : (
+                            <div className="flex flex-wrap gap-1">
+                              {tkAccounts.map((tk) => (
+                                <span key={tk.id} className="text-xs bg-slate-100 text-slate-800 px-2 py-0.5 rounded-full border border-slate-200">
+                                  {tk.display_name || tk.handle || 'TikTok'}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
 
@@ -808,7 +932,7 @@ export default function AdminInstanciasPage() {
               <Link2 size={18} className="text-slate-500" />
               <span className="font-semibold text-slate-900">Contas conectadas</span>
               <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">
-                {loading ? '…' : integrations.length} Meta · {ytLoading ? '…' : ytIntegrations.length} YouTube
+                {loading ? '…' : integrations.length} Meta · {ytLoading ? '…' : ytIntegrations.length} YouTube · {tkLoading ? '…' : tkIntegrations.length} TikTok
               </span>
             </div>
             {accountsSectionOpen ? <ChevronUp size={18} className="text-slate-400" /> : <ChevronDown size={18} className="text-slate-400" />}
@@ -833,6 +957,14 @@ export default function AdminInstanciasPage() {
                 >
                   {ytConnecting ? <Loader2 size={16} className="animate-spin" /> : <Youtube size={16} />}
                   {ytConnecting ? 'Abrindo login...' : 'Conectar YouTube'}
+                </button>
+                <button
+                  onClick={handleConnectTikTok}
+                  disabled={tkConnecting}
+                  className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm text-white font-medium hover:bg-black disabled:opacity-60 transition-colors"
+                >
+                  {tkConnecting ? <Loader2 size={16} className="animate-spin" /> : <Music2 size={16} />}
+                  {tkConnecting ? 'Abrindo login...' : 'Conectar TikTok'}
                 </button>
               </div>
 
@@ -983,6 +1115,59 @@ export default function AdminInstanciasPage() {
                             </button>
                             <button onClick={() => setYtDeleteConfirmId(yt.id)} disabled={ytDeletingId === yt.id} className="rounded-lg border border-red-300 px-2.5 py-1 text-xs text-red-700 hover:bg-red-50 inline-flex items-center gap-1 disabled:opacity-50">
                               {ytDeletingId === yt.id ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />} Remover
+                            </button>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* TikTok */}
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-3">Contas TikTok</p>
+                {tkLoading ? (
+                  <div className="flex items-center justify-center py-6"><Loader2 size={20} className="animate-spin text-slate-400" /></div>
+                ) : tkIntegrations.length === 0 ? (
+                  <p className="text-sm text-slate-500">Nenhuma conta TikTok conectada.</p>
+                ) : (
+                  <div className="rounded-xl border border-slate-200 divide-y divide-slate-100">
+                    {tkIntegrations.map((tk) => {
+                      const expired = tk.token_expires_at ? new Date(tk.token_expires_at) < new Date() : false
+                      return (
+                        <div key={tk.id} className="p-4 flex flex-wrap items-start justify-between gap-3 hover:bg-slate-50">
+                          <div className="flex items-center gap-3 min-w-0">
+                            {tk.avatar_url ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={tk.avatar_url} alt={tk.display_name ?? ''} className="w-9 h-9 rounded-full border border-slate-200 shrink-0" />
+                            ) : (
+                              <div className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center shrink-0">
+                                <Music2 size={16} className="text-slate-600" />
+                              </div>
+                            )}
+                            <div>
+                              <div className="flex items-center gap-2 mb-0.5">
+                                {tk.is_active && !expired
+                                  ? <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700"><CheckCircle size={11} /> Ativo</span>
+                                  : expired
+                                    ? <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700"><XCircle size={11} /> Expirado</span>
+                                    : <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600"><XCircle size={11} /> Inativo</span>
+                                }
+                                <span className="font-medium text-sm text-slate-900">{tk.display_name || tk.handle || 'TikTok'}</span>
+                              </div>
+                              {tk.handle && <p className="text-xs text-slate-500">{tk.handle}</p>}
+                            </div>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5 shrink-0">
+                            {expired && (
+                              <button onClick={handleConnectTikTok} disabled={tkConnecting} className="rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs text-amber-800 hover:bg-amber-100 disabled:opacity-50">Reconectar</button>
+                            )}
+                            <button onClick={() => handleToggleTikTokActive(tk.id, tk.is_active)} disabled={tkTogglingId === tk.id} className="rounded-lg border border-slate-300 px-2.5 py-1 text-xs hover:bg-slate-100 disabled:opacity-50">
+                              {tkTogglingId === tk.id ? <Loader2 size={12} className="animate-spin" /> : (tk.is_active ? 'Desativar' : 'Ativar')}
+                            </button>
+                            <button onClick={() => setTkDeleteConfirmId(tk.id)} disabled={tkDeletingId === tk.id} className="rounded-lg border border-red-300 px-2.5 py-1 text-xs text-red-700 hover:bg-red-50 inline-flex items-center gap-1 disabled:opacity-50">
+                              {tkDeletingId === tk.id ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />} Remover
                             </button>
                           </div>
                         </div>
@@ -1201,6 +1386,44 @@ export default function AdminInstanciasPage() {
                               <div>
                                 <p className="text-sm font-medium text-slate-800">{yt.channel_title || 'Canal sem nome'}</p>
                                 {yt.channel_custom_url && <p className="text-xs text-slate-500">{yt.channel_custom_url}</p>}
+                              </div>
+                            </div>
+                          </label>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* TikTok */}
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2 flex items-center gap-1.5">
+                    <Music2 size={13} className="text-slate-900" /> Contas TikTok
+                  </p>
+                  {tkIntegrations.length === 0 ? (
+                    <p className="text-sm text-slate-400">Nenhuma conta TikTok conectada ainda.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {tkIntegrations.map((tk) => {
+                        const isSelected = manageGroup.accounts.some((a) => a.account_type === 'tiktok' && a.account_id === tk.id)
+                        return (
+                          <label key={tk.id} className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${isSelected ? 'border-[#c62737]/40 bg-[#c62737]/5' : 'border-slate-200 hover:bg-slate-50'}`}>
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              disabled={accountsUpdating}
+                              onChange={() => handleToggleGroupAccount(manageGroup.id, 'tiktok', tk.id, isSelected)}
+                              className="mt-0.5 accent-[#c62737]"
+                            />
+                            <div className="flex items-center gap-2 min-w-0">
+                              {tk.avatar_url
+                                // eslint-disable-next-line @next/next/no-img-element
+                                ? <img src={tk.avatar_url} alt={tk.display_name ?? ''} className="w-7 h-7 rounded-full border border-slate-200 shrink-0" />
+                                : <div className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center shrink-0"><Music2 size={13} className="text-slate-600" /></div>
+                              }
+                              <div>
+                                <p className="text-sm font-medium text-slate-800">{tk.display_name || tk.handle || 'TikTok'}</p>
+                                {tk.handle && <p className="text-xs text-slate-500">{tk.handle}</p>}
                               </div>
                             </div>
                           </label>
@@ -1436,6 +1659,16 @@ export default function AdminInstanciasPage() {
           variant="danger"
           onConfirm={confirmDeleteYoutube}
           onCancel={() => setYtDeleteConfirmId(null)}
+        />
+
+        <ConfirmDialog
+          open={!!tkDeleteConfirmId}
+          title="Remover perfil do TikTok"
+          message="O perfil será desconectado da plataforma. Para reconectar, faça o login novamente."
+          confirmLabel="Remover perfil"
+          variant="danger"
+          onConfirm={confirmDeleteTikTok}
+          onCancel={() => setTkDeleteConfirmId(null)}
         />
 
         <ConfirmDialog

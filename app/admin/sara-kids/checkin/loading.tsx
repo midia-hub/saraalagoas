@@ -1,1 +1,3 @@
-export { default } from '@/app/admin/loading'
+export default function SaraKidsCheckinLoading() {
+	return null
+}

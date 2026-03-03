@@ -4,8 +4,8 @@ import { createSupabaseServerClient } from '@/lib/supabase-server'
 
 /**
  * POST /api/admin/publication-groups/[id]/accounts
- * Vincula uma conta (meta ou youtube) a um grupo.
- * Body: { account_type: 'meta' | 'youtube', account_id: string }
+ * Vincula uma conta (meta, youtube ou tiktok) a um grupo.
+ * Body: { account_type: 'meta' | 'youtube' | 'tiktok', account_id: string }
  */
 export async function POST(
   request: NextRequest,
@@ -19,7 +19,7 @@ export async function POST(
   if (!body.account_type || !body.account_id) {
     return NextResponse.json({ error: 'account_type e account_id são obrigatórios.' }, { status: 400 })
   }
-  if (!['meta', 'youtube'].includes(body.account_type)) {
+  if (!['meta', 'youtube', 'tiktok'].includes(body.account_type)) {
     return NextResponse.json({ error: 'account_type inválido.' }, { status: 400 })
   }
 
