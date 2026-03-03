@@ -501,6 +501,7 @@ export async function getInstagramMediaContainerStatus(params: {
 
   const response = await fetch(`${META_API_BASE}/${containerId}?${query.toString()}`, {
     method: 'GET',
+    cache: 'no-store', // Garantir que não use cache no status de processamento
   })
 
   if (!response.ok) {
