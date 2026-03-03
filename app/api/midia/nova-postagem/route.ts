@@ -140,6 +140,11 @@ export async function POST(request: NextRequest) {
       ? Math.round(body.thumbOffset)
       : undefined
 
+  const customCover: string | undefined =
+    postType === 'reel' && typeof body.customCover === 'string' && body.customCover.startsWith('data:image/')
+      ? body.customCover
+      : undefined
+
   // Mídia pode vir como lista ordenada com tipo: { type: 'upload'|'gallery', value: string }[]
   // OU no formato legado com arrays separados (imageDataUrls + galleryFileIds)
   type MediaEntry =
@@ -183,6 +188,23 @@ export async function POST(request: NextRequest) {
     typeof body.scheduledAt === 'string' && body.scheduledAt.trim()
       ? body.scheduledAt.trim()
       : null
+
+  const userId = access.user.id
+  const batchKey = `${Date.now()}-${userId}`
+
+  // Processar capa customizada se existir
+  let customCoverPublicUrl: string | undefined = undefined
+  if (customCover) {
+    try {
+      customCoverPublicUrl = await uploadBase64ToStorage(
+        db,
+        customCover,
+        `direct/${batchKey}/reel_cover.jpg`
+      )
+    } catch (e) {
+      console.error('[nova-postagem] erro ao subir capa customizada:', e)
+    }
+  }
 
   // Validações
   if (instanceIds.length === 0) {
@@ -340,7 +362,8 @@ export async function POST(request: NextRequest) {
       imageUrls: mediaUrls,
       postType,
       isVideo: isVideoMedia,
-      ...(thumbOffset !== undefined ? { thumbOffset } : {}),
+      ...(customCoverPublicUrl ? { coverUrl: customCoverPublicUrl } : {}),
+      ...(!customCoverPublicUrl && thumbOffset !== undefined ? { thumbOffset } : {}),
     })
 
     const successCount = metaResults.filter((r) => r.ok).length

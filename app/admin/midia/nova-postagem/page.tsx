@@ -119,6 +119,45 @@ function fileToBase64(file: File): Promise<string> {
   })
 }
 
+/**
+ * Redimensiona e comprime uma imagem no cliente antes de enviar ao servidor.
+ * Ajuda a evitar erros 413 Payload Too Large.
+ */
+async function compressImageClient(dataUrl: string, maxWidth = 1200, quality = 0.8): Promise<string> {
+  // Se não for imagem, retorna original (ex: vídeo)
+  if (!dataUrl.startsWith('data:image/')) return dataUrl
+
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => {
+      let width = img.width
+      let height = img.height
+
+      // Redimensionar mantendo proporção se exceder maxWidth
+      if (width > maxWidth) {
+        height = Math.round((height * maxWidth) / width)
+        width = maxWidth
+      }
+
+      const canvas = document.createElement('canvas')
+      canvas.width = width
+      canvas.height = height
+
+      const ctx = canvas.getContext('2d')
+      if (!ctx) {
+        resolve(dataUrl) // Fallback para original se canvas falhar
+        return
+      }
+
+      ctx.drawImage(img, 0, 0, width, height)
+      // Exportar como JPEG comprimido
+      resolve(canvas.toDataURL('image/jpeg', quality))
+    }
+    img.onerror = () => reject(new Error('Falha ao carregar imagem para compressão.'))
+    img.src = dataUrl
+  })
+}
+
 function buildScheduledAt(date: string, time: string): string | null {
   if (!date || !time) return null
   const [y, m, d] = date.split('-').map(Number)
@@ -308,10 +347,10 @@ function AiCaptionModal({
               onChange={(e) => setContext(e.target.value)}
               placeholder="Ex: Culto de domingo com tema \u2018A fé que move montes\u2019, data 02/03, convidamos toda a igreja…"
               rows={3}
-              maxLength={500}
+              maxLength={1000}
               className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50/40 px-3.5 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 hover:border-slate-300 transition"
             />
-            <p className="mt-1 text-right text-[11px] text-slate-400">{context.length}/500</p>
+            <p className="mt-1 text-right text-[11px] text-slate-400">{context.length}/1000</p>
           </div>
 
           {/* Tom */}
@@ -1400,6 +1439,7 @@ function NovaPostagemContent() {
   })
   const [postType, setPostType] = useState<PostType>('feed')
   const [reelThumbOffsetMs, setReelThumbOffsetMs] = useState(0)
+  const [reelCustomCover, setReelCustomCover] = useState<string | null>(null)
   const [reelVideoDurationMs, setReelVideoDurationMs] = useState(0)
   const reelVideoRef = useRef<HTMLVideoElement>(null)
   const [text, setText] = useState('')
@@ -1535,6 +1575,7 @@ function NovaPostagemContent() {
   // Reset capa do Reel quando a mídia ou tipo muda
   useEffect(() => {
     setReelThumbOffsetMs(0)
+    setReelCustomCover(null)
     setReelVideoDurationMs(0)
   }, [media.length, postType])
 
@@ -1562,7 +1603,10 @@ function NovaPostagemContent() {
         showToast('Reels exigem um arquivo de vídeo.', 'err')
         continue
       }
-      const dataUrl = await fileToBase64(file)
+      const dataUrlRaw = await fileToBase64(file)
+      // Comprimir imagens para evitar erro 413 do Next/Vercel
+      const dataUrl = isImage ? await compressImageClient(dataUrlRaw) : dataUrlRaw
+      
       newItems.push({
         id: `up-${Date.now()}-${Math.random()}`,
         type: 'upload',
@@ -1704,7 +1748,8 @@ function NovaPostagemContent() {
           text,
           postType,
           orderedMedia,
-          ...(postType === 'reel' && reelThumbOffsetMs > 0 ? { thumbOffset: reelThumbOffsetMs } : {}),
+          ...(postType === 'reel' && reelCustomCover ? { customCover: reelCustomCover } : {}),
+          ...(postType === 'reel' && !reelCustomCover && reelThumbOffsetMs > 0 ? { thumbOffset: reelThumbOffsetMs } : {}),
           ...(scheduledAt ? { scheduledAt } : {}),
         }),
       })
@@ -1758,7 +1803,7 @@ function NovaPostagemContent() {
   const reelStoryLimitHit = (postType === 'reel' || postType === 'story') && media.length > 1
 
   return (
-    <div className="flex flex-col gap-0 px-4 py-6 pb-24 md:px-6 md:py-8 md:pb-24 max-w-7xl mx-auto w-full">
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-0 px-4 py-6 pb-36 md:px-6 md:py-8 md:pb-24">
       {/* ── Header ──────────────────────────────────────────────────── */}
       <div className="mb-6">
         <AdminPageHeader
@@ -1775,12 +1820,12 @@ function NovaPostagemContent() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1fr_340px]">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_340px] xl:gap-5">
         {/* ═══════════ ESQUERDA – COMPOSER ══════════════════════════ */}
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
           {/* ┌── Card 1: Tipo de Postagem ───────────────────────────┐ */}
           <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div className="flex items-center gap-3 border-b border-slate-100 bg-slate-50/60 px-5 py-3.5 rounded-t-2xl">
+            <div className="flex items-center gap-2.5 rounded-t-2xl border-b border-slate-100 bg-slate-50/60 px-4 py-3 sm:gap-3 sm:px-5 sm:py-3.5">
               <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#c62737] text-[11px] font-bold text-white flex-shrink-0">
                 1
               </span>
@@ -1788,13 +1833,13 @@ function NovaPostagemContent() {
                 Tipo de postagem
               </h2>
             </div>
-            <div className="px-5 py-4">
-              <div className="grid grid-cols-3 gap-3">
+            <div className="px-4 py-4 sm:px-5">
+              <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-1 sm:mx-0 sm:grid sm:grid-cols-3 sm:gap-3 sm:overflow-visible sm:px-0 sm:pb-0">
                 {/* Feed */}
                 <button
                   type="button"
                   onClick={() => { setPostType('feed'); setMedia([]) }}
-                  className={`flex flex-col items-center gap-2.5 rounded-2xl border-2 px-3 py-4 text-center transition-all ${
+                  className={`min-w-[150px] flex-1 snap-start flex flex-col items-center gap-2.5 rounded-2xl border-2 px-3 py-4 text-center transition-all sm:min-w-0 ${
                     postType === 'feed'
                       ? 'border-[#c62737] bg-[#c62737]/5'
                       : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
@@ -1822,7 +1867,7 @@ function NovaPostagemContent() {
                 <button
                   type="button"
                   onClick={() => { setPostType('reel'); setMedia([]) }}
-                  className={`flex flex-col items-center gap-2.5 rounded-2xl border-2 px-3 py-4 text-center transition-all ${
+                  className={`min-w-[150px] flex-1 snap-start flex flex-col items-center gap-2.5 rounded-2xl border-2 px-3 py-4 text-center transition-all sm:min-w-0 ${
                     postType === 'reel'
                       ? 'border-[#c62737] bg-[#c62737]/5'
                       : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
@@ -1850,7 +1895,7 @@ function NovaPostagemContent() {
                 <button
                   type="button"
                   onClick={() => { setPostType('story'); setMedia([]) }}
-                  className={`flex flex-col items-center gap-2.5 rounded-2xl border-2 px-3 py-4 text-center transition-all ${
+                  className={`min-w-[150px] flex-1 snap-start flex flex-col items-center gap-2.5 rounded-2xl border-2 px-3 py-4 text-center transition-all sm:min-w-0 ${
                     postType === 'story'
                       ? 'border-[#c62737] bg-[#c62737]/5'
                       : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
@@ -1874,6 +1919,7 @@ function NovaPostagemContent() {
                   )}
                 </button>
               </div>
+              <p className="mt-2 text-[11px] text-slate-400 sm:hidden">Deslize para ver todos os tipos de postagem.</p>
 
               {/* Avisos por tipo */}
               {postType === 'reel' && (
@@ -1904,7 +1950,7 @@ function NovaPostagemContent() {
           {/* ┌── Card 2: Perfil & Canais ────────────────────────────┐ */}
           {/* Sem overflow-hidden no wrapper: contém CustomSelect com painel absoluto */}
           <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div className="flex items-center gap-3 border-b border-slate-100 bg-slate-50/60 px-5 py-3.5 rounded-t-2xl">
+            <div className="flex items-center gap-2.5 rounded-t-2xl border-b border-slate-100 bg-slate-50/60 px-4 py-3 sm:gap-3 sm:px-5 sm:py-3.5">
               <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#c62737] text-[11px] font-bold text-white flex-shrink-0">
                 2
               </span>
@@ -1912,7 +1958,7 @@ function NovaPostagemContent() {
                 Perfil e canais
               </h2>
             </div>
-            <div className="px-5 py-4 space-y-4">
+            <div className="space-y-4 px-4 py-4 sm:px-5">
               {/* Seletor de instância */}
               {loadingInstances ? (
                 <div className="flex items-center gap-2 text-sm text-slate-400">
@@ -1950,7 +1996,7 @@ function NovaPostagemContent() {
                 <label className="block text-xs font-medium text-slate-700 mb-2">
                   Publicar em
                 </label>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                   {/* Instagram */}
                   <button
                     type="button"
@@ -1964,7 +2010,7 @@ function NovaPostagemContent() {
                         return !n.instagram && !n.facebook ? p : n
                       })
                     }
-                    className={`group flex items-center gap-2.5 rounded-xl border-2 px-4 py-2.5 text-sm font-medium transition-all disabled:cursor-not-allowed disabled:opacity-40 ${
+                    className={`group flex w-full items-center justify-between gap-2.5 rounded-xl border-2 px-4 py-2.5 text-sm font-medium transition-all disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto sm:justify-start ${
                       destinations.instagram
                         ? 'border-[#c62737] bg-gradient-to-r from-[#f09433]/10 to-[#c62737]/10 text-[#c62737]'
                         : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:bg-slate-50'
@@ -2001,7 +2047,7 @@ function NovaPostagemContent() {
                         return !n.instagram && !n.facebook ? p : n
                       })
                     }
-                    className={`group flex items-center gap-2.5 rounded-xl border-2 px-4 py-2.5 text-sm font-medium transition-all disabled:cursor-not-allowed disabled:opacity-40 ${
+                    className={`group flex w-full items-center justify-between gap-2.5 rounded-xl border-2 px-4 py-2.5 text-sm font-medium transition-all disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto sm:justify-start ${
                       destinations.facebook
                         ? 'border-[#1877f2] bg-[#1877f2]/5 text-[#1877f2]'
                         : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:bg-slate-50'
@@ -2039,14 +2085,14 @@ function NovaPostagemContent() {
           {/* ┌── Card 2: Mídias ─────────────────────────────────────┐ */}
           {/* Sem overflow-hidden: overlay de ações usa position:absolute */}
           <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div className="flex items-center gap-3 border-b border-slate-100 bg-slate-50/60 px-5 py-3.5 rounded-t-2xl">
+            <div className="flex flex-wrap items-center gap-2.5 rounded-t-2xl border-b border-slate-100 bg-slate-50/60 px-4 py-3 sm:gap-3 sm:px-5 sm:py-3.5">
               <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#c62737] text-[11px] font-bold text-white flex-shrink-0">
                 3
               </span>
               <h2 className="text-sm font-semibold text-slate-800">{postType === 'reel' ? 'Vídeo do Reel' : postType === 'story' ? 'Mídia do Story' : 'Mídias'}</h2>
               {media.length > 0 && (
                 <span
-                  className={`ml-1 rounded-full px-2 py-0.5 text-xs font-semibold ${
+                  className={`ml-auto rounded-full px-2 py-0.5 text-xs font-semibold ${
                     igLimitHit || reelStoryLimitHit
                       ? 'bg-red-100 text-red-700'
                       : 'bg-slate-100 text-slate-600'
@@ -2056,11 +2102,11 @@ function NovaPostagemContent() {
                 </span>
               )}
               {/* Tabs Upload / Galeria — Galeria oculta para reels */}
-              <div className="ml-auto flex overflow-hidden rounded-lg border border-slate-200">
+              <div className="mt-2 flex w-full overflow-hidden rounded-lg border border-slate-200 sm:ml-auto sm:mt-0 sm:w-auto">
                 <button
                   type="button"
                   onClick={() => setMediaTab('upload')}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors ${
+                  className={`flex flex-1 items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium transition-colors ${
                     mediaTab === 'upload'
                       ? 'bg-[#c62737] text-white'
                       : 'bg-white text-slate-600 hover:bg-slate-50'
@@ -2073,7 +2119,7 @@ function NovaPostagemContent() {
                   <button
                     type="button"
                     onClick={() => setMediaTab('gallery')}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors ${
+                    className={`flex flex-1 items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium transition-colors ${
                       mediaTab === 'gallery'
                         ? 'bg-[#c62737] text-white'
                         : 'bg-white text-slate-600 hover:bg-slate-50'
@@ -2084,10 +2130,10 @@ function NovaPostagemContent() {
                 )}
               </div>
             </div>
-            <div className="px-5 py-4">
+            <div className="px-4 py-4 sm:px-5">
               {/* Grid de mídias selecionadas */}
               {media.length > 0 && (
-                <div className="mb-4 grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
+                <div className="mb-4 grid grid-cols-2 gap-2.5 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
                   {media.map((item, idx) => (
                     <div key={item.id} className="group flex flex-col gap-1">
                       {/* Thumbnail */}
@@ -2193,12 +2239,12 @@ function NovaPostagemContent() {
                         </div>
                       </div>
                       {/* Controles sempre visíveis no mobile */}
-                      <div className="flex sm:hidden items-center gap-0.5">
+                      <div className="flex items-center gap-1 sm:hidden">
                         <button
                           type="button"
                           onClick={() => idx > 0 && moveMedia(item.id, 'left')}
                           disabled={idx === 0}
-                          className="flex flex-1 items-center justify-center rounded-lg bg-slate-100 py-1 hover:bg-slate-200 disabled:opacity-25 transition-colors"
+                          className="flex h-8 flex-1 items-center justify-center rounded-lg bg-slate-100 hover:bg-slate-200 disabled:opacity-25 transition-colors"
                           title="Mover para esquerda"
                         >
                           <ChevronLeft className="h-3.5 w-3.5 text-slate-600" />
@@ -2207,7 +2253,7 @@ function NovaPostagemContent() {
                           <button
                             type="button"
                             onClick={() => setCropItem(item)}
-                            className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-100 hover:bg-slate-200 transition-colors"
+                            className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 hover:bg-slate-200 transition-colors"
                             title="Editar proporção"
                           >
                             <Crop className="h-3 w-3 text-slate-600" />
@@ -2216,7 +2262,7 @@ function NovaPostagemContent() {
                         <button
                           type="button"
                           onClick={() => removeMedia(item.id)}
-                          className="flex h-7 w-7 items-center justify-center rounded-lg bg-red-50 hover:bg-red-100 transition-colors"
+                          className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-50 hover:bg-red-100 transition-colors"
                           title="Remover"
                         >
                           <X className="h-3 w-3 text-red-500" />
@@ -2225,7 +2271,7 @@ function NovaPostagemContent() {
                           type="button"
                           onClick={() => idx < media.length - 1 && moveMedia(item.id, 'right')}
                           disabled={idx >= media.length - 1}
-                          className="flex flex-1 items-center justify-center rounded-lg bg-slate-100 py-1 hover:bg-slate-200 disabled:opacity-25 transition-colors"
+                          className="flex h-8 flex-1 items-center justify-center rounded-lg bg-slate-100 hover:bg-slate-200 disabled:opacity-25 transition-colors"
                           title="Mover para direita"
                         >
                           <ChevronRight className="h-3.5 w-3.5 text-slate-600" />
@@ -2264,52 +2310,110 @@ function NovaPostagemContent() {
                   <div className="flex items-center gap-2 mb-3">
                     <ImageIcon className="h-4 w-4 text-violet-600" />
                     <h3 className="text-sm font-semibold text-slate-800">Capa do Reel</h3>
-                    <span className="ml-auto rounded-lg bg-violet-100 px-2 py-0.5 text-xs font-medium text-violet-700 tabular-nums">
-                      {formatOffsetTime(reelThumbOffsetMs)}
-                    </span>
+                    {!reelCustomCover && (
+                      <span className="ml-auto rounded-lg bg-violet-100 px-2 py-0.5 text-xs font-medium text-violet-700 tabular-nums">
+                        {formatOffsetTime(reelThumbOffsetMs)}
+                      </span>
+                    )}
+                    {reelCustomCover && (
+                      <button
+                        type="button"
+                        onClick={() => setReelCustomCover(null)}
+                        className="ml-auto text-[10px] font-semibold text-[#c62737] hover:underline"
+                      >
+                        Remover capa customizada
+                      </button>
+                    )}
                   </div>
                   <div className="flex gap-4 items-start">
-                    {/* Preview do frame selecionado */}
-                    <div className="relative flex-shrink-0 w-16 rounded-lg overflow-hidden bg-slate-900" style={{ aspectRatio: '9/16' }}>
-                      <video
-                        ref={reelVideoRef}
-                        src={(media[0] as { type: 'upload'; dataUrl: string }).dataUrl}
-                        className="h-full w-full object-cover"
-                        muted
-                        playsInline
-                        preload="metadata"
-                        onLoadedMetadata={(e) => {
-                          const v = e.currentTarget
-                          setReelVideoDurationMs(Math.floor(v.duration * 1000))
-                          v.currentTime = reelThumbOffsetMs / 1000
-                        }}
-                      />
+                    {/* Preview do frame selecionado ou capa customizada */}
+                    <div className="relative flex-shrink-0 w-16 rounded-lg overflow-hidden bg-slate-900 border border-violet-200" style={{ aspectRatio: '9/16' }}>
+                      {reelCustomCover ? (
+                        <img
+                          src={reelCustomCover}
+                          alt="Capa customizada"
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <video
+                          ref={reelVideoRef}
+                          src={(media[0] as { type: 'upload'; dataUrl: string }).dataUrl}
+                          className="h-full w-full object-cover"
+                          muted
+                          playsInline
+                          preload="metadata"
+                          onLoadedMetadata={(e) => {
+                            const v = e.currentTarget
+                            setReelVideoDurationMs(Math.floor(v.duration * 1000))
+                            v.currentTime = reelThumbOffsetMs / 1000
+                          }}
+                        />
+                      )}
                     </div>
-                    {/* Slider e instruções */}
+                    {/* Slider ou botão de upload */}
                     <div className="flex-1 flex flex-col gap-2 pt-1">
-                      <p className="text-xs text-slate-500">
-                        Arraste para escolher o frame que será exibido como capa do Reel no Instagram.
-                      </p>
-                      <input
-                        type="range"
-                        min={0}
-                        max={Math.max(reelVideoDurationMs, 1000)}
-                        step={500}
-                        value={reelThumbOffsetMs}
-                        onChange={(e) => {
-                          const val = Number(e.target.value)
-                          setReelThumbOffsetMs(val)
-                          const v = reelVideoRef.current
-                          if (v) {
-                            v.currentTime = val / 1000
-                            v.pause()
-                          }
-                        }}
-                        className="w-full accent-[#c62737] cursor-pointer"
-                      />
-                      <div className="flex justify-between text-[10px] text-slate-400 tabular-nums">
-                        <span>0:00</span>
-                        <span>{formatOffsetTime(reelVideoDurationMs)}</span>
+                      {reelCustomCover ? (
+                        <div className="flex flex-col gap-2">
+                          <p className="text-xs font-medium text-violet-700">
+                            Capa personalizada selecionada.
+                          </p>
+                          <p className="text-[11px] text-slate-500">
+                            Esta imagem será enviada como a capa oficial do seu Reel.
+                          </p>
+                        </div>
+                      ) : (
+                        <>
+                          <p className="text-xs text-slate-500">
+                            Arraste para escolher o frame ou faça upload de uma imagem.
+                          </p>
+                          <input
+                            type="range"
+                            min={0}
+                            max={Math.max(reelVideoDurationMs, 1000)}
+                            step={500}
+                            value={reelThumbOffsetMs}
+                            onChange={(e) => {
+                              const val = Number(e.target.value)
+                              setReelThumbOffsetMs(val)
+                              const v = reelVideoRef.current
+                              if (v) {
+                                v.currentTime = val / 1000
+                                v.pause()
+                              }
+                            }}
+                            className="w-full accent-[#c62737] cursor-pointer"
+                          />
+                          <div className="flex justify-between text-[10px] text-slate-400 tabular-nums">
+                            <span>0:00</span>
+                            <span>{formatOffsetTime(reelVideoDurationMs)}</span>
+                          </div>
+                        </>
+                      )}
+
+                      {/* Botão de Upload de Capa */}
+                      <div className="mt-1">
+                        <input
+                          type="file"
+                          id="reel-cover-upload"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0]
+                            if (!file) return
+                            const reader = new FileReader()
+                            reader.onload = (ev) => {
+                              setReelCustomCover(ev.target?.result as string)
+                            }
+                            reader.readAsDataURL(file)
+                          }}
+                        />
+                        <label
+                          htmlFor="reel-cover-upload"
+                          className="inline-flex items-center gap-1.5 cursor-pointer rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm"
+                        >
+                          <Upload className="h-3 w-3" />
+                          {reelCustomCover ? 'Alterar capa' : 'Fazer upload da capa'}
+                        </label>
                       </div>
                     </div>
                   </div>
@@ -2326,7 +2430,7 @@ function NovaPostagemContent() {
                     e.preventDefault()
                     await handleFilesSelected(e.dataTransfer.files)
                   }}
-                  className="group w-full cursor-pointer rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/50 py-12 text-center transition-all hover:border-[#c62737] hover:bg-[#c62737]/5"
+                  className="group w-full cursor-pointer rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/50 py-10 text-center transition-all hover:border-[#c62737] hover:bg-[#c62737]/5 sm:py-12"
                 >
                   <div className="flex flex-col items-center gap-3">
                     <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 group-hover:bg-[#c62737]/10 transition-colors">
@@ -2372,7 +2476,7 @@ function NovaPostagemContent() {
 
               {/* Zona galeria — vazio */}
               {mediaTab === 'gallery' && media.length === 0 && (
-                <div className="w-full rounded-2xl border-2 border-dashed border-blue-100 bg-blue-50/50 py-12 text-center">
+                <div className="w-full rounded-2xl border-2 border-dashed border-blue-100 bg-blue-50/50 py-10 text-center sm:py-12">
                   <div className="flex flex-col items-center gap-3">
                     <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-100">
                       <FolderOpen className="h-6 w-6 text-blue-400" />
@@ -2448,78 +2552,74 @@ function NovaPostagemContent() {
           </div>
 
           {/* ┌── Card 4: Legenda ────────────────────────────────────┐ */}
-          <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div className="flex items-center gap-3 border-b border-slate-100 bg-slate-50/60 px-5 py-3.5 rounded-t-2xl">
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#c62737] text-[11px] font-bold text-white flex-shrink-0">
-                4
-              </span>
-              <h2 className="text-sm font-semibold text-slate-800">{postType === 'story' ? 'Legenda (opcional)' : 'Legenda'}</h2>
-              <span
-                className={`ml-auto text-xs tabular-nums font-medium ${
-                  charCount > 2000 ? 'text-red-500' : 'text-slate-400'
-                }`}
-              >
-                {charCount}/2200
-              </span>
-              <button
-                type="button"
-                onClick={() => setAiModalOpen(true)}
-                className="flex items-center gap-1.5 rounded-xl border border-violet-200 bg-gradient-to-r from-violet-50 to-purple-50 px-3 py-1.5 text-xs font-semibold text-violet-700 hover:from-violet-100 hover:to-purple-100 transition-all shadow-sm"
-              >
-                <Sparkles className="h-3 w-3" />
-                Gerar com IA
-              </button>
-            </div>
-            <div className="px-5 py-4">
-              <textarea
-                ref={textareaRef}
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                placeholder={postType === 'story' ? 'Stories não exibem legenda publicamente (para anotação interna)…' : 'Digite a legenda do seu post… ✨'}
-                rows={5}
-                maxLength={2200}
-                className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50/40 px-4 py-3 text-sm text-slate-800 placeholder:text-slate-400 outline-none transition focus:border-[#c62737] focus:ring-2 focus:ring-[#c62737]/20 focus:bg-white hover:border-slate-300"
-              />
-              {postType === 'story' && (
-                <p className="mt-2 flex items-center gap-1.5 text-xs text-slate-400">
-                  <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />
-                  Stories do Instagram não exibem legenda publicamente. Este campo é ignorado na publicação.
-                </p>
-              )}
-              {/* Barra de emojis */}
-              <div className="mt-2.5 flex flex-wrap items-center gap-1">
-                {QUICK_EMOJIS.map((e) => (
-                  <button
-                    key={e}
-                    type="button"
-                    onClick={() => insertEmoji(e)}
-                    className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm leading-none hover:bg-slate-50 hover:border-slate-300 transition-colors"
-                    title={e}
-                  >
-                    {e}
-                  </button>
-                ))}
+          {postType !== 'story' && (
+            <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+              <div className="flex flex-wrap items-center gap-2.5 rounded-t-2xl border-b border-slate-100 bg-slate-50/60 px-4 py-3 sm:gap-3 sm:px-5 sm:py-3.5">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#c62737] text-[11px] font-bold text-white flex-shrink-0">
+                  4
+                </span>
+                <h2 className="text-sm font-semibold text-slate-800">Legenda</h2>
+                <span
+                  className={`ml-auto text-[11px] tabular-nums font-medium sm:text-xs ${
+                    charCount > 2000 ? 'text-red-500' : 'text-slate-400'
+                  }`}
+                >
+                  {charCount}/2200
+                </span>
                 <button
                   type="button"
-                  onClick={() => insertEmoji(' #')}
-                  className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-bold text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors"
-                  title="Inserir hashtag"
+                  onClick={() => setAiModalOpen(true)}
+                  className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-violet-200 bg-gradient-to-r from-violet-50 to-purple-50 px-3 py-2 text-xs font-semibold text-violet-700 shadow-sm transition-all hover:from-violet-100 hover:to-purple-100 sm:w-auto sm:justify-start sm:py-1.5"
                 >
-                  #
+                  <Sparkles className="h-3 w-3" />
+                  Gerar com IA
                 </button>
-                {text && (
-                  <span className="ml-auto text-xs text-slate-400">
-                    {(text.match(/#\w/g) ?? []).length} hashtag(s)
-                  </span>
-                )}
+              </div>
+              <div className="px-4 py-4 sm:px-5">
+                <textarea
+                  ref={textareaRef}
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  placeholder="Digite a legenda do seu post… ✨"
+                  rows={5}
+                  maxLength={2200}
+                  className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50/40 px-4 py-3 text-sm text-slate-800 placeholder:text-slate-400 outline-none transition focus:border-[#c62737] focus:ring-2 focus:ring-[#c62737]/20 focus:bg-white hover:border-slate-300"
+                />
+                {/* Barra de emojis */}
+                <div className="mt-2.5 flex flex-wrap items-center gap-1">
+                  {QUICK_EMOJIS.map((e) => (
+                    <button
+                      key={e}
+                      type="button"
+                      onClick={() => insertEmoji(e)}
+                      className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm leading-none hover:bg-slate-50 hover:border-slate-300 transition-colors"
+                      title={e}
+                    >
+                      {e}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => insertEmoji(' #')}
+                    className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-bold text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors"
+                    title="Inserir hashtag"
+                  >
+                    #
+                  </button>
+                  {text && (
+                    <span className="ml-auto text-xs text-slate-400">
+                      {(text.match(/#\w/g) ?? []).length} hashtag(s)
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* ┌── Card 5: Agendamento ────────────────────────────────┐ */}
           {/* Sem overflow-hidden: contém DatePickerInput com calendário position:absolute */}
           <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div className="flex items-center gap-3 border-b border-slate-100 bg-slate-50/60 px-5 py-3.5 rounded-t-2xl">
+            <div className="flex items-center gap-2.5 rounded-t-2xl border-b border-slate-100 bg-slate-50/60 px-4 py-3 sm:gap-3 sm:px-5 sm:py-3.5">
               <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#c62737] text-[11px] font-bold text-white flex-shrink-0">
                 5
               </span>
@@ -2527,12 +2627,12 @@ function NovaPostagemContent() {
                 Quando publicar
               </h2>
             </div>
-            <div className="px-5 py-4">
+            <div className="px-4 py-4 sm:px-5">
               <div className="flex overflow-hidden rounded-xl border border-slate-200">
                 <button
                   type="button"
                   onClick={() => setPublishMode('now')}
-                  className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-semibold transition-colors ${
+                  className={`flex flex-1 items-center justify-center gap-1.5 py-2.5 text-xs font-semibold transition-colors sm:gap-2 sm:py-3 sm:text-sm ${
                     publishMode === 'now'
                       ? 'bg-[#c62737] text-white'
                       : 'bg-white text-slate-600 hover:bg-slate-50'
@@ -2544,7 +2644,7 @@ function NovaPostagemContent() {
                 <button
                   type="button"
                   onClick={() => setPublishMode('scheduled')}
-                  className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-semibold transition-colors ${
+                  className={`flex flex-1 items-center justify-center gap-1.5 py-2.5 text-xs font-semibold transition-colors sm:gap-2 sm:py-3 sm:text-sm ${
                     publishMode === 'scheduled'
                       ? 'bg-[#c62737] text-white'
                       : 'bg-white text-slate-600 hover:bg-slate-50'
@@ -2657,6 +2757,12 @@ function NovaPostagemContent() {
                     </p>
                     {text && postType === 'reel' && (
                       <p className="mt-0.5 text-[9px] text-white/70 line-clamp-2">{text}</p>
+                    )}
+                    {postType === 'story' && media.length > 0 && (
+                      <div className="mt-1 flex items-center gap-1.5 overflow-hidden">
+                        <div className="h-4 w-4 rounded-full bg-white/20" />
+                        <div className="h-2 w-16 rounded bg-white/20" />
+                      </div>
                     )}
                   </div>
                 </div>
@@ -2781,17 +2887,26 @@ function NovaPostagemContent() {
       </div>
 
       {/* ═══════════ BARRA INFERIOR FIXA ══════════════════════════ */}
-      <div className="fixed bottom-0 left-0 right-0 z-30 border-t border-slate-200 bg-white/95 backdrop-blur-sm px-4 py-3 shadow-lg md:left-[280px]">
-        <div className="mx-auto flex max-w-5xl items-center justify-between gap-3">
-          <button
-            type="button"
-            onClick={resetForm}
-            className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
-          >
-            Limpar tudo
-          </button>
+      <div className="fixed bottom-0 left-0 right-0 z-30 border-t border-slate-200 bg-white/95 px-3 py-2.5 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-lg backdrop-blur-sm md:left-[280px] md:px-4 md:py-3">
+        <div className="mx-auto flex w-full max-w-5xl flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+          <div className="flex items-center justify-between gap-2 sm:hidden">
+            <span className="text-[11px] text-slate-500">
+              {media.length} {postType === 'reel' ? 'vídeo' : postType === 'story' ? 'mídia' : media.length === 1 ? 'imagem' : 'imagens'}
+            </span>
+            {selectedInstanceId && (
+              <span className="max-w-[55vw] truncate text-[11px] text-slate-500">{selectedInstance?.name}</span>
+            )}
+          </div>
 
-          <div className="flex items-center gap-3">
+          <div className="grid w-full grid-cols-[auto,1fr] items-center gap-2 sm:flex sm:w-auto sm:items-center sm:gap-3">
+            <button
+              type="button"
+              onClick={resetForm}
+              className="min-h-[42px] rounded-xl border border-slate-200 px-3.5 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 sm:px-4"
+            >
+              Limpar tudo
+            </button>
+
             {/* Status rápido */}
             <div className="hidden sm:flex items-center gap-3 text-xs text-slate-400 mr-1">
               {media.length > 0 && (
@@ -2830,7 +2945,7 @@ function NovaPostagemContent() {
                 igLimitHit ||
                 reelStoryLimitHit
               }
-              className="flex items-center gap-2 rounded-xl bg-[#c62737] px-6 py-2.5 text-sm font-bold text-white hover:bg-[#9e1f2e] transition-colors disabled:cursor-not-allowed disabled:opacity-50 shadow-sm"
+              className="flex min-h-[42px] flex-1 items-center justify-center gap-2 rounded-xl bg-[#c62737] px-4 py-2.5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-[#9e1f2e] disabled:cursor-not-allowed disabled:opacity-50 sm:flex-none sm:px-6"
             >
               {publishing ? (
                 <Loader2 className="h-4 w-4 animate-spin" />

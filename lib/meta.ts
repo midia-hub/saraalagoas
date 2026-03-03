@@ -730,9 +730,11 @@ export async function createInstagramReelContainer(params: {
   shareToFeed?: boolean
   /** Offset em milissegundos para o frame de capa do Reel. */
   thumbOffset?: number
+  /** URL pública de uma imagem personalizada para a capa. */
+  coverUrl?: string
   accessToken: string
 }): Promise<{ id: string }> {
-  const { igUserId, videoUrl, caption, shareToFeed = true, thumbOffset, accessToken } = params
+  const { igUserId, videoUrl, caption, shareToFeed = true, thumbOffset, coverUrl, accessToken } = params
 
   const body: Record<string, unknown> = {
     video_url: videoUrl,
@@ -740,7 +742,8 @@ export async function createInstagramReelContainer(params: {
     caption: caption || '',
     share_to_feed: shareToFeed,
     access_token: accessToken,
-    ...(typeof thumbOffset === 'number' && thumbOffset > 0 ? { thumb_offset: thumbOffset } : {}),
+    ...(coverUrl ? { cover_url: coverUrl } : {}),
+    ...(!coverUrl && typeof thumbOffset === 'number' && thumbOffset > 0 ? { thumb_offset: thumbOffset } : {}),
   }
 
   const response = await fetch(`${META_MEDIA_API_BASE}/${igUserId}/media`, {

@@ -1,1 +1,3 @@
-export { default } from '@/components/PublicPageLoading'
+export default function FormularioConversaoLoading() {
+	return null
+}

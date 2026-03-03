@@ -227,6 +227,8 @@ export type ExecuteMetaPublishWithUrlsParams = {
   isVideo?: boolean
   /** Offset em milissegundos para o frame de capa do Reel (thumb_offset). */
   thumbOffset?: number
+  /** URL pública de uma imagem personalizada para a capa. */
+  coverUrl?: string
 }
 
 /**
@@ -236,7 +238,7 @@ export type ExecuteMetaPublishWithUrlsParams = {
 export async function executeMetaPublishWithUrls(params: ExecuteMetaPublishWithUrlsParams): Promise<{
   metaResults: MetaPublishResult[]
 }> {
-  const { db, userId, instanceIds, destinations, text, imageUrls, postType = 'feed', isVideo = false } = params
+  const { db, userId, instanceIds, destinations, text, imageUrls, postType = 'feed', isVideo = false, thumbOffset, coverUrl } = params
   if (imageUrls.length === 0) return { metaResults: [] }
 
   // Stories/Reels só suportam Instagram; Facebook Stories usam API diferente (não implementado)
@@ -317,6 +319,7 @@ export async function executeMetaPublishWithUrls(params: ExecuteMetaPublishWithU
             caption: text || '',
             shareToFeed: true,
             thumbOffset,
+            coverUrl,
             accessToken: integration.page_access_token,
           })
           if (!reelContainer?.id) throw new Error('Falha ao criar container de Reel.')
