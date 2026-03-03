@@ -398,12 +398,13 @@ export async function POST(request: NextRequest) {
       errors: failedResults.map((r) => r.error).filter(Boolean),
     })
   } catch (e) {
+    console.error('[nova-postagem] erro fatal na publicação imediata:', e)
     return NextResponse.json(
       {
         error:
           e instanceof Error
             ? e.message
-            : 'Erro interno ao publicar.',
+            : 'Erro interno fatal ao publicar. Verifique os logs do servidor.',
       },
       { status: 500 }
     )
