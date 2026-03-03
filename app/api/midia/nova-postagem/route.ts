@@ -257,9 +257,6 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  const userId = access.snapshot.userId
-  const batchKey = `direct-${Date.now()}-${userId.slice(0, 8)}`
-
   // Detectar se a mídia é vídeo (base no tipo da primeira entrada upload)
   const firstUpload = orderedMedia.find((e) => e.type === 'upload')
   const isVideoMedia =
