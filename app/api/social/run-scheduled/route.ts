@@ -3,6 +3,7 @@ import { requireAccess } from '@/lib/admin-api'
 import { createSupabaseServerClient, createSupabaseAdminClient } from '@/lib/supabase-server'
 import { executeMetaPublish, executeMetaPublishWithUrls, type MediaEditInput } from '@/lib/publish-meta'
 import { createInstagramReelContainer } from '@/lib/meta'
+import { pollAndPublishContainers } from '@/lib/video-container-polling'
 
 export const dynamic = 'force-dynamic'
 
@@ -114,24 +115,45 @@ async function processScheduledPosts(db: any) {
             }
           }
 
-          if (containerRows.length > 0) {
-            await db.from('pending_video_containers').insert(containerRows)
+          if (containerRows.length === 0) {
+            const errMsg = reelErrors.join('; ') || 'Nenhum container de Reel foi criado.'
+            await db
+              .from('scheduled_social_posts')
+              .update({ status: 'failed', error_message: errMsg, updated_at: new Date().toISOString() })
+              .eq('id', row.id)
+            results.push({ id: row.id, status: 'failed', error: errMsg })
+            continue
           }
 
-          const allQueued = containerRows.length > 0 && reelErrors.length === 0
-          await db
-            .from('scheduled_social_posts')
-            .update({
-              status: allQueued ? 'video_processing' : 'failed',
-              error_message: reelErrors.length > 0 ? reelErrors.join('; ') : null,
-              updated_at: new Date().toISOString(),
-            })
-            .eq('id', row.id)
+          // Polling inline — publica assim que o Meta sinalizar FINISHED.
+          // Containers não concluídos no prazo vão para pending_video_containers
+          // e serão publicados pelo cron diário (fallback automático).
+          const pollResults = await pollAndPublishContainers({
+            db,
+            containers: containerRows,
+            maxWaitMs: 85_000,
+          })
+
+          const publishedCount = pollResults.filter((r) => r.status === 'published').length
+          const timedOutCount = pollResults.filter((r) => r.status === 'timeout').length
+          const pollErrors = pollResults
+            .filter((r) => r.status === 'failed')
+            .map((r) => r.error)
+            .filter(Boolean) as string[]
+          const allErrors = [...reelErrors, ...pollErrors]
+
+          // Se nenhum publicou mas algum ainda processa, manter como video_processing
+          if (timedOutCount > 0 && publishedCount === 0) {
+            await db
+              .from('scheduled_social_posts')
+              .update({ status: 'video_processing', error_message: null, updated_at: new Date().toISOString() })
+              .eq('id', row.id)
+          }
 
           results.push({
             id: row.id,
-            status: allQueued ? 'published' : 'failed',
-            ...(reelErrors.length > 0 ? { error: reelErrors.join('; ') } : {}),
+            status: publishedCount > 0 || timedOutCount > 0 ? 'published' : 'failed',
+            ...(allErrors.length > 0 ? { error: allErrors.join('; ') } : {}),
           })
           continue
         }

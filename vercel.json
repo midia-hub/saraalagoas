@@ -7,7 +7,7 @@
       "maxDuration": 300
     },
     "app/api/social/run-scheduled/route.ts": {
-      "maxDuration": 120
+      "maxDuration": 300
     },
     "app/api/cron/process-video-containers/route.ts": {
       "maxDuration": 60
@@ -20,7 +20,7 @@
     },
     {
       "path": "/api/cron/process-video-containers",
-      "schedule": "*/2 * * * *"
+      "schedule": "0 3 * * *"
     }
   ]
 }

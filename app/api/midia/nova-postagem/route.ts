@@ -7,6 +7,7 @@ import {
   type PostType,
 } from '@/lib/publish-meta'
 import { createInstagramReelContainer } from '@/lib/meta'
+import { pollAndPublishContainers } from '@/lib/video-container-polling'
 import sharp from 'sharp'
 
 // Vercel: tempo máximo de execução (plano Pro suporta até 300s)
@@ -411,48 +412,75 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    if (containerRows.length > 0) {
-      // Primeiro criar o log em scheduled_social_posts para obter o ID
-      const { data: logRow } = await db
-        .from('scheduled_social_posts')
-        .insert({
-          album_id: null,
-          created_by: userId,
-          scheduled_at: new Date().toISOString(),
-          instance_ids: integrationIds,
-          destinations,
-          caption: text,
-          media_specs: mediaUrls.map((url) => ({ url })),
-          status: 'video_processing',
-          post_type: 'reel',
-          publication_group_id:
-            body.groupId && typeof body.groupId === 'string' ? body.groupId : null,
-        })
-        .select('id')
-        .single()
-
-      // Agora salvar os containers com referência ao log
-      const rowsWithRef = containerRows.map((r) => ({
-        ...r,
-        scheduled_post_id: logRow?.id ?? null,
-      }))
-      const { error: insertError } = await db
-        .from('pending_video_containers')
-        .insert(rowsWithRef)
-      if (insertError) {
-        console.error('[nova-postagem] erro ao salvar pending_video_containers:', insertError.message)
-      }
+    if (containerRows.length === 0) {
+      return NextResponse.json({
+        ok: false,
+        message: 'Nenhum container de Reel foi criado.',
+        errors: reelErrors,
+      })
     }
 
-    const successCount = containerRows.length
+    // Criar log em scheduled_social_posts para obter o ID de referência
+    const { data: logRow } = await db
+      .from('scheduled_social_posts')
+      .insert({
+        album_id: null,
+        created_by: userId,
+        scheduled_at: new Date().toISOString(),
+        instance_ids: integrationIds,
+        destinations,
+        caption: text,
+        media_specs: mediaUrls.map((url) => ({ url })),
+        status: 'video_processing',
+        post_type: 'reel',
+        publication_group_id:
+          body.groupId && typeof body.groupId === 'string' ? body.groupId : null,
+      })
+      .select('id')
+      .single()
+
+    const rowsWithRef = containerRows.map((r) => ({
+      ...r,
+      scheduled_post_id: logRow?.id ?? null,
+    }))
+
+    // Polling inline: aguarda o Meta processar e publica automaticamente.
+    // Containers que não terminam dentro do timeout vão para pending_video_containers
+    // e serão publicados pelo cron diário (fallback).
+    const pollResults = await pollAndPublishContainers({
+      db,
+      containers: rowsWithRef,
+      maxWaitMs: 270_000,
+    })
+
+    const publishedCount = pollResults.filter((r) => r.status === 'published').length
+    const timedOutCount = pollResults.filter((r) => r.status === 'timeout').length
+    const failedCount = pollResults.filter((r) => r.status === 'failed').length
+    const pollErrors = pollResults
+      .filter((r) => r.status === 'failed')
+      .map((r) => r.error)
+      .filter(Boolean) as string[]
+
+    let message: string
+    if (publishedCount > 0 && timedOutCount === 0) {
+      message = `Reel publicado com sucesso em ${publishedCount} conta(s).`
+    } else if (publishedCount > 0 && timedOutCount > 0) {
+      message = `Reel publicado em ${publishedCount} conta(s). ${timedOutCount} conta(s) ainda processando — serão publicadas automaticamente.`
+    } else if (timedOutCount > 0) {
+      message = `Reel em processamento em ${timedOutCount} conta(s). Será publicado automaticamente em breve.`
+    } else {
+      message = 'Nenhum Reel foi publicado com sucesso.'
+    }
+
     return NextResponse.json({
-      ok: successCount > 0,
-      processing: true,
-      message:
-        successCount > 0
-          ? `Reel enviado para processamento em ${successCount} conta(s). Será publicado automaticamente em minutos.`
-          : 'Nenhum container de Reel foi criado.',
-      errors: reelErrors,
+      ok: publishedCount > 0 || timedOutCount > 0,
+      published: publishedCount > 0,
+      processing: timedOutCount > 0,
+      message,
+      errors: [...reelErrors, ...pollErrors],
+      publishedCount,
+      timedOutCount,
+      failedCount,
     })
   }
 
