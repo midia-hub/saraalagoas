@@ -91,7 +91,7 @@ export default function AlbumPostCreatePage() {
               altText: typeof spec.altText === 'string' ? spec.altText : '',
             }
           })
-          .filter((item): item is PostDraft['media'][number] => item != null)
+          .filter(Boolean) as PostDraft['media']
 
         patchDraft({
           selectedInstanceIds: selectedInstanceId ? [selectedInstanceId] : [],

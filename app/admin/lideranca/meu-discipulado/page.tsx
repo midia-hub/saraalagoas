@@ -288,6 +288,7 @@ export default function MeuDiscipuladoPage() {
   const buildReviewDisciple = (item: AttendanceItem): FollowupEnriched => ({
     id: item.followup_id ?? `temp-${item.disciple_id}`,
     person_id: item.disciple_id,
+    conversion_id: null,
     leader_person_id: personId ?? null,
     consolidator_person_id: null,
     contacted: false,
@@ -312,7 +313,7 @@ export default function MeuDiscipuladoPage() {
     },
     leader: null,
     consolidator: null,
-    conversion: null,
+    conversion: undefined,
     next_review_event: null,
     attendance_summary: {
       total_last30: 0,

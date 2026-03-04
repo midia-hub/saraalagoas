@@ -149,7 +149,7 @@ async function executeDisparoJob({ escalaId, tipo, teste, phoneTeste, nomeTeste 
       const person = personMap[personId]
       const phone = teste ? phoneTeste : person?.phone
       if (!phone) {
-        resultados.push({ person_id: personId, nome: person?.full_name ?? personId, phone_last4: '????', success: false })
+        resultados.push({ person_id: personId, nome: person?.full_name ?? personId, phone_last4: '????', phone: '', success: false })
         continue
       }
 
@@ -228,7 +228,7 @@ async function executeDisparoJob({ escalaId, tipo, teste, phoneTeste, nomeTeste 
         const person = personMap[a.person_id]
         const phone = teste ? phoneTeste : person?.phone
         if (!phone) {
-          resultados.push({ person_id: a.person_id, nome: a.person_name, phone_last4: '????', success: false })
+          resultados.push({ person_id: a.person_id, nome: a.person_name, phone_last4: '????', phone: '', success: false })
           continue
         }
 

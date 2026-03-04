@@ -31,6 +31,7 @@ export type ScheduledItem = {
   instance_ids?: string[]
   destinations?: { instagram?: boolean; facebook?: boolean }
   media_specs?: Array<{ id?: string; url?: string; cropMode?: string; altText?: string }>
+  post_type?: 'feed' | 'reel' | 'story' | null
   galleries?: { id: string; title: string; type: string; date: string } | null
 }
 

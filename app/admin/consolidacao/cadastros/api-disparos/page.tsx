@@ -56,7 +56,6 @@ const TIPO_LABELS: Record<string, { label: string; color: string }> = {
   escala_lembrete_3dias:     { label: 'Lembrete 3 dias',     color: 'bg-purple-100 text-purple-700' },
   escala_lembrete_1dia:      { label: 'Lembrete 1 dia',      color: 'bg-purple-100 text-purple-700' },
   escala_dia_da_escala:      { label: 'Lembrete no dia',     color: 'bg-purple-100 text-purple-700' },
-  'escala_mes':              { label: 'Escala do MÃªs',       color: 'bg-purple-100 text-purple-700' },
   kids_checkin:              { label: 'Kids Check-in',       color: 'bg-pink-100 text-pink-700' },
   kids_checkout:             { label: 'Kids Check-out',      color: 'bg-pink-100 text-pink-700' },
   kids_alerta:               { label: 'Kids Alerta',         color: 'bg-pink-100 text-pink-700' },

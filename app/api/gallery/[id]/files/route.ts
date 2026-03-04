@@ -86,7 +86,7 @@ export async function GET(
       }))
       const { error: upsertError } = await supabaseServer
         .from('gallery_files')
-        .upsert(upsertPayload, { onConflict: 'drive_file_id' })
+        .upsert(upsertPayload, { onConflict: 'gallery_id,drive_file_id' })
       if (upsertError) {
         console.warn('[gallery/files] batch upsert error:', upsertError.message)
       }

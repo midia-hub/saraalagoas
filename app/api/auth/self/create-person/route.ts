@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Detecta perfil de acesso do convite (metadata do usuário)
-        const userProfile = snapshot?.user_metadata?.profile || snapshot?.profile || null
+        const userProfile = (snapshot as any)?.user_metadata?.profile || (snapshot as any)?.profile || null
         // Criar a pessoa
         const { data: person, error: createError } = await supabaseServer
             .from('people')

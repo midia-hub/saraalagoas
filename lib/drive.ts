@@ -319,7 +319,7 @@ function resizeThumbnailUrl(thumbnailUrl: string, size: number): string {
   return `${thumbnailUrl}=s${safeSize}`
 }
 
-async function getDriveAccessToken(): Promise<string> {
+export async function getDriveAccessToken(): Promise<string> {
   const auth = getAuth()
   const token = await auth.getAccessToken()
   if (!token) throw new Error('Não foi possível obter access token do Google Drive.')

@@ -138,7 +138,7 @@ export function CelulaForm({ initial, onSubmit, loading = false }: CelulaFormPro
     setGeocoding(true)
     
     // Usando Nominatim (OpenStreetMap) - Gratuito
-    const query = encodeURIComponent(`${form.street}, ${form.number || ''}, ${form.neighborhood}, ${form.city}, ${form.state}, Brazil`)
+    const query = encodeURIComponent(`${form.street}, ${form.address_number || ''}, ${form.neighborhood}, ${form.city}, ${form.state}, Brazil`)
     
     try {
       const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${query}&limit=1`)

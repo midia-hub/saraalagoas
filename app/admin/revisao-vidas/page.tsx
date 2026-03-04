@@ -40,7 +40,7 @@ function CreateEventModal({ churches, onClose, onCreated }: {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    adminFetchJson('/api/admin/consolidacao/pessoas?limit=500')
+    adminFetchJson<any>('/api/admin/consolidacao/pessoas?limit=500')
       .then(d => setPeople(d.pessoas ?? []))
       .catch(() => setPeople([]))
   }, [])

@@ -186,7 +186,7 @@ export default function AdminPage() {
     new Date()
   )
 
-  const name = access.displayName?.split(' ')[0] ?? 'Líder'
+  const name = access.profileName?.split(' ')[0] ?? 'Líder'
 
   return (
     <PageAccessGuard pageKey="dashboard">

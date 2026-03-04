@@ -150,6 +150,8 @@ export type FollowupEnriched = ConsolidationFollowup & {
   attendance_summary?: {
     total_last30: number
     last_dates: string[]
+    total_attended?: number
+    total_expected?: number
   }
 }
 

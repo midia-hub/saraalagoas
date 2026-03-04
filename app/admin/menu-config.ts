@@ -33,6 +33,7 @@ import {
     Baby,
     QrCode,
     Bot,
+    ScanFace,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
@@ -305,6 +306,12 @@ export const menuModules: MenuModule[] = [
                 label: 'Configuração do Instagram',
                 icon: Settings,
                 permission: 'instagram'
+            },
+            {
+                href: '/admin/rekognition',
+                label: 'Reconhecimento Facial',
+                icon: ScanFace,
+                permission: 'galeria'
             },
         ],
     },

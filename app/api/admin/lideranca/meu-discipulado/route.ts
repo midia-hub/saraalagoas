@@ -200,7 +200,7 @@ export async function GET(request: NextRequest) {
 
         if (arena) {
           const arenaDay = normalizeArenaDay(arena.day_of_week)
-          plannedSchedules = [{ weekday: arenaDay, startsAt: String(arena.created_at ?? '').slice(0, 10) }]
+          plannedSchedules = [{ serviceId: '', weekday: arenaDay, startsAt: String(arena.created_at ?? '').slice(0, 10) }]
           const { data: serviceMatches } = await supabase
             .from('worship_services')
             .select('id, day_of_week, created_at')

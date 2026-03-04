@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import { adminFetchJson } from '@/lib/admin-client'
 import type { ReviewRegistrationEnriched } from '@/lib/consolidacao-types'
 import { REVIEW_REG_STATUS_LABELS, REVIEW_REG_STATUS_COLORS, REVIEW_FLOW_STATUS_LABELS, REVIEW_FLOW_STATUS_COLORS } from '@/lib/consolidacao-types'
+import type { ReviewFlowStatus } from '@/lib/consolidacao-types'
 import {
   Loader2, RefreshCw, CheckCircle2, XCircle, Check,
   Search, Users, UserCheck, X, ClipboardList, ExternalLink, Link2, ClipboardCheck, Plus, Printer, QrCode, AlertTriangle,
@@ -183,12 +184,12 @@ export default function RevisaoVidasInscritosPage() {
 
   // Contar inscrições por critério de fluxo
   const flowCounts = {
-    preRevisaoCompleted: filtered.filter(r => r.pre_revisao_aplicado).length,
+    preRevisaoCompleted: filtered.filter(r => (r as any).pre_revisao_aplicado).length,
     pagamentoPendente: filtered.filter(r => r.payment_status === 'pending' || !r.payment_status).length,
     pagamentoValidado: filtered.filter(r => r.payment_status === 'validated').length,
     anamneseCompleted: filtered.filter(r => r.anamnese_completed).length,
     confirmado: filtered.filter(r => 
-      r.pre_revisao_aplicado && 
+      (r as any).pre_revisao_aplicado && 
       r.payment_status === 'validated' && 
       r.anamnese_completed
     ).length,
@@ -687,11 +688,11 @@ export default function RevisaoVidasInscritosPage() {
                             return (
                               <span
                                 className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                                  REVIEW_FLOW_STATUS_COLORS[flowStatus as any] ?? 'bg-slate-100 text-slate-500'
+                                  REVIEW_FLOW_STATUS_COLORS[flowStatus as ReviewFlowStatus] ?? 'bg-slate-100 text-slate-500'
                                 }`}
                               >
                                 <span className="h-1.5 w-1.5 rounded-full bg-current opacity-70" />
-                                {REVIEW_FLOW_STATUS_LABELS[flowStatus as any] ?? flowStatus}
+                                {REVIEW_FLOW_STATUS_LABELS[flowStatus as ReviewFlowStatus] ?? flowStatus}
                               </span>
                             )
                           }

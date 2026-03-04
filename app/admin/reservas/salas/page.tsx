@@ -261,7 +261,7 @@ const INITIAL_FORM = {
     4: { start: '08:00', end: '22:00' },
     5: { start: '08:00', end: '22:00' },
     6: { start: '08:00', end: '22:00' },
-  },
+  } as Record<number, { start: string; end: string }>,
   approval_person_id: '',
   active: true,
 }

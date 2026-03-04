@@ -150,7 +150,7 @@ export async function POST(request: NextRequest) {
 
       // Verificar se o PD mudou para registrar auditoria
       const pdChanged = Number(pd_value || 0) !== existing.pd_value
-      const shouldRecordPDFill = pdChanged && Number(pd_value || 0) > 0 && !existing.pd_filled_at
+      const shouldRecordPDFill = pdChanged && Number(pd_value || 0) > 0 && !(existing as any).pd_filled_at
 
       const updateData: any = {
         pd_value: Number(pd_value || 0),

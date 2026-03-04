@@ -27,6 +27,7 @@ export async function GET(request: NextRequest) {
       destinations,
       caption,
       media_specs,
+      post_type,
       status,
       published_at,
       error_message,

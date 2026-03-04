@@ -135,7 +135,7 @@ export async function PUT(request: NextRequest, { params }: Params) {
     : { data: null }
 
   // 2. Transação / Gravação paralela (escala específica + global por ministério)
-  const ops = [
+  const ops: any[] = [
     // Atualiza registro específico desta escala
     supabase
       .from('escalas_voluntarios')

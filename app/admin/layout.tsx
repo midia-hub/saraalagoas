@@ -72,6 +72,7 @@ export default function AdminLayout({
         role?: { name: string }
         legacyProfile?: { name: string }
         displayName?: string
+        email?: string | null
         personId?: string | null
         avatarUrl?: string | null
         source?: string

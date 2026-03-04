@@ -78,7 +78,7 @@ export default function PessoasPage() {
     for (const id of queue) {
       if (!disparoActiveRef.current) break
       try {
-        await adminFetchJson(`/api/admin/pessoas/${id}/disparar`, {
+        await adminFetchJson<{ ok?: boolean }>(`/api/admin/pessoas/${id}/disparar`, {
           method: 'POST',
           body: JSON.stringify({ messageId: msgId, variables }),
         }).then(r => r?.ok !== false ? success++ : error++)
