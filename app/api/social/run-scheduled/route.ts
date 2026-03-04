@@ -30,13 +30,11 @@ type ScheduledRow = {
 async function processScheduledPosts(db: any) {
   const now = new Date().toISOString()
 
+  // Usa UPDATE...FOR UPDATE SKIP LOCKED...RETURNING via RPC para "reivindicar"
+  // os posts de forma atômica — evita que execuções simultâneas do cron
+  // publiquem o mesmo post duas vezes (race condition).
   const { data: rows, error: fetchError } = await db
-    .from('scheduled_social_posts')
-    .select('id, album_id, created_by, scheduled_at, instance_ids, destinations, caption, media_specs, status, post_type')
-    .eq('status', 'pending')
-    .lte('scheduled_at', now)
-    .order('scheduled_at', { ascending: true })
-    .limit(20)
+    .rpc('claim_pending_scheduled_posts', { p_limit: 20 })
 
   if (fetchError) {
     return NextResponse.json({ error: fetchError.message }, { status: 500 })
@@ -61,10 +59,7 @@ async function processScheduledPosts(db: any) {
       mediaSpecs.length > 0 &&
       mediaSpecs.every((spec) => typeof spec.url === 'string' && spec.url.startsWith('http'))
 
-    await db
-      .from('scheduled_social_posts')
-      .update({ status: 'publishing', updated_at: now })
-      .eq('id', row.id)
+    // Status já foi definido como 'publishing' atomicamente pelo claim_pending_scheduled_posts
 
     try {
       let failed: Array<{ ok: boolean; error?: string }> = []
@@ -88,6 +83,11 @@ async function processScheduledPosts(db: any) {
             .in('id', instanceIds)
             .eq('is_active', true)
 
+          // Recupera thumbOffset e coverUrl salvos no primeiro item de media_specs
+          const firstSpec = mediaSpecs[0] as { url?: string; thumbOffset?: number; coverUrl?: string }
+          const reelThumbOffset = typeof firstSpec?.thumbOffset === 'number' ? firstSpec.thumbOffset : undefined
+          const reelCoverUrl = typeof firstSpec?.coverUrl === 'string' ? firstSpec.coverUrl : undefined
+
           for (const integration of integrations || []) {
             if (!integration.instagram_business_account_id || !integration.page_access_token) continue
             try {
@@ -97,6 +97,8 @@ async function processScheduledPosts(db: any) {
                 caption: row.caption || '',
                 shareToFeed: true,
                 accessToken: integration.page_access_token,
+                ...(reelCoverUrl ? { coverUrl: reelCoverUrl } : {}),
+                ...(!reelCoverUrl && reelThumbOffset !== undefined ? { thumbOffset: reelThumbOffset } : {}),
               })
               containerRows.push({
                 container_id: container.id,
@@ -158,6 +160,11 @@ async function processScheduledPosts(db: any) {
           continue
         }
 
+        // Detecta se a mídia é vídeo (stories/reels de vídeo precisam de isVideo: true)
+        const isVideoMedia =
+          imageUrls.length === 1 &&
+          /\.(mp4|mov|avi|mkv|webm)$/i.test(imageUrls[0])
+
         const { metaResults } = await executeMetaPublishWithUrls({
           db,
           userId,
@@ -165,6 +172,8 @@ async function processScheduledPosts(db: any) {
           destinations,
           text: row.caption || '',
           imageUrls,
+          postType: (row.post_type as 'feed' | 'reel' | 'story') || 'feed',
+          isVideo: isVideoMedia,
         })
         failed = metaResults.filter((r) => !r.ok)
       } else {
@@ -184,6 +193,7 @@ async function processScheduledPosts(db: any) {
           destinations,
           text: row.caption || '',
           mediaEdits,
+          postType: (row.post_type as 'feed' | 'reel' | 'story') || 'feed',
         })
         failed = metaResults.filter((r) => !r.ok)
       }

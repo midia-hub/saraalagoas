@@ -262,11 +262,13 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // Detectar se a mídia é vídeo (base no tipo da primeira entrada upload)
-  const firstUpload = orderedMedia.find((e) => e.type === 'upload')
-  const isVideoMedia =
-    typeof firstUpload?.value === 'string' &&
-    firstUpload.value.startsWith('data:video/')
+  // Detectar se a mídia é vídeo: checar qualquer entrada upload com data:video/,
+  // ou entrada url/gallery com extensão de vídeo
+  const isVideoMedia = orderedMedia.some((e) => {
+    if (e.type === 'upload') return typeof e.value === 'string' && e.value.startsWith('data:video/')
+    if (e.type === 'url') return /\.(mp4|mov|avi|mkv|webm)$/i.test(e.value)
+    return false // gallery: não é possível detectar vídeo antes do download
+  })
 
   // Processar todas as mídias em ordem para obter URLs públicas
   const mediaUrls: string[] = []
@@ -318,7 +320,18 @@ export async function POST(request: NextRequest) {
 
   // AGENDAMENTO
   if (scheduledAt) {
-    const mediaSpecs = mediaUrls.map((url) => ({ url }))
+    // Para reels, salva thumbOffset e coverUrl no primeiro item de media_specs
+    // para que o cron possa usá-los ao publicar
+    const mediaSpecs = mediaUrls.map((url, i) => {
+      if (i === 0 && postType === 'reel') {
+        return {
+          url,
+          ...(customCoverPublicUrl ? { coverUrl: customCoverPublicUrl } : {}),
+          ...(!customCoverPublicUrl && thumbOffset !== undefined ? { thumbOffset } : {}),
+        }
+      }
+      return { url }
+    })
     const { data: scheduled, error: scheduledError } = await db
       .from('scheduled_social_posts')
       .insert({
@@ -331,8 +344,7 @@ export async function POST(request: NextRequest) {
         media_specs: mediaSpecs,
         status: 'pending',
         publication_group_id: (body.groupId && typeof body.groupId === 'string') ? body.groupId : null,
-        // Campo extra para contexto (não bloqueia se não existir na tabela)
-        ...(postType !== 'feed' ? { post_type: postType } : {}),
+        post_type: postType,
       })
       .select('id')
       .single()
@@ -511,6 +523,7 @@ export async function POST(request: NextRequest) {
       destinations,
       caption: text,
       media_specs: mediaUrls.map((url) => ({ url })),
+      post_type: postType,
       status: successCount > 0 ? 'published' : 'failed',
       published_at: successCount > 0 ? now : null,
       error_message: failedResults.length > 0 ? failedResults.map((r) => r.error).filter(Boolean).join('; ') : null,
