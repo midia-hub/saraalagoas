@@ -97,10 +97,35 @@ export async function POST(
       console.warn('[upload-from-storage] delete from bucket failed:', e)
     })
 
+    // Dispara scan de reconhecimento facial em background (fire-and-forget)
+    triggerRekognitionScan(uploadedFile.id, galleryId, request).catch(() => {})
+
     return NextResponse.json({ name: uploadedFile.name, id: uploadedFile.id })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Erro ao processar upload.'
     console.error('[upload-from-storage]', message, err)
     return NextResponse.json({ error: message }, { status: 500 })
+  }
+}
+
+/** Enfileira o scan de reconhecimento facial sem bloquear a resposta do upload. */
+async function triggerRekognitionScan(
+  driveFileId: string,
+  galleryId: string,
+  req: NextRequest
+): Promise<void> {
+  try {
+    const origin = req.headers.get('origin') || req.nextUrl.origin
+    const secret = process.env.INTERNAL_API_SECRET || ''
+    await fetch(`${origin}/api/rekognition/scan-photo`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(secret ? { 'x-internal-secret': secret } : {}),
+      },
+      body: JSON.stringify({ drive_file_id: driveFileId, gallery_id: galleryId }),
+    })
+  } catch {
+    // silencia — scan é melhor-esforço
   }
 }

@@ -1521,7 +1521,7 @@ function NovaPostagemContent() {
         setText(typeof post.caption === 'string' ? post.caption : '')
 
         const specs = Array.isArray(post.media_specs) ? post.media_specs : []
-        const replayMedia: MediaItem[] = specs
+        const replayMedia = (specs
           .map((spec, index) => {
             if (typeof spec?.id === 'string' && spec.id.trim()) {
               const fileId = spec.id.trim()
@@ -1542,7 +1542,7 @@ function NovaPostagemContent() {
             }
             return null
           })
-          .filter((item): item is MediaItem => item != null)
+          .filter(Boolean)) as MediaItem[]
         setMedia(replayMedia.slice(0, 10))
         if (replayMedia.some((m) => m.type === 'gallery')) {
           setMediaTab('gallery')

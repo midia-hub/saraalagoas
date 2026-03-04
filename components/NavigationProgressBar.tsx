@@ -24,18 +24,19 @@ export function NavigationProgressBar() {
     NProgress.done()
     
     // Pequeno truque para detectar início de navegação via cliques em <a>
-    const handleAnchorClick = (event: MouseEvent) => {
-      const target = event.target as HTMLElement
+    const handleAnchorClick = (event: Event) => {
+      const target = (event as globalThis.MouseEvent).target as HTMLElement
       const anchor = target.closest('a')
+      const me = event as globalThis.MouseEvent
 
       if (
         anchor &&
         anchor.href &&
         anchor.target !== '_blank' &&
-        !event.altKey &&
-        !event.ctrlKey &&
-        !event.metaKey &&
-        !event.shiftKey
+        !me.altKey &&
+        !me.ctrlKey &&
+        !me.metaKey &&
+        !me.shiftKey
       ) {
         const href = anchor.getAttribute('href')
         const currentUrl = window.location.pathname + window.location.search

@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams } from 'next/navigation'
@@ -1268,7 +1268,7 @@ export default function EscalaVoluntariosPage() {
         }
 
         // Montagem da prévia de mensagem por tipo: agrupa por pessoa a partir de publicadaInfo
-        const slotsData = publicadaInfo.dados.slots
+        const slotsData = publicadaInfo?.dados?.slots ?? []
         const byPersonMsg: Record<string, { name: string; pSlots: Array<{ label: string; date: string; time: string; funcao: string }> }> = {}
         for (const slot of slotsData) {
           for (const a of slot.assignments) {
@@ -1364,17 +1364,17 @@ export default function EscalaVoluntariosPage() {
                       </div>
                     ) : !recipientsData ? (
                       <div className="py-8 text-center text-slate-400 text-sm">Abrindo…</div>
-                    ) : recipientsData.length === 0 ? (
+                    ) : recipientsData?.length === 0 ? (
                       <div className="py-8 text-center text-slate-400 text-sm italic">Nenhum voluntário na escala.</div>
                     ) : (() => {
                       // Filtra quem vai receber de acordo com tipo
                       let rows: RecipientPreview[] = []
                       if (previewTipo === 'mes') {
-                        rows = recipientsData
+                        rows = recipientsData ?? []
                       } else {
                         // Para lembretes, mostra TODOS escalados (já que qualquer slot pode ser o alvo)
                         // e marca quantos cultos cada um tem
-                        rows = recipientsData
+                        rows = recipientsData ?? []
                       }
                       const semTel = rows.filter(r => !r.has_phone)
                       return (

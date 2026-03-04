@@ -311,7 +311,7 @@ export async function getProximosLembretes(supabase: SupabaseClient): Promise<Pr
     const blocked = await getBlockedKeys(supabase, assignments, kind)
 
     for (const item of assignments) {
-      const key = `${item.slotId}:${item.person_id}:${kind}`
+      const key = `${item.slotId}:${item.personId}:${kind}`
       const isSent = blocked.has(key)
       const nomeExib = getNomeExibicao(item.fullName)
       
@@ -324,7 +324,7 @@ export async function getProximosLembretes(supabase: SupabaseClient): Promise<Pr
             .from('escalas_lembretes_log')
             .select('status')
             .eq('evento_id', item.slotId)
-            .eq('person_id', item.person_id)
+            .eq('person_id', item.personId)
             .eq('template_kind', kind)
             .maybeSingle()
           
@@ -340,7 +340,7 @@ export async function getProximosLembretes(supabase: SupabaseClient): Promise<Pr
       const scheduledForStr = kind === 'D0' ? 'Hoje 17:05' : `${formatDateBr(date)} 17:05`
 
       result.push({
-        person_id: item.person_id,
+        person_id: item.personId,
         name: item.fullName,
         event_id: item.slotId,
         event_name: `${item.slotLabel} (${item.churchName})`,

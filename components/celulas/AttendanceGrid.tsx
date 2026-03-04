@@ -21,7 +21,7 @@ export function AttendanceGrid({ members, dates, attendances, onToggle, onAddVis
   const [removeConfirmOpen, setRemoveConfirmOpen] = useState(false)
   const [isRemoving, setIsRemoving] = useState(false)
   const attendanceMap = new Map<string, string>()
-  const peopleWithAttendance = new Map<string, { id: string; full_name: string }>()
+  const peopleWithAttendance = new Map<string, { id: string; full_name: string; type?: string }>()
 
   const resolveAttendanceKey = (att: any) => {
     // Preferir sempre person_id pois é o ID global da pessoa
@@ -326,7 +326,7 @@ export function AttendanceGrid({ members, dates, attendances, onToggle, onAddVis
           {(onAddVisitor || onAddPerson) && (
             <AttendanceVisitorAdd 
               onAddVisitor={(v) => onAddVisitor?.(v)}
-              onAddPerson={(id, status) => onAddPerson?.(id, status)}
+              onAddPerson={(id) => onAddPerson?.(id)}
             />
           )}
         </tbody>

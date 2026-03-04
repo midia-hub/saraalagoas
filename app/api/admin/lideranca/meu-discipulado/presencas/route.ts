@@ -235,13 +235,13 @@ export async function POST(request: NextRequest) {
     const scopedIds = await getVisiblePeopleIdsForLeader(supabase, personId)
     const allowedSet = new Set<string>([...ownIds, ...scopedIds])
 
-    const validDiscipleIds = discipleIds.filter((id) => allowedSet.has(id))
+    const validDiscipleIds = discipleIds.filter((id: string) => allowedSet.has(id))
     if (validDiscipleIds.length === 0) {
       return NextResponse.json({ error: 'Nenhum discípulo válido para este líder.' }, { status: 403 })
     }
 
     const userId = access.snapshot.userId ?? null
-    const payload = validDiscipleIds.map((id) => ({
+    const payload = validDiscipleIds.map((id: string) => ({
       service_id: resolvedServiceId,
       person_id: id,
       attended_on: attendedOn,

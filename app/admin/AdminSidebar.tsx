@@ -89,7 +89,7 @@ export function AdminSidebar() {
   }, [])
 
   const handleResizeMove = useCallback(
-    (e: MouseEvent) => {
+    (e: globalThis.MouseEvent) => {
       if (!resizing) return
       const newWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, e.clientX))
       setWidth(newWidth)
