@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAccess } from '@/lib/admin-api'
 import { createSupabaseServerClient, createSupabaseAdminClient } from '@/lib/supabase-server'
 import { executeMetaPublish, executeMetaPublishWithUrls, type MediaEditInput } from '@/lib/publish-meta'
+import { createInstagramReelContainer } from '@/lib/meta'
 
 export const dynamic = 'force-dynamic'
 
@@ -17,6 +18,7 @@ type ScheduledRow = {
   caption: string
   media_specs: Array<{ id?: string; url?: string; cropMode?: string; altText?: string }>
   status: string
+  post_type?: string
 }
 
 /**
@@ -29,7 +31,7 @@ async function processScheduledPosts(db: any) {
 
   const { data: rows, error: fetchError } = await db
     .from('scheduled_social_posts')
-    .select('id, album_id, created_by, scheduled_at, instance_ids, destinations, caption, media_specs, status')
+    .select('id, album_id, created_by, scheduled_at, instance_ids, destinations, caption, media_specs, status, post_type')
     .eq('status', 'pending')
     .lte('scheduled_at', now)
     .order('scheduled_at', { ascending: true })
@@ -68,6 +70,72 @@ async function processScheduledPosts(db: any) {
 
       if (isDirectUrlPost) {
         const imageUrls = mediaSpecs.map((s) => s.url as string)
+        const isReelVideo = row.post_type === 'reel' &&
+          imageUrls.length === 1
+
+        // Reels de vídeo: fluxo assíncrono para não bloquear o cron aguardando
+        // o processamento do vídeo pelo Meta (pode demorar minutos).
+        if (isReelVideo) {
+          const videoUrl = imageUrls[0]
+          const reelErrors: string[] = []
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const containerRows: any[] = []
+
+          const { data: integrations } = await db
+            .from('meta_integrations')
+            .select('id,instagram_business_account_id,page_access_token,is_active')
+            .in('id', instanceIds)
+            .eq('is_active', true)
+
+          for (const integration of integrations || []) {
+            if (!integration.instagram_business_account_id || !integration.page_access_token) continue
+            try {
+              const container = await createInstagramReelContainer({
+                igUserId: integration.instagram_business_account_id,
+                videoUrl,
+                caption: row.caption || '',
+                shareToFeed: true,
+                accessToken: integration.page_access_token,
+              })
+              containerRows.push({
+                container_id: container.id,
+                ig_user_id: integration.instagram_business_account_id,
+                integration_id: integration.id,
+                access_token: integration.page_access_token,
+                caption: row.caption || '',
+                video_url: videoUrl,
+                created_by: userId,
+                instance_ids: instanceIds,
+                destinations,
+                scheduled_post_id: row.id,
+              })
+            } catch (e) {
+              reelErrors.push(e instanceof Error ? e.message : 'Falha ao criar container.')
+            }
+          }
+
+          if (containerRows.length > 0) {
+            await db.from('pending_video_containers').insert(containerRows)
+          }
+
+          const allQueued = containerRows.length > 0 && reelErrors.length === 0
+          await db
+            .from('scheduled_social_posts')
+            .update({
+              status: allQueued ? 'video_processing' : 'failed',
+              error_message: reelErrors.length > 0 ? reelErrors.join('; ') : null,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', row.id)
+
+          results.push({
+            id: row.id,
+            status: allQueued ? 'published' : 'failed',
+            ...(reelErrors.length > 0 ? { error: reelErrors.join('; ') } : {}),
+          })
+          continue
+        }
+
         const { metaResults } = await executeMetaPublishWithUrls({
           db,
           userId,
