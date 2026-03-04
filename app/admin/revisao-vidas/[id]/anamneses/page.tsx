@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, Suspense } from 'react'
+import { createPortal } from 'react-dom'
 import { useParams } from 'next/navigation'
 import { adminFetchJson } from '@/lib/admin-client'
 import { ANAMNESE_QUESTION_DEFS, normalizeAnamneseData, type RevisaoAnamneseFormData } from '@/lib/revisao-anamnese'
@@ -650,7 +651,7 @@ function EventAnamneseInner() {
   const [printView, setPrintView] = useState<'none' | 'consolidated' | 'detailed'>('none')
 
   function handlePrint() {
-    setTimeout(() => window.print(), 150)
+    setTimeout(() => window.print(), 300)
   }
 
   const [debouncedSearch, setDebouncedSearch] = useState('')
@@ -939,10 +940,10 @@ function EventAnamneseInner() {
       {selected && <AnamneseDrawer item={selected} onClose={() => setSelected(null)} />}
 
       {/* ── Overlay de impressão PDF ─────────────────────── */}
-      {printView !== 'none' && (
+      {printView !== 'none' && createPortal(
         <div className="fixed inset-0 z-[200] bg-white overflow-auto" id="pdf-print-overlay">
           {/* Toolbar — oculta ao imprimir */}
-          <div className="print:hidden sticky top-0 z-10 bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between shadow-sm">
+          <div className="print-toolbar sticky top-0 z-10 bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between shadow-sm">
             <div className="flex items-center gap-3">
               {printView === 'consolidated' ? (
                 <><Printer className="w-5 h-5 text-[#c62737]" /><span className="font-semibold text-slate-700 text-sm">PDF — Relatório Consolidado</span></>
@@ -968,7 +969,7 @@ function EventAnamneseInner() {
           </div>
 
           {/* Conteúdo A4 */}
-          <div className="mx-auto max-w-[210mm] min-h-[297mm] bg-white p-[15mm] print:p-[20mm]">
+          <div className="mx-auto max-w-[210mm] min-h-[297mm] bg-white p-[15mm] print:p-0 print:max-w-none">
             {printView === 'consolidated' ? (
               <PrintConsolidatedReport anamneses={anamneses} totalRegs={totalRegs} eventName={eventName} />
             ) : (
@@ -979,12 +980,19 @@ function EventAnamneseInner() {
           <style>{`
             @media print {
               @page { size: A4; margin: 20mm; }
-              #pdf-print-overlay { position: static !important; overflow: visible !important; }
-              body > * { display: none !important; }
-              #pdf-print-overlay { display: block !important; }
+              body > *:not(#pdf-print-overlay) { display: none !important; }
+              #pdf-print-overlay {
+                position: static !important;
+                width: 100% !important;
+                height: auto !important;
+                overflow: visible !important;
+                background: white;
+              }
+              #pdf-print-overlay .print-toolbar { display: none !important; }
             }
           `}</style>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )
