@@ -6,7 +6,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseServer } from '@/lib/supabase-server'
 import { requireAccess } from '@/lib/admin-api'
 import { indexReferenceFace, ensureCollection } from '@/lib/rekognition'
-import { checkApiQuota, checkStorageQuota, incrementUsage, REKOGNITION_LIMITS } from '@/lib/rekognition-limits'
+import { checkApiQuota, checkStorageQuota, REKOGNITION_LIMITS } from '@/lib/rekognition-limits'
 
 const BUCKET = 'rekognition-references'
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp']
@@ -103,7 +103,6 @@ export async function POST(
     // Indexa rosto com o MESMO externalImageId da pessoa (Rekognition agrupa automaticamente)
     await ensureCollection(person.collection_id)
     const indexResult = await indexReferenceFace(buffer, person.external_image_id, person.collection_id)
-    await incrementUsage('IndexFaces', 1)
 
     // Salva na tabela de fotos
     const { data: inserted, error: insertError } = await supabaseServer

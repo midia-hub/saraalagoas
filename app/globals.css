@@ -380,6 +380,14 @@
   }
 }
 
+/* Esconde completamente a barra de rolagem */
+.scrollbar-none {
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
 /* Dropdown list scrollbar */
 .dropdown-scrollbar {
   scrollbar-width: thin;

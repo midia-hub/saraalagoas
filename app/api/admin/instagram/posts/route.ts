@@ -24,6 +24,7 @@ export async function GET(request: NextRequest) {
         error_message,
         result_payload,
         created_at,
+        created_by,
         draft_id,
         instance_id,
         instagram_instances (
@@ -34,7 +35,11 @@ export async function GET(request: NextRequest) {
           id,
           caption,
           status,
-          gallery_id
+          gallery_id,
+          created_by,
+          publish_mode,
+          preset,
+          scheduled_at
         )
       `
       )
@@ -91,20 +96,54 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Buscar dados de usuários (created_by) dos jobs e dos drafts
+    const createdByIds = Array.from(
+      new Set(
+        jobs
+          .flatMap((j) => [
+            (j as { created_by?: string }).created_by,
+            (j.instagram_post_drafts as { created_by?: string } | null)?.created_by,
+          ])
+          .filter(Boolean) as string[]
+      )
+    )
+    let usersMap: Record<string, { id: string; full_name: string | null; email: string }> = {}
+    if (createdByIds.length > 0) {
+      const { data: usersData } = await db
+        .from('admin_users')
+        .select('id, full_name, email')
+        .in('id', createdByIds)
+      if (Array.isArray(usersData)) {
+        for (const u of usersData) {
+          if (u?.id) usersMap[u.id] = { id: u.id, full_name: u.full_name ?? null, email: u.email ?? '' }
+        }
+      }
+    }
+
     // Montar resposta no formato esperado pelo frontend
     const result = jobs.map((job) => {
-      const draft = job.instagram_post_drafts as { id?: string; caption?: string; status?: string; gallery_id?: string } | null
+      const draft = job.instagram_post_drafts as {
+        id?: string; caption?: string; status?: string; gallery_id?: string;
+        created_by?: string; publish_mode?: string; preset?: string; scheduled_at?: string
+      } | null
       const galleryId = draft?.gallery_id
       const draftId = draft?.id
+      const jobCreatedBy = (job as { created_by?: string }).created_by
+      const draftCreatedBy = draft?.created_by
       return {
         ...job,
+        created_by_user: jobCreatedBy ? (usersMap[jobCreatedBy] ?? null) : null,
         instagram_post_drafts: draft
           ? {
               id: draft.id,
               caption: draft.caption,
               status: draft.status,
+              publish_mode: draft.publish_mode,
+              preset: draft.preset,
+              scheduled_at: draft.scheduled_at,
               galleries: galleryId ? galleriesMap[galleryId] ?? null : null,
               instagram_post_assets: draftId ? assetsByDraft[draftId] ?? null : null,
+              created_by_user: draftCreatedBy ? (usersMap[draftCreatedBy] ?? null) : null,
             }
           : null,
       }

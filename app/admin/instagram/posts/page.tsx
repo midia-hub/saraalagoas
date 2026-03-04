@@ -37,6 +37,7 @@ import { CustomSelect } from '@/components/ui/CustomSelect'
 import { PostCard } from './_components/PostCard'
 import { PostFilters } from './_components/PostFilters'
 import { PostsCalendar } from './_components/PostsCalendar'
+import { PostDetailModal } from './_components/PostDetailModal'
 import type { DateRangeKey, LegacyPostItem, MetaIntegrationOption, ScheduledItem } from './_components/types'
 import type { PostFiltersState } from './_components/PostFilters'
 
@@ -201,6 +202,7 @@ export default function AdminInstagramPostsPage() {
   const [loadingAccountInsights, setLoadingAccountInsights] = useState(false)
   const [showLegacy, setShowLegacy] = useState(false)
   const [activeTab, setActiveTab] = useState<'calendar' | 'list' | 'insights'>('calendar')
+  const [detailItem, setDetailItem] = useState<LegacyPostItem | null>(null)
   const [filters, setFilters] = useState<PostFiltersState>({
     status: 'all',
     dateRange: 'all',
@@ -417,6 +419,7 @@ export default function AdminInstagramPostsPage() {
           <PostsCalendar
             scheduledItems={scheduledItems}
             legacyItems={legacyItems}
+            integrations={integrations}
             loading={loading}
           />
         )}
@@ -602,7 +605,9 @@ export default function AdminInstagramPostsPage() {
                 />
               </div>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {filteredScheduled.map((s) => <PostCard key={s.id} post={s} />)}
+                {filteredScheduled.map((s) => (
+                  <PostCard key={s.id} post={s} integrations={integrations} />
+                ))}
               </div>
               {filteredScheduled.length === 0 && (
                 <div className="rounded-xl border border-dashed border-slate-200 py-8 text-center">
@@ -678,7 +683,17 @@ export default function AdminInstagramPostsPage() {
                           </span>
                         </div>
                         <div className="flex flex-1 flex-col p-4">
-                          <h3 className="line-clamp-1 font-semibold text-slate-900">{gallery ? gallery.title : 'Sem galeria'}</h3>
+                          <div className="flex items-start justify-between gap-2">
+                            <h3 className="line-clamp-1 font-semibold text-slate-900">{gallery ? gallery.title : 'Sem galeria'}</h3>
+                            <button
+                              type="button"
+                              onClick={() => setDetailItem(item)}
+                              title="Ver detalhes da publicação"
+                              className="shrink-0 flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-500 transition-colors hover:border-[#c62737] hover:bg-[#c62737]/5 hover:text-[#c62737]"
+                            >
+                              <Search className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
                           <p className="mt-0.5 text-xs text-slate-500">{gallery ? `${gallery.type} · ${gallery.date}` : ''}</p>
                           <p className="mt-1 text-sm text-slate-600">{item.instagram_instances?.name || 'Sem conta'}</p>
                           <p className="mt-0.5 text-xs text-slate-400">{date ? new Date(date).toLocaleString('pt-BR') : '-'}</p>
@@ -711,6 +726,10 @@ export default function AdminInstagramPostsPage() {
         type={toast.type}
         onClose={() => setToast((t) => ({ ...t, visible: false }))}
       />
+
+      {detailItem && (
+        <PostDetailModal item={detailItem} onClose={() => setDetailItem(null)} />
+      )}
     </PageAccessGuard>
   )
 }

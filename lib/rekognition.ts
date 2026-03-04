@@ -19,6 +19,7 @@ import {
   type FaceRecord,
   type FaceMatch,
 } from '@aws-sdk/client-rekognition'
+import { incrementUsage } from './rekognition-limits'
 
 // ─── Configuração do cliente ─────────────────────────────────────────────────
 
@@ -108,6 +109,11 @@ export async function indexReferenceFace(
   const response = await client.send(cmd)
   const faces: FaceRecord[] = response.FaceRecords ?? []
 
+  // Registra o uso da API com sucesso
+  await incrementUsage('IndexFaces').catch((err) =>
+    console.error('[rekognition] Erro ao incrementar uso (IndexFaces):', err)
+  )
+
   if (faces.length === 0) {
     const unindexed = response.UnindexedFaces ?? []
     const reason =
@@ -155,6 +161,11 @@ export async function searchFacesInPhoto(
 
     const response = await client.send(cmd)
     const matches: FaceMatch[] = response.FaceMatches ?? []
+
+    // Registra o uso da API com sucesso
+    await incrementUsage('SearchFacesByImage').catch((err) =>
+      console.error('[rekognition] Erro ao incrementar uso (SearchFacesByImage):', err)
+    )
 
     return matches.map((m) => ({
       faceId: m.Face!.FaceId!,

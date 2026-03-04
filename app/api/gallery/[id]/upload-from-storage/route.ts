@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { uploadImageToFolder } from '@/lib/drive'
+import { invalidateGalleryFilesCache } from '@/lib/gallery-files-cache'
 import { createSupabaseServiceClient } from '@/lib/supabase-server'
 import { requireAccess } from '@/lib/admin-api'
 
@@ -91,6 +92,8 @@ export async function POST(
         { status: 500 }
       )
     }
+
+    invalidateGalleryFilesCache(galleryId)
 
     // Remove do bucket (não bloqueia a resposta se falhar)
     await supabase.storage.from(BUCKET).remove([rawPath]).then(() => {}).catch((e) => {

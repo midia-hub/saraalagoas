@@ -6,7 +6,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseServer } from '@/lib/supabase-server'
 import { requireAccess } from '@/lib/admin-api'
 import { indexReferenceFace, getCollectionId, ensureCollection } from '@/lib/rekognition'
-import { checkApiQuota, checkStorageQuota, incrementUsage } from '@/lib/rekognition-limits'
+import { checkApiQuota, checkStorageQuota } from '@/lib/rekognition-limits'
 
 const BUCKET = 'rekognition-references'
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp']
@@ -122,7 +122,6 @@ export async function POST(request: NextRequest) {
     // Garante que a collection existe e indexa o rosto
     await ensureCollection()
     const indexResult = await indexReferenceFace(buffer, externalImageId)
-    await incrementUsage('IndexFaces', 1)
 
     // Atualiza registro com dados do Rekognition
     await supabaseServer

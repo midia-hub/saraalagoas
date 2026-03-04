@@ -1,3 +1,10 @@
+/** Usuário que criou a publicação */
+export type PostCreatedByUser = {
+  id: string
+  full_name: string | null
+  email: string
+}
+
 /** Item da fila legada (instagram_post_jobs) */
 export type LegacyPostItem = {
   id: string
@@ -7,14 +14,19 @@ export type LegacyPostItem = {
   error_message: string | null
   result_payload: { mediaId?: string } | null
   created_at: string
+  created_by_user?: PostCreatedByUser | null
   instagram_instances?: { id: string; name: string } | null
   instagram_post_drafts?: {
     id: string
     caption: string
     status: string
+    publish_mode?: string | null
+    preset?: string | null
+    scheduled_at?: string | null
     galleries?: { id: string; title: string; type: string; date: string } | null
     gallery?: { id: string; title: string; type: string; date: string } | null
     instagram_post_assets?: Array<{ sort_order: number; final_url: string | null; source_url: string }> | null
+    created_by_user?: PostCreatedByUser | null
   } | null
 }
 
@@ -32,6 +44,11 @@ export type ScheduledItem = {
   destinations?: { instagram?: boolean; facebook?: boolean }
   media_specs?: Array<{ id?: string; url?: string; cropMode?: string; altText?: string }>
   post_type?: 'feed' | 'reel' | 'story' | null
+  result_payload?: {
+    instagramMediaId?: string | null
+    facebookMediaId?: string | null
+    mediaIds?: Array<{ provider: string; mediaId?: string }>
+  } | null
   galleries?: { id: string; title: string; type: string; date: string } | null
 }
 

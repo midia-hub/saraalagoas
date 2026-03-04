@@ -922,3 +922,24 @@ export async function fetchMediaCollaborators(params: {
 
   return response.json()
 }
+
+/**
+ * Busca o permalink permanente de uma mídia do Instagram publicada.
+ * Retorna null em caso de erro (ex.: mídia expirada ou token inválido).
+ */
+export async function getInstagramMediaPermalink(params: {
+  mediaId: string
+  accessToken: string
+}): Promise<string | null> {
+  const { mediaId, accessToken } = params
+  try {
+    const res = await fetch(
+      `${META_API_BASE}/${mediaId}?fields=permalink&access_token=${encodeURIComponent(accessToken)}`
+    )
+    if (!res.ok) return null
+    const json = await res.json().catch(() => null)
+    return typeof json?.permalink === 'string' ? json.permalink : null
+  } catch {
+    return null
+  }
+}

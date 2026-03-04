@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { uploadImageToFolder } from '@/lib/drive'
+import { invalidateGalleryFilesCache } from '@/lib/gallery-files-cache'
 import { supabaseServer } from '@/lib/supabase-server'
 
 const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif']
@@ -76,6 +77,8 @@ export async function POST(
     if (insertError) {
       return NextResponse.json({ error: `Falha ao registrar arquivo: ${insertError.message}` }, { status: 500 })
     }
+
+    invalidateGalleryFilesCache(galleryId)
 
     return NextResponse.json({ name: uploadedFile.name, id: uploadedFile.id })
   } catch (err) {

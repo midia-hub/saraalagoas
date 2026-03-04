@@ -74,6 +74,12 @@ export async function GET(
   try {
     const files = await listFolderImages(gallery.drive_folder_id)
 
+    if (files.length === 0) {
+      const fallback = await getFilesFromDb(galleryId)
+      setCachedFiles(galleryId, fallback)
+      return NextResponse.json(fallback)
+    }
+
     if (files.length > 0) {
       const upsertPayload = files.map((file) => ({
         gallery_id: gallery.id,

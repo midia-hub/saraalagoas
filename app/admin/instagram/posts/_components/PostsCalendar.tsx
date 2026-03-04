@@ -9,10 +9,16 @@ import {
   Image as ImageIcon,
   ExternalLink,
   Instagram,
+  Facebook,
+  Film,
+  Layers,
   Loader2,
   Pencil,
+  UsersRound,
+  ChevronDown,
 } from 'lucide-react'
 import Link from 'next/link'
+import { adminFetchJson } from '@/lib/admin-client'
 import type { ScheduledItem, LegacyPostItem } from './types'
 
 type ViewMode = 'month' | 'week'
@@ -32,6 +38,11 @@ type UnifiedPost = {
   source: 'scheduled' | 'legacy'
   accountName?: string | null
   albumId?: string | null
+  post_type?: string | null
+  destinations?: { instagram?: boolean; facebook?: boolean }
+  instance_ids?: string[]
+  scheduledId?: string | null   // ID real em scheduled_social_posts (para PATCH)
+  instagramMediaId?: string | null
 }
 
 const STATUS_CFG: Record<
@@ -91,6 +102,11 @@ function mergeAll(scheduled: ScheduledItem[], legacy: LegacyPostItem[]): Unified
       permalink: null,
       source: 'scheduled',
       albumId: s.album_id,
+      post_type: s.post_type,
+      destinations: s.destinations,
+      instance_ids: s.instance_ids,
+      scheduledId: s.id,
+      instagramMediaId: s.result_payload?.instagramMediaId ?? null,
     }
   })
 
@@ -109,6 +125,8 @@ function mergeAll(scheduled: ScheduledItem[], legacy: LegacyPostItem[]): Unified
       source: 'legacy',
       accountName: l.instagram_instances?.name,
       albumId: null,
+      post_type: 'feed',
+      destinations: { instagram: true },
     }
   })
 
@@ -182,44 +200,156 @@ function MiniCard({ post }: { post: UnifiedPost }) {
 // ─────────────────────────────────────────────
 // Detail panel — single post card
 // ─────────────────────────────────────────────
-function DetailCard({ post }: { post: UnifiedPost }) {
+const POST_TYPE_CFG = {
+  feed: { label: 'Publicação', icon: LayoutGrid, bg: 'bg-slate-700', text: 'text-white' },
+  reel: { label: 'Reel', icon: Film, bg: 'bg-purple-600', text: 'text-white' },
+  story: { label: 'Story', icon: Layers, bg: 'bg-pink-600', text: 'text-white' },
+} as const
+
+function DetailCard({ post, integrations }: { post: UnifiedPost, integrations: Array<{ value: string; label: string }> }) {
   const cfg = STATUS_CFG[post.status] ?? STATUS_CFG.pending
   const time = new Date(post.dateIso).toLocaleString('pt-BR')
+
+  const hasInstagram = post.destinations?.instagram !== false
+  const hasFacebook = post.destinations?.facebook === true
+
+  const [currentType, setCurrentType] = useState<string>(post.post_type ?? 'feed')
+  const needsCorrection = post.post_type == null && post.source === 'scheduled'
+  const [editingType, setEditingType] = useState(false)
+  const [savingType, setSavingType] = useState(false)
+  const [loadingPermalink, setLoadingPermalink] = useState(false)
+
+  const typeCfg = POST_TYPE_CFG[currentType as keyof typeof POST_TYPE_CFG] ?? POST_TYPE_CFG.feed
+  const TypeIcon = typeCfg.icon
+
+  const accountLabels = useMemo(() => {
+    if (!post.instance_ids) return post.accountName ? [post.accountName] : []
+    const ids = Array.isArray(post.instance_ids) ? post.instance_ids : []
+    return ids.map(id => {
+      let cleanId = id
+      if (id.includes(':')) cleanId = id.split(':').pop() || id
+      const found = integrations.find(i => i.value === cleanId || i.value === id)
+      return found ? found.label : (id.length > 8 ? id.slice(0, 8) : id)
+    })
+  }, [post.instance_ids, post.accountName, integrations])
+
+  async function handleCorrectType(newType: string) {
+    if (!post.scheduledId) return
+    setSavingType(true)
+    try {
+      await adminFetchJson(`/api/social/scheduled/${post.scheduledId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ post_type: newType }),
+      })
+      setCurrentType(newType)
+    } catch { /* silently fail */ }
+    finally {
+      setSavingType(false)
+      setEditingType(false)
+    }
+  }
+
+  async function handleViewPost() {
+    if (!post.scheduledId) return
+    setLoadingPermalink(true)
+    try {
+      const res = await adminFetchJson<{ permalink?: string | null }>(`/api/admin/instagram/media-permalink?id=${encodeURIComponent(post.scheduledId)}`)
+      window.open(res?.permalink || 'https://www.instagram.com/', '_blank', 'noopener,noreferrer')
+    } catch {
+      window.open('https://www.instagram.com/', '_blank', 'noopener,noreferrer')
+    } finally {
+      setLoadingPermalink(false)
+    }
+  }
 
   return (
     <article className={`flex gap-3 rounded-xl border p-3 ${cfg.cardBorder} bg-white shadow-sm`}>
       {post.thumbnail ? (
-        <img
-          src={post.thumbnail}
-          alt=""
-          className="h-14 w-14 shrink-0 rounded-lg border border-slate-200 object-cover"
-        />
+        <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg border border-slate-200">
+          <img
+            src={post.thumbnail}
+            alt=""
+            className="h-full w-full object-cover"
+          />
+        </div>
       ) : (
         <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-slate-100">
           <ImageIcon className="h-6 w-6 text-slate-300" />
         </div>
       )}
       <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-1.5">
           <h4 className="font-semibold text-slate-900 text-sm truncate">{post.title}</h4>
+
+          {/* Post type + botão de correção quando tipo era desconhecido */}
+          <div className="relative flex items-center gap-1">
+            <span className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider ${typeCfg.bg} ${typeCfg.text}`}>
+              <TypeIcon className="h-2.5 w-2.5" />
+              {typeCfg.label}
+            </span>
+            {needsCorrection && (
+              <button
+                type="button"
+                onClick={() => setEditingType((v) => !v)}
+                title="Tipo não registrado — clique para corrigir"
+                className="flex items-center gap-0.5 rounded bg-amber-400 px-1 py-0.5 text-[9px] font-semibold text-white hover:bg-amber-500 transition-colors"
+              >
+                {savingType ? <Loader2 className="h-2 w-2 animate-spin" /> : <ChevronDown className="h-2 w-2" />}
+                corrigir
+              </button>
+            )}
+            {editingType && (
+              <div className="absolute top-full left-0 mt-1 z-30 rounded-xl border border-slate-200 bg-white shadow-lg overflow-hidden min-w-[130px]">
+                <div className="border-b border-slate-100 px-3 py-1.5">
+                  <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Qual foi o tipo?</p>
+                </div>
+                {(['feed', 'reel', 'story'] as const).map((t) => {
+                  const c = POST_TYPE_CFG[t]
+                  const Icon = c.icon
+                  return (
+                    <button key={t} type="button" onClick={() => handleCorrectType(t)}
+                      className="flex w-full items-center gap-2 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+                    >
+                      <Icon className="h-3 w-3" /> {c.label}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+
           <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${cfg.badgeBg} ${cfg.badgeText}`}>
             <span className={`h-1.5 w-1.5 rounded-full ${cfg.dotColor}`} />
             {cfg.label}
           </span>
+          
+          <div className="flex items-center gap-1">
+            {hasInstagram && <Instagram className="h-3 w-3 text-pink-600" />}
+            {hasFacebook && <Facebook className="h-3 w-3 text-blue-600" />}
+          </div>
+
           {post.source === 'legacy' && (
             <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-500">legada</span>
           )}
         </div>
         <p className="mt-0.5 text-[11px] text-slate-500">{time}</p>
-        {post.caption && (
-          <p className="mt-1 line-clamp-2 text-xs text-slate-600">{post.caption}</p>
+        
+        {accountLabels.length > 0 && (
+          <div className="mt-1 flex flex-wrap gap-1">
+            {accountLabels.map((lbl, idx) => (
+              <span key={idx} className="inline-flex items-center gap-1 rounded bg-slate-50 px-1.5 py-0.5 text-[10px] text-slate-500 border border-slate-100">
+                <UsersRound className="h-2.5 w-2.5" />
+                {lbl}
+              </span>
+            ))}
+          </div>
         )}
-        {post.accountName && (
-          <p className="mt-0.5 flex items-center gap-1 text-[11px] text-slate-500">
-            <Instagram className="h-3 w-3" /> {post.accountName}
-          </p>
+
+        {post.caption && (
+          <p className="mt-1 line-clamp-2 text-xs text-slate-600 leading-relaxed">{post.caption}</p>
         )}
         <div className="mt-2 flex flex-wrap gap-2">
+          {/* Ver postagem: permalink fixo (legacy) ou buscar via API (scheduled com media_id) */}
           {post.permalink && (
             <a
               href={post.permalink}
@@ -227,15 +357,26 @@ function DetailCard({ post }: { post: UnifiedPost }) {
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-medium text-[#c62737] hover:bg-red-50"
             >
-              Ver no Instagram <ExternalLink className="h-3 w-3" />
+              Ver postagem <ExternalLink className="h-3 w-3" />
             </a>
+          )}
+          {!post.permalink && post.instagramMediaId && post.source === 'scheduled' && (
+            <button
+              type="button"
+              onClick={handleViewPost}
+              disabled={loadingPermalink}
+              className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-medium text-[#c62737] hover:bg-red-50 disabled:opacity-60"
+            >
+              {loadingPermalink ? <Loader2 className="h-3 w-3 animate-spin" /> : <ExternalLink className="h-3 w-3" />}
+              Ver postagem
+            </button>
           )}
           {post.albumId && post.source === 'scheduled' && (
             <Link
               href={`/admin/galeria/${post.albumId}/post/create`}
               className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-medium text-slate-600 hover:bg-slate-50"
             >
-              <Pencil className="h-3 w-3" /> Editar
+              <Pencil className="h-3 w-3" /> Refazer
             </Link>
           )}
         </div>
@@ -420,6 +561,7 @@ function Legend() {
 export function PostsCalendar({
   scheduledItems,
   legacyItems,
+  integrations = [],
   loading = false,
 }: PostsCalendarProps) {
   const now = new Date()
@@ -590,7 +732,7 @@ export function PostsCalendar({
           ) : (
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {selectedPosts.map((post) => (
-                <DetailCard key={post.id} post={post} />
+                <DetailCard key={post.id} post={post} integrations={integrations} />
               ))}
             </div>
           )}

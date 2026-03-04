@@ -14,7 +14,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseServer } from '@/lib/supabase-server'
 import { requireAccess } from '@/lib/admin-api'
 import { searchFacesInPhoto } from '@/lib/rekognition'
-import { checkApiQuota, incrementUsage, REKOGNITION_LIMITS } from '@/lib/rekognition-limits'
+import { checkApiQuota, REKOGNITION_LIMITS } from '@/lib/rekognition-limits'
 import { getFileDownloadBuffer, getFileThumbnailBuffer, listFolderImages } from '@/lib/drive'
 
 // Busca thumbnail (menor); se não existir baixa o arquivo original
@@ -189,7 +189,6 @@ export async function POST(
             collectionId: person.collection_id,
             threshold: 80,
           })
-          await incrementUsage('SearchFacesByImage', 1)
 
           scanned++
 

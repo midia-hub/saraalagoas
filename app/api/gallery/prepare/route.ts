@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
         date,
         description: description || null,
         drive_folder_id: folderId,
-        hidden_from_public: true,
+        hidden_from_public: false,
       })
       .select('id')
       .single()

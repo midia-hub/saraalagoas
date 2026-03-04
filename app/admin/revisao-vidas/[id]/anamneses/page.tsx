@@ -7,7 +7,7 @@ import { ANAMNESE_QUESTION_DEFS, normalizeAnamneseData, type RevisaoAnamneseForm
 import {
   Loader2, RefreshCw, Search, X, FileText, User, Phone, Droplet, Users,
   UserCheck, Calendar, CheckCircle2, XCircle, AlertTriangle, ChevronRight,
-  ClipboardList, BookOpen, BarChart2, Percent,
+  ClipboardList, BookOpen, BarChart2, Percent, Printer, ListChecks,
 } from 'lucide-react'
 import Link from 'next/link'
 import { AdminPageHeader } from '@/app/admin/AdminPageHeader'
@@ -355,6 +355,277 @@ function StatCard({ label, value, color, bg, border }: {
   )
 }
 
+/* ── PDF Print Views ──────────────────────────────────── */
+
+function PrintConsolidatedReport({ anamneses, totalRegs, eventName }: {
+  anamneses: AnamneseItem[]; totalRegs: number; eventName: string
+}) {
+  const total = anamneses.length
+  const completionPct = totalRegs > 0 ? Math.round((total / totalRegs) * 100) : 0
+
+  const bloodMap: Record<string, number> = {}
+  anamneses.forEach(a => {
+    const bt = normalizeAnamneseData(a.form_data).bloodType || a.person?.blood_type || 'Não informado'
+    bloodMap[bt] = (bloodMap[bt] ?? 0) + 1
+  })
+  const bloodEntries = Object.entries(bloodMap).sort((a, b) => b[1] - a[1])
+
+  const preRevisaoSim = anamneses.filter(a => normalizeAnamneseData(a.form_data).preReviewCompleted === 'sim').length
+  const preRevisaoNao = anamneses.filter(a => normalizeAnamneseData(a.form_data).preReviewCompleted === 'nao').length
+
+  const questionCounts = ANAMNESE_QUESTION_DEFS.map(q => ({
+    key: q.key,
+    title: q.title,
+    simCount: anamneses.filter(a => normalizeAnamneseData(a.form_data).questions[q.key]?.answer === 'sim').length,
+  })).sort((a, b) => b.simCount - a.simCount)
+
+  const withAlerts = anamneses.filter(a =>
+    ANAMNESE_QUESTION_DEFS.some(q => normalizeAnamneseData(a.form_data).questions[q.key]?.answer === 'sim')
+  )
+
+  const genDate = new Date().toLocaleString('pt-BR', { dateStyle: 'full', timeStyle: 'short' })
+
+  return (
+    <div className="font-sans text-slate-800 text-sm">
+      {/* Cabeçalho */}
+      <div className="text-center border-b-2 border-slate-800 pb-5 mb-6">
+        <p className="text-[10px] uppercase tracking-widest text-slate-400 mb-1">Sara Sede Alagoas — Revisão de Vidas</p>
+        <h1 className="text-xl font-extrabold text-slate-900">Relatório Consolidado de Anamneses</h1>
+        <p className="text-base font-semibold text-slate-600 mt-1">{eventName}</p>
+        <p className="text-[11px] text-slate-400 mt-1">Gerado em {genDate}</p>
+      </div>
+
+      {/* Resumo estatístico */}
+      <h2 className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-3 border-b border-slate-200 pb-1">Resumo Estatístico</h2>
+      <div className="grid grid-cols-4 gap-3 mb-6">
+        {[
+          { label: 'Total de Inscrições', value: totalRegs, hex: '#475569' },
+          { label: `Anamneses Preenchidas (${completionPct}%)`, value: total, hex: '#7c3aed' },
+          { label: 'Pré-Revisão Concluída', value: preRevisaoSim, hex: '#059669' },
+          { label: 'Participantes c/ Alertas', value: withAlerts.length, hex: '#d97706' },
+        ].map(s => (
+          <div key={s.label} style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: '10px 8px', textAlign: 'center' }}>
+            <p style={{ fontSize: 24, fontWeight: 800, color: s.hex, lineHeight: 1.1 }}>{s.value}</p>
+            <p style={{ fontSize: 10, color: '#64748b', marginTop: 3 }}>{s.label}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Pré-Revisão */}
+      <h2 className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2 border-b border-slate-200 pb-1">Análise Pré-Revisão</h2>
+      <div className="mb-5">
+        <div className="flex gap-4 mb-2">
+          <span className="text-xs font-semibold text-emerald-700">✓ Concluiu: {preRevisaoSim}</span>
+          <span className="text-xs font-semibold text-rose-600">✗ Não concluiu: {preRevisaoNao}</span>
+          <span className="text-xs text-slate-400">Sem resposta: {total - preRevisaoSim - preRevisaoNao}</span>
+        </div>
+        {total > 0 && (
+          <div style={{ height: 10, borderRadius: 99, backgroundColor: '#f1f5f9', overflow: 'hidden', display: 'flex' }}>
+            <div style={{ height: '100%', width: `${(preRevisaoSim / total) * 100}%`, backgroundColor: '#10b981' }} />
+            <div style={{ height: '100%', width: `${(preRevisaoNao / total) * 100}%`, backgroundColor: '#f43f5e' }} />
+          </div>
+        )}
+      </div>
+
+      {/* Tipos sanguíneos */}
+      {bloodEntries.length > 0 && (
+        <>
+          <h2 className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2 border-b border-slate-200 pb-1">Distribuição de Tipos Sanguíneos</h2>
+          <div className="grid grid-cols-4 gap-2 mb-5">
+            {bloodEntries.map(([bt, count]) => (
+              <div key={bt} style={{ border: '1px solid #fecaca', borderRadius: 8, padding: '6px 10px', backgroundColor: '#fff1f2' }}>
+                <p style={{ fontSize: 14, fontWeight: 700, color: '#b91c1c' }}>{bt}</p>
+                <p style={{ fontSize: 11, color: '#64748b' }}>{count} participante{count !== 1 ? 's' : ''}</p>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* Questões */}
+      <h2 className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2 border-b border-slate-200 pb-1">Questionário Clínico — Frequência de Respostas "Sim"</h2>
+      <div className="mb-5 space-y-1.5">
+        {questionCounts.map(q => (
+          <div key={q.key} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <p style={{ flex: 1, fontSize: 11, color: '#334155', minWidth: 0 }}>{q.title.replace(/^\d+\)\s*/, '')}</p>
+            <div style={{ width: 80, height: 6, borderRadius: 99, backgroundColor: '#f1f5f9', overflow: 'hidden', flexShrink: 0 }}>
+              {total > 0 && (
+                <div style={{ height: '100%', width: `${(q.simCount / total) * 100}%`, backgroundColor: q.simCount > 0 ? '#f59e0b' : '#e2e8f0' }} />
+              )}
+            </div>
+            <span style={{ width: 28, textAlign: 'right', fontSize: 11, fontWeight: 700, color: q.simCount > 0 ? '#b45309' : '#94a3b8', flexShrink: 0 }}>
+              {q.simCount}
+            </span>
+            <span style={{ width: 28, textAlign: 'right', fontSize: 10, color: '#94a3b8', flexShrink: 0 }}>
+              {total > 0 ? `${Math.round((q.simCount / total) * 100)}%` : '—'}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      {/* Participantes com alertas */}
+      {withAlerts.length > 0 && (
+        <>
+          <h2 className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2 border-b border-slate-200 pb-1">
+            Participantes que Requerem Atenção ({withAlerts.length})
+          </h2>
+          <div className="space-y-2">
+            {withAlerts.map(a => {
+              const fd = normalizeAnamneseData(a.form_data)
+              const name = fd.name || a.person?.full_name || '—'
+              const blood = fd.bloodType || a.person?.blood_type
+              const positives = ANAMNESE_QUESTION_DEFS.filter(q => fd.questions[q.key]?.answer === 'sim')
+              return (
+                <div key={a.id} style={{ border: '1px solid #fcd34d', borderRadius: 8, backgroundColor: '#fffbeb', padding: '8px 12px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: '#92400e' }}>{name}</span>
+                    {blood && <span style={{ fontSize: 10, fontWeight: 700, color: '#b91c1c', backgroundColor: '#fee2e2', border: '1px solid #fca5a5', borderRadius: 99, padding: '1px 7px' }}>{blood}</span>}
+                    <span style={{ fontSize: 10, color: '#b45309', marginLeft: 'auto' }}>{fd.team || ''} {fd.leader ? `· Líder: ${fd.leader}` : ''}</span>
+                  </div>
+                  <div className="space-y-0.5">
+                    {positives.map(q => (
+                      <p key={q.key} style={{ fontSize: 10, color: '#92400e' }}>
+                        • {q.title.replace(/^\d+\)\s*/, '')}
+                        {fd.questions[q.key]?.detail && <span style={{ color: '#b45309' }}> — {fd.questions[q.key].detail}</span>}
+                        {'scheduleLabel' in q && fd.questions[q.key]?.schedule && <span style={{ color: '#b45309' }}> (horário: {fd.questions[q.key].schedule})</span>}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </>
+      )}
+
+      {/* Rodapé */}
+      <div style={{ borderTop: '1px solid #e2e8f0', marginTop: 24, paddingTop: 12, display: 'flex', justifyContent: 'space-between' }}>
+        <span style={{ fontSize: 10, color: '#94a3b8' }}>Sara Sede Alagoas — Plataforma de Gestão</span>
+        <span style={{ fontSize: 10, color: '#94a3b8' }}>Total de anamneses: {total} / {totalRegs}</span>
+      </div>
+    </div>
+  )
+}
+
+function PrintDetailedReport({ anamneses, eventName }: {
+  anamneses: AnamneseItem[]; eventName: string
+}) {
+  const genDate = new Date().toLocaleString('pt-BR', { dateStyle: 'full', timeStyle: 'short' })
+
+  return (
+    <div className="font-sans text-slate-800 text-sm">
+      {/* Cabeçalho */}
+      <div className="text-center border-b-2 border-slate-800 pb-5 mb-6">
+        <p className="text-[10px] uppercase tracking-widest text-slate-400 mb-1">Sara Sede Alagoas — Revisão de Vidas</p>
+        <h1 className="text-xl font-extrabold text-slate-900">Registros Detalhados de Anamneses</h1>
+        <p className="text-base font-semibold text-slate-600 mt-1">{eventName}</p>
+        <p className="text-[11px] text-slate-400 mt-1">Gerado em {genDate} · {anamneses.length} registros</p>
+      </div>
+
+      {/* Registros */}
+      <div className="space-y-6">
+        {anamneses.map((item, idx) => {
+          const data = normalizeAnamneseData(item.form_data)
+          const name = data.name || item.person?.full_name || '—'
+          const phone = data.phone || item.person?.mobile_phone || '—'
+          const blood = data.bloodType || item.person?.blood_type || '—'
+          const alertQuestions = ANAMNESE_QUESTION_DEFS.filter(q => data.questions[q.key]?.answer === 'sim')
+          const submittedAt = item.submitted_at ? new Date(item.submitted_at).toLocaleString('pt-BR') : '—'
+
+          return (
+            <div key={item.id} style={{ border: '1px solid #cbd5e1', borderRadius: 10, overflow: 'hidden', pageBreakInside: 'avoid' }}>
+              {/* Header do card */}
+              <div style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0', padding: '8px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 10, fontWeight: 600, color: '#94a3b8', backgroundColor: '#e2e8f0', borderRadius: 99, padding: '2px 8px' }}>#{idx + 1}</span>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: '#1e293b' }}>{name}</span>
+                  {alertQuestions.length > 0 && (
+                    <span style={{ fontSize: 10, fontWeight: 700, color: '#b45309', backgroundColor: '#fef3c7', border: '1px solid #fcd34d', borderRadius: 99, padding: '2px 8px' }}>
+                      ⚠ {alertQuestions.length} alerta{alertQuestions.length > 1 ? 's' : ''}
+                    </span>
+                  )}
+                </div>
+                <span style={{ fontSize: 10, color: '#94a3b8' }}>Enviado: {submittedAt}</span>
+              </div>
+
+              <div style={{ padding: '10px 14px' }}>
+                {/* Dados pessoais */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 10 }}>
+                  <div>
+                    <p style={{ fontSize: 9, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 2 }}>Telefone</p>
+                    <p style={{ fontSize: 12, color: '#334155' }}>{phone}</p>
+                  </div>
+                  <div>
+                    <p style={{ fontSize: 9, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 2 }}>Tipo Sanguíneo</p>
+                    <p style={{ fontSize: 12, fontWeight: 700, color: '#b91c1c' }}>{blood}</p>
+                  </div>
+                  <div>
+                    <p style={{ fontSize: 9, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 2 }}>Pré-Revisão</p>
+                    <p style={{ fontSize: 12, fontWeight: 600, color: data.preReviewCompleted === 'sim' ? '#059669' : data.preReviewCompleted === 'nao' ? '#e11d48' : '#94a3b8' }}>
+                      {data.preReviewCompleted === 'sim' ? '✓ Concluiu' : data.preReviewCompleted === 'nao' ? '✗ Não concluiu' : '—'}
+                    </p>
+                  </div>
+                  {data.team && (
+                    <div>
+                      <p style={{ fontSize: 9, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 2 }}>Equipe</p>
+                      <p style={{ fontSize: 12, color: '#334155' }}>{data.team}</p>
+                    </div>
+                  )}
+                  {data.leader && (
+                    <div>
+                      <p style={{ fontSize: 9, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 2 }}>Líder</p>
+                      <p style={{ fontSize: 12, color: '#334155' }}>{data.leader}</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Questionário */}
+                <p style={{ fontSize: 9, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4, borderBottom: '1px solid #f1f5f9', paddingBottom: 3 }}>Questionário Clínico</p>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 3, marginBottom: 8 }}>
+                  {ANAMNESE_QUESTION_DEFS.map(q => {
+                    const ans = data.questions[q.key]
+                    const isSim = ans?.answer === 'sim'
+                    return (
+                      <div key={q.key} style={{ border: `1px solid ${isSim ? '#fcd34d' : '#f1f5f9'}`, borderRadius: 6, padding: '4px 8px', backgroundColor: isSim ? '#fffbeb' : '#fafafa' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 4 }}>
+                          <p style={{ fontSize: 10, color: '#475569', flex: 1, lineHeight: 1.3 }}>{q.title.replace(/^\d+\)\s*/, '')}</p>
+                          <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 6px', borderRadius: 99, backgroundColor: isSim ? '#fef3c7' : '#f1f5f9', color: isSim ? '#b45309' : '#94a3b8', flexShrink: 0, whiteSpace: 'nowrap' }}>
+                            {ans?.answer === 'sim' ? 'Sim' : ans?.answer === 'nao' ? 'Não' : '—'}
+                          </span>
+                        </div>
+                        {isSim && ans?.detail && (
+                          <p style={{ fontSize: 9, color: '#b45309', marginTop: 2 }}>{'detailLabel' in q && q.detailLabel ? `${q.detailLabel} ` : ''}{ans.detail}</p>
+                        )}
+                        {isSim && 'scheduleLabel' in q && ans?.schedule && (
+                          <p style={{ fontSize: 9, color: '#b45309', marginTop: 1 }}>⏰ {ans.schedule}</p>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+
+                {/* Observações */}
+                {data.observacoes && (
+                  <div style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 6, padding: '6px 10px' }}>
+                    <p style={{ fontSize: 9, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 2 }}>Observações</p>
+                    <p style={{ fontSize: 11, color: '#475569', whiteSpace: 'pre-line' }}>{data.observacoes}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Rodapé */}
+      <div style={{ borderTop: '1px solid #e2e8f0', marginTop: 24, paddingTop: 12, display: 'flex', justifyContent: 'space-between' }}>
+        <span style={{ fontSize: 10, color: '#94a3b8' }}>Sara Sede Alagoas — Plataforma de Gestão</span>
+        <span style={{ fontSize: 10, color: '#94a3b8' }}>{anamneses.length} registro{anamneses.length !== 1 ? 's' : ''}</span>
+      </div>
+    </div>
+  )
+}
+
 /* ── Page ─────────────────────────────────────────────── */
 
 export default function EventAnamnesePage() {
@@ -376,6 +647,11 @@ function EventAnamneseInner() {
   const [search, setSearch] = useState('')
   const [tab, setTab] = useState<'lista' | 'relatorio'>('relatorio')
   const [selected, setSelected] = useState<AnamneseItem | null>(null)
+  const [printView, setPrintView] = useState<'none' | 'consolidated' | 'detailed'>('none')
+
+  function handlePrint() {
+    setTimeout(() => window.print(), 150)
+  }
 
   const [debouncedSearch, setDebouncedSearch] = useState('')
   useEffect(() => {
@@ -422,14 +698,34 @@ function EventAnamneseInner() {
         subtitle={eventName}
         backLink={{ href: `/admin/revisao-vidas/${eventId}`, label: 'Voltar ao evento' }}
         actions={
-          <button
-            onClick={load}
-            disabled={loading}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-sm font-medium text-slate-600 hover:text-purple-600 hover:border-purple-200 hover:bg-purple-50 transition-all disabled:opacity-50"
-          >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            Atualizar
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => { setPrintView('consolidated'); handlePrint() }}
+              disabled={loading || anamneses.length === 0}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-sm font-medium text-slate-600 hover:text-[#c62737] hover:border-[#c62737]/30 hover:bg-red-50 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              title="Relatório consolidado em PDF (A4)"
+            >
+              <Printer className="w-4 h-4" />
+              <span className="hidden sm:inline">PDF Relatório</span>
+            </button>
+            <button
+              onClick={() => { setPrintView('detailed'); handlePrint() }}
+              disabled={loading || anamneses.length === 0}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-sm font-medium text-slate-600 hover:text-[#c62737] hover:border-[#c62737]/30 hover:bg-red-50 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              title="Todos os registros detalhados em PDF (A4)"
+            >
+              <ListChecks className="w-4 h-4" />
+              <span className="hidden sm:inline">PDF Detalhado</span>
+            </button>
+            <button
+              onClick={load}
+              disabled={loading}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-sm font-medium text-slate-600 hover:text-purple-600 hover:border-purple-200 hover:bg-purple-50 transition-all disabled:opacity-50"
+            >
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              Atualizar
+            </button>
+          </div>
         }
       />
 
@@ -641,6 +937,55 @@ function EventAnamneseInner() {
       )}
 
       {selected && <AnamneseDrawer item={selected} onClose={() => setSelected(null)} />}
+
+      {/* ── Overlay de impressão PDF ─────────────────────── */}
+      {printView !== 'none' && (
+        <div className="fixed inset-0 z-[200] bg-white overflow-auto" id="pdf-print-overlay">
+          {/* Toolbar — oculta ao imprimir */}
+          <div className="print:hidden sticky top-0 z-10 bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between shadow-sm">
+            <div className="flex items-center gap-3">
+              {printView === 'consolidated' ? (
+                <><Printer className="w-5 h-5 text-[#c62737]" /><span className="font-semibold text-slate-700 text-sm">PDF — Relatório Consolidado</span></>
+              ) : (
+                <><ListChecks className="w-5 h-5 text-[#c62737]" /><span className="font-semibold text-slate-700 text-sm">PDF — Registros Detalhados ({anamneses.length} registros)</span></>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => window.print()}
+                className="inline-flex items-center gap-2 rounded-xl px-4 py-2 bg-[#c62737] text-white text-sm font-semibold hover:bg-[#a81e2d] transition-colors shadow-sm"
+              >
+                <Printer className="w-4 h-4" />
+                Imprimir / Salvar PDF
+              </button>
+              <button
+                onClick={() => setPrintView('none')}
+                className="inline-flex items-center gap-2 rounded-xl px-3 py-2 border border-slate-200 bg-white text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+              >
+                <X className="w-4 h-4" /> Fechar
+              </button>
+            </div>
+          </div>
+
+          {/* Conteúdo A4 */}
+          <div className="mx-auto max-w-[210mm] min-h-[297mm] bg-white p-[15mm] print:p-[20mm]">
+            {printView === 'consolidated' ? (
+              <PrintConsolidatedReport anamneses={anamneses} totalRegs={totalRegs} eventName={eventName} />
+            ) : (
+              <PrintDetailedReport anamneses={anamneses} eventName={eventName} />
+            )}
+          </div>
+
+          <style>{`
+            @media print {
+              @page { size: A4; margin: 20mm; }
+              #pdf-print-overlay { position: static !important; overflow: visible !important; }
+              body > * { display: none !important; }
+              #pdf-print-overlay { display: block !important; }
+            }
+          `}</style>
+        </div>
+      )}
     </div>
   )
 }
