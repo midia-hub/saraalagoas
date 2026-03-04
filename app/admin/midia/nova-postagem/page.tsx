@@ -32,6 +32,10 @@ import {
   Film,
   PlayCircle,
   Newspaper,
+  RotateCw,
+  RotateCcw,
+  Move,
+  Maximize2,
 } from 'lucide-react'
 import { PageAccessGuard } from '@/app/admin/PageAccessGuard'
 import { AdminPageHeader } from '@/app/admin/AdminPageHeader'
@@ -491,8 +495,8 @@ const ASPECT_PRESETS: AspectPreset[] = [
   { label: '9:16',   ratio: 9 / 16,     outW: 1080, outH: 1920, desc: 'Stories / Reels'     },
 ]
 
-const CROP_CONTAINER = 340
-const CROP_BOX_MAX   = 300
+const CROP_CONTAINER = 380
+const CROP_BOX_MAX   = 340
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Modal editor de imagem (crop + proporção)
@@ -500,14 +504,18 @@ const CROP_BOX_MAX   = 300
 
 function ImageCropperModal({
   item,
+  items,
   open,
   onClose,
   onApply,
+  onNavigate,
 }: {
   item: MediaItem | null
+  items: MediaItem[]
   open: boolean
   onClose: () => void
   onApply: (id: string, newDataUrl: string) => void
+  onNavigate: (item: MediaItem) => void
 }) {
   const [preset, setPreset] = useState<AspectPreset>(ASPECT_PRESETS[0])
   const [zoom, setZoom] = useState(1)
@@ -518,12 +526,22 @@ function ImageCropperModal({
   const [imgLoadError, setImgLoadError] = useState<string | null>(null)
   const [imgNatural, setImgNatural] = useState<{ w: number; h: number } | null>(null)
   const [applying, setApplying] = useState(false)
+  const [rotating, setRotating] = useState(false)
   const imgRef = useRef<HTMLImageElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
   const isDragging = useRef(false)
   const dragStartRef = useRef({ x: 0, y: 0, px: 0, py: 0 })
   const touchStartRef = useRef({ x: 0, y: 0, px: 0, py: 0 })
+  const pinchStartRef = useRef<{ dist: number; zoom: number } | null>(null)
   const cropBoxRef = useRef({ left: 0, top: 0, w: 0, h: 0 })
   const imgDimsRef = useRef({ w: 0, h: 0 })
+  // refs para closures estáticas no wheel listener
+  const zoomRef = useRef(zoom)
+  const panRef = useRef(pan)
+  const imgNaturalRef = useRef(imgNatural)
+  zoomRef.current = zoom
+  panRef.current = pan
+  imgNaturalRef.current = imgNatural
 
   // Derived layout
   const cropW    = preset.ratio >= 1 ? CROP_BOX_MAX : CROP_BOX_MAX * preset.ratio
@@ -545,6 +563,7 @@ function ImageCropperModal({
     setImgNatural(null)
     setImgLoadError(null)
     setApplying(false)
+    setRotating(false)
     setPreset(ASPECT_PRESETS[0])
 
     const sources =
@@ -598,6 +617,39 @@ function ImageCropperModal({
     }
   }, [open])
 
+  // Zoom com roda do mouse (non-passive para permitir preventDefault)
+  useEffect(() => {
+    if (!open) return
+    const el = containerRef.current
+    if (!el) return
+    function onWheel(e: WheelEvent) {
+      e.preventDefault()
+      const nat = imgNaturalRef.current
+      if (!nat) return
+      const { left: cl, top: ct, w: cw, h: ch } = cropBoxRef.current
+      const currentZoom = zoomRef.current
+      const currentPan = panRef.current
+      const delta = e.deltaY < 0 ? 0.12 : -0.12
+      const newZoom = Math.max(1, Math.min(5, currentZoom + delta))
+      if (newZoom === currentZoom) return
+      const bs = Math.max(cw / nat.w, ch / nat.h)
+      const oldW = nat.w * bs * currentZoom
+      const oldH = nat.h * bs * currentZoom
+      const newW = nat.w * bs * newZoom
+      const newH = nat.h * bs * newZoom
+      const cx = cl + cw / 2
+      const cy = ct + ch / 2
+      let nx = cx - (cx - currentPan.x) / oldW * newW
+      let ny = cy - (cy - currentPan.y) / oldH * newH
+      nx = Math.min(nx, cl);  nx = Math.max(nx, cl + cw - newW)
+      ny = Math.min(ny, ct);  ny = Math.max(ny, ct + ch - newH)
+      setPan({ x: nx, y: ny })
+      setZoom(newZoom)
+    }
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => el.removeEventListener('wheel', onWheel)
+  }, [open])
+
   function onImgLoad() {
     const img = imgRef.current
     if (!img) return
@@ -630,20 +682,35 @@ function ImageCropperModal({
   }
 
   function onTouchStart(e: React.TouchEvent) {
-    const t = e.touches[0]
-    touchStartRef.current = { x: t.clientX, y: t.clientY, px: pan.x, py: pan.y }
+    if (e.touches.length === 2) {
+      const t1 = e.touches[0], t2 = e.touches[1]
+      const dist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY)
+      pinchStartRef.current = { dist, zoom }
+    } else {
+      const t = e.touches[0]
+      touchStartRef.current = { x: t.clientX, y: t.clientY, px: pan.x, py: pan.y }
+      pinchStartRef.current = null
+    }
   }
 
   function onTouchMove(e: React.TouchEvent) {
     e.preventDefault()
-    const t = e.touches[0]
-    const { left: cl, top: ct, w: cw, h: ch } = cropBoxRef.current
-    const { w: imgW, h: imgH } = imgDimsRef.current
-    let nx = touchStartRef.current.px + (t.clientX - touchStartRef.current.x)
-    let ny = touchStartRef.current.py + (t.clientY - touchStartRef.current.y)
-    nx = Math.min(nx, cl);  nx = Math.max(nx, cl + cw - imgW)
-    ny = Math.min(ny, ct);  ny = Math.max(ny, ct + ch - imgH)
-    setPan({ x: nx, y: ny })
+    if (e.touches.length === 2 && pinchStartRef.current) {
+      // Pinch-to-zoom
+      const t1 = e.touches[0], t2 = e.touches[1]
+      const dist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY)
+      const newZoom = Math.max(1, Math.min(5, pinchStartRef.current.zoom * (dist / pinchStartRef.current.dist)))
+      handleZoomChange(newZoom)
+    } else if (e.touches.length === 1) {
+      const t = e.touches[0]
+      const { left: cl, top: ct, w: cw, h: ch } = cropBoxRef.current
+      const { w: imgW, h: imgH } = imgDimsRef.current
+      let nx = touchStartRef.current.px + (t.clientX - touchStartRef.current.x)
+      let ny = touchStartRef.current.py + (t.clientY - touchStartRef.current.y)
+      nx = Math.min(nx, cl);  nx = Math.max(nx, cl + cw - imgW)
+      ny = Math.min(ny, ct);  ny = Math.max(ny, ct + ch - imgH)
+      setPan({ x: nx, y: ny })
+    }
   }
 
   function handleZoomChange(newZoom: number) {
@@ -663,32 +730,82 @@ function ImageCropperModal({
     setZoom(newZoom)
   }
 
-  async function handleApply() {
+  function handleReset() {
+    if (!imgNatural) return
+    const bs = Math.max(cropW / imgNatural.w, cropH / imgNatural.h)
+    setZoom(1)
+    setPan({
+      x: cropLeft + cropW / 2 - imgNatural.w * bs / 2,
+      y: cropTop  + cropH / 2 - imgNatural.h * bs / 2,
+    })
+  }
+
+  async function handleRotate(dir: 'cw' | 'ccw') {
+    if (!imgRef.current || !imgNatural || rotating) return
+    setRotating(true)
+    try {
+      const img = imgRef.current
+      // Determinar novas dimensões (ao rotacionar 90°, w↔h)
+      const newW = imgNatural.h
+      const newH = imgNatural.w
+      const canvas = document.createElement('canvas')
+      canvas.width  = newW
+      canvas.height = newH
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return
+      ctx.translate(newW / 2, newH / 2)
+      ctx.rotate(dir === 'cw' ? Math.PI / 2 : -Math.PI / 2)
+      ctx.drawImage(img, -imgNatural.w / 2, -imgNatural.h / 2)
+      const rotatedDataUrl = canvas.toDataURL('image/jpeg', 0.95)
+      const nat = { w: newW, h: newH }
+      const bs = Math.max(cropW / nat.w, cropH / nat.h)
+      setImgSrc(rotatedDataUrl)
+      setImgNatural(nat)
+      setZoom(1)
+      setPan({
+        x: cropLeft + cropW / 2 - nat.w * bs / 2,
+        y: cropTop  + cropH / 2 - nat.h * bs / 2,
+      })
+    } finally {
+      setRotating(false)
+    }
+  }
+
+  async function handleApply(afterAction?: 'navigate-next') {
     if (!imgNatural || !imgSrc || !item) return
     setApplying(true)
     let blobUrl: string | null = null
     try {
       // 1. Obter bytes via fetch() para evitar restrições de CORS no canvas (canvas taint).
-      //    Tenta em cascata: proxy full → proxy thumb → URL atual (thumbnailLink direto).
-      const fetchCandidates: string[] = item.type === 'gallery'
-        ? [
-            `/api/gallery/image/?fileId=${encodeURIComponent(item.fileId)}&mode=full`,
-            `/api/gallery/image/?fileId=${encodeURIComponent(item.fileId)}&mode=thumb&size=1600`,
-            `/api/gallery/image/?fileId=${encodeURIComponent(item.fileId)}&mode=thumb&size=1024`,
-          ]
-        : [imgSrc]
-      // Adicionar URL atual se for uma URL externa não listada (ex.: thumbnailLink)
-      if (!fetchCandidates.includes(imgSrc)) fetchCandidates.push(imgSrc)
-
+      //    Se imgSrc já for dataUrl (upload ou imagem rotacionada), converte diretamente.
+      //    Para galeria, tenta em cascata: proxy full → proxy thumb → URL atual.
+      const isDataUrl = imgSrc.startsWith('data:')
       let blob: Blob | null = null
-      for (const url of fetchCandidates) {
-        try {
-          const r = await fetch(url)
-          if (r.ok) {
-            const ct = r.headers.get('content-type') || ''
-            if (ct.startsWith('image/')) { blob = await r.blob(); break }
-          }
-        } catch { /* tenta próxima */ }
+
+      if (isDataUrl) {
+        // dataUrl → Blob diretamente (funciona em todos os browsers modernos)
+        const r = await fetch(imgSrc)
+        if (r.ok) blob = await r.blob()
+      } else {
+        const fetchCandidates: string[] = item.type === 'gallery'
+          ? [
+              `/api/gallery/image/?fileId=${encodeURIComponent(item.fileId)}&mode=full`,
+              `/api/gallery/image/?fileId=${encodeURIComponent(item.fileId)}&mode=thumb&size=1600`,
+              `/api/gallery/image/?fileId=${encodeURIComponent(item.fileId)}&mode=thumb&size=1024`,
+            ]
+          : [imgSrc]
+        // Adicionar URL atual se for uma URL externa não listada (ex.: thumbnailLink)
+        if (!fetchCandidates.includes(imgSrc)) fetchCandidates.push(imgSrc)
+
+        for (const url of fetchCandidates) {
+          try {
+            const r = await fetch(url)
+            if (r.ok) {
+              const ct = r.headers.get('content-type') || ''
+              if (ct.startsWith('image/')) { blob = await r.blob(); break }
+            }
+          } catch { /* tenta próxima */ }
+        }
       }
       if (!blob) throw new Error('Não foi possível carregar a imagem para exportação.')
 
@@ -729,7 +846,18 @@ function ImageCropperModal({
       if (dataUrl.length > MAX_B64) dataUrl = canvas.toDataURL('image/jpeg', 0.60)
 
       onApply(item.id, dataUrl)
-      onClose()
+
+      if (afterAction === 'navigate-next') {
+        const idx = items.findIndex((i) => i.id === item.id)
+        const next = items[idx + 1]
+        if (next) {
+          onNavigate(next)
+        } else {
+          onClose()
+        }
+      } else {
+        onClose()
+      }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e)
       setImgLoadError(`Erro ao aplicar: ${msg}`)
@@ -747,41 +875,73 @@ function ImageCropperModal({
   return (
     <div className="fixed inset-0 z-[60] flex items-end justify-center sm:items-center">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative z-10 w-full max-w-[420px] rounded-t-2xl sm:rounded-2xl bg-white shadow-2xl overflow-hidden">
+      <div className="relative z-10 w-full max-w-[460px] rounded-t-2xl sm:rounded-2xl bg-white shadow-2xl overflow-hidden">
 
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+        <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3.5">
           <div className="flex items-center gap-2">
             <Crop className="h-4 w-4 text-[#c62737]" />
-            <p className="text-sm font-semibold text-slate-900">Editar proporção</p>
+            <p className="text-sm font-semibold text-slate-900">Editar imagem</p>
           </div>
+          {/* Navegação entre imagens */}
+          {items.length > 1 && item && (() => {
+            const idx = items.findIndex((i) => i.id === item.id)
+            const hasPrev = idx > 0
+            const hasNext = idx < items.length - 1
+            return (
+              <div className="flex items-center gap-1 mx-auto">
+                <button
+                  type="button"
+                  onClick={() => hasPrev && onNavigate(items[idx - 1])}
+                  disabled={!hasPrev}
+                  className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 disabled:opacity-30 transition-colors shadow-sm"
+                  title="Imagem anterior"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                <span className="min-w-[3rem] text-center text-xs font-medium text-slate-600">
+                  {idx + 1} / {items.length}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => hasNext && onNavigate(items[idx + 1])}
+                  disabled={!hasNext}
+                  className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 disabled:opacity-30 transition-colors shadow-sm"
+                  title="Próxima imagem"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            )
+          })()}
           <button type="button" onClick={onClose} className="flex h-7 w-7 items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 transition-colors">
             <X className="h-4 w-4" />
           </button>
         </div>
 
-        {/* Presets */}
-        <div className="flex gap-2 px-4 pt-3 pb-1 overflow-x-auto">
+        {/* Presets de proporção */}
+        <div className="flex gap-1.5 px-4 pt-3 pb-1 overflow-x-auto">
           {ASPECT_PRESETS.map((p) => (
             <button
               key={p.label}
               type="button"
               onClick={() => setPreset(p)}
-              className={`flex-shrink-0 flex flex-col items-center rounded-xl border px-3 py-2 text-xs transition-all ${
+              className={`flex-shrink-0 flex flex-col items-center rounded-xl border px-2.5 py-1.5 text-xs transition-all ${
                 preset.label === p.label
                   ? 'border-[#c62737] bg-[#c62737]/5 text-[#c62737]'
                   : 'border-slate-200 text-slate-600 hover:border-slate-300'
               }`}
             >
               <span className="font-semibold">{p.label}</span>
-              <span className="mt-0.5 text-[10px] text-slate-400">{p.desc}</span>
+              <span className="mt-0.5 text-[10px] text-slate-400 whitespace-nowrap">{p.desc}</span>
             </button>
           ))}
         </div>
 
         {/* Viewport de recorte */}
         <div
-          className="relative mx-auto mt-3 cursor-grab active:cursor-grabbing select-none bg-slate-900 overflow-hidden"
+          ref={containerRef}
+          className="relative mx-auto mt-2 cursor-grab active:cursor-grabbing select-none bg-slate-900 overflow-hidden"
           style={{ width: CROP_CONTAINER, height: CROP_CONTAINER }}
           onMouseDown={onMouseDown}
           onTouchStart={onTouchStart}
@@ -829,6 +989,18 @@ function ImageCropperModal({
             <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-white pointer-events-none" />
           </div>
 
+          {/* Dica de interação (desktop) */}
+          {imgNatural && (
+            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 pointer-events-none">
+              <span className="hidden sm:inline-flex items-center gap-1 rounded-full bg-black/50 px-2 py-0.5 text-[10px] text-white/80 backdrop-blur-sm">
+                <Move className="h-2.5 w-2.5" /> Arraste · Roda = zoom
+              </span>
+              <span className="inline-flex sm:hidden items-center gap-1 rounded-full bg-black/50 px-2 py-0.5 text-[10px] text-white/80 backdrop-blur-sm">
+                <Move className="h-2.5 w-2.5" /> Arraste · Pinça = zoom
+              </span>
+            </div>
+          )}
+
           {!imgNatural && imgSrc && !imgLoadError && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <Loader2 className="h-8 w-8 text-white animate-spin" />
@@ -857,26 +1029,82 @@ function ImageCropperModal({
           )}
         </div>
 
-        {/* Zoom */}
-        <div className="flex items-center gap-3 px-5 pt-3 pb-1">
-          <ZoomOut className="h-4 w-4 text-slate-400 flex-shrink-0" />
-          <input
-            type="range"
-            min={1}
-            max={5}
-            step={0.02}
-            value={zoom}
-            onChange={(e) => handleZoomChange(Number(e.target.value))}
-            className="flex-1 accent-[#c62737]"
-          />
-          <ZoomIn className="h-4 w-4 text-slate-400 flex-shrink-0" />
+        {/* Controles de zoom + rotação */}
+        <div className="px-4 pt-2.5 pb-1 space-y-2">
+          {/* Linha de zoom */}
+          <div className="flex items-center gap-2.5">
+            <button
+              type="button"
+              onClick={() => handleZoomChange(Math.max(1, zoom - 0.1))}
+              disabled={!imgNatural}
+              className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 disabled:opacity-40 transition-colors shadow-sm"
+              title="Reduzir zoom"
+            >
+              <ZoomOut className="h-3.5 w-3.5" />
+            </button>
+            <input
+              type="range"
+              min={1}
+              max={5}
+              step={0.02}
+              value={zoom}
+              onChange={(e) => handleZoomChange(Number(e.target.value))}
+              disabled={!imgNatural}
+              className="flex-1 accent-[#c62737] disabled:opacity-40"
+            />
+            <button
+              type="button"
+              onClick={() => handleZoomChange(Math.min(5, zoom + 0.1))}
+              disabled={!imgNatural}
+              className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 disabled:opacity-40 transition-colors shadow-sm"
+              title="Aumentar zoom"
+            >
+              <ZoomIn className="h-3.5 w-3.5" />
+            </button>
+            <span className="w-12 text-center text-[11px] font-medium text-slate-500 tabular-nums">
+              {Math.round(zoom * 100)}%
+            </span>
+          </div>
+
+          {/* Linha de rotação + reset + info */}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => handleRotate('ccw')}
+              disabled={!imgNatural || rotating || applying}
+              className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 disabled:opacity-40 transition-colors shadow-sm"
+              title="Girar 90° anti-horário"
+            >
+              {rotating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="h-3.5 w-3.5" />}
+            </button>
+            <button
+              type="button"
+              onClick={() => handleRotate('cw')}
+              disabled={!imgNatural || rotating || applying}
+              className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 disabled:opacity-40 transition-colors shadow-sm"
+              title="Girar 90° horário"
+            >
+              {rotating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCw className="h-3.5 w-3.5" />}
+            </button>
+            <div className="h-4 w-px bg-slate-200 flex-shrink-0" />
+            <button
+              type="button"
+              onClick={handleReset}
+              disabled={!imgNatural}
+              className="flex h-7 items-center gap-1 px-2 rounded-lg border border-slate-200 bg-white text-[11px] font-medium text-slate-500 hover:bg-slate-50 disabled:opacity-40 transition-colors shadow-sm"
+              title="Recentrar imagem"
+            >
+              <Maximize2 className="h-3 w-3" />
+              Recentrar
+            </button>
+            <span className="ml-auto text-[11px] text-slate-400">
+              {preset.outW}&times;{preset.outH}px
+            </span>
+          </div>
         </div>
-        <p className="text-center text-[11px] text-slate-400 pb-2">
-          {Math.round(zoom * 100)}% · saída {preset.outW}&times;{preset.outH}px
-        </p>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-3 border-t border-slate-100 px-5 py-4">
+        <div className="flex items-center justify-end gap-2 border-t border-slate-100 px-4 py-3.5">
           <button
             type="button"
             onClick={onClose}
@@ -884,10 +1112,28 @@ function ImageCropperModal({
           >
             Cancelar
           </button>
+          {/* Aplicar e ir para próxima — só aparece quando houver próxima imagem editável */}
+          {(() => {
+            if (!item) return null
+            const idx = items.findIndex((i) => i.id === item.id)
+            const hasNext = idx >= 0 && idx < items.length - 1
+            if (!hasNext) return null
+            return (
+              <button
+                type="button"
+                onClick={() => handleApply('navigate-next')}
+                disabled={applying || rotating || !imgNatural}
+                className="flex items-center gap-1.5 rounded-xl border border-[#c62737] bg-[#c62737]/5 px-4 py-2 text-sm font-semibold text-[#c62737] hover:bg-[#c62737]/10 disabled:opacity-50 transition-colors"
+              >
+                {applying ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Crop className="h-3.5 w-3.5" />}
+                Aplicar e Próxima <ChevronRight className="h-3.5 w-3.5" />
+              </button>
+            )
+          })()}
           <button
             type="button"
-            onClick={handleApply}
-            disabled={applying || !imgNatural}
+            onClick={() => handleApply()}
+            disabled={applying || rotating || !imgNatural}
             className="flex items-center gap-2 rounded-xl bg-[#c62737] px-5 py-2 text-sm font-semibold text-white hover:bg-[#a81f2d] disabled:opacity-50 transition-colors"
           >
             {applying ? <Loader2 className="h-4 w-4 animate-spin" /> : <Crop className="h-4 w-4" />}
@@ -2221,14 +2467,24 @@ function NovaPostagemContent() {
                   {media.map((item, idx) => (
                     <div key={item.id} className="group flex flex-col gap-1">
                       {/* Thumbnail */}
-                      <div className="relative aspect-square">
+                      <div
+                        className="relative aspect-square"
+                        role={!isVideoItem(item) ? 'button' : undefined}
+                        tabIndex={!isVideoItem(item) ? 0 : undefined}
+                        title={!isVideoItem(item) ? 'Clique para editar imagem' : undefined}
+                        onClick={() => !isVideoItem(item) && setCropItem(item)}
+                        onKeyDown={(e) => { if (!isVideoItem(item) && (e.key === 'Enter' || e.key === ' ')) setCropItem(item) }}
+                        style={!isVideoItem(item) ? { cursor: 'pointer' } : undefined}
+                      >
                         <div
                           className={`h-full w-full overflow-hidden rounded-xl border-2 bg-slate-100 transition-all ${
-                            item.type === 'gallery'
+                            cropItem?.id === item.id
+                              ? 'border-[#c62737] ring-2 ring-[#c62737]/30'
+                              : item.type === 'gallery'
                               ? 'border-blue-200'
                               : isVideoItem(item)
                               ? 'border-violet-200'
-                              : 'border-slate-200'
+                              : 'border-slate-200 group-hover:border-[#c62737]/60'
                           }`}
                         >
                           {isVideoItem(item) ? (
@@ -2250,7 +2506,9 @@ function NovaPostagemContent() {
                         {/* Badge de ordem */}
                         <span
                           className={`absolute left-1 top-1 flex h-5 w-5 items-center justify-center rounded-md text-[10px] font-bold text-white shadow ${
-                            item.type === 'gallery'
+                            cropItem?.id === item.id
+                              ? 'bg-[#c62737]'
+                              : item.type === 'gallery'
                               ? 'bg-blue-500'
                               : isVideoItem(item)
                               ? 'bg-violet-500'
@@ -2259,6 +2517,12 @@ function NovaPostagemContent() {
                         >
                           {idx + 1}
                         </span>
+                        {/* Badge "editando" */}
+                        {cropItem?.id === item.id && (
+                          <span className="absolute bottom-0 left-0 right-0 flex items-center justify-center gap-0.5 rounded-b-xl bg-[#c62737]/90 py-0.5 text-[10px] font-semibold text-white backdrop-blur-sm pointer-events-none">
+                            <Crop className="h-2.5 w-2.5" /> Editando
+                          </span>
+                        )}
                         {/* Badge de fonte */}
                         {item.type === 'gallery' && (
                           <span
@@ -2277,18 +2541,16 @@ function NovaPostagemContent() {
                           </span>
                         )}
                         {/* Ações ao hover — somente desktop (sm+) */}
-                        <div className="absolute inset-0 hidden sm:flex flex-col items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity bg-black/30 rounded-xl">
-                          <div className="flex gap-1">
-                            {!isVideoItem(item) && (
-                              <button
-                                type="button"
-                                onClick={() => setCropItem(item)}
-                                className="flex h-6 w-6 items-center justify-center rounded-full bg-white/90 text-slate-700 hover:bg-white shadow transition-colors"
-                                title="Editar proporção"
-                              >
-                                <Crop className="h-3 w-3" />
-                              </button>
-                            )}
+                        <div className="absolute inset-0 hidden sm:flex flex-col items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity bg-black/40 rounded-xl">
+                          {!isVideoItem(item) && (
+                            <div className="flex flex-col items-center gap-0.5">
+                              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/95 text-[#c62737] shadow-md">
+                                <Crop className="h-4 w-4" />
+                              </div>
+                              <span className="text-[10px] font-semibold text-white">Editar</span>
+                            </div>
+                          )}
+                          <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                             <button
                               type="button"
                               onClick={() => removeMedia(item.id)}
@@ -2298,7 +2560,7 @@ function NovaPostagemContent() {
                               <X className="h-3 w-3" />
                             </button>
                           </div>
-                          <div className="flex gap-1">
+                          <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                             {idx > 0 && (
                               <button
                                 type="button"
@@ -3064,9 +3326,11 @@ function NovaPostagemContent() {
       {/* Modal editor de imagem */}
       <ImageCropperModal
         item={cropItem}
+        items={media.filter((m) => !isVideoItem(m))}
         open={cropItem !== null}
         onClose={() => setCropItem(null)}
         onApply={handleCropApply}
+        onNavigate={(m) => setCropItem(m)}
       />
 
       {/* Modal galeria */}

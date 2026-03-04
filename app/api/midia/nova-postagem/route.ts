@@ -6,7 +6,12 @@ import {
   resolveDriveFileToPublicUrl,
   type PostType,
 } from '@/lib/publish-meta'
+import { createInstagramReelContainer } from '@/lib/meta'
+import { pollAndPublishContainers } from '@/lib/video-container-polling'
 import sharp from 'sharp'
+
+// Vercel: tempo máximo de execução (plano Pro suporta até 300s)
+export const maxDuration = 300
 
 const BUCKET = 'instagram_posts'
 
@@ -345,6 +350,137 @@ export async function POST(request: NextRequest) {
       scheduledAt: new Date(scheduledAt).toISOString(),
       id: scheduled?.id,
       message: `Postagem agendada para ${new Date(scheduledAt).toLocaleString('pt-BR')}.`,
+    })
+  }
+
+  // ── REEL DE VÍDEO (FLUXO ASSÍNCRONO) ────────────────────────────────────────
+  // O Meta pode demorar minutos para processar um vídeo. Para não ultrapassar o
+  // timeout da Vercel (300s), criamos o container, salvamos no banco e retornamos
+  // imediatamente. O cron /api/cron/process-video-containers monitora o status e
+  // publica automaticamente quando o Meta sinalizar FINISHED.
+  if (postType === 'reel' && isVideoMedia && !scheduledAt) {
+    const videoUrl = mediaUrls[0]
+    const reelErrors: string[] = []
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const containerRows: any[] = []
+
+    const { data: integrations, error: integrationsError } = await db
+      .from('meta_integrations')
+      .select('id,instagram_business_account_id,page_access_token,is_active')
+      .in('id', integrationIds)
+      .eq('created_by', userId)
+      .eq('is_active', true)
+
+    if (integrationsError) {
+      return NextResponse.json({ error: integrationsError.message }, { status: 500 })
+    }
+
+    for (const integration of integrations || []) {
+      if (!integration.instagram_business_account_id || !integration.page_access_token) {
+        reelErrors.push(`Integração ${integration.id}: sem dados de conta Instagram.`)
+        continue
+      }
+      try {
+        const container = await createInstagramReelContainer({
+          igUserId: integration.instagram_business_account_id,
+          videoUrl,
+          caption: text || '',
+          shareToFeed: true,
+          ...(customCoverPublicUrl ? { coverUrl: customCoverPublicUrl } : {}),
+          ...(!customCoverPublicUrl && thumbOffset !== undefined ? { thumbOffset } : {}),
+          accessToken: integration.page_access_token,
+        })
+        containerRows.push({
+          container_id: container.id,
+          ig_user_id: integration.instagram_business_account_id,
+          integration_id: integration.id,
+          access_token: integration.page_access_token,
+          caption: text || '',
+          video_url: videoUrl,
+          created_by: userId,
+          instance_ids: integrationIds,
+          destinations,
+          ...(customCoverPublicUrl ? { cover_url: customCoverPublicUrl } : {}),
+          ...(thumbOffset !== undefined ? { thumb_offset: thumbOffset } : {}),
+        })
+      } catch (e) {
+        reelErrors.push(
+          `Integração ${integration.id}: ${
+            e instanceof Error ? e.message : 'Falha ao criar container do Reel.'
+          }`
+        )
+      }
+    }
+
+    if (containerRows.length === 0) {
+      return NextResponse.json({
+        ok: false,
+        message: 'Nenhum container de Reel foi criado.',
+        errors: reelErrors,
+      })
+    }
+
+    // Criar log em scheduled_social_posts para obter o ID de referência
+    const { data: logRow } = await db
+      .from('scheduled_social_posts')
+      .insert({
+        album_id: null,
+        created_by: userId,
+        scheduled_at: new Date().toISOString(),
+        instance_ids: integrationIds,
+        destinations,
+        caption: text,
+        media_specs: mediaUrls.map((url) => ({ url })),
+        status: 'video_processing',
+        post_type: 'reel',
+        publication_group_id:
+          body.groupId && typeof body.groupId === 'string' ? body.groupId : null,
+      })
+      .select('id')
+      .single()
+
+    const rowsWithRef = containerRows.map((r) => ({
+      ...r,
+      scheduled_post_id: logRow?.id ?? null,
+    }))
+
+    // Polling inline: aguarda o Meta processar e publica automaticamente.
+    // Containers que não terminam dentro do timeout vão para pending_video_containers
+    // e serão publicados pelo cron diário (fallback).
+    const pollResults = await pollAndPublishContainers({
+      db,
+      containers: rowsWithRef,
+      maxWaitMs: 270_000,
+    })
+
+    const publishedCount = pollResults.filter((r) => r.status === 'published').length
+    const timedOutCount = pollResults.filter((r) => r.status === 'timeout').length
+    const failedCount = pollResults.filter((r) => r.status === 'failed').length
+    const pollErrors = pollResults
+      .filter((r) => r.status === 'failed')
+      .map((r) => r.error)
+      .filter(Boolean) as string[]
+
+    let message: string
+    if (publishedCount > 0 && timedOutCount === 0) {
+      message = `Reel publicado com sucesso em ${publishedCount} conta(s).`
+    } else if (publishedCount > 0 && timedOutCount > 0) {
+      message = `Reel publicado em ${publishedCount} conta(s). ${timedOutCount} conta(s) ainda processando — serão publicadas automaticamente.`
+    } else if (timedOutCount > 0) {
+      message = `Reel em processamento em ${timedOutCount} conta(s). Será publicado automaticamente em breve.`
+    } else {
+      message = 'Nenhum Reel foi publicado com sucesso.'
+    }
+
+    return NextResponse.json({
+      ok: publishedCount > 0 || timedOutCount > 0,
+      published: publishedCount > 0,
+      processing: timedOutCount > 0,
+      message,
+      errors: [...reelErrors, ...pollErrors],
+      publishedCount,
+      timedOutCount,
+      failedCount,
     })
   }
 

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAccess } from '@/lib/admin-api'
 import { createSupabaseServerClient, createSupabaseAdminClient } from '@/lib/supabase-server'
 import { executeMetaPublish, executeMetaPublishWithUrls, type MediaEditInput } from '@/lib/publish-meta'
+import { createInstagramReelContainer } from '@/lib/meta'
+import { pollAndPublishContainers } from '@/lib/video-container-polling'
 
 export const dynamic = 'force-dynamic'
 
@@ -17,6 +19,7 @@ type ScheduledRow = {
   caption: string
   media_specs: Array<{ id?: string; url?: string; cropMode?: string; altText?: string }>
   status: string
+  post_type?: string
 }
 
 /**
@@ -29,7 +32,7 @@ async function processScheduledPosts(db: any) {
 
   const { data: rows, error: fetchError } = await db
     .from('scheduled_social_posts')
-    .select('id, album_id, created_by, scheduled_at, instance_ids, destinations, caption, media_specs, status')
+    .select('id, album_id, created_by, scheduled_at, instance_ids, destinations, caption, media_specs, status, post_type')
     .eq('status', 'pending')
     .lte('scheduled_at', now)
     .order('scheduled_at', { ascending: true })
@@ -68,6 +71,93 @@ async function processScheduledPosts(db: any) {
 
       if (isDirectUrlPost) {
         const imageUrls = mediaSpecs.map((s) => s.url as string)
+        const isReelVideo = row.post_type === 'reel' &&
+          imageUrls.length === 1
+
+        // Reels de vídeo: fluxo assíncrono para não bloquear o cron aguardando
+        // o processamento do vídeo pelo Meta (pode demorar minutos).
+        if (isReelVideo) {
+          const videoUrl = imageUrls[0]
+          const reelErrors: string[] = []
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const containerRows: any[] = []
+
+          const { data: integrations } = await db
+            .from('meta_integrations')
+            .select('id,instagram_business_account_id,page_access_token,is_active')
+            .in('id', instanceIds)
+            .eq('is_active', true)
+
+          for (const integration of integrations || []) {
+            if (!integration.instagram_business_account_id || !integration.page_access_token) continue
+            try {
+              const container = await createInstagramReelContainer({
+                igUserId: integration.instagram_business_account_id,
+                videoUrl,
+                caption: row.caption || '',
+                shareToFeed: true,
+                accessToken: integration.page_access_token,
+              })
+              containerRows.push({
+                container_id: container.id,
+                ig_user_id: integration.instagram_business_account_id,
+                integration_id: integration.id,
+                access_token: integration.page_access_token,
+                caption: row.caption || '',
+                video_url: videoUrl,
+                created_by: userId,
+                instance_ids: instanceIds,
+                destinations,
+                scheduled_post_id: row.id,
+              })
+            } catch (e) {
+              reelErrors.push(e instanceof Error ? e.message : 'Falha ao criar container.')
+            }
+          }
+
+          if (containerRows.length === 0) {
+            const errMsg = reelErrors.join('; ') || 'Nenhum container de Reel foi criado.'
+            await db
+              .from('scheduled_social_posts')
+              .update({ status: 'failed', error_message: errMsg, updated_at: new Date().toISOString() })
+              .eq('id', row.id)
+            results.push({ id: row.id, status: 'failed', error: errMsg })
+            continue
+          }
+
+          // Polling inline — publica assim que o Meta sinalizar FINISHED.
+          // Containers não concluídos no prazo vão para pending_video_containers
+          // e serão publicados pelo cron diário (fallback automático).
+          const pollResults = await pollAndPublishContainers({
+            db,
+            containers: containerRows,
+            maxWaitMs: 85_000,
+          })
+
+          const publishedCount = pollResults.filter((r) => r.status === 'published').length
+          const timedOutCount = pollResults.filter((r) => r.status === 'timeout').length
+          const pollErrors = pollResults
+            .filter((r) => r.status === 'failed')
+            .map((r) => r.error)
+            .filter(Boolean) as string[]
+          const allErrors = [...reelErrors, ...pollErrors]
+
+          // Se nenhum publicou mas algum ainda processa, manter como video_processing
+          if (timedOutCount > 0 && publishedCount === 0) {
+            await db
+              .from('scheduled_social_posts')
+              .update({ status: 'video_processing', error_message: null, updated_at: new Date().toISOString() })
+              .eq('id', row.id)
+          }
+
+          results.push({
+            id: row.id,
+            status: publishedCount > 0 || timedOutCount > 0 ? 'published' : 'failed',
+            ...(allErrors.length > 0 ? { error: allErrors.join('; ') } : {}),
+          })
+          continue
+        }
+
         const { metaResults } = await executeMetaPublishWithUrls({
           db,
           userId,
