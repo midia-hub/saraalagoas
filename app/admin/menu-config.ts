@@ -272,16 +272,16 @@ export const menuModules: MenuModule[] = [
         permission: 'galeria',
         items: [
             {
+                href: '/admin/galeria',
+                label: 'Galeria de Fotos',
+                icon: ImageIcon,
+                permission: 'galeria'
+            },
+            {
                 href: '/admin/midia/nova-postagem',
                 label: 'Nova Postagem',
                 icon: PenLine,
                 permission: 'instagram'
-            },
-            {
-                href: '/admin/upload',
-                label: 'Upload de Arquivos',
-                icon: Upload,
-                permission: 'upload'
             },
             {
                 href: '/admin/instagram/posts',

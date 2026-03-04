@@ -41,6 +41,7 @@ export type MetaPublishResult = {
   provider: 'instagram' | 'facebook'
   ok: boolean
   error?: string
+  mediaId?: string
 }
 
 export async function resolveDriveFileToPublicUrl(
@@ -207,6 +208,7 @@ export type ExecuteMetaPublishParams = {
   albumId: string
   instanceIds: string[]
   destinations: { instagram: boolean; facebook: boolean }
+  postType?: PostType
   text: string
   mediaEdits: MediaEditInput[]
 }
@@ -375,31 +377,35 @@ export async function executeMetaPublishWithUrls(params: ExecuteMetaPublishWithU
           // Vídeos demoram mais para processar
           timeoutMs: isVideo ? 900_000 : 45_000,
         })
-        await publishInstagramMediaWithRetry({
+        const publishedMedia = await publishInstagramMediaWithRetry({
           igUserId: integration.instagram_business_account_id,
           creationId: containerId,
           accessToken: integration.page_access_token,
         })
+        metaResults.push({ instanceId, provider: selection.type, ok: true, mediaId: publishedMedia?.id })
+        continue
       } else {
         // Facebook — somente para Feed (reel/story bloqueados acima)
         if (!integration.page_id) throw new Error('Integração sem página do Facebook.')
+        let fbResult: { id?: string } | undefined
         if (isMultiple) {
-          await publishFacebookMultipleImages({
+          fbResult = await publishFacebookMultipleImages({
             pageId: integration.page_id,
             pageAccessToken: integration.page_access_token,
             imageUrls,
             message: text || '',
           })
         } else {
-          await publishFacebookImage({
+          fbResult = await publishFacebookImage({
             pageId: integration.page_id,
             pageAccessToken: integration.page_access_token,
             imageUrl: firstUrl,
             message: text || '',
           })
         }
+        metaResults.push({ instanceId, provider: selection.type, ok: true, mediaId: fbResult?.id })
+        continue
       }
-      metaResults.push({ instanceId, provider: selection.type, ok: true })
     } catch (e) {
       metaResults.push({
         instanceId,
@@ -420,7 +426,7 @@ export async function executeMetaPublishWithUrls(params: ExecuteMetaPublishWithU
 export async function executeMetaPublish(params: ExecuteMetaPublishParams): Promise<{
   metaResults: MetaPublishResult[]
 }> {
-  const { db, userId, instanceIds, destinations, text, mediaEdits } = params
+  const { db, userId, albumId, instanceIds, destinations, postType = 'feed', text, mediaEdits } = params
   const mediaFileIds = mediaEdits
     .map((item) => (typeof item?.id === 'string' ? item.id.trim() : ''))
     .filter(Boolean)
@@ -433,8 +439,27 @@ export async function executeMetaPublish(params: ExecuteMetaPublishParams): Prom
     return { metaResults: [] }
   }
 
-  const metaSelections = buildMetaSelections(instanceIds, destinations)
+  // Stories/Reels só suportam Instagram
+  const effectiveDestinations =
+    postType === 'reel' || postType === 'story'
+      ? { instagram: destinations.instagram, facebook: false }
+      : destinations
+
+  const metaSelections = buildMetaSelections(instanceIds, effectiveDestinations)
   const metaResults: MetaPublishResult[] = []
+
+  // Registrar imediatamente que FB não é suportado para reel/story
+  if ((postType === 'reel' || postType === 'story') && destinations.facebook) {
+    const fbInstanceId = instanceIds.find((id) => id.startsWith('meta_fb:'))
+    if (fbInstanceId) {
+      metaResults.push({
+        instanceId: fbInstanceId,
+        provider: 'facebook',
+        ok: false,
+        error: `${postType === 'reel' ? 'Reels' : 'Stories'} só são publicados no Instagram via esta integração.`,
+      })
+    }
+  }
 
   const integrationIds = Array.from(new Set(metaSelections.map((s) => s.integrationId)))
   const { data: integrations, error: integrationsError } = await db
@@ -490,68 +515,98 @@ export async function executeMetaPublish(params: ExecuteMetaPublishParams): Prom
         if (!integration.instagram_business_account_id) {
           throw new Error('Integração sem conta Instagram Business vinculada.')
         }
-        if (mediaUrls.length > 10) {
-          throw new Error('Instagram permite no máximo 10 imagens por post (carrossel).')
-        }
-        const urlsForCarousel = mediaUrls
+
         let containerId: string
-        if (isMultipleImages) {
-          const childContainerIds: string[] = []
-          for (const imageUrl of urlsForCarousel) {
-            const childContainer = await createInstagramCarouselItemContainer({
-              igUserId: integration.instagram_business_account_id,
-              imageUrl,
-              accessToken: integration.page_access_token,
-            })
-            if (!childContainer?.id) throw new Error('Falha ao criar container filho do carrossel.')
-            childContainerIds.push(childContainer.id)
-          }
-          const carouselContainer = await createInstagramCarouselContainer({
+
+        if (postType === 'reel') {
+          // No executeMetaPublish, mediaEdits -> resolveDriveFileToPublicUrl, então resolvemos vídeos se implementado no Drive
+          // Para simplificar, assumimos que se postType for reel/story, o primeiro arquivo é a mídia
+          // TODO: validar se fileId é vídeo. Por enquanto o resolveDriveFileToPublicUrl foca em imagens.
+          const reelContainer = await createInstagramReelContainer({
             igUserId: integration.instagram_business_account_id,
-            childContainerIds,
+            videoUrl: firstImageUrl,
             caption: text || '',
+            shareToFeed: true,
             accessToken: integration.page_access_token,
           })
-          if (!carouselContainer?.id) throw new Error('Falha ao criar container de carrossel.')
-          containerId = carouselContainer.id
-        } else {
-          const container = await createInstagramMediaContainer({
+          if (!reelContainer?.id) throw new Error('Falha ao criar container de Reel.')
+          containerId = reelContainer.id
+        } else if (postType === 'story') {
+          const storyContainer = await createInstagramStoryContainer({
             igUserId: integration.instagram_business_account_id,
             imageUrl: firstImageUrl,
-            caption: text || '',
             accessToken: integration.page_access_token,
           })
-          if (!container?.id) throw new Error('Meta create container failed: ID do container não retornado.')
-          containerId = container.id
+          if (!storyContainer?.id) throw new Error('Falha ao criar container de Story.')
+          containerId = storyContainer.id
+        } else {
+          if (mediaUrls.length > 10) {
+            throw new Error('Instagram permite no máximo 10 imagens por post (carrossel).')
+          }
+          const urlsForCarousel = mediaUrls
+          if (isMultipleImages) {
+            const childContainerIds: string[] = []
+            for (const imageUrl of urlsForCarousel) {
+              const childContainer = await createInstagramCarouselItemContainer({
+                igUserId: integration.instagram_business_account_id,
+                imageUrl,
+                accessToken: integration.page_access_token,
+              })
+              if (!childContainer?.id) throw new Error('Falha ao criar container filho do carrossel.')
+              childContainerIds.push(childContainer.id)
+            }
+            const carouselContainer = await createInstagramCarouselContainer({
+              igUserId: integration.instagram_business_account_id,
+              childContainerIds,
+              caption: text || '',
+              accessToken: integration.page_access_token,
+            })
+            if (!carouselContainer?.id) throw new Error('Falha ao criar container de carrossel.')
+            containerId = carouselContainer.id
+          } else {
+            const container = await createInstagramMediaContainer({
+              igUserId: integration.instagram_business_account_id,
+              imageUrl: firstImageUrl,
+              caption: text || '',
+              accessToken: integration.page_access_token,
+            })
+            if (!container?.id) throw new Error('Meta create container failed: ID do container não retornado.')
+            containerId = container.id
+          }
         }
+
         await waitForInstagramMediaContainerReady({
           containerId,
           accessToken: integration.page_access_token,
         })
-        await publishInstagramMediaWithRetry({
+        const publishedMedia = await publishInstagramMediaWithRetry({
           igUserId: integration.instagram_business_account_id,
           creationId: containerId,
           accessToken: integration.page_access_token,
         })
+        metaResults.push({ instanceId, provider: selection.type, ok: true, mediaId: publishedMedia?.id })
+        continue
       } else {
         if (!integration.page_id) throw new Error('Integração sem página do Facebook.')
+        let fbResult: { id?: string } = {}
         if (isMultipleImages) {
-          await publishFacebookMultipleImages({
+          fbResult = await publishFacebookMultipleImages({
             pageId: integration.page_id,
             pageAccessToken: integration.page_access_token,
             imageUrls: mediaUrls,
             message: text || '',
           })
         } else {
-          await publishFacebookImage({
+          fbResult = await publishFacebookImage({
             pageId: integration.page_id,
             pageAccessToken: integration.page_access_token,
             imageUrl: firstImageUrl,
             message: text || '',
           })
         }
+        metaResults.push({ instanceId, provider: selection.type, ok: true, mediaId: (fbResult as { id?: string })?.id })
+        continue
       }
-      metaResults.push({ instanceId, provider: selection.type, ok: true })
     } catch (e) {
       metaResults.push({
         instanceId,

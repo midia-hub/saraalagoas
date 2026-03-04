@@ -363,15 +363,13 @@ export default function AdminGaleriaPage() {
                 <RefreshCw className="w-4 h-4" />
                 Atualizar
               </button>
-              <a
-                href="http://localhost:3001/admin/upload/"
-                target="_blank"
-                rel="noopener noreferrer"
+              <Link
+                href="/admin/upload"
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#c62737] text-white text-sm font-semibold hover:bg-[#a81e2d] transition-colors shadow-sm"
               >
                 <Upload className="w-4 h-4" />
                 Novo Álbum
-              </a>
+              </Link>
             </div>
           }
         />

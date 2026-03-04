@@ -77,7 +77,6 @@ export async function POST(request: NextRequest) {
     threshold: 80,
     maxFaces: 20,
   })
-  await incrementUsage('SearchFacesByImage', 1)
 
   // Grava no cache por pessoa: marca esta foto como verificada para TODAS as pessoas atuais.
   // Quando uma nova pessoa for adicionada, a entrada dela não existirá aqui → re-scan ocorrerá

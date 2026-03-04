@@ -157,10 +157,8 @@ export function AlbumCard({ album, onCopyLink, onVisible, canDeleteAlbum, onDele
           </h2>
         </Link>
 
-        {/* Action bar — slides up on hover */}
-        <div className={`flex items-center gap-1.5 transition-all duration-200 ${
-          hovered ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-1 pointer-events-none'
-        }`}>
+        {/* Action bar — always visible */}
+        <div className="flex items-center gap-1.5 transition-all duration-200">
           {/* Postar — primary CTA */}
           <Link
             href={`/admin/galeria/${album.id}/post/select`}

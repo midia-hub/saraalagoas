@@ -61,7 +61,7 @@ type PostType = 'feed' | 'reel' | 'story'
 /** Item de mídia na composição do post */
 type MediaItem =
   | { id: string; type: 'upload'; dataUrl: string }
-  | { id: string; type: 'gallery'; fileId: string; thumbUrl: string; name: string }
+  | { id: string; type: 'gallery'; fileId: string; thumbUrl: string; name: string; thumbnailLink?: string | null }
   | { id: string; type: 'url'; url: string }
 
 type PublishMode = 'now' | 'scheduled'
@@ -76,7 +76,7 @@ type GalleryAlbum = {
   coverUrl?: string
 }
 
-type GalleryFile = { id: string; name: string }
+type GalleryFile = { id: string; name: string; thumbnailLink?: string | null }
 
 type ToastState = { visible: boolean; message: string; type: 'ok' | 'err' }
 
@@ -513,6 +513,9 @@ function ImageCropperModal({
   const [zoom, setZoom] = useState(1)
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [imgSrc, setImgSrc] = useState<string | null>(null)
+  const [imgSources, setImgSources] = useState<string[]>([])
+  const [imgSourceIndex, setImgSourceIndex] = useState(0)
+  const [imgLoadError, setImgLoadError] = useState<string | null>(null)
   const [imgNatural, setImgNatural] = useState<{ w: number; h: number } | null>(null)
   const [applying, setApplying] = useState(false)
   const imgRef = useRef<HTMLImageElement>(null)
@@ -540,15 +543,26 @@ function ImageCropperModal({
     if (!open || !item) return
     setZoom(1)
     setImgNatural(null)
+    setImgLoadError(null)
     setApplying(false)
     setPreset(ASPECT_PRESETS[0])
-    if (item.type === 'upload') {
-      setImgSrc(item.dataUrl)
-    } else if (item.type === 'gallery') {
-      setImgSrc(`/api/gallery/image?fileId=${encodeURIComponent(item.fileId)}&mode=full`)
-    } else {
-      setImgSrc(item.url)
-    }
+
+    const sources =
+      item.type === 'upload'
+        ? [item.dataUrl]
+        : item.type === 'gallery'
+        ? [
+            `/api/gallery/image/?fileId=${encodeURIComponent(item.fileId)}&mode=full`,
+            `/api/gallery/image/?fileId=${encodeURIComponent(item.fileId)}&mode=thumb&size=1600`,
+            `/api/gallery/image/?fileId=${encodeURIComponent(item.fileId)}&mode=thumb&size=1024`,
+            // Fallback final: thumbnailLink direto do Google (carregado pelo browser via cookies)
+            ...(item.thumbnailLink ? [item.thumbnailLink] : []),
+          ]
+        : [item.url]
+
+    setImgSources(sources)
+    setImgSourceIndex(0)
+    setImgSrc(sources[0] ?? null)
   }, [open, item])
 
   // Re-centralizar ao trocar preset
@@ -587,6 +601,7 @@ function ImageCropperModal({
   function onImgLoad() {
     const img = imgRef.current
     if (!img) return
+    setImgLoadError(null)
     const nat = { w: img.naturalWidth, h: img.naturalHeight }
     setImgNatural(nat)
     const bs = Math.max(cropW / nat.w, cropH / nat.h)
@@ -595,6 +610,17 @@ function ImageCropperModal({
       x: cropLeft + cropW / 2 - nat.w * bs / 2,
       y: cropTop  + cropH / 2 - nat.h * bs / 2,
     })
+  }
+
+  function onImgError() {
+    setImgNatural(null)
+    const nextIndex = imgSourceIndex + 1
+    if (nextIndex < imgSources.length) {
+      setImgSourceIndex(nextIndex)
+      setImgSrc(imgSources[nextIndex] ?? null)
+      return
+    }
+    setImgLoadError('Não foi possível carregar esta imagem.')
   }
 
   function onMouseDown(e: React.MouseEvent) {
@@ -640,30 +666,54 @@ function ImageCropperModal({
   async function handleApply() {
     if (!imgNatural || !imgSrc || !item) return
     setApplying(true)
+    let blobUrl: string | null = null
     try {
-      // 1. Carregar a imagem completa (mesma URL usada no cropper)
+      // 1. Obter bytes via fetch() para evitar restrições de CORS no canvas (canvas taint).
+      //    Tenta em cascata: proxy full → proxy thumb → URL atual (thumbnailLink direto).
+      const fetchCandidates: string[] = item.type === 'gallery'
+        ? [
+            `/api/gallery/image/?fileId=${encodeURIComponent(item.fileId)}&mode=full`,
+            `/api/gallery/image/?fileId=${encodeURIComponent(item.fileId)}&mode=thumb&size=1600`,
+            `/api/gallery/image/?fileId=${encodeURIComponent(item.fileId)}&mode=thumb&size=1024`,
+          ]
+        : [imgSrc]
+      // Adicionar URL atual se for uma URL externa não listada (ex.: thumbnailLink)
+      if (!fetchCandidates.includes(imgSrc)) fetchCandidates.push(imgSrc)
+
+      let blob: Blob | null = null
+      for (const url of fetchCandidates) {
+        try {
+          const r = await fetch(url)
+          if (r.ok) {
+            const ct = r.headers.get('content-type') || ''
+            if (ct.startsWith('image/')) { blob = await r.blob(); break }
+          }
+        } catch { /* tenta próxima */ }
+      }
+      if (!blob) throw new Error('Não foi possível carregar a imagem para exportação.')
+
+      // 2. Criar ObjectURL (same-origin → canvas não fica tainted)
+      blobUrl = URL.createObjectURL(blob)
       const fullImg = new window.Image()
-      fullImg.crossOrigin = 'anonymous'
       await new Promise<void>((res, rej) => {
         fullImg.onload = () => res()
-        fullImg.onerror = rej
-        fullImg.src = imgSrc!
+        fullImg.onerror = () => rej(new Error('Erro ao carregar imagem'))
+        fullImg.src = blobUrl!
       })
 
-      // 2. Recalcular o scale a partir das dimensões REAIS do fullImg
-      //    (evita drift caso o cache retorne uma versão redimensionada)
+      // 3. Recalcular o scale a partir das dimensões REAIS do fullImg
       const natW = fullImg.naturalWidth  || imgNatural.w
       const natH = fullImg.naturalHeight || imgNatural.h
       const realBaseScale = Math.max(cropW / natW, cropH / natH)
       const realScale = realBaseScale * zoom
 
-      // 3. Converter coordenadas de viewport → pixels fonte, com clamp de segurança
+      // 4. Converter coordenadas de viewport → pixels fonte
       const srcX = Math.max(0, (cropLeft - pan.x) / realScale)
       const srcY = Math.max(0, (cropTop  - pan.y) / realScale)
       const srcW = Math.min(cropW / realScale, natW - srcX)
       const srcH = Math.min(cropH / realScale, natH - srcY)
 
-      // 4. Desenhar na resolução exata do preset
+      // 5. Desenhar na resolução exata do preset
       const canvas = document.createElement('canvas')
       canvas.width  = preset.outW
       canvas.height = preset.outH
@@ -671,8 +721,7 @@ function ImageCropperModal({
       if (!ctx) return
       ctx.drawImage(fullImg, srcX, srcY, srcW, srcH, 0, 0, preset.outW, preset.outH)
 
-      // 5. Compressão adaptativa: manter cada imagem ≤ 700 KB em base64
-      //    (10 imagens × 700 KB ≈ 7 MB raw, ~700 KB após encoding ≈ ≤ 4 MB)
+      // 6. Compressão adaptativa ≤ 700 KB em base64
       const MAX_B64 = 700_000
       let dataUrl = canvas.toDataURL('image/jpeg', 0.92)
       if (dataUrl.length > MAX_B64) dataUrl = canvas.toDataURL('image/jpeg', 0.82)
@@ -681,7 +730,13 @@ function ImageCropperModal({
 
       onApply(item.id, dataUrl)
       onClose()
-    } catch { /* silencioso */ } finally { setApplying(false) }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e)
+      setImgLoadError(`Erro ao aplicar: ${msg}`)
+    } finally {
+      if (blobUrl) URL.revokeObjectURL(blobUrl)
+      setApplying(false)
+    }
   }
 
   if (!open || !item) return null
@@ -738,8 +793,9 @@ function ImageCropperModal({
               src={imgSrc}
               alt="crop"
               onLoad={onImgLoad}
+              onError={onImgError}
               draggable={false}
-              crossOrigin="anonymous"
+              crossOrigin={imgSrc?.startsWith('/') ? 'anonymous' : undefined}
               style={{
                 position: 'absolute',
                 left: pan.x,
@@ -773,9 +829,30 @@ function ImageCropperModal({
             <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-white pointer-events-none" />
           </div>
 
-          {!imgNatural && imgSrc && (
+          {!imgNatural && imgSrc && !imgLoadError && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <Loader2 className="h-8 w-8 text-white animate-spin" />
+            </div>
+          )}
+
+          {imgLoadError && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/60 px-6 text-center">
+              <div>
+                <AlertCircle className="mx-auto h-6 w-6 text-white" />
+                <p className="mt-2 text-xs font-medium text-white">{imgLoadError}</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setImgLoadError(null)
+                    setImgNatural(null)
+                    setImgSourceIndex(0)
+                    setImgSrc(imgSources[0] ?? null)
+                  }}
+                  className="mt-3 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:border-slate-300 focus:border-[#c62737] focus:ring-2 focus:ring-[#c62737]/20 outline-none transition"
+                >
+                  Tentar novamente
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -1101,6 +1178,12 @@ function GalleryPickerModal({
                             alt={file.name}
                             className="h-full w-full object-cover"
                             loading="lazy"
+                            onError={(e) => {
+                              // Fallback para thumbnailLink direto (carregado pelo browser via cookies do Google)
+                              if (file.thumbnailLink && (e.target as HTMLImageElement).src !== file.thumbnailLink) {
+                                (e.target as HTMLImageElement).src = file.thumbnailLink
+                              }
+                            }}
                           />
                           {sel && (
                             <div className="absolute inset-0 bg-[#c62737]/15 flex items-center justify-center">
@@ -1633,6 +1716,7 @@ function NovaPostagemContent() {
           fileId: f.id,
           thumbUrl: thumbUrl(f.id),
           name: f.name,
+          thumbnailLink: f.thumbnailLink ?? null,
         })
       )
     setMedia((prev) => [...prev, ...newItems].slice(0, 10))

@@ -1,5 +1,4 @@
-'use client'
-
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import {
   CheckCircle2,
@@ -17,7 +16,12 @@ import {
   LayoutGrid,
   Layers,
   AlertCircle,
+  UsersRound,
+  ExternalLink,
+  Loader2,
+  ChevronDown,
 } from 'lucide-react'
+import { adminFetchJson } from '@/lib/admin-client'
 import type { ScheduledItem } from './types'
 
 // ─────────────────────────────────────────────
@@ -103,12 +107,13 @@ type PostCardProps = {
   post: ScheduledItem
   thumbnailUrl?: string | null
   metrics?: { likes?: number; comments?: number; impressions?: number; reach?: number }
+  integrations?: Array<{ value: string; label: string }>
 }
 
 // ─────────────────────────────────────────────
 // Component
 // ─────────────────────────────────────────────
-export function PostCard({ post, thumbnailUrl, metrics }: PostCardProps) {
+export function PostCard({ post, thumbnailUrl, metrics, integrations }: PostCardProps) {
   const config = STATUS_CONFIG[post.status] ?? STATUS_CONFIG.pending
   const StatusIcon = config.icon
   const gallery = post.galleries
@@ -117,21 +122,75 @@ export function PostCard({ post, thumbnailUrl, metrics }: PostCardProps) {
   const thumb = thumbnailUrl ?? buildThumbnailUrl(post)
   const isStoryOrReel = post.post_type === 'story' || post.post_type === 'reel'
 
+  // post_type display
+  const [currentType, setCurrentType] = useState<string>(post.post_type ?? 'feed')
+  const needsCorrection = post.post_type == null
+  const [editingType, setEditingType] = useState(false)
+  const [savingType, setSavingType] = useState(false)
+
+  // view post
+  const [loadingPermalink, setLoadingPermalink] = useState(false)
+
   const postTypeCfg =
-    POST_TYPE_CONFIG[(post.post_type ?? 'feed') as keyof typeof POST_TYPE_CONFIG] ??
-    POST_TYPE_CONFIG.feed
+    POST_TYPE_CONFIG[currentType as keyof typeof POST_TYPE_CONFIG] ?? POST_TYPE_CONFIG.feed
   const PostTypeIcon = postTypeCfg.icon
 
   const hasInstagram = post.destinations?.instagram !== false
   const hasFacebook = post.destinations?.facebook === true
   const mediaCount = post.media_specs?.length ?? 0
 
+  // Encontrar nomes das contas baseado nos instance_ids
+  const accountLabels = useMemo(() => {
+    if (!post.instance_ids || !integrations) return []
+    const ids = Array.isArray(post.instance_ids) ? post.instance_ids : []
+    
+    return ids.map(id => {
+      // Limpar prefixos meta_ig: ou meta_fb: se existirem para bater com as integrações
+      let cleanId = id
+      if (id.includes(':')) cleanId = id.split(':').pop() || id
+      
+      const found = integrations.find(i => i.value === cleanId || i.value === id)
+      return found ? found.label : (id.length > 8 ? id.slice(0, 8) : id)
+    })
+  }, [post.instance_ids, integrations])
+
+  async function handleCorrectType(newType: string) {
+    setSavingType(true)
+    try {
+      await adminFetchJson(`/api/social/scheduled/${post.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ post_type: newType }),
+      })
+      setCurrentType(newType)
+    } catch { /* silently fail */ }
+    finally {
+      setSavingType(false)
+      setEditingType(false)
+    }
+  }
+
+  async function handleViewPost() {
+    setLoadingPermalink(true)
+    try {
+      const res = await adminFetchJson<{ permalink?: string | null }>(`/api/admin/instagram/media-permalink?id=${encodeURIComponent(post.id)}`)
+      if (res?.permalink) {
+        window.open(res.permalink, '_blank', 'noopener,noreferrer')
+      } else {
+        window.open('https://www.instagram.com/', '_blank', 'noopener,noreferrer')
+      }
+    } catch {
+      window.open('https://www.instagram.com/', '_blank', 'noopener,noreferrer')
+    } finally {
+      setLoadingPermalink(false)
+    }
+  }
+
   return (
     <article className="group flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-all hover:shadow-md hover:border-slate-300">
       {/* ── Thumbnail ── */}
       <div
         className="relative overflow-hidden bg-slate-100"
-        style={{ aspectRatio: isStoryOrReel ? '9/16' : '1/1', maxHeight: isStoryOrReel ? '280px' : undefined }}
+        style={{ aspectRatio: currentType === 'story' || currentType === 'reel' ? '9/16' : '1/1', maxHeight: currentType === 'story' || currentType === 'reel' ? '280px' : undefined }}
       >
         {thumb ? (
           <img
@@ -167,13 +226,46 @@ export function PostCard({ post, thumbnailUrl, metrics }: PostCardProps) {
 
         {/* Bottom overlay: post type + platforms */}
         <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 bg-gradient-to-t from-black/60 to-transparent p-2.5">
-          {/* Post type tag */}
-          <span
-            className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold backdrop-blur-sm ${postTypeCfg.bg} ${postTypeCfg.text}`}
-          >
-            <PostTypeIcon className="h-3 w-3" />
-            {postTypeCfg.label}
-          </span>
+          {/* Post type tag + botão de correção (somente quando tipo era desconhecido) */}
+          <div className="relative flex items-center gap-1">
+            <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold backdrop-blur-sm ${postTypeCfg.bg} ${postTypeCfg.text}`}>
+              <PostTypeIcon className="h-3 w-3" />
+              {postTypeCfg.label}
+            </span>
+            {needsCorrection && (
+              <button
+                type="button"
+                onClick={() => setEditingType((v) => !v)}
+                title="Tipo não registrado — clique para corrigir"
+                className="flex items-center gap-0.5 rounded-full bg-amber-400/90 px-1.5 py-0.5 text-[10px] font-semibold text-white backdrop-blur-sm hover:bg-amber-500 transition-colors"
+              >
+                {savingType ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <ChevronDown className="h-2.5 w-2.5" />}
+                corrigir
+              </button>
+            )}
+            {editingType && (
+              <div className="absolute bottom-full left-0 mb-1 z-30 rounded-xl border border-slate-200 bg-white shadow-lg overflow-hidden min-w-[130px]">
+                <div className="border-b border-slate-100 px-3 py-1.5">
+                  <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Qual foi o tipo?</p>
+                </div>
+                {(['feed', 'reel', 'story'] as const).map((t) => {
+                  const cfg = POST_TYPE_CONFIG[t]
+                  const Icon = cfg.icon
+                  return (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => handleCorrectType(t)}
+                      className={`flex w-full items-center gap-2 px-3 py-2 text-xs font-medium transition-colors hover:bg-slate-50 ${currentType === t && !needsCorrection ? 'bg-slate-100 text-slate-900' : 'text-slate-700'}`}
+                    >
+                      <Icon className="h-3 w-3" />
+                      {cfg.label}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </div>
 
           {/* Platform icons */}
           <div className="flex items-center gap-1">
@@ -214,6 +306,18 @@ export function PostCard({ post, thumbnailUrl, metrics }: PostCardProps) {
           })}
         </p>
 
+        {/* Accounts/Integration Labels */}
+        {accountLabels.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1">
+            {accountLabels.map((lbl, idx) => (
+              <span key={idx} className="inline-flex items-center gap-1 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-600">
+                <UsersRound className="h-2.5 w-2.5" />
+                {lbl}
+              </span>
+            ))}
+          </div>
+        )}
+
         {/* Caption */}
         {post.caption && (
           <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-slate-600">{post.caption}</p>
@@ -253,6 +357,21 @@ export function PostCard({ post, thumbnailUrl, metrics }: PostCardProps) {
 
         {/* Actions */}
         <div className="mt-auto flex flex-wrap gap-2 pt-3">
+          {/* Ver postagem — só para publicadas com IG */}}
+          {post.status === 'published' && hasInstagram && post.result_payload?.instagramMediaId && (
+            <button
+              type="button"
+              onClick={handleViewPost}
+              disabled={loadingPermalink}
+              className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-purple-500 via-pink-500 to-orange-400 px-3 py-2 text-xs font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
+            >
+              {loadingPermalink
+                ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Abrindo...</>
+                : <><ExternalLink className="h-3.5 w-3.5" /> Ver no Instagram</>
+              }
+            </button>
+          )}
+
           {post.status === 'pending' ? (
             <Link
               href={

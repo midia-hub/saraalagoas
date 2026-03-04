@@ -271,11 +271,10 @@ async function GaleriaContent({ typeFilter, monthFilter, yearFilter }: { typeFil
 
 export default async function GaleriaPublicaPage(props: { searchParams: Promise<{ type?: string, month?: string, year?: string }> | { type?: string, month?: string, year?: string } }) {
   const searchParams = await Promise.resolve(props.searchParams)
-  const currentYear = new Date().getFullYear().toString()
   
   const typeFilter = searchParams?.type || ''
   const monthFilter = searchParams?.month || ''
-  const yearFilter = searchParams?.year || currentYear
+  const yearFilter = searchParams?.year || ''
   
   return (
     <Suspense

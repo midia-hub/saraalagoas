@@ -36,6 +36,8 @@ type PostComposerProps = {
   onCancel: () => void
   onSaveForLater: () => void
   onPublish: () => void
+  postType: 'feed' | 'reel' | 'story'
+  onPostTypeChange: (type: 'feed' | 'reel' | 'story') => void
   publishing?: boolean
   instagramLimitError?: string | null
 }
@@ -56,6 +58,8 @@ export function PostComposer({
   onCancel,
   onSaveForLater,
   onPublish,
+  postType,
+  onPostTypeChange,
   publishing,
   instagramLimitError,
 }: PostComposerProps) {
@@ -92,52 +96,95 @@ export function PostComposer({
                     <p className="mb-3 text-sm font-medium text-slate-800">
                       Onde deseja publicar?
                     </p>
-                    <div className="space-y-2">
-                      {selectedInstance.has_instagram && (
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={hasInstagram}
-                            onChange={(e) => {
-                              if (onDestinationsChange) {
-                                const newDest = { ...destinations, instagram: e.target.checked }
-                                // Garante que pelo menos um está marcado
-                                if (!newDest.instagram && !newDest.facebook) {
-                                  return
+                    <div className="flex flex-wrap gap-6">
+                      <div className="space-y-2">
+                        {selectedInstance.has_instagram && (
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={hasInstagram}
+                              onChange={(e) => {
+                                if (onDestinationsChange) {
+                                  const newDest = { ...destinations, instagram: e.target.checked }
+                                  // Garante que pelo menos um está marcado
+                                  if (!newDest.instagram && !newDest.facebook) {
+                                    return
+                                  }
+                                  onDestinationsChange(newDest)
                                 }
-                                onDestinationsChange(newDest)
-                              }
-                            }}
-                            disabled={publishing}
-                            className="h-4 w-4 rounded border-slate-300 text-[#c62737] focus:ring-2 focus:ring-[#c62737] focus:ring-offset-0"
-                          />
-                          <span className="text-sm text-slate-700">
-                            📷 Instagram
-                          </span>
-                        </label>
-                      )}
-                      {selectedInstance.has_facebook && (
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={hasFacebook}
-                            onChange={(e) => {
-                              if (onDestinationsChange) {
-                                const newDest = { ...destinations, facebook: e.target.checked }
-                                // Garante que pelo menos um está marcado
-                                if (!newDest.instagram && !newDest.facebook) {
-                                  return
+                              }}
+                              disabled={publishing}
+                              className="h-4 w-4 rounded border-slate-300 text-[#c62737] focus:ring-2 focus:ring-[#c62737] focus:ring-offset-0"
+                            />
+                            <span className="text-sm text-slate-700">
+                              📷 Instagram
+                            </span>
+                          </label>
+                        )}
+                        {selectedInstance.has_facebook && (
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={hasFacebook}
+                              onChange={(e) => {
+                                if (onDestinationsChange) {
+                                  const newDest = { ...destinations, facebook: e.target.checked }
+                                  // Garante que pelo menos um está marcado
+                                  if (!newDest.instagram && !newDest.facebook) {
+                                    return
+                                  }
+                                  onDestinationsChange(newDest)
                                 }
-                                onDestinationsChange(newDest)
-                              }
-                            }}
-                            disabled={publishing}
-                            className="h-4 w-4 rounded border-slate-300 text-[#c62737] focus:ring-2 focus:ring-[#c62737] focus:ring-offset-0"
-                          />
-                          <span className="text-sm text-slate-700">
-                            📘 Facebook
-                          </span>
-                        </label>
+                              }}
+                              disabled={publishing}
+                              className="h-4 w-4 rounded border-slate-300 text-[#c62737] focus:ring-2 focus:ring-[#c62737] focus:ring-offset-0"
+                            />
+                            <span className="text-sm text-slate-700">
+                              📘 Facebook
+                            </span>
+                          </label>
+                        )}
+                      </div>
+
+                      {hasInstagram && (
+                        <div className="border-l border-slate-200 pl-6 space-y-2">
+                          <p className="text-xs font-bold uppercase text-slate-400">Tipo (Instagram)</p>
+                          <div className="flex flex-wrap gap-4">
+                            <label className="flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="radio"
+                                name="postType"
+                                value="feed"
+                                checked={postType === 'feed'}
+                                onChange={() => onPostTypeChange('feed')}
+                                className="h-4 w-4 border-slate-300 text-[#c62737] focus:ring-[#c62737]"
+                              />
+                              <span className="text-sm text-slate-700">Feed</span>
+                            </label>
+                            <label className="flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="radio"
+                                name="postType"
+                                value="reel"
+                                checked={postType === 'reel'}
+                                onChange={() => onPostTypeChange('reel')}
+                                className="h-4 w-4 border-slate-300 text-[#c62737] focus:ring-[#c62737]"
+                              />
+                              <span className="text-sm text-slate-700">Reel</span>
+                            </label>
+                            <label className="flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="radio"
+                                name="postType"
+                                value="story"
+                                checked={postType === 'story'}
+                                onChange={() => onPostTypeChange('story')}
+                                className="h-4 w-4 border-slate-300 text-[#c62737] focus:ring-[#c62737]"
+                              />
+                              <span className="text-sm text-slate-700">Story</span>
+                            </label>
+                          </div>
+                        </div>
                       )}
                     </div>
                     {!hasInstagram && !hasFacebook && (

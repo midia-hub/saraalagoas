@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { ensureDrivePath, uploadImageToFolder } from '@/lib/drive'
+import { invalidateGalleryFilesCache } from '@/lib/gallery-files-cache'
 import { slugify } from '@/lib/slug'
 import { supabaseServer } from '@/lib/supabase-server'
 import { getSiteConfig } from '@/lib/site-config-server'
@@ -88,7 +89,7 @@ export async function POST(request: NextRequest) {
         date,
         description: description || null,
         drive_folder_id: folderId,
-        hidden_from_public: true,
+        hidden_from_public: false,
       })
       .select('id')
       .single()
@@ -131,6 +132,10 @@ export async function POST(request: NextRequest) {
         error: err instanceof Error ? err.message : 'Falha no upload',
       })
     }
+  }
+
+  if (uploaded.length > 0) {
+    invalidateGalleryFilesCache(galleryId)
   }
 
   return NextResponse.json({

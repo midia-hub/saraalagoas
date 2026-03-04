@@ -229,6 +229,7 @@ export default function AlbumPostCreatePage() {
       const payload: Record<string, unknown> = {
         albumId,
         instanceIds: draft.selectedInstanceIds,
+        postType: draft.postType,
         destinations: draft.destinations || { instagram: true, facebook: false },
         text: draft.text,
         mediaEdits: draft.media.map((item) => ({
@@ -410,6 +411,8 @@ export default function AlbumPostCreatePage() {
               onInstanceSelectionChange={(ids) => patchDraft({ selectedInstanceIds: ids })}
               destinations={draft.destinations || { instagram: true, facebook: false }}
               onDestinationsChange={(destinations) => patchDraft({ destinations })}
+              postType={draft.postType}
+              onPostTypeChange={(type) => patchDraft({ postType: type })}
               text={draft.text}
               media={draft.media}
               onTextChange={(value) => patchDraft({ text: value })}

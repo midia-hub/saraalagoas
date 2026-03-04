@@ -26,6 +26,8 @@ export async function POST(request: NextRequest) {
         facebook: Boolean(body.destinations.facebook) 
       }
     : { instagram: true, facebook: false }
+  const postTypeInput = typeof body.postType === 'string' ? body.postType.toLowerCase() : ''
+  const postType = (postTypeInput === 'reel' || postTypeInput === 'story') ? postTypeInput : 'feed'
   const text = typeof body.text === 'string' ? body.text : ''
   const mediaEdits = Array.isArray(body.mediaEdits) ? (body.mediaEdits as MediaEditInput[]) : []
   const isUuid = (value: string) =>
@@ -135,6 +137,7 @@ export async function POST(request: NextRequest) {
         scheduled_at: scheduledAt.toISOString(),
         instance_ids: uniqueIntegrationIds,
         destinations: { instagram: destinations.instagram, facebook: destinations.facebook },
+        post_type: postType,
         caption: text,
         media_specs: mediaSpecs,
         status: 'pending',
@@ -260,6 +263,7 @@ export async function POST(request: NextRequest) {
       albumId,
       instanceIds: uniqueIntegrationIds,
       destinations,
+      postType,
       text,
       mediaEdits,
     })
@@ -306,17 +310,32 @@ export async function POST(request: NextRequest) {
         cropMode: item.cropMode || 'original',
         altText: typeof item.altText === 'string' ? item.altText : '',
       }))
+
+    // Construir result_payload com os media IDs retornados pela API do Meta
+    const successfulResults = metaResults.filter((r) => r.ok && r.mediaId)
+    const resultPayload = successfulResults.length > 0
+      ? {
+          mediaIds: successfulResults.map((r) => ({ provider: r.provider, mediaId: r.mediaId })),
+          // IG media permalink: https://www.instagram.com/p/<shortcode>/ — shortcode do media_id pode ser obtido via API,
+          // mas guardamos o media_id para buscar depois se necessário
+          instagramMediaId: successfulResults.find((r) => r.provider === 'instagram')?.mediaId ?? null,
+          facebookMediaId: successfulResults.find((r) => r.provider === 'facebook')?.mediaId ?? null,
+        }
+      : null
+
     const { error: logError } = await db.from('scheduled_social_posts').insert({
       album_id: albumId,
       created_by: userId,
       scheduled_at: now,
       instance_ids: uniqueIntegrationIds,
       destinations: { instagram: destinations.instagram, facebook: destinations.facebook },
+      post_type: postType,
       caption: text,
       media_specs: mediaSpecs,
       status: hasSuccess ? 'published' : 'failed',
       published_at: hasSuccess ? now : null,
       error_message: metaErrors.length > 0 ? metaErrors.join('; ') : null,
+      result_payload: resultPayload,
       created_at: now,
       updated_at: now,
     })

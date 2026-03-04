@@ -42,7 +42,7 @@ export default function AdminGaleriaAlbumPage() {
   const [files, setFiles] = useState<GalleryFile[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [selected, setSelected] = useState<GalleryFile | null>(null)
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
   const [lightboxImageLoading, setLightboxImageLoading] = useState(true)
   const [fileToDelete, setFileToDelete] = useState<GalleryFile | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
@@ -51,9 +51,43 @@ export default function AdminGaleriaAlbumPage() {
   const [togglingVisibility, setTogglingVisibility] = useState(false)
   const [toast, setToast] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
 
+  const selected = lightboxIndex !== null ? (files[lightboxIndex] ?? null) : null
+
+  const openLightbox = useCallback((index: number) => {
+    setLightboxIndex(index)
+    setLightboxImageLoading(true)
+  }, [])
+
+  const closeLightbox = useCallback(() => setLightboxIndex(null), [])
+
+  const lightboxPrev = useCallback(() => {
+    setLightboxIndex((i) => {
+      if (i === null || files.length === 0) return i
+      const next = (i - 1 + files.length) % files.length
+      setLightboxImageLoading(true)
+      return next
+    })
+  }, [files.length])
+
+  const lightboxNext = useCallback(() => {
+    setLightboxIndex((i) => {
+      if (i === null || files.length === 0) return i
+      const next = (i + 1) % files.length
+      setLightboxImageLoading(true)
+      return next
+    })
+  }, [files.length])
+
   useEffect(() => {
-    if (selected) setLightboxImageLoading(true)
-  }, [selected?.id])
+    if (lightboxIndex === null) return
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeLightbox()
+      else if (e.key === 'ArrowLeft') lightboxPrev()
+      else if (e.key === 'ArrowRight') lightboxNext()
+    }
+    window.addEventListener('keydown', handleKey)
+    return () => window.removeEventListener('keydown', handleKey)
+  }, [lightboxIndex, closeLightbox, lightboxPrev, lightboxNext])
 
   useEffect(() => {
     if (!id) {
@@ -70,7 +104,7 @@ export default function AdminGaleriaAlbumPage() {
         setGallery(gal)
         setFiles(Array.isArray(list) ? list : [])
       })
-      .catch((e) => {
+      .catch(() => {
         setError('Não foi possível carregar o álbum. Tente novamente.')
         setGallery(null)
         setFiles([])
@@ -108,7 +142,7 @@ export default function AdminGaleriaAlbumPage() {
       try {
         await adminFetchJson(`/api/gallery/${id}/files/${file.id}`, { method: 'DELETE' })
         setFiles((prev) => prev.filter((f) => f.id !== file.id))
-        setSelected(null)
+        closeLightbox()
         setFileToDelete(null)
       } catch {
         setToast({ type: 'err', text: 'Não foi possível excluir a imagem.' })
@@ -256,25 +290,33 @@ export default function AdminGaleriaAlbumPage() {
         </div>
 
         <div className="mt-6 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-          {files.map((file) => (
+          {files.map((file, idx) => (
             <div key={file.id} className="group relative">
               <button
                 type="button"
-                onClick={() => setSelected(file)}
-                className="w-full rounded-lg overflow-hidden border border-slate-200 bg-white text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#c62737]"
+                onClick={() => openLightbox(idx)}
+                className="w-full rounded-xl overflow-hidden border border-slate-200 bg-white text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#c62737] transition-transform hover:scale-[1.02] hover:shadow-md"
               >
-                <img
-                  src={imageUrl(file.id, 'thumb')}
-                  alt={file.name}
-                  className="w-full h-32 object-cover"
-                  loading="lazy"
-                  decoding="async"
-                />
-                {file.uploaded_by_name && (
-                  <p className="absolute bottom-0 left-0 right-0 px-2 py-1 bg-black/60 text-white text-xs truncate text-left">
-                    Enviado por {file.uploaded_by_name}
-                  </p>
-                )}
+                <div className="relative">
+                  <img
+                    src={imageUrl(file.id, 'thumb')}
+                    alt={file.name}
+                    className="w-full h-32 object-cover"
+                    loading="lazy"
+                    decoding="async"
+                  />
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                    <svg className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-4.35-4.35M17 11A6 6 0 111 11a6 6 0 0116 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 8v6M8 11h6" />
+                    </svg>
+                  </div>
+                  {file.uploaded_by_name && (
+                    <p className="absolute bottom-0 left-0 right-0 px-2 py-1 bg-gradient-to-t from-black/70 to-transparent text-white text-xs truncate text-left">
+                      {file.uploaded_by_name}
+                    </p>
+                  )}
+                </div>
               </button>
               {canDeletePhotos && (
                 <button
@@ -406,62 +448,170 @@ export default function AdminGaleriaAlbumPage() {
           </div>
         )}
 
-        {selected && (
+        {selected && lightboxIndex !== null && (
           <div
-            className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
-            onClick={() => setSelected(null)}
-            role="presentation"
+            className="fixed inset-0 z-50 flex flex-col bg-black/95 backdrop-blur-sm"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Visualizar foto"
           >
+            {/* Barra superior */}
+            <div className="flex shrink-0 items-center justify-between px-4 py-3 bg-black/50">
+              <div className="flex items-center gap-3 min-w-0">
+                <span className="inline-flex items-center rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-white/80 tabular-nums">
+                  {lightboxIndex + 1} / {files.length}
+                </span>
+                <p className="truncate text-sm font-medium text-white/90 hidden sm:block max-w-xs">
+                  {selected.name}
+                </p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                {selected.webViewLink && (
+                  <a
+                    href={selected.webViewLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-medium text-white hover:bg-white/20 transition-colors"
+                    title="Abrir no Google Drive"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                    <span className="hidden sm:inline">Drive</span>
+                  </a>
+                )}
+                {canDeletePhotos && (
+                  <button
+                    type="button"
+                    onClick={() => openDeleteModal(selected)}
+                    disabled={!!deletingId}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-red-500/50 bg-red-600/80 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50 transition-colors"
+                    title="Excluir imagem"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                    <span className="hidden sm:inline">Excluir</span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={closeLightbox}
+                  className="flex h-9 w-9 items-center justify-center rounded-full border border-white/20 bg-white/10 text-white hover:bg-white/25 transition-colors"
+                  aria-label="Fechar"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            {/* Área da imagem */}
             <div
-              className="max-w-4xl w-full"
-              onClick={(e) => e.stopPropagation()}
-              role="presentation"
+              className="relative flex flex-1 items-center justify-center overflow-hidden"
+              onClick={closeLightbox}
             >
-              <div className="relative rounded-lg bg-black/30 min-h-[200px] flex items-center justify-center">
+              {/* Botão anterior */}
+              {files.length > 1 && (
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); lightboxPrev() }}
+                  className="absolute left-3 z-10 flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-full bg-black/50 border border-white/20 text-white hover:bg-black/80 transition-colors shadow-xl"
+                  aria-label="Foto anterior"
+                >
+                  <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+              )}
+
+              {/* Imagem */}
+              <div
+                className="relative flex max-h-full max-w-full items-center justify-center p-4 sm:p-8"
+                onClick={(e) => e.stopPropagation()}
+              >
                 {lightboxImageLoading && (
-                  <div className="absolute inset-0 flex items-center justify-center rounded-lg">
-                    <span
-                      className="h-12 w-12 rounded-full border-4 border-white/30 border-t-white animate-spin"
-                      aria-hidden
-                    />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="flex flex-col items-center gap-3">
+                      <span className="h-10 w-10 rounded-full border-4 border-white/20 border-t-white animate-spin" aria-hidden />
+                      <span className="text-xs text-white/50">Carregando…</span>
+                    </div>
                   </div>
                 )}
                 <img
+                  key={selected.id}
                   src={imageUrl(selected.id, 'full')}
                   alt={selected.name}
-                  className={`w-full max-h-[80vh] object-contain rounded-lg transition-opacity duration-200 ${lightboxImageLoading ? 'opacity-0' : 'opacity-100'}`}
+                  className={`max-h-[calc(100dvh-11rem)] max-w-full object-contain rounded-xl shadow-2xl transition-opacity duration-300 ${
+                    lightboxImageLoading ? 'opacity-0' : 'opacity-100'
+                  }`}
                   onLoad={() => setLightboxImageLoading(false)}
                   onError={() => setLightboxImageLoading(false)}
                 />
               </div>
-              <div className="mt-3 flex flex-wrap justify-between items-center gap-2 text-white">
-                <span>
-                  {selected.name}
+
+              {/* Botão próximo */}
+              {files.length > 1 && (
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); lightboxNext() }}
+                  className="absolute right-3 z-10 flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-full bg-black/50 border border-white/20 text-white hover:bg-black/80 transition-colors shadow-xl"
+                  aria-label="Próxima foto"
+                >
+                  <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              )}
+            </div>
+
+            {/* Barra inferior — info + miniaturas */}
+            <div className="shrink-0 bg-black/60 border-t border-white/10">
+              {/* Info */}
+              <div className="flex items-center justify-between gap-4 px-4 py-2.5">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-white/90">{selected.name}</p>
                   {selected.uploaded_by_name && (
-                    <span className="ml-2 text-white/80 text-sm">• Enviado por {selected.uploaded_by_name}</span>
+                    <p className="mt-0.5 truncate text-xs text-white/50">Enviado por {selected.uploaded_by_name}</p>
                   )}
-                </span>
-                <div className="flex items-center gap-2">
-                  {canDeletePhotos && (
-                    <button
-                      type="button"
-                      onClick={() => openDeleteModal(selected)}
-                      disabled={deletingId === selected.id}
-                      className="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 disabled:opacity-50 text-sm font-medium"
-                    >
-                      {deletingId === selected.id ? 'Excluindo...' : 'Excluir do álbum'}
-                    </button>
-                  )}
-                  <a
-                    href={selected.webViewLink || '#'}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="underline"
-                  >
-                    Abrir no Drive
-                  </a>
                 </div>
+                {files.length > 1 && (
+                  <p className="shrink-0 text-xs text-white/40">Use ← → para navegar</p>
+                )}
               </div>
+
+              {/* Miniaturas de navegação (visível apenas com múltiplas fotos) */}
+              {files.length > 1 && (
+                <div className="flex gap-1.5 overflow-x-auto px-4 pb-3 scrollbar-none">
+                  {files.map((f, i) => (
+                    <button
+                      key={f.id}
+                      type="button"
+                      onClick={() => {
+                        if (i !== lightboxIndex) {
+                          setLightboxImageLoading(true)
+                          setLightboxIndex(i)
+                        }
+                      }}
+                      className={`shrink-0 h-12 w-12 rounded-lg overflow-hidden border-2 transition-all ${
+                        i === lightboxIndex
+                          ? 'border-[#c62737] ring-1 ring-[#c62737] opacity-100 scale-105'
+                          : 'border-transparent opacity-50 hover:opacity-80 hover:border-white/40'
+                      }`}
+                      aria-label={`Ir para foto ${i + 1}`}
+                      aria-current={i === lightboxIndex ? 'true' : undefined}
+                    >
+                      <img
+                        src={imageUrl(f.id, 'thumb')}
+                        alt=""
+                        className="h-full w-full object-cover"
+                        loading="lazy"
+                      />
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}

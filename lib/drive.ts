@@ -3,6 +3,8 @@ import path from 'path'
 import { Readable } from 'stream'
 import { google } from 'googleapis'
 
+const DRIVE_ID_REGEX = /^[a-zA-Z0-9_-]{10,}$/
+
 export interface DriveImageFile {
   id: string
   name: string
@@ -11,6 +13,33 @@ export interface DriveImageFile {
   thumbnailLink: string | null
   createdTime: string | null
   viewUrl: string
+}
+
+export function normalizeDriveFileId(input: string): string {
+  const trimmed = String(input || '').trim()
+  if (!trimmed) return ''
+
+  let decoded = trimmed
+  try {
+    decoded = decodeURIComponent(trimmed)
+  } catch {
+    // mantém valor original quando não for URI válido
+  }
+
+  if (DRIVE_ID_REGEX.test(decoded)) return decoded
+
+  const patterns = [
+    /\/file\/d\/([a-zA-Z0-9_-]{10,})/i,
+    /[?&]id=([a-zA-Z0-9_-]{10,})/i,
+    /\/d\/([a-zA-Z0-9_-]{10,})/i,
+  ]
+
+  for (const pattern of patterns) {
+    const match = decoded.match(pattern)
+    if (match?.[1]) return match[1]
+  }
+
+  return decoded
 }
 
 function getRootFolderId(): string {
@@ -311,7 +340,7 @@ export async function getFileDownloadBuffer(fileId: string): Promise<{
   return { buffer: Buffer.concat(chunks), contentType }
 }
 
-function resizeThumbnailUrl(thumbnailUrl: string, size: number): string {
+export function resizeThumbnailUrl(thumbnailUrl: string, size: number): string {
   const safeSize = Math.max(120, Math.min(size, 1024))
   if (/=s\d+/.test(thumbnailUrl)) {
     return thumbnailUrl.replace(/=s\d+/, `=s${safeSize}`)
@@ -329,6 +358,47 @@ export async function getDriveAccessToken(): Promise<string> {
     if (typed.token) return typed.token
   }
   throw new Error('Token de acesso do Google Drive inválido.')
+}
+
+export async function getPublicDriveImageBuffer(
+  fileId: string,
+  mode: 'full' | 'thumb' = 'full',
+  size = 480
+): Promise<{ buffer: Buffer; contentType: string } | null> {
+  try {
+    const safeSize = Math.max(120, Math.min(size, 1600))
+    const targetUrl =
+      mode === 'thumb'
+        ? `https://drive.google.com/thumbnail?id=${encodeURIComponent(fileId)}&sz=w${safeSize}`
+        : `https://drive.google.com/uc?export=download&id=${encodeURIComponent(fileId)}`
+
+    const response = await fetch(targetUrl, {
+      method: 'GET',
+      redirect: 'follow',
+    })
+
+    if (!response.ok) return null
+
+    const contentType = response.headers.get('content-type') || ''
+    if (!/^image\//i.test(contentType)) {
+      if (/text\/html/i.test(contentType)) {
+        const html = await response.text()
+        if (/accounts\.google\.com|servicelogin|signin/i.test(html)) {
+          throw new Error(
+            'Sem permissão no Drive. O arquivo exige login e não está acessível para a Service Account.'
+          )
+        }
+      }
+      return null
+    }
+
+    const buffer = Buffer.from(await response.arrayBuffer())
+    if (!buffer.length) return null
+
+    return { buffer, contentType }
+  } catch {
+    return null
+  }
 }
 
 /**

@@ -8,6 +8,8 @@ export type PostDraft = {
   albumId: string
   /** IDs das instâncias (ex.: Instagram) selecionadas para publicar */
   selectedInstanceIds: string[]
+  /** Tipo de postagem para o Instagram */
+  postType: 'feed' | 'reel' | 'story'
   /** Destinos selecionados: Instagram e/ou Facebook */
   destinations?: {
     instagram: boolean
@@ -32,6 +34,7 @@ export type PostDraft = {
 type StoredDraft = {
   albumId: string
   selectedInstanceIds: string[]
+  postType: 'feed' | 'reel' | 'story'
   destinations?: {
     instagram: boolean
     facebook: boolean
@@ -60,6 +63,7 @@ type ParsedMediaItem = {
 const EMPTY_DRAFT = (albumId: string): PostDraft => ({
   albumId,
   selectedInstanceIds: [],
+  postType: 'feed',
   destinations: {
     instagram: true,
     facebook: false,
@@ -79,11 +83,11 @@ function galleryUrls(fileId: string) {
   }
 }
 
-/** Reduz o draft para apenas o que cabe no localStorage (sem data URLs) */
 function toStoredDraft(draft: PostDraft): StoredDraft {
   return {
     albumId: draft.albumId,
     selectedInstanceIds: draft.selectedInstanceIds,
+    postType: draft.postType,
     destinations: draft.destinations || { instagram: true, facebook: false },
     text: draft.text.length > 50000 ? draft.text.slice(0, 50000) : draft.text,
     collaborators: draft.collaborators || [],
@@ -103,6 +107,7 @@ function parseDraft(raw: string | null, albumId: string): PostDraft {
     const data = JSON.parse(raw) as Partial<StoredDraft> & { destination?: { facebook?: boolean; instagram?: boolean }; media?: ParsedMediaItem[] }
     if (!data || data.albumId !== albumId) return EMPTY_DRAFT(albumId)
     const selectedInstanceIds = Array.isArray(data.selectedInstanceIds) ? data.selectedInstanceIds : []
+    const postType = data.postType === 'reel' || data.postType === 'story' ? data.postType : 'feed'
     const destinations = data.destinations && typeof data.destinations === 'object'
       ? { 
           instagram: Boolean(data.destinations.instagram), 
@@ -128,6 +133,7 @@ function parseDraft(raw: string | null, albumId: string): PostDraft {
     return {
       albumId,
       selectedInstanceIds,
+      postType,
       destinations,
       text,
       collaborators,
