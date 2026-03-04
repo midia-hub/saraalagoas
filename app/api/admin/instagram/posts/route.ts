@@ -61,8 +61,8 @@ export async function GET(request: NextRequest) {
       new Set(jobs.map((j) => (j.instagram_post_drafts as { id?: string } | null)?.id).filter(Boolean) as string[])
     )
 
-    let galleriesMap: Record<string, { id: string; title: string; type: string; date: string }> = {}
-    let assetsByDraft: Record<string, Array<{ sort_order: number; final_url: string | null; source_url: string }>> = {}
+    const galleriesMap: Record<string, { id: string; title: string; type: string; date: string }> = {}
+    const assetsByDraft: Record<string, Array<{ sort_order: number; final_url: string | null; source_url: string }>> = {}
 
     if (galleryIds.length > 0) {
       const { data: galleriesData } = await db
@@ -107,15 +107,19 @@ export async function GET(request: NextRequest) {
           .filter(Boolean) as string[]
       )
     )
-    let usersMap: Record<string, { id: string; full_name: string | null; email: string }> = {}
+    const usersMap: Record<string, { id: string; full_name: string | null; email: string }> = {}
     if (createdByIds.length > 0) {
       const { data: usersData } = await db
-        .from('admin_users')
-        .select('id, full_name, email')
+        .from('profiles')
+        .select('id, full_name, email, people(full_name)')
         .in('id', createdByIds)
       if (Array.isArray(usersData)) {
         for (const u of usersData) {
-          if (u?.id) usersMap[u.id] = { id: u.id, full_name: u.full_name ?? null, email: u.email ?? '' }
+          if (u?.id) {
+            const person = u.people as { full_name?: string | null } | null
+            const displayName = u.full_name || person?.full_name || u.email?.split('@')[0] || null
+            usersMap[u.id] = { id: u.id, full_name: displayName, email: u.email ?? '' }
+          }
         }
       }
     }

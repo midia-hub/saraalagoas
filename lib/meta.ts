@@ -138,7 +138,7 @@ export function getMetaOAuthUrl(state: string): string {
 /**
  * Cria um state assinado para proteção CSRF
  */
-export async function createSignedState(data: Record<string, any> = {}): Promise<string> {
+export async function createSignedState(data: Record<string, unknown> = {}): Promise<string> {
   const config = getMetaConfig()
   const payload = {
     ...data,
@@ -161,7 +161,7 @@ export async function createSignedState(data: Record<string, any> = {}): Promise
 /**
  * Valida e extrai dados do state assinado
  */
-export async function verifySignedState(state: string): Promise<Record<string, any> | null> {
+export async function verifySignedState(state: string): Promise<Record<string, unknown> | null> {
   try {
     const config = getMetaConfig()
     const decoded = JSON.parse(Buffer.from(state, 'base64url').toString('utf8'))
@@ -402,7 +402,7 @@ export async function createInstagramMediaContainer(params: {
 }): Promise<{ id: string }> {
   const { igUserId, imageUrl, videoUrl, caption, accessToken } = params
 
-  const body: any = {
+  const body: Record<string, string> = {
     caption: caption || '',
     access_token: accessToken,
   }
@@ -802,6 +802,88 @@ export async function createInstagramStoryContainer(params: {
   }
 
   return response.json()
+}
+
+/**
+ * Publica um Story de imagem em uma Página do Facebook.
+ * @see https://developers.facebook.com/docs/pages-api/stories
+ */
+export async function publishFacebookPhotoStory(params: {
+  pageId: string
+  imageUrl: string
+  accessToken: string
+}): Promise<{ post_id: string }> {
+  const { pageId, imageUrl, accessToken } = params
+
+  const body = new URLSearchParams({
+    url: imageUrl,
+    access_token: accessToken,
+  })
+
+  const response = await fetch(`${META_API_BASE}/${pageId}/photo_stories`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: body.toString(),
+  })
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: { message: 'Failed to publish Facebook photo story' } }))
+    throw new Error(`Facebook photo story failed: ${error.error?.message || response.statusText}`)
+  }
+
+  return response.json()
+}
+
+/**
+ * Publica um Story de vídeo em uma Página do Facebook usando upload em 2 fases.
+ * @see https://developers.facebook.com/docs/pages-api/stories
+ */
+export async function publishFacebookVideoStory(params: {
+  pageId: string
+  videoUrl: string
+  accessToken: string
+}): Promise<{ post_id: string }> {
+  const { pageId, videoUrl, accessToken } = params
+
+  // Fase 1: iniciar upload
+  const startBody = new URLSearchParams({
+    upload_phase: 'start',
+    access_token: accessToken,
+  })
+  const startResponse = await fetch(`${META_API_BASE}/${pageId}/video_stories`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: startBody.toString(),
+  })
+
+  if (!startResponse.ok) {
+    const error = await startResponse.json().catch(() => ({ error: { message: 'Failed to start Facebook video story upload' } }))
+    throw new Error(`Facebook video story start failed: ${error.error?.message || startResponse.statusText}`)
+  }
+
+  const startData = await startResponse.json() as { video_id?: string }
+  const videoId = startData.video_id
+  if (!videoId) throw new Error('Facebook video story: video_id não retornado na fase de início.')
+
+  // Fase 2: finalizar upload com a URL do vídeo
+  const finishBody = new URLSearchParams({
+    upload_phase: 'finish',
+    video_id: videoId,
+    file_url: videoUrl,
+    access_token: accessToken,
+  })
+  const finishResponse = await fetch(`${META_API_BASE}/${pageId}/video_stories`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: finishBody.toString(),
+  })
+
+  if (!finishResponse.ok) {
+    const error = await finishResponse.json().catch(() => ({ error: { message: 'Failed to finish Facebook video story upload' } }))
+    throw new Error(`Facebook video story finish failed: ${error.error?.message || finishResponse.statusText}`)
+  }
+
+  return finishResponse.json()
 }
 
 // ============================================================

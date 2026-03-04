@@ -48,7 +48,7 @@ export async function PATCH(
     return NextResponse.json({ error: 'ID da postagem é obrigatório.' }, { status: 400 })
   }
 
-  let body: { scheduled_at?: string; post_type?: string }
+  let body: { scheduled_at?: string; post_type?: string; caption?: string; publish_now?: boolean }
   try {
     body = await request.json()
   } catch {
@@ -78,8 +78,30 @@ export async function PATCH(
     updates.post_type = body.post_type
   }
 
+  // Atualizar legenda (apenas pending)
+  if (body?.caption !== undefined) {
+    if ((existing as { status: string }).status !== 'pending') {
+      return NextResponse.json(
+        { error: 'Apenas postagens com status "Programada" podem ter a legenda alterada.' },
+        { status: 400 }
+      )
+    }
+    updates.caption = typeof body.caption === 'string' ? body.caption : ''
+  }
+
+  // Postar agora: agenda para agora (run-scheduled processará em seguida)
+  if (body?.publish_now === true) {
+    if ((existing as { status: string }).status !== 'pending') {
+      return NextResponse.json(
+        { error: 'Apenas postagens com status "Programada" podem ser publicadas agora.' },
+        { status: 400 }
+      )
+    }
+    updates.scheduled_at = new Date(Date.now() - 5000).toISOString()
+  }
+
   // Reprogramar data/hora (apenas pending)
-  if (body?.scheduled_at !== undefined) {
+  if (body?.scheduled_at !== undefined && body?.publish_now !== true) {
     const scheduledAtRaw = body.scheduled_at
     if (typeof scheduledAtRaw !== 'string' || !scheduledAtRaw.trim()) {
       return NextResponse.json({ error: 'scheduled_at inválido.' }, { status: 400 })
@@ -117,4 +139,56 @@ export async function PATCH(
   }
 
   return NextResponse.json({ ok: true, message: 'Postagem atualizada com sucesso.' })
+}
+
+/**
+ * DELETE: Exclusão lógica (soft delete) — marca a postagem como "cancelled".
+ * O registro permanece no banco para manutenção do histórico.
+ * Apenas postagens com status "pending" ou "failed" podem ser canceladas.
+ */
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const access = await requireAccess(request, { pageKey: 'instagram', action: 'edit' })
+  if (!access.ok) return access.response
+
+  const { id } = await params
+  if (!id) {
+    return NextResponse.json({ error: 'ID da postagem é obrigatório.' }, { status: 400 })
+  }
+
+  const db = createSupabaseServerClient(request)
+
+  const { data: existing, error: fetchError } = await db
+    .from('scheduled_social_posts')
+    .select('id, status')
+    .eq('id', id)
+    .single()
+
+  if (fetchError || !existing) {
+    return NextResponse.json({ error: 'Postagem programada não encontrada.' }, { status: 404 })
+  }
+
+  const allowedStatuses = ['pending', 'failed']
+  if (!allowedStatuses.includes((existing as { status: string }).status)) {
+    return NextResponse.json(
+      { error: 'Apenas postagens com status "Programada" ou "Falha" podem ser excluídas.' },
+      { status: 400 }
+    )
+  }
+
+  const { error: updateError } = await db
+    .from('scheduled_social_posts')
+    .update({ status: 'cancelled', updated_at: new Date().toISOString() })
+    .eq('id', id)
+
+  if (updateError) {
+    return NextResponse.json(
+      { error: updateError.message ?? 'Erro ao excluir postagem.' },
+      { status: 500 }
+    )
+  }
+
+  return NextResponse.json({ ok: true, message: 'Postagem excluída com sucesso.' })
 }
