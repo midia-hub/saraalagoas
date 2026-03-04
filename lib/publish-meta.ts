@@ -9,6 +9,8 @@ import {
   createInstagramStoryContainer,
   publishInstagramMediaWithRetry,
   waitForInstagramMediaContainerReady,
+  publishFacebookPhotoStory,
+  publishFacebookVideoStory,
 } from '@/lib/meta'
 
 const BUCKET = 'instagram_posts'
@@ -243,24 +245,24 @@ export async function executeMetaPublishWithUrls(params: ExecuteMetaPublishWithU
   const { db, userId, instanceIds, destinations, text, imageUrls, postType = 'feed', isVideo = false, thumbOffset, coverUrl } = params
   if (imageUrls.length === 0) return { metaResults: [] }
 
-  // Stories/Reels só suportam Instagram; Facebook Stories usam API diferente (não implementado)
+  // Reels só suportam Instagram; Stories agora suportam Facebook também
   const effectiveDestinations =
-    postType === 'reel' || postType === 'story'
+    postType === 'reel'
       ? { instagram: destinations.instagram, facebook: false }
       : destinations
 
   const metaSelections = buildMetaSelections(instanceIds, effectiveDestinations)
   const metaResults: MetaPublishResult[] = []
 
-  // Registrar imediatamente que FB não é suportado para reel/story
-  if ((postType === 'reel' || postType === 'story') && destinations.facebook) {
+  // Registrar imediatamente que FB não é suportado para reel
+  if (postType === 'reel' && destinations.facebook) {
     const fbInstanceId = instanceIds.find((id) => id.startsWith('meta_fb:'))
     if (fbInstanceId) {
       metaResults.push({
         instanceId: fbInstanceId,
         provider: 'facebook',
         ok: false,
-        error: `${postType === 'reel' ? 'Reels' : 'Stories'} só são publicados no Instagram via esta integração.`,
+        error: 'Reels só são publicados no Instagram via esta integração.',
       })
     }
   }
@@ -385,25 +387,45 @@ export async function executeMetaPublishWithUrls(params: ExecuteMetaPublishWithU
         metaResults.push({ instanceId, provider: selection.type, ok: true, mediaId: publishedMedia?.id })
         continue
       } else {
-        // Facebook — somente para Feed (reel/story bloqueados acima)
+        // Facebook
         if (!integration.page_id) throw new Error('Integração sem página do Facebook.')
-        let fbResult: { id?: string } | undefined
-        if (isMultiple) {
-          fbResult = await publishFacebookMultipleImages({
-            pageId: integration.page_id,
-            pageAccessToken: integration.page_access_token,
-            imageUrls,
-            message: text || '',
-          })
+        if (postType === 'story') {
+          // ── STORY FACEBOOK ────────────────────────────────────────────
+          let fbStoryResult: { post_id?: string } | undefined
+          if (isVideo) {
+            fbStoryResult = await publishFacebookVideoStory({
+              pageId: integration.page_id,
+              videoUrl: firstUrl,
+              accessToken: integration.page_access_token,
+            })
+          } else {
+            fbStoryResult = await publishFacebookPhotoStory({
+              pageId: integration.page_id,
+              imageUrl: firstUrl,
+              accessToken: integration.page_access_token,
+            })
+          }
+          metaResults.push({ instanceId, provider: selection.type, ok: true, mediaId: fbStoryResult?.post_id })
         } else {
-          fbResult = await publishFacebookImage({
-            pageId: integration.page_id,
-            pageAccessToken: integration.page_access_token,
-            imageUrl: firstUrl,
-            message: text || '',
-          })
+          // ── FEED FACEBOOK ─────────────────────────────────────────────
+          let fbResult: { id?: string } | undefined
+          if (isMultiple) {
+            fbResult = await publishFacebookMultipleImages({
+              pageId: integration.page_id,
+              pageAccessToken: integration.page_access_token,
+              imageUrls,
+              message: text || '',
+            })
+          } else {
+            fbResult = await publishFacebookImage({
+              pageId: integration.page_id,
+              pageAccessToken: integration.page_access_token,
+              imageUrl: firstUrl,
+              message: text || '',
+            })
+          }
+          metaResults.push({ instanceId, provider: selection.type, ok: true, mediaId: fbResult?.id })
         }
-        metaResults.push({ instanceId, provider: selection.type, ok: true, mediaId: fbResult?.id })
         continue
       }
     } catch (e) {
@@ -426,7 +448,7 @@ export async function executeMetaPublishWithUrls(params: ExecuteMetaPublishWithU
 export async function executeMetaPublish(params: ExecuteMetaPublishParams): Promise<{
   metaResults: MetaPublishResult[]
 }> {
-  const { db, userId, albumId, instanceIds, destinations, postType = 'feed', text, mediaEdits } = params
+  const { db, userId, instanceIds, destinations, postType = 'feed', text, mediaEdits } = params
   const mediaFileIds = mediaEdits
     .map((item) => (typeof item?.id === 'string' ? item.id.trim() : ''))
     .filter(Boolean)
@@ -439,24 +461,24 @@ export async function executeMetaPublish(params: ExecuteMetaPublishParams): Prom
     return { metaResults: [] }
   }
 
-  // Stories/Reels só suportam Instagram
+  // Reels só suportam Instagram; Stories agora suportam Facebook também
   const effectiveDestinations =
-    postType === 'reel' || postType === 'story'
+    postType === 'reel'
       ? { instagram: destinations.instagram, facebook: false }
       : destinations
 
   const metaSelections = buildMetaSelections(instanceIds, effectiveDestinations)
   const metaResults: MetaPublishResult[] = []
 
-  // Registrar imediatamente que FB não é suportado para reel/story
-  if ((postType === 'reel' || postType === 'story') && destinations.facebook) {
+  // Registrar imediatamente que FB não é suportado para reel
+  if (postType === 'reel' && destinations.facebook) {
     const fbInstanceId = instanceIds.find((id) => id.startsWith('meta_fb:'))
     if (fbInstanceId) {
       metaResults.push({
         instanceId: fbInstanceId,
         provider: 'facebook',
         ok: false,
-        error: `${postType === 'reel' ? 'Reels' : 'Stories'} só são publicados no Instagram via esta integração.`,
+        error: 'Reels só são publicados no Instagram via esta integração.',
       })
     }
   }
@@ -588,23 +610,34 @@ export async function executeMetaPublish(params: ExecuteMetaPublishParams): Prom
         continue
       } else {
         if (!integration.page_id) throw new Error('Integração sem página do Facebook.')
-        let fbResult: { id?: string } = {}
-        if (isMultipleImages) {
-          fbResult = await publishFacebookMultipleImages({
+        if (postType === 'story') {
+          // ── STORY FACEBOOK ────────────────────────────────────────────
+          const fbStoryResult = await publishFacebookPhotoStory({
             pageId: integration.page_id,
-            pageAccessToken: integration.page_access_token,
-            imageUrls: mediaUrls,
-            message: text || '',
-          })
-        } else {
-          fbResult = await publishFacebookImage({
-            pageId: integration.page_id,
-            pageAccessToken: integration.page_access_token,
             imageUrl: firstImageUrl,
-            message: text || '',
+            accessToken: integration.page_access_token,
           })
+          metaResults.push({ instanceId, provider: selection.type, ok: true, mediaId: fbStoryResult?.post_id })
+        } else {
+          // ── FEED FACEBOOK ─────────────────────────────────────────────
+          let fbResult: { id?: string } = {}
+          if (isMultipleImages) {
+            fbResult = await publishFacebookMultipleImages({
+              pageId: integration.page_id,
+              pageAccessToken: integration.page_access_token,
+              imageUrls: mediaUrls,
+              message: text || '',
+            })
+          } else {
+            fbResult = await publishFacebookImage({
+              pageId: integration.page_id,
+              pageAccessToken: integration.page_access_token,
+              imageUrl: firstImageUrl,
+              message: text || '',
+            })
+          }
+          metaResults.push({ instanceId, provider: selection.type, ok: true, mediaId: (fbResult as { id?: string })?.id })
         }
-        metaResults.push({ instanceId, provider: selection.type, ok: true, mediaId: (fbResult as { id?: string })?.id })
         continue
       }
     } catch (e) {

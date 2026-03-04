@@ -16,9 +16,14 @@ import {
   Pencil,
   UsersRound,
   ChevronDown,
+  Trash2,
+  Eye,
 } from 'lucide-react'
 import Link from 'next/link'
 import { adminFetchJson } from '@/lib/admin-client'
+import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
+import { EditScheduledPostModal } from './EditScheduledPostModal'
+import { ScheduledPostDetailModal } from './ScheduledPostDetailModal'
 import type { ScheduledItem, LegacyPostItem } from './types'
 
 type ViewMode = 'month' | 'week'
@@ -43,6 +48,7 @@ type UnifiedPost = {
   instance_ids?: string[]
   scheduledId?: string | null   // ID real em scheduled_social_posts (para PATCH)
   instagramMediaId?: string | null
+  scheduledItemRef?: ScheduledItem | null
 }
 
 const STATUS_CFG: Record<
@@ -107,6 +113,7 @@ function mergeAll(scheduled: ScheduledItem[], legacy: LegacyPostItem[]): Unified
       instance_ids: s.instance_ids,
       scheduledId: s.id,
       instagramMediaId: s.result_payload?.instagramMediaId ?? null,
+      scheduledItemRef: s,
     }
   })
 
@@ -141,7 +148,9 @@ function mergeAll(scheduled: ScheduledItem[], legacy: LegacyPostItem[]): Unified
 export type PostsCalendarProps = {
   scheduledItems: ScheduledItem[]
   legacyItems: LegacyPostItem[]
+  integrations?: Array<{ value: string; label: string }>
   loading?: boolean
+  onDeleted?: () => void
 }
 
 // ─────────────────────────────────────────────
@@ -206,7 +215,8 @@ const POST_TYPE_CFG = {
   story: { label: 'Story', icon: Layers, bg: 'bg-pink-600', text: 'text-white' },
 } as const
 
-function DetailCard({ post, integrations }: { post: UnifiedPost, integrations: Array<{ value: string; label: string }> }) {
+function DetailCard({ post, integrations, onDeleted }: { post: UnifiedPost, integrations: Array<{ value: string; label: string }>, onDeleted?: () => void }) {
+  const [detailModalOpen, setDetailModalOpen] = useState(false)
   const cfg = STATUS_CFG[post.status] ?? STATUS_CFG.pending
   const time = new Date(post.dateIso).toLocaleString('pt-BR')
 
@@ -218,6 +228,13 @@ function DetailCard({ post, integrations }: { post: UnifiedPost, integrations: A
   const [editingType, setEditingType] = useState(false)
   const [savingType, setSavingType] = useState(false)
   const [loadingPermalink, setLoadingPermalink] = useState(false)
+
+  // delete
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+
+  // edit modal
+  const [editModalOpen, setEditModalOpen] = useState(false)
 
   const typeCfg = POST_TYPE_CFG[currentType as keyof typeof POST_TYPE_CFG] ?? POST_TYPE_CFG.feed
   const TypeIcon = typeCfg.icon
@@ -259,6 +276,21 @@ function DetailCard({ post, integrations }: { post: UnifiedPost, integrations: A
       window.open('https://www.instagram.com/', '_blank', 'noopener,noreferrer')
     } finally {
       setLoadingPermalink(false)
+    }
+  }
+
+  async function handleDelete() {
+    if (!post.scheduledId) return
+    setDeleting(true)
+    try {
+      await adminFetchJson(`/api/social/scheduled/${post.scheduledId}`, { method: 'DELETE' })
+      setDeleteDialogOpen(false)
+      onDeleted?.()
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Erro ao excluir postagem.'
+      alert(msg)
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -357,7 +389,7 @@ function DetailCard({ post, integrations }: { post: UnifiedPost, integrations: A
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-medium text-[#c62737] hover:bg-red-50"
             >
-              Ver postagem <ExternalLink className="h-3 w-3" />
+              Visualizar <ExternalLink className="h-3 w-3" />
             </a>
           )}
           {!post.permalink && post.instagramMediaId && post.source === 'scheduled' && (
@@ -368,10 +400,20 @@ function DetailCard({ post, integrations }: { post: UnifiedPost, integrations: A
               className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-medium text-[#c62737] hover:bg-red-50 disabled:opacity-60"
             >
               {loadingPermalink ? <Loader2 className="h-3 w-3 animate-spin" /> : <ExternalLink className="h-3 w-3" />}
-              Ver postagem
+              Visualizar
             </button>
           )}
-          {post.albumId && post.source === 'scheduled' && (
+          {/* Editar/Alterar programação — apenas pendentes */}
+          {post.status === 'pending' && post.source === 'scheduled' && (
+            <button
+              type="button"
+              onClick={() => setEditModalOpen(true)}
+              className="inline-flex items-center gap-1 rounded-lg bg-[#c62737] px-2 py-1 text-[11px] font-semibold text-white hover:bg-[#9e1f2e]"
+            >
+              <Pencil className="h-3 w-3" /> Alterar programação
+            </button>
+          )}
+          {post.albumId && post.source === 'scheduled' && post.status !== 'pending' && (
             <Link
               href={`/admin/galeria/${post.albumId}/post/create`}
               className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-medium text-slate-600 hover:bg-slate-50"
@@ -379,8 +421,68 @@ function DetailCard({ post, integrations }: { post: UnifiedPost, integrations: A
               <Pencil className="h-3 w-3" /> Refazer
             </Link>
           )}
+          {/* Excluir — apenas programadas e com falha */}
+          {(post.status === 'pending' || post.status === 'failed') && post.source === 'scheduled' && (
+            <button
+              type="button"
+              onClick={() => setDeleteDialogOpen(true)}
+              title="Excluir publicação"
+              className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-[11px] font-medium text-red-600 hover:bg-red-100"
+            >
+              <Trash2 className="h-3 w-3" /> Excluir
+            </button>
+          )}
+          {/* Ver detalhes */}
+          {post.source === 'scheduled' && post.scheduledItemRef && (
+            <button
+              type="button"
+              onClick={() => setDetailModalOpen(true)}
+              className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-medium text-slate-600 hover:border-[#c62737] hover:bg-[#c62737]/5 hover:text-[#c62737]"
+            >
+              <Eye className="h-3 w-3" /> Ver detalhes
+            </button>
+          )}
         </div>
+        <ConfirmDialog
+          open={deleteDialogOpen}
+          variant="danger"
+          title="Excluir publicação"
+          message={`A publicação "${post.title}" será removida da fila. O histórico será mantido no sistema. Deseja continuar?`}
+          confirmLabel="Excluir"
+          loading={deleting}
+          onConfirm={handleDelete}
+          onCancel={() => setDeleteDialogOpen(false)}
+        />
+
+        {editModalOpen && post.scheduledId && (
+          <EditScheduledPostModal
+            open={editModalOpen}
+            displayTitle={post.title}
+            post={{
+              id: post.scheduledId,
+              caption: post.caption ?? '',
+              scheduled_at: post.dateIso,
+              status: post.status as 'pending',
+              post_type: (post.post_type ?? 'feed') as 'feed' | 'reel' | 'story',
+              album_id: post.albumId ?? null,
+              galleries: null,
+              published_at: null,
+              error_message: null,
+              created_at: post.dateIso,
+            }}
+            onClose={() => setEditModalOpen(false)}
+            onSaved={() => onDeleted?.()}
+          />
+        )}
       </div>
+
+      {detailModalOpen && post.scheduledItemRef && (
+        <ScheduledPostDetailModal
+          post={post.scheduledItemRef}
+          integrations={integrations}
+          onClose={() => setDetailModalOpen(false)}
+        />
+      )}
     </article>
   )
 }
@@ -431,7 +533,7 @@ function MonthGrid({
               key={key}
               type="button"
               onClick={() => onSelectKey(key)}
-              className={`group flex min-h-[80px] flex-col gap-0.5 p-1.5 text-left transition-colors
+              className={`group flex min-h-[120px] flex-col gap-0.5 p-1.5 text-left transition-colors
                 ${isCurrentMonth ? 'bg-white' : 'bg-slate-50'}
                 ${isSelected ? 'ring-2 ring-inset ring-[#c62737]' : 'hover:bg-slate-50'}
               `}
@@ -563,6 +665,7 @@ export function PostsCalendar({
   legacyItems,
   integrations = [],
   loading = false,
+  onDeleted,
 }: PostsCalendarProps) {
   const now = new Date()
   const [viewMode, setViewMode] = useState<ViewMode>('month')
@@ -732,7 +835,7 @@ export function PostsCalendar({
           ) : (
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {selectedPosts.map((post) => (
-                <DetailCard key={post.id} post={post} integrations={integrations} />
+                <DetailCard key={post.id} post={post} integrations={integrations} onDeleted={onDeleted} />
               ))}
             </div>
           )}

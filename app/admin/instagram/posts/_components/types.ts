@@ -50,6 +50,7 @@ export type ScheduledItem = {
     mediaIds?: Array<{ provider: string; mediaId?: string }>
   } | null
   galleries?: { id: string; title: string; type: string; date: string } | null
+  created_by_user?: PostCreatedByUser | null
 }
 
 /** Conta Meta para filtro */

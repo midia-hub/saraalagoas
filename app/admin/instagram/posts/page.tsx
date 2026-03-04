@@ -20,7 +20,6 @@ import {
   Heart,
   Image as ImageIcon,
   Instagram,
-  LayoutGrid,
   List,
   Loader2,
   MessageCircle,
@@ -421,6 +420,7 @@ export default function AdminInstagramPostsPage() {
             legacyItems={legacyItems}
             integrations={integrations}
             loading={loading}
+            onDeleted={loadScheduled}
           />
         )}
 
@@ -606,7 +606,7 @@ export default function AdminInstagramPostsPage() {
               </div>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {filteredScheduled.map((s) => (
-                  <PostCard key={s.id} post={s} integrations={integrations} />
+                  <PostCard key={s.id} post={s} integrations={integrations} onDeleted={loadScheduled} />
                 ))}
               </div>
               {filteredScheduled.length === 0 && (

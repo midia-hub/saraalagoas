@@ -41,6 +41,7 @@ export async function GET(request: NextRequest) {
       )
     `
     )
+    .neq('status', 'cancelled')
     .order('scheduled_at', { ascending: false })
     .limit(200)
 
@@ -48,5 +49,41 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  return NextResponse.json(data || [])
+  const rows = data || []
+
+  // Enriquecer com dados do usuário criador
+  const createdByIds = Array.from(
+    new Set(
+      rows
+        .map((r) => (r as { created_by?: string }).created_by)
+        .filter(Boolean) as string[]
+    )
+  )
+
+  const usersMap: Record<string, { id: string; full_name: string | null; email: string }> = {}
+  if (createdByIds.length > 0) {
+    const { data: usersData } = await db
+      .from('profiles')
+      .select('id, full_name, email, people(full_name)')
+      .in('id', createdByIds)
+    if (Array.isArray(usersData)) {
+      for (const u of usersData) {
+        if (u?.id) {
+          const person = u.people as { full_name?: string | null } | null
+          const displayName = u.full_name || person?.full_name || u.email?.split('@')[0] || null
+          usersMap[u.id] = { id: u.id, full_name: displayName, email: u.email ?? '' }
+        }
+      }
+    }
+  }
+
+  const result = rows.map((row) => {
+    const createdBy = (row as { created_by?: string }).created_by
+    return {
+      ...row,
+      created_by_user: createdBy ? (usersMap[createdBy] ?? null) : null,
+    }
+  })
+
+  return NextResponse.json(result)
 }

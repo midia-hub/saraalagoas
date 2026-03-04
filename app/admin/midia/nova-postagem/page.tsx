@@ -56,7 +56,7 @@ type PublicationInstance = {
   has_instagram: boolean
   has_facebook: boolean
   has_youtube: boolean
-  accounts?: any[]
+  accounts?: unknown[]
 }
 
 /** Tipo de postagem */
@@ -191,12 +191,14 @@ function AiCaptionModal({
   onApply,
   galleryAlbum,
   singleUploadImage,
+  onClearContext,
 }: {
   open: boolean
   onClose: () => void
   onApply: (caption: string) => void
   galleryAlbum?: GalleryAlbum | null
   singleUploadImage?: string | null
+  onClearContext?: (clearFn: () => void) => void
 }) {
   const [context, setContext] = useState('')
   const [tone, setTone] = useState<AiTone>('inspirador')
@@ -207,6 +209,13 @@ function AiCaptionModal({
   const [result, setResult] = useState('')
   const [error, setError] = useState('')
   const [provider, setProvider] = useState<'gemini' | 'openai' | null>(null)
+
+  // Registrar função de limpeza no pai
+  useEffect(() => {
+    if (onClearContext) {
+      onClearContext(() => setContext(''))
+    }
+  }, [onClearContext])
 
   // Limpar ao fechar
   useEffect(() => {
@@ -1500,8 +1509,29 @@ function InstagramPreview({
   media: MediaItem[]
 }) {
   const [idx, setIdx] = useState(0)
+  const [aspectRatio, setAspectRatio] = useState<number | null>(null)
   const current = media[idx] ?? null
-  useEffect(() => setIdx(0), [media.length])
+
+  useEffect(() => {
+    setIdx(0)
+  }, [media.length])
+
+  // Detectar proporção da primeira imagem
+  useEffect(() => {
+    if (media.length > 0) {
+      const img = new Image()
+      img.onload = () => {
+        setAspectRatio(img.width / img.height)
+      }
+      img.src = mediaThumb(media[0])
+    } else {
+      setAspectRatio(null)
+    }
+  }, [media])
+
+  const containerStyle = aspectRatio 
+    ? { aspectRatio: `${aspectRatio}` } 
+    : { aspectRatio: '1/1' }
 
   return (
     <div className="mx-auto w-full max-w-[320px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -1520,7 +1550,7 @@ function InstagramPreview({
       </div>
 
       {/* Imagem */}
-      <div className="relative aspect-square bg-slate-100">
+      <div className="relative bg-slate-100 overflow-hidden" style={containerStyle}>
         {current ? (
           <img
             src={mediaThumb(current)}
@@ -1635,6 +1665,24 @@ function FacebookPreview({
 }) {
   const first = media[0]
   const extra = media.length - 1
+  const [aspectRatio, setAspectRatio] = useState<number | null>(null)
+
+  // Detectar proporção da primeira imagem
+  useEffect(() => {
+    if (media.length > 0) {
+      const img = new Image()
+      img.onload = () => {
+        setAspectRatio(img.width / img.height)
+      }
+      img.src = mediaThumb(media[0])
+    } else {
+      setAspectRatio(null)
+    }
+  }, [media])
+
+  const containerStyle = aspectRatio 
+    ? { aspectRatio: `${aspectRatio}` } 
+    : { aspectRatio: '16/9' }
 
   return (
     <div className="mx-auto w-full max-w-[320px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -1654,7 +1702,7 @@ function FacebookPreview({
       {text && (
         <p className="px-3 pb-2 text-sm text-slate-800 line-clamp-5">{text}</p>
       )}
-      <div className="relative bg-slate-100 aspect-video">
+      <div className="relative bg-slate-100 overflow-hidden" style={containerStyle}>
         {first ? (
           <>
             <img
@@ -1787,6 +1835,7 @@ function NovaPostagemContent() {
 
   // Modal IA
   const [aiModalOpen, setAiModalOpen] = useState(false)
+  const clearContextRef = useRef<(() => void) | null>(null)
 
   // Estado da publicação
   const [publishing, setPublishing] = useState(false)
@@ -2104,6 +2153,7 @@ function NovaPostagemContent() {
         setScheduledDate('')
         setScheduledTime('12:00')
         setPublishMode('now')
+        if (clearContextRef.current) clearContextRef.current()
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Erro ao publicar.'
@@ -2125,6 +2175,7 @@ function NovaPostagemContent() {
     setNotice(null)
     setReelThumbOffsetMs(0)
     setReelVideoDurationMs(0)
+    if (clearContextRef.current) clearContextRef.current()
   }
 
   const charCount = text.length
@@ -2266,12 +2317,6 @@ function NovaPostagemContent() {
                   <span>
                     <strong>Story:</strong> envie 1 imagem ou vídeo (9:16 recomendado). Stories desaparecem em 24 h e não têm legenda pública.
                   </span>
-                </div>
-              )}
-              {postType === 'story' && destinations.facebook && (
-                <div className="mt-2 flex items-start gap-2 rounded-xl border border-orange-200 bg-orange-50 px-3.5 py-2.5 text-xs text-orange-800">
-                  <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
-                  <span>Stories serão publicados apenas no <strong>Instagram</strong>. Facebook Stories usam uma API diferente (não suportada neste fluxo).</span>
                 </div>
               )}
             </div>
@@ -3317,6 +3362,7 @@ function NovaPostagemContent() {
         open={aiModalOpen}
         onClose={() => setAiModalOpen(false)}
         onApply={(caption) => setText(caption)}
+        onClearContext={(fn) => (clearContextRef.current = fn)}
         galleryAlbum={media.some((m) => m.type === 'gallery') ? lastGalleryAlbum : null}
         singleUploadImage={
           media.length === 1 && media[0].type === 'upload' ? media[0].dataUrl : null
