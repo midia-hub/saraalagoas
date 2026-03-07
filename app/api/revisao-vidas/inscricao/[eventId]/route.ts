@@ -350,14 +350,6 @@ export async function POST(
     eventName: event.name,
   }, { status: 201 })
 }
-
-  request: NextRequest,
-  { params }: { params: { eventId: string } }
-) {
-  const supabase = createSupabaseAdminClient()
-
-  // 1. Validar evento
-  const { data: event, error: evErr } = await supabase
     .from('revisao_vidas_events')
     .select('id, name, active')
     .eq('id', params.eventId)
