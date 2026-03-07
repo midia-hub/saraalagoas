@@ -8,7 +8,7 @@ import { REVIEW_REG_STATUS_LABELS, REVIEW_REG_STATUS_COLORS, REVIEW_FLOW_STATUS_
 import type { ReviewFlowStatus } from '@/lib/consolidacao-types'
 import {
   Loader2, RefreshCw, CheckCircle2, XCircle, Check,
-  Search, Users, UserCheck, X, ClipboardList, ExternalLink, Link2, ClipboardCheck, Plus, Printer, QrCode, AlertTriangle,
+  Search, Users, UserCheck, X, ClipboardList, ExternalLink, Link2, ClipboardCheck, Plus, Printer, QrCode, AlertTriangle, Activity, ChevronDown, ChevronUp,
 } from 'lucide-react'
 import Link from 'next/link'
 import { AdminPageHeader } from '@/app/admin/AdminPageHeader'
@@ -46,6 +46,16 @@ export default function RevisaoVidasInscritosPage() {
   const [removeEventName, setRemoveEventName] = useState('')
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [showPrintLabels, setShowPrintLabels] = useState(false)
+  const [inscricaoLogs, setInscricaoLogs] = useState<Array<{
+    id: string
+    person_name: string | null
+    phone_masked: string | null
+    action: string
+    payload: Record<string, unknown>
+    created_at: string
+  }>>([])
+  const [logsLoading, setLogsLoading] = useState(false)
+  const [showLogsPanel, setShowLogsPanel] = useState(false)
 
   const load = useCallback(() => {
     setLoading(true)
@@ -65,6 +75,16 @@ export default function RevisaoVidasInscritosPage() {
         setEvents(eventsData.events ?? eventsData.items ?? [])
       })
       .finally(() => setLoading(false))
+
+    if (selectedEventId) {
+      setLogsLoading(true)
+      adminFetchJson(`/api/admin/consolidacao/revisao/inscricao-logs?event_id=${selectedEventId}&limit=200`)
+        .then((d: any) => setInscricaoLogs(d.items ?? []))
+        .catch(() => setInscricaoLogs([]))
+        .finally(() => setLogsLoading(false))
+    } else {
+      setInscricaoLogs([])
+    }
   }, [selectedEventId])
 
   useEffect(() => { load() }, [load])
@@ -363,6 +383,118 @@ export default function RevisaoVidasInscritosPage() {
           </div>
         </div>
       </div>
+
+      {/* Diagnóstico: logs de tentativas de inscrição */}
+      {selectedEventId && (
+        <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setShowLogsPanel(v => !v)}
+            className="w-full flex items-center justify-between px-5 py-3.5 bg-slate-50 hover:bg-slate-100 transition"
+          >
+            <div className="flex items-center gap-2">
+              <Activity className="w-4 h-4 text-slate-500" />
+              <span className="font-semibold text-slate-800 text-sm">Diagnóstico — Tentativas de Inscrição</span>
+              {!logsLoading && inscricaoLogs.length > 0 && (
+                <span className="ml-1 text-xs text-slate-500">({inscricaoLogs.length} registros)</span>
+              )}
+              {!logsLoading && inscricaoLogs.filter(l => l.action === 'registration_error').length > 0 && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-xs font-bold text-rose-700">
+                  <AlertTriangle className="w-3 h-3" />
+                  {inscricaoLogs.filter(l => l.action === 'registration_error').length} falha(s)
+                </span>
+              )}
+            </div>
+            {showLogsPanel ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+          </button>
+
+          {showLogsPanel && (
+            <div className="px-5 pb-5 pt-4 space-y-4">
+              {logsLoading ? (
+                <div className="flex items-center gap-2 text-slate-400 text-sm">
+                  <Loader2 className="w-4 h-4 animate-spin" /> Carregando logs…
+                </div>
+              ) : inscricaoLogs.length === 0 ? (
+                <p className="text-sm text-slate-400">Nenhum log de tentativa encontrado para este evento.</p>
+              ) : (
+                <>
+                  {/* Resumo por ação */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
+                    {(
+                      [
+                        { action: 'attempt',             label: 'Tentativas',         bg: 'bg-slate-100',  text: 'text-slate-700' },
+                        { action: 'registration_created', label: 'Inscrições criadas', bg: 'bg-emerald-100', text: 'text-emerald-700' },
+                        { action: 'registration_exists',  label: 'Já inscrito',        bg: 'bg-blue-100',   text: 'text-blue-700' },
+                        { action: 'registration_error',   label: 'Erros',              bg: 'bg-rose-100',   text: 'text-rose-700' },
+                        { action: 'person_created',       label: 'Novas pessoas',      bg: 'bg-amber-100',  text: 'text-amber-700' },
+                      ] as Array<{ action: string; label: string; bg: string; text: string }>
+                    ).map(({ action, label, bg, text }) => {
+                      const count = inscricaoLogs.filter(l => l.action === action).length
+                      return (
+                        <div key={action} className={`rounded-xl border border-slate-100 p-3 ${bg}`}>
+                          <div className={`text-xl font-bold ${text}`}>{count}</div>
+                          <div className={`text-xs font-medium ${text} opacity-80`}>{label}</div>
+                        </div>
+                      )
+                    })}
+                  </div>
+
+                  {/* Alerta se logs criados > inscrições reais */}
+                  {(() => {
+                    const created = inscricaoLogs.filter(l => l.action === 'registration_created').length
+                    const errors = inscricaoLogs.filter(l => l.action === 'registration_error').length
+                    if (errors > 0) {
+                      return (
+                        <div className="flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3">
+                          <AlertTriangle className="w-4 h-4 mt-0.5 text-rose-600 shrink-0" />
+                          <p className="text-sm text-rose-700">
+                            <strong>{errors} tentativa(s) falharam</strong> — essas pessoas tentaram se inscrever mas ocorreu um erro no sistema. Elas NÃO constam na lista de inscritos. Detalhe nos logs abaixo.
+                          </p>
+                        </div>
+                      )
+                    }
+                    if (created < regs.filter(r => r.event_id === selectedEventId).length) {
+                      return (
+                        <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3">
+                          <AlertTriangle className="w-4 h-4 mt-0.5 text-amber-600 shrink-0" />
+                          <p className="text-sm text-amber-700">
+                            Existem mais inscrições na tabela do que logs de criação. Isso pode indicar inscrições criadas diretamente pelo admin (sem log público).
+                          </p>
+                        </div>
+                      )
+                    }
+                    return null
+                  })()}
+
+                  {/* Logs de erros detalhados */}
+                  {inscricaoLogs.filter(l => l.action === 'registration_error').length > 0 && (
+                    <div>
+                      <h4 className="text-xs font-bold text-rose-700 uppercase tracking-wider mb-2">Detalhes das falhas</h4>
+                      <div className="space-y-1.5">
+                        {inscricaoLogs
+                          .filter(l => l.action === 'registration_error')
+                          .map(log => (
+                            <div key={log.id} className="flex items-start gap-2 rounded-lg border border-rose-100 bg-rose-50/60 px-3 py-2 text-xs">
+                              <XCircle className="w-3.5 h-3.5 mt-0.5 text-rose-500 shrink-0" />
+                              <div>
+                                <span className="font-semibold text-rose-800">{log.person_name ?? '—'}</span>
+                                {log.phone_masked && <span className="ml-2 text-rose-600">{log.phone_masked}</span>}
+                                {log.payload?.error && (
+                                  <span className="ml-2 text-rose-500">({String(log.payload.error)})</span>
+                                )}
+                                <span className="ml-2 text-rose-400">{new Date(log.created_at).toLocaleString('pt-BR')}</span>
+                              </div>
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Table card — busca integrada no cabeçalho */}
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">

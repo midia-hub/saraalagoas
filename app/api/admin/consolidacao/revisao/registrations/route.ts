@@ -58,14 +58,18 @@ export async function GET(request: NextRequest) {
           .eq('id', id)
       }))
 
+      // Re-busca apenas os registros que tiveram token gerado e atualiza no array in-place
       const { data: refreshed } = await supabase
         .from('revisao_vidas_registrations')
         .select(REGISTRATION_SELECT)
-        .in('id', registrations.map((r: Record<string, unknown>) => r.id as string))
+        .in('id', missingTokens)
 
       if (refreshed?.length) {
-        refreshed.sort((a, b) => new Date(String(b.created_at)).getTime() - new Date(String(a.created_at)).getTime())
-        registrations.splice(0, registrations.length, ...refreshed)
+        const refreshMap = new Map(refreshed.map((r: Record<string, unknown>) => [r.id as string, r]))
+        for (let i = 0; i < registrations.length; i++) {
+          const updated = refreshMap.get(registrations[i].id as string)
+          if (updated) registrations[i] = updated
+        }
       }
     }
 
@@ -132,16 +136,25 @@ export async function GET(request: NextRequest) {
       row,
     ]))
 
-    // Calcular status dinâmico para cada registro (em paralelo)
-    const statusEntries = await Promise.all(
-      registrations.map(async (reg: any) => {
-        const { data, error } = await supabase
-          .rpc('calculate_revisao_registration_status', { registration_id: reg.id as string })
-        return [reg.id as string, (!error && data) ? data as string : null] as const
-      })
-    )
+    // Calcular status dinâmico para cada registro inline (evita N+1 RPC por inscrição)
+    // Replica a mesma lógica da função PG calculate_revisao_registration_status
+    function calcStatus(reg: any, ev: any): string {
+      if (ev?.start_date) {
+        const deadline = new Date(ev.start_date)
+        deadline.setDate(deadline.getDate() - 1)
+        if (new Date() > deadline) return 'bloqueado'
+      }
+      if (!reg.pre_revisao_aplicado) return 'aguardando_pre_revisao'
+      if (!reg.payment_date) return 'aguardando_pagamento'
+      if (!reg.payment_validated_by) return 'aguardando_validacao'
+      if (!reg.anamnese_completed) return 'aguardando_anamnese'
+      return 'confirmado'
+    }
     const statusMap = new Map<string, string>(
-      statusEntries.filter(([, v]) => v !== null) as [string, string][]
+      registrations.map((reg: any) => [
+        reg.id as string,
+        calcStatus(reg, eventMap.get(reg.event_id as string) ?? null),
+      ])
     )
 
     const items = registrations.map((r: any) => {

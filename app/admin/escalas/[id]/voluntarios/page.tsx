@@ -161,6 +161,7 @@ function VolunteerAssignmentSelector({
   allVolunteers,
   allSlots,
   onAssign,
+  disabled,
 }: {
   slot: SlotResult
   funcao: string
@@ -168,6 +169,7 @@ function VolunteerAssignmentSelector({
   allVolunteers: VolunteerRow[]
   allSlots: SlotResult[]
   onAssign: (personId: string | null) => void
+  disabled?: boolean
 }) {
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
@@ -201,6 +203,16 @@ function VolunteerAssignmentSelector({
   ).sort((a, b) => a.full_name.localeCompare(b.full_name))
 
   const currentVol = allVolunteers.find(v => v.id === currentPersonId)
+
+  if (disabled) {
+    return (
+      <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${
+        currentVol ? 'bg-slate-100 text-slate-600' : 'bg-slate-50 text-slate-400 italic'
+      }`}>
+        {currentVol ? currentVol.full_name : 'Vaga aberta'}
+      </span>
+    )
+  }
 
   return (
     <div ref={ref} className="relative inline-block text-left">
@@ -431,10 +443,34 @@ export default function EscalaVoluntariosPage() {
 
   useEffect(() => { loadPublicada() }, [loadPublicada])
 
+  function isPastDate(dateStr: string) {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    return new Date(dateStr + 'T00:00:00') < today
+  }
+
+  function abrirEscalaExistente() {
+    if (!publicadaInfo?.dados) return
+    setGerarResult(publicadaInfo.dados)
+    setModalOpen(true)
+  }
+
   async function gerar() {
     setGerarLoading(true)
     try {
       const res = await adminFetchJson<GerarResult>(`/api/admin/escalas/${id}/gerar`, { method: 'POST' })
+      // Preserva slots de datas passadas que já estavam na escala salva
+      if (publicadaInfo?.dados?.slots) {
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
+        res.slots = res.slots.map(newSlot => {
+          if (new Date(newSlot.date + 'T00:00:00') < today) {
+            const saved = publicadaInfo.dados.slots.find(s => s.slot_id === newSlot.slot_id)
+            if (saved) return saved
+          }
+          return newSlot
+        })
+      }
       setGerarResult(res)
       setModalOpen(true)
     } catch (e) {
@@ -489,7 +525,10 @@ export default function EscalaVoluntariosPage() {
   }, [localData])
 
   async function salvarEscala(status: 'rascunho' | 'publicada') {
-    if (!gerarResult) return
+    if (!gerarResult || !gerarResult.slots || gerarResult.slots.length === 0) {
+      setToast({ type: 'err', message: 'Não há dados de escala para salvar. Clique em Gerar primeiro.' })
+      return
+    }
     setSavingEscala(true)
     try {
       await adminFetchJson(`/api/admin/escalas/${id}/publicada`, {
@@ -574,6 +613,16 @@ export default function EscalaVoluntariosPage() {
                 >
                   <Globe size={14} /> Escala pública
                 </Link>
+              )}
+              {publicadaInfo?.dados && (
+                <button
+                  type="button"
+                  onClick={abrirEscalaExistente}
+                  className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-violet-50 border border-violet-200 text-violet-700 text-sm font-semibold hover:bg-violet-100 transition-colors"
+                >
+                  <ClipboardList size={14} />
+                  {publicadaInfo.status === 'publicada' ? 'Ver / Editar escala' : 'Ver rascunho'}
+                </button>
               )}
               <Link
                 href={`/admin/escalas/${id}/trocas`}
@@ -1693,6 +1742,7 @@ export default function EscalaVoluntariosPage() {
                                     allVolunteers={allVolunteers}
                                     allSlots={gerarResult.slots}
                                     onAssign={personId => handleAssignVolunteer(slot.slot_id, f, personId)}
+                                    disabled={isPastDate(slot.date)}
                                   />
                                 </td>
                               )
