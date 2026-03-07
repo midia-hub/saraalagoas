@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState, useMemo, useRef, type MouseEvent } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '@/lib/supabase'
@@ -285,8 +286,14 @@ export function AdminSidebar() {
       <div className="p-6 border-b border-white/5 shrink-0">
         <div className="flex items-center justify-between gap-2">
           <Link href="/admin" className="flex items-center gap-3 group min-w-0" onClick={closeMobileMenu}>
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center shadow-lg shadow-red-600/20 group-hover:scale-105 transition-transform duration-300 shrink-0">
-              <span className="text-white font-black text-xl">S</span>
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center shadow-lg shadow-red-600/20 group-hover:scale-105 transition-transform duration-300 shrink-0 p-1.5">
+              <Image
+                src="/favicon.png"
+                alt="Logo"
+                width={40}
+                height={40}
+                className="w-full h-full object-contain brightness-0 invert"
+              />
             </div>
             <div className="min-w-0">
               <h1 className="font-bold text-white text-lg leading-tight tracking-tight">Sara Hub</h1>

@@ -969,7 +969,7 @@ function EventAnamneseInner() {
           </div>
 
           {/* Conteúdo A4 */}
-          <div className="mx-auto max-w-[210mm] min-h-[297mm] bg-white p-[15mm] print:p-0 print:max-w-none">
+          <div className="mx-auto max-w-[210mm] min-h-[297mm] bg-white p-[15mm] print:max-w-none">
             {printView === 'consolidated' ? (
               <PrintConsolidatedReport anamneses={anamneses} totalRegs={totalRegs} eventName={eventName} />
             ) : (
@@ -979,7 +979,7 @@ function EventAnamneseInner() {
 
           <style>{`
             @media print {
-              @page { size: A4; margin: 20mm; }
+              @page { size: A4; margin: 0; }
               body > *:not(#pdf-print-overlay) { display: none !important; }
               #pdf-print-overlay {
                 position: static !important;

@@ -65,22 +65,15 @@ export default function AdminLayout({
     const accessToken = session?.access_token
 
     try {
-      const access = await adminFetchJson<{
-        canAccessAdmin: boolean
-        isAdmin: boolean
-        profile?: { name?: string }
-        role?: { name: string }
-        legacyProfile?: { name: string }
-        displayName?: string
-        email?: string | null
-        personId?: string | null
-        avatarUrl?: string | null
-        source?: string
-        permissions?: PermissionMap
-      }>('/api/auth/admin-check', {
+      const access = await fetch('/api/auth/admin-check', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ accessToken }),
-      })
+      }).then(r => r.json().catch(() => ({})))
+
+      if (!access.canAccessAdmin) {
+        throw new Error('Sem acesso administrativo')
+      }
 
       setCanAccessAdmin(!!access.canAccessAdmin)
       setIsAdmin(!!access.isAdmin)
