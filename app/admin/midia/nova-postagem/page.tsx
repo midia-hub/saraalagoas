@@ -526,7 +526,7 @@ function ImageCropperModal({
   onApply: (id: string, newDataUrl: string) => void
   onNavigate: (item: MediaItem) => void
 }) {
-  const [preset, setPreset] = useState<AspectPreset>(ASPECT_PRESETS[0])
+  const [preset, setPreset] = useState<AspectPreset>(ASPECT_PRESETS[1])
   const [zoom, setZoom] = useState(1)
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [imgSrc, setImgSrc] = useState<string | null>(null)
@@ -552,6 +552,15 @@ function ImageCropperModal({
   panRef.current = pan
   imgNaturalRef.current = imgNatural
 
+  // Tamanho responsivo — ajustado pelo ResizeObserver ao tamanho real do modal
+  const [containerSize, setContainerSize] = useState(() =>
+    typeof window !== 'undefined' ? Math.min(380, window.innerWidth) : 380
+  )
+  const modalRef = useRef<HTMLDivElement>(null)
+  // Sobrescreve as constantes globais com valores dinâmicos
+  const CROP_CONTAINER = containerSize
+  const CROP_BOX_MAX   = Math.round(containerSize * 0.895) // ≈ 340/380
+
   // Derived layout
   const cropW    = preset.ratio >= 1 ? CROP_BOX_MAX : CROP_BOX_MAX * preset.ratio
   const cropH    = preset.ratio >= 1 ? CROP_BOX_MAX / preset.ratio : CROP_BOX_MAX
@@ -573,7 +582,7 @@ function ImageCropperModal({
     setImgLoadError(null)
     setApplying(false)
     setRotating(false)
-    setPreset(ASPECT_PRESETS[0])
+    setPreset(ASPECT_PRESETS[1])
 
     const sources =
       item.type === 'upload'
@@ -603,6 +612,32 @@ function ImageCropperModal({
     })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [preset])
+
+  // Adaptar container ao tamanho real do modal (ResizeObserver)
+  useEffect(() => {
+    if (!open) return
+    const el = modalRef.current
+    if (!el) return
+    const update = () => {
+      const w = el.offsetWidth
+      if (w > 0) setContainerSize(Math.min(380, w))
+    }
+    update()
+    const ro = new ResizeObserver(update)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [open])
+
+  // Re-centralizar ao redimensionar container
+  useEffect(() => {
+    if (!imgNatural) return
+    const bs = Math.max(cropW / imgNatural.w, cropH / imgNatural.h)
+    setPan({
+      x: cropLeft + cropW / 2 - imgNatural.w * bs * zoom / 2,
+      y: cropTop  + cropH / 2 - imgNatural.h * bs * zoom / 2,
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [containerSize])
 
   // Registrar handlers de arrastar no window
   useEffect(() => {
@@ -884,13 +919,20 @@ function ImageCropperModal({
   return (
     <div className="fixed inset-0 z-[60] flex items-end justify-center sm:items-center">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative z-10 w-full max-w-[460px] rounded-t-2xl sm:rounded-2xl bg-white shadow-2xl overflow-hidden">
+      <div ref={modalRef} className="relative z-10 w-full max-w-[480px] rounded-t-2xl sm:rounded-2xl bg-white shadow-2xl overflow-x-hidden overflow-y-auto" style={{ maxHeight: '92dvh' }}>
 
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3.5">
-          <div className="flex items-center gap-2">
-            <Crop className="h-4 w-4 text-[#c62737]" />
-            <p className="text-sm font-semibold text-slate-900">Editar imagem</p>
+        <div className="flex items-center justify-between bg-gradient-to-r from-rose-50/60 via-slate-50/30 to-white border-b border-slate-100/80 px-3 sm:px-4 py-2.5 sm:py-3.5">
+          <div className="flex items-center gap-3">
+            <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#c62737] to-[#9e1f2e] shadow-md">
+              <Crop className="h-4 w-4 text-white" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-slate-900 leading-tight">Editar imagem</p>
+              <p className="text-[11px] text-slate-400 leading-tight tabular-nums">
+                {preset.label} · {preset.outW}×{preset.outH}px
+              </p>
+            </div>
           </div>
           {/* Navegação entre imagens */}
           {items.length > 1 && item && (() => {
@@ -898,7 +940,7 @@ function ImageCropperModal({
             const hasPrev = idx > 0
             const hasNext = idx < items.length - 1
             return (
-              <div className="flex items-center gap-1 mx-auto">
+              <div className="flex items-center gap-1.5 mx-auto">
                 <button
                   type="button"
                   onClick={() => hasPrev && onNavigate(items[idx - 1])}
@@ -908,7 +950,7 @@ function ImageCropperModal({
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </button>
-                <span className="min-w-[3rem] text-center text-xs font-medium text-slate-600">
+                <span className="min-w-[3.5rem] text-center text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg px-2 py-0.5 shadow-sm tabular-nums">
                   {idx + 1} / {items.length}
                 </span>
                 <button
@@ -923,28 +965,50 @@ function ImageCropperModal({
               </div>
             )
           })()}
-          <button type="button" onClick={onClose} className="flex h-7 w-7 items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 transition-colors">
+          <button type="button" onClick={onClose} className="flex h-7 w-7 items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors">
             <X className="h-4 w-4" />
           </button>
         </div>
 
         {/* Presets de proporção */}
-        <div className="flex gap-1.5 px-4 pt-3 pb-1 overflow-x-auto">
-          {ASPECT_PRESETS.map((p) => (
-            <button
-              key={p.label}
-              type="button"
-              onClick={() => setPreset(p)}
-              className={`flex-shrink-0 flex flex-col items-center rounded-xl border px-2.5 py-1.5 text-xs transition-all ${
-                preset.label === p.label
-                  ? 'border-[#c62737] bg-[#c62737]/5 text-[#c62737]'
-                  : 'border-slate-200 text-slate-600 hover:border-slate-300'
-              }`}
-            >
-              <span className="font-semibold">{p.label}</span>
-              <span className="mt-0.5 text-[10px] text-slate-400 whitespace-nowrap">{p.desc}</span>
-            </button>
-          ))}
+        <div className="border-b border-slate-100 bg-slate-50/40 px-3 sm:px-4 pt-2 sm:pt-3 pb-2 sm:pb-3">
+          <p className="mb-1.5 sm:mb-2 text-[10px] font-semibold uppercase tracking-widest text-slate-400">Proporção</p>
+          <div className="flex gap-1.5 sm:gap-2 overflow-x-auto pb-0.5">
+            {ASPECT_PRESETS.map((p) => {
+              const maxDim = 24
+              const thumbW = p.ratio >= 1 ? maxDim : Math.round(maxDim * p.ratio)
+              const thumbH = p.ratio >= 1 ? Math.round(maxDim / p.ratio) : maxDim
+              const isSelected = preset.label === p.label
+              return (
+                <button
+                  key={p.label}
+                  type="button"
+                  onClick={() => setPreset(p)}
+                  className={`flex-shrink-0 flex flex-col items-center gap-1 rounded-xl border-2 px-2 sm:px-3 py-2 sm:py-2.5 min-w-[54px] sm:min-w-[64px] transition-all active:scale-95 ${
+                    isSelected
+                      ? 'border-[#c62737] bg-gradient-to-br from-red-50 to-rose-50/40 shadow-sm ring-1 ring-[#c62737]/15'
+                      : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
+                  }`}
+                >
+                  {/* Miniatura visual da proporção */}
+                  <div className="flex h-6 w-7 items-center justify-center">
+                    <div
+                      className={`rounded-[3px] border-2 transition-colors ${
+                        isSelected ? 'border-[#c62737] bg-[#c62737]/15' : 'border-slate-400/60 bg-slate-100'
+                      }`}
+                      style={{ width: thumbW, height: thumbH }}
+                    />
+                  </div>
+                  <span className={`text-[11px] font-bold tabular-nums leading-none ${isSelected ? 'text-[#c62737]' : 'text-slate-600'}`}>
+                    {p.label}
+                  </span>
+                  <span className="text-[9px] text-slate-400 text-center leading-tight whitespace-nowrap hidden sm:block">
+                    {p.desc.split(' – ')[0].split(' · ')[0]}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
         </div>
 
         {/* Viewport de recorte */}
@@ -978,33 +1042,34 @@ function ImageCropperModal({
           )}
 
           {/* Sombras laterais */}
-          <div className="absolute bg-black/55 pointer-events-none" style={{ top: 0, left: 0, right: 0, height: cropTop }} />
-          <div className="absolute bg-black/55 pointer-events-none" style={{ top: cropTop + cropH, left: 0, right: 0, bottom: 0 }} />
-          <div className="absolute bg-black/55 pointer-events-none" style={{ top: cropTop, left: 0, width: cropLeft, height: cropH }} />
-          <div className="absolute bg-black/55 pointer-events-none" style={{ top: cropTop, left: cropLeft + cropW, right: 0, height: cropH }} />
+          <div className="absolute bg-black/65 pointer-events-none" style={{ top: 0, left: 0, right: 0, height: cropTop }} />
+          <div className="absolute bg-black/65 pointer-events-none" style={{ top: cropTop + cropH, left: 0, right: 0, bottom: 0 }} />
+          <div className="absolute bg-black/65 pointer-events-none" style={{ top: cropTop, left: 0, width: cropLeft, height: cropH }} />
+          <div className="absolute bg-black/65 pointer-events-none" style={{ top: cropTop, left: cropLeft + cropW, right: 0, height: cropH }} />
 
           {/* Borda + grade de terços + cantos */}
           <div
-            className="absolute border border-white/70 pointer-events-none"
+            className="absolute border border-white/80 pointer-events-none"
             style={{ left: cropLeft, top: cropTop, width: cropW, height: cropH }}
           >
-            <div className="absolute bg-white/25 pointer-events-none" style={{ left: thirdW,     top: 0, width: 1, bottom: 0 }} />
-            <div className="absolute bg-white/25 pointer-events-none" style={{ left: thirdW * 2, top: 0, width: 1, bottom: 0 }} />
-            <div className="absolute bg-white/25 pointer-events-none" style={{ top: thirdH,     left: 0, height: 1, right: 0 }} />
-            <div className="absolute bg-white/25 pointer-events-none" style={{ top: thirdH * 2, left: 0, height: 1, right: 0 }} />
-            <div className="absolute top-0 left-0   w-4 h-4 border-t-2 border-l-2 border-white pointer-events-none" />
-            <div className="absolute top-0 right-0  w-4 h-4 border-t-2 border-r-2 border-white pointer-events-none" />
-            <div className="absolute bottom-0 left-0  w-4 h-4 border-b-2 border-l-2 border-white pointer-events-none" />
-            <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-white pointer-events-none" />
+            <div className="absolute bg-white/30 pointer-events-none" style={{ left: thirdW,     top: 0, width: 1, bottom: 0 }} />
+            <div className="absolute bg-white/30 pointer-events-none" style={{ left: thirdW * 2, top: 0, width: 1, bottom: 0 }} />
+            <div className="absolute bg-white/30 pointer-events-none" style={{ top: thirdH,     left: 0, height: 1, right: 0 }} />
+            <div className="absolute bg-white/30 pointer-events-none" style={{ top: thirdH * 2, left: 0, height: 1, right: 0 }} />
+            {/* Cantos mais espessos e longos */}
+            <div className="absolute top-0 left-0   w-5 h-5 border-t-[3px] border-l-[3px] border-white pointer-events-none" />
+            <div className="absolute top-0 right-0  w-5 h-5 border-t-[3px] border-r-[3px] border-white pointer-events-none" />
+            <div className="absolute bottom-0 left-0  w-5 h-5 border-b-[3px] border-l-[3px] border-white pointer-events-none" />
+            <div className="absolute bottom-0 right-0 w-5 h-5 border-b-[3px] border-r-[3px] border-white pointer-events-none" />
           </div>
 
           {/* Dica de interação (desktop) */}
           {imgNatural && (
-            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 pointer-events-none">
-              <span className="hidden sm:inline-flex items-center gap-1 rounded-full bg-black/50 px-2 py-0.5 text-[10px] text-white/80 backdrop-blur-sm">
-                <Move className="h-2.5 w-2.5" /> Arraste · Roda = zoom
+            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 pointer-events-none">
+              <span className="hidden sm:inline-flex items-center gap-1.5 rounded-full bg-black/60 px-3 py-1 text-[10px] font-medium text-white/90 backdrop-blur-md shadow-lg">
+                <Move className="h-2.5 w-2.5" /> Arraste para mover · roda = zoom
               </span>
-              <span className="inline-flex sm:hidden items-center gap-1 rounded-full bg-black/50 px-2 py-0.5 text-[10px] text-white/80 backdrop-blur-sm">
+              <span className="inline-flex sm:hidden items-center gap-1.5 rounded-full bg-black/60 px-3 py-1 text-[10px] font-medium text-white/90 backdrop-blur-md shadow-lg">
                 <Move className="h-2.5 w-2.5" /> Arraste · Pinça = zoom
               </span>
             </div>
@@ -1039,88 +1104,102 @@ function ImageCropperModal({
         </div>
 
         {/* Controles de zoom + rotação */}
-        <div className="px-4 pt-2.5 pb-1 space-y-2">
-          {/* Linha de zoom */}
-          <div className="flex items-center gap-2.5">
-            <button
-              type="button"
-              onClick={() => handleZoomChange(Math.max(1, zoom - 0.1))}
-              disabled={!imgNatural}
-              className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 disabled:opacity-40 transition-colors shadow-sm"
-              title="Reduzir zoom"
-            >
-              <ZoomOut className="h-3.5 w-3.5" />
-            </button>
-            <input
-              type="range"
-              min={1}
-              max={5}
-              step={0.02}
-              value={zoom}
-              onChange={(e) => handleZoomChange(Number(e.target.value))}
-              disabled={!imgNatural}
-              className="flex-1 accent-[#c62737] disabled:opacity-40"
-            />
-            <button
-              type="button"
-              onClick={() => handleZoomChange(Math.min(5, zoom + 0.1))}
-              disabled={!imgNatural}
-              className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 disabled:opacity-40 transition-colors shadow-sm"
-              title="Aumentar zoom"
-            >
-              <ZoomIn className="h-3.5 w-3.5" />
-            </button>
-            <span className="w-12 text-center text-[11px] font-medium text-slate-500 tabular-nums">
-              {Math.round(zoom * 100)}%
-            </span>
+        <div className="mx-3 sm:mx-4 my-2 sm:my-3 rounded-xl border border-slate-100 bg-slate-50/60 px-3 sm:px-3.5 py-2.5 sm:py-3 space-y-2.5 sm:space-y-3">
+
+          {/* Zoom */}
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Zoom</span>
+              <span className="text-[11px] font-semibold text-slate-600 tabular-nums bg-white border border-slate-200 rounded-md px-1.5 py-0.5 shadow-sm">
+                {Math.round(zoom * 100)}%
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => handleZoomChange(Math.max(1, zoom - 0.1))}
+                disabled={!imgNatural}
+                className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 disabled:opacity-40 transition-colors shadow-sm"
+                title="Reduzir zoom"
+              >
+                <ZoomOut className="h-3.5 w-3.5" />
+              </button>
+              <input
+                type="range"
+                min={1}
+                max={5}
+                step={0.02}
+                value={zoom}
+                onChange={(e) => handleZoomChange(Number(e.target.value))}
+                disabled={!imgNatural}
+                className="flex-1 accent-[#c62737] disabled:opacity-40 h-1.5 cursor-pointer"
+              />
+              <button
+                type="button"
+                onClick={() => handleZoomChange(Math.min(5, zoom + 0.1))}
+                disabled={!imgNatural}
+                className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 disabled:opacity-40 transition-colors shadow-sm"
+                title="Aumentar zoom"
+              >
+                <ZoomIn className="h-3.5 w-3.5" />
+              </button>
+            </div>
           </div>
 
-          {/* Linha de rotação + reset + info */}
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => handleRotate('ccw')}
-              disabled={!imgNatural || rotating || applying}
-              className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 disabled:opacity-40 transition-colors shadow-sm"
-              title="Girar 90° anti-horário"
-            >
-              {rotating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="h-3.5 w-3.5" />}
-            </button>
-            <button
-              type="button"
-              onClick={() => handleRotate('cw')}
-              disabled={!imgNatural || rotating || applying}
-              className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 disabled:opacity-40 transition-colors shadow-sm"
-              title="Girar 90° horário"
-            >
-              {rotating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCw className="h-3.5 w-3.5" />}
-            </button>
-            <div className="h-4 w-px bg-slate-200 flex-shrink-0" />
-            <button
-              type="button"
-              onClick={handleReset}
-              disabled={!imgNatural}
-              className="flex h-7 items-center gap-1 px-2 rounded-lg border border-slate-200 bg-white text-[11px] font-medium text-slate-500 hover:bg-slate-50 disabled:opacity-40 transition-colors shadow-sm"
-              title="Recentrar imagem"
-            >
-              <Maximize2 className="h-3 w-3" />
-              Recentrar
-            </button>
-            <span className="ml-auto text-[11px] text-slate-400">
-              {preset.outW}&times;{preset.outH}px
-            </span>
+          <div className="h-px bg-slate-200/80" />
+
+          {/* Rotação + recentrar */}
+          <div>
+            <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 mb-1.5 block">Rotação e ajuste</span>
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <button
+                type="button"
+                onClick={() => handleRotate('ccw')}
+                disabled={!imgNatural || rotating || applying}
+                className="flex h-8 flex-1 sm:flex-none items-center justify-center gap-1 sm:gap-1.5 sm:px-2.5 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40 transition-colors shadow-sm"
+                title="Girar 90° anti-horário"
+              >
+                {rotating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="h-3.5 w-3.5" />}
+                <span>−90°</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleRotate('cw')}
+                disabled={!imgNatural || rotating || applying}
+                className="flex h-8 flex-1 sm:flex-none items-center justify-center gap-1 sm:gap-1.5 sm:px-2.5 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40 transition-colors shadow-sm"
+                title="Girar 90° horário"
+              >
+                {rotating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCw className="h-3.5 w-3.5" />}
+                <span>+90°</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleReset}
+                disabled={!imgNatural}
+                className="flex h-8 flex-1 sm:flex-none items-center justify-center gap-1 sm:gap-1.5 sm:px-2.5 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40 transition-colors shadow-sm"
+                title="Recentrar imagem"
+              >
+                <Maximize2 className="h-3.5 w-3.5" />
+                <span className="hidden xs:inline">Recentrar</span>
+                <span className="xs:hidden">Fit</span>
+              </button>
+              <span className="ml-auto hidden sm:block text-[11px] font-medium text-slate-400 tabular-nums flex-shrink-0">
+                {preset.outW}×{preset.outH}
+              </span>
+            </div>
           </div>
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-2 border-t border-slate-100 px-4 py-3.5">
+        <div className="flex items-center gap-2 border-t border-slate-100 bg-slate-50/30 px-3 sm:px-4 py-2.5 sm:py-3.5">
           <button
             type="button"
             onClick={onClose}
-            className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+            className="rounded-xl border border-slate-200 bg-white px-3 sm:px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors shadow-sm flex-shrink-0"
           >
             Cancelar
           </button>
+          <div className="flex-1" />
           {/* Aplicar e ir para próxima — só aparece quando houver próxima imagem editável */}
           {(() => {
             if (!item) return null
@@ -1132,10 +1211,11 @@ function ImageCropperModal({
                 type="button"
                 onClick={() => handleApply('navigate-next')}
                 disabled={applying || rotating || !imgNatural}
-                className="flex items-center gap-1.5 rounded-xl border border-[#c62737] bg-[#c62737]/5 px-4 py-2 text-sm font-semibold text-[#c62737] hover:bg-[#c62737]/10 disabled:opacity-50 transition-colors"
+                className="flex items-center gap-1.5 rounded-xl border border-[#c62737] bg-gradient-to-r from-red-50 to-rose-50/30 px-3 sm:px-4 py-2 text-sm font-semibold text-[#c62737] hover:from-red-100 hover:to-rose-100/50 disabled:opacity-50 transition-all shadow-sm flex-shrink-0"
               >
                 {applying ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Crop className="h-3.5 w-3.5" />}
-                Aplicar e Próxima <ChevronRight className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Aplicar e </span>Próxima
+                <ChevronRight className="h-3.5 w-3.5" />
               </button>
             )
           })()}
@@ -1143,10 +1223,11 @@ function ImageCropperModal({
             type="button"
             onClick={() => handleApply()}
             disabled={applying || rotating || !imgNatural}
-            className="flex items-center gap-2 rounded-xl bg-[#c62737] px-5 py-2 text-sm font-semibold text-white hover:bg-[#a81f2d] disabled:opacity-50 transition-colors"
+            className="flex items-center gap-1.5 sm:gap-2 rounded-xl bg-gradient-to-r from-[#c62737] to-[#9e1f2e] px-4 sm:px-5 py-2 text-sm font-semibold text-white hover:from-[#a81f2d] hover:to-[#7d1824] disabled:opacity-50 transition-all shadow-md hover:shadow-lg flex-shrink-0"
           >
             {applying ? <Loader2 className="h-4 w-4 animate-spin" /> : <Crop className="h-4 w-4" />}
-            {applying ? 'Processando…' : 'Aplicar'}
+            <span className="hidden sm:inline">{applying ? 'Processando…' : 'Aplicar recorte'}</span>
+            <span className="sm:hidden">{applying ? 'Aguarde…' : 'Aplicar'}</span>
           </button>
         </div>
       </div>
@@ -2184,9 +2265,9 @@ function NovaPostagemContent() {
   const reelStoryLimitHit = (postType === 'reel' || postType === 'story') && media.length > 1
 
   return (
-    <div className="mx-auto flex w-full max-w-7xl flex-col gap-0 px-4 py-6 pb-36 md:px-6 md:py-8 md:pb-24">
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-0 px-3 py-4 pb-32 sm:px-4 sm:py-5 md:px-6 md:py-8 md:pb-24">
       {/* ── Header ──────────────────────────────────────────────────── */}
-      <div className="mb-6">
+      <div className="mb-4 sm:mb-6">
         <AdminPageHeader
           icon={PenLine}
           title="Nova Postagem"
@@ -2206,117 +2287,120 @@ function NovaPostagemContent() {
         <div className="space-y-3 sm:space-y-4">
           {/* ┌── Card 1: Tipo de Postagem ───────────────────────────┐ */}
           <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div className="flex items-center gap-2.5 rounded-t-2xl border-b border-slate-100 bg-slate-50/60 px-4 py-3 sm:gap-3 sm:px-5 sm:py-3.5">
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#c62737] text-[11px] font-bold text-white flex-shrink-0">
+            <div className="flex items-center gap-2.5 rounded-t-2xl border-b border-slate-100 bg-gradient-to-r from-rose-50/60 via-slate-50/40 to-white/20 px-4 py-3 sm:gap-3 sm:px-5 sm:py-3.5">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-[#c62737] to-[#9e1f2e] text-[11px] font-bold text-white flex-shrink-0 shadow-sm ring-2 ring-[#c62737]/20">
                 1
               </span>
               <h2 className="text-sm font-semibold text-slate-800">
                 Tipo de postagem
               </h2>
             </div>
-            <div className="px-4 py-4 sm:px-5">
-              <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-1 sm:mx-0 sm:grid sm:grid-cols-3 sm:gap-3 sm:overflow-visible sm:px-0 sm:pb-0">
+            <div className="px-3 py-3 sm:px-5 sm:py-4">
+
+              {/* ── Mobile: segmented tabs ícone + label ─────────────── */}
+              <div className="sm:hidden flex overflow-hidden rounded-2xl border-2 border-slate-200 mb-3">
+                {([
+                  { type: 'feed' as PostType, Icon: Newspaper, label: 'Feed', sub: 'Fotos' },
+                  { type: 'reel' as PostType, Icon: Film,      label: 'Reel', sub: 'Vídeo' },
+                  { type: 'story' as PostType, Icon: PlayCircle, label: 'Story', sub: '24h' },
+                ]).map(({ type, Icon, label, sub }, i, arr) => (
+                  <button
+                    key={type}
+                    type="button"
+                    onClick={() => { setPostType(type); setMedia([]) }}
+                    className={`flex-1 flex flex-col items-center justify-center gap-1 py-3 transition-all active:scale-95 ${
+                      i < arr.length - 1 ? 'border-r-2 border-slate-200' : ''
+                    } ${
+                      postType === type
+                        ? 'bg-gradient-to-b from-[#c62737] to-[#9e1f2e] text-white'
+                        : 'bg-white text-slate-500'
+                    }`}
+                  >
+                    <Icon className="h-5 w-5" />
+                    <span className="text-[11px] font-bold leading-none mt-0.5">{label}</span>
+                    <span className={`text-[9px] leading-none ${postType === type ? 'text-white/70' : 'text-slate-400'}`}>{sub}</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* ── Desktop: cards completos ──────────────────────────── */}
+              <div className="hidden sm:grid sm:grid-cols-3 sm:gap-3">
                 {/* Feed */}
                 <button
                   type="button"
                   onClick={() => { setPostType('feed'); setMedia([]) }}
-                  className={`min-w-[150px] flex-1 snap-start flex flex-col items-center gap-2.5 rounded-2xl border-2 px-3 py-4 text-center transition-all sm:min-w-0 ${
+                  className={`flex flex-col items-center gap-2.5 rounded-2xl border-2 px-3 py-4 text-center transition-all ${
                     postType === 'feed'
-                      ? 'border-[#c62737] bg-[#c62737]/5'
-                      : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
+                      ? 'border-[#c62737] bg-gradient-to-br from-red-50 to-rose-50/40 ring-1 ring-[#c62737]/15 shadow-sm'
+                      : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/80'
                   }`}
                 >
                   <span className={`flex h-10 w-10 items-center justify-center rounded-xl ${
-                    postType === 'feed' ? 'bg-[#c62737]' : 'bg-slate-100'
+                    postType === 'feed' ? 'bg-gradient-to-br from-[#c62737] to-[#9e1f2e] shadow-md' : 'bg-slate-100'
                   }`}>
                     <Newspaper className={`h-5 w-5 ${postType === 'feed' ? 'text-white' : 'text-slate-500'}`} />
                   </span>
                   <div>
-                    <p className={`text-xs font-semibold ${postType === 'feed' ? 'text-[#c62737]' : 'text-slate-700'}`}>
-                      Feed
-                    </p>
-                    <p className="mt-0.5 text-[10px] text-slate-400 leading-snug">
-                      Foto ou carrossel (até 10)
-                    </p>
+                    <p className={`text-sm font-bold tracking-wide ${postType === 'feed' ? 'text-[#c62737]' : 'text-slate-700'}`}>Feed</p>
+                    <p className="mt-0.5 text-[10px] text-slate-400 leading-snug">Foto ou carrossel (até 10)</p>
                   </div>
-                  {postType === 'feed' && (
-                    <CheckCircle2 className="h-4 w-4 text-[#c62737]" />
-                  )}
+                  {postType === 'feed' && <CheckCircle2 className="h-4 w-4 text-[#c62737]" />}
                 </button>
-
                 {/* Reel */}
                 <button
                   type="button"
                   onClick={() => { setPostType('reel'); setMedia([]) }}
-                  className={`min-w-[150px] flex-1 snap-start flex flex-col items-center gap-2.5 rounded-2xl border-2 px-3 py-4 text-center transition-all sm:min-w-0 ${
+                  className={`flex flex-col items-center gap-2.5 rounded-2xl border-2 px-3 py-4 text-center transition-all ${
                     postType === 'reel'
-                      ? 'border-[#c62737] bg-[#c62737]/5'
-                      : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
+                      ? 'border-[#c62737] bg-gradient-to-br from-red-50 to-rose-50/40 ring-1 ring-[#c62737]/15 shadow-sm'
+                      : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/80'
                   }`}
                 >
                   <span className={`flex h-10 w-10 items-center justify-center rounded-xl ${
-                    postType === 'reel' ? 'bg-[#c62737]' : 'bg-slate-100'
+                    postType === 'reel' ? 'bg-gradient-to-br from-[#c62737] to-[#9e1f2e] shadow-md' : 'bg-slate-100'
                   }`}>
                     <Film className={`h-5 w-5 ${postType === 'reel' ? 'text-white' : 'text-slate-500'}`} />
                   </span>
                   <div>
-                    <p className={`text-xs font-semibold ${postType === 'reel' ? 'text-[#c62737]' : 'text-slate-700'}`}>
-                      Reel
-                    </p>
-                    <p className="mt-0.5 text-[10px] text-slate-400 leading-snug">
-                      Vídeo 9:16 · até 15 min
-                    </p>
+                    <p className={`text-sm font-bold tracking-wide ${postType === 'reel' ? 'text-[#c62737]' : 'text-slate-700'}`}>Reel</p>
+                    <p className="mt-0.5 text-[10px] text-slate-400 leading-snug">Vídeo 9:16 · até 15 min</p>
                   </div>
-                  {postType === 'reel' && (
-                    <CheckCircle2 className="h-4 w-4 text-[#c62737]" />
-                  )}
+                  {postType === 'reel' && <CheckCircle2 className="h-4 w-4 text-[#c62737]" />}
                 </button>
-
                 {/* Story */}
                 <button
                   type="button"
                   onClick={() => { setPostType('story'); setMedia([]) }}
-                  className={`min-w-[150px] flex-1 snap-start flex flex-col items-center gap-2.5 rounded-2xl border-2 px-3 py-4 text-center transition-all sm:min-w-0 ${
+                  className={`flex flex-col items-center gap-2.5 rounded-2xl border-2 px-3 py-4 text-center transition-all ${
                     postType === 'story'
-                      ? 'border-[#c62737] bg-[#c62737]/5'
-                      : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
+                      ? 'border-[#c62737] bg-gradient-to-br from-red-50 to-rose-50/40 ring-1 ring-[#c62737]/15 shadow-sm'
+                      : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/80'
                   }`}
                 >
                   <span className={`flex h-10 w-10 items-center justify-center rounded-xl ${
-                    postType === 'story' ? 'bg-[#c62737]' : 'bg-slate-100'
+                    postType === 'story' ? 'bg-gradient-to-br from-[#c62737] to-[#9e1f2e] shadow-md' : 'bg-slate-100'
                   }`}>
                     <PlayCircle className={`h-5 w-5 ${postType === 'story' ? 'text-white' : 'text-slate-500'}`} />
                   </span>
                   <div>
-                    <p className={`text-xs font-semibold ${postType === 'story' ? 'text-[#c62737]' : 'text-slate-700'}`}>
-                      Story
-                    </p>
-                    <p className="mt-0.5 text-[10px] text-slate-400 leading-snug">
-                      Imagem ou vídeo 9:16
-                    </p>
+                    <p className={`text-sm font-bold tracking-wide ${postType === 'story' ? 'text-[#c62737]' : 'text-slate-700'}`}>Story</p>
+                    <p className="mt-0.5 text-[10px] text-slate-400 leading-snug">Imagem ou vídeo 9:16</p>
                   </div>
-                  {postType === 'story' && (
-                    <CheckCircle2 className="h-4 w-4 text-[#c62737]" />
-                  )}
+                  {postType === 'story' && <CheckCircle2 className="h-4 w-4 text-[#c62737]" />}
                 </button>
               </div>
-              <p className="mt-2 text-[11px] text-slate-400 sm:hidden">Deslize para ver todos os tipos de postagem.</p>
 
               {/* Avisos por tipo */}
               {postType === 'reel' && (
-                <div className="mt-3 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-xs text-amber-800">
+                <div className="mt-3 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 sm:px-3.5 sm:py-2.5">
                   <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
-                  <span>
-                    <strong>Reel:</strong> envie 1 vídeo MP4 (9:16 recomendado, máx. 15 min, áudio não silenciado). Instagram só publica no feed quando <em>share_to_feed=true</em>.
-                  </span>
+                  <span><strong>Reel:</strong> envie 1 vídeo MP4 (9:16 recomendado, máx. 15 min, áudio não silenciado).</span>
                 </div>
               )}
               {postType === 'story' && (
-                <div className="mt-3 flex items-start gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3.5 py-2.5 text-xs text-blue-800">
+                <div className="mt-3 flex items-start gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800 sm:px-3.5 sm:py-2.5">
                   <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
-                  <span>
-                    <strong>Story:</strong> envie 1 imagem ou vídeo (9:16 recomendado). Stories desaparecem em 24 h e não têm legenda pública.
-                  </span>
+                  <span><strong>Story:</strong> 1 imagem ou vídeo 9:16. Desaparece em 24h, sem legenda pública.</span>
                 </div>
               )}
             </div>
@@ -2325,15 +2409,15 @@ function NovaPostagemContent() {
           {/* ┌── Card 2: Perfil & Canais ────────────────────────────┐ */}
           {/* Sem overflow-hidden no wrapper: contém CustomSelect com painel absoluto */}
           <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div className="flex items-center gap-2.5 rounded-t-2xl border-b border-slate-100 bg-slate-50/60 px-4 py-3 sm:gap-3 sm:px-5 sm:py-3.5">
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#c62737] text-[11px] font-bold text-white flex-shrink-0">
+            <div className="flex items-center gap-2.5 rounded-t-2xl border-b border-slate-100 bg-gradient-to-r from-rose-50/60 via-slate-50/40 to-white/20 px-4 py-3 sm:gap-3 sm:px-5 sm:py-3.5">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-[#c62737] to-[#9e1f2e] text-[11px] font-bold text-white flex-shrink-0 shadow-sm ring-2 ring-[#c62737]/20">
                 2
               </span>
               <h2 className="text-sm font-semibold text-slate-800">
                 Perfil e canais
               </h2>
             </div>
-            <div className="space-y-4 px-4 py-4 sm:px-5">
+            <div className="space-y-3 px-3 py-3 sm:space-y-4 sm:px-5 sm:py-4">
               {/* Seletor de instância */}
               {loadingInstances ? (
                 <div className="flex items-center gap-2 text-sm text-slate-400">
@@ -2371,7 +2455,7 @@ function NovaPostagemContent() {
                 <label className="block text-xs font-medium text-slate-700 mb-2">
                   Publicar em
                 </label>
-                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                <div className="flex flex-row flex-wrap gap-2">
                   {/* Instagram */}
                   <button
                     type="button"
@@ -2385,9 +2469,9 @@ function NovaPostagemContent() {
                         return !n.instagram && !n.facebook ? p : n
                       })
                     }
-                    className={`group flex w-full items-center justify-between gap-2.5 rounded-xl border-2 px-4 py-2.5 text-sm font-medium transition-all disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto sm:justify-start ${
+                    className={`group flex items-center gap-2.5 rounded-xl border-2 px-4 py-2.5 text-sm font-medium transition-all disabled:cursor-not-allowed disabled:opacity-40 ${
                       destinations.instagram
-                        ? 'border-[#c62737] bg-gradient-to-r from-[#f09433]/10 to-[#c62737]/10 text-[#c62737]'
+                        ? 'border-[#c62737] bg-gradient-to-r from-[#f09433]/10 to-[#c62737]/10 text-[#c62737] shadow-sm'
                         : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:bg-slate-50'
                     }`}
                   >
@@ -2406,7 +2490,7 @@ function NovaPostagemContent() {
                     </span>
                     Instagram
                     {destinations.instagram && (
-                      <CheckCircle2 className="ml-auto h-4 w-4 text-[#c62737]" />
+                      <CheckCircle2 className="h-4 w-4 text-[#c62737]" />
                     )}
                   </button>
 
@@ -2422,9 +2506,9 @@ function NovaPostagemContent() {
                         return !n.instagram && !n.facebook ? p : n
                       })
                     }
-                    className={`group flex w-full items-center justify-between gap-2.5 rounded-xl border-2 px-4 py-2.5 text-sm font-medium transition-all disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto sm:justify-start ${
+                    className={`group flex items-center gap-2.5 rounded-xl border-2 px-4 py-2.5 text-sm font-medium transition-all disabled:cursor-not-allowed disabled:opacity-40 ${
                       destinations.facebook
-                        ? 'border-[#1877f2] bg-[#1877f2]/5 text-[#1877f2]'
+                        ? 'border-[#1877f2] bg-[#1877f2]/5 text-[#1877f2] shadow-sm'
                         : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:bg-slate-50'
                     }`}
                   >
@@ -2443,7 +2527,7 @@ function NovaPostagemContent() {
                     </span>
                     Facebook
                     {destinations.facebook && (
-                      <CheckCircle2 className="ml-auto h-4 w-4 text-[#1877f2]" />
+                      <CheckCircle2 className="h-4 w-4 text-[#1877f2]" />
                     )}
                   </button>
                 </div>
@@ -2460,8 +2544,8 @@ function NovaPostagemContent() {
           {/* ┌── Card 2: Mídias ─────────────────────────────────────┐ */}
           {/* Sem overflow-hidden: overlay de ações usa position:absolute */}
           <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div className="flex flex-wrap items-center gap-2.5 rounded-t-2xl border-b border-slate-100 bg-slate-50/60 px-4 py-3 sm:gap-3 sm:px-5 sm:py-3.5">
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#c62737] text-[11px] font-bold text-white flex-shrink-0">
+            <div className="flex flex-wrap items-center gap-2.5 rounded-t-2xl border-b border-slate-100 bg-gradient-to-r from-rose-50/60 via-slate-50/40 to-white/20 px-4 py-3 sm:gap-3 sm:px-5 sm:py-3.5">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-[#c62737] to-[#9e1f2e] text-[11px] font-bold text-white flex-shrink-0 shadow-sm ring-2 ring-[#c62737]/20">
                 3
               </span>
               <h2 className="text-sm font-semibold text-slate-800">{postType === 'reel' ? 'Vídeo do Reel' : postType === 'story' ? 'Mídia do Story' : 'Mídias'}</h2>
@@ -2505,10 +2589,10 @@ function NovaPostagemContent() {
                 )}
               </div>
             </div>
-            <div className="px-4 py-4 sm:px-5">
+            <div className="px-3 py-3 sm:px-5 sm:py-4">
               {/* Grid de mídias selecionadas */}
               {media.length > 0 && (
-                <div className="mb-4 grid grid-cols-2 gap-2.5 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
+                <div className="mb-4 grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
                   {media.map((item, idx) => (
                     <div key={item.id} className="group flex flex-col gap-1">
                       {/* Thumbnail */}
@@ -2821,14 +2905,14 @@ function NovaPostagemContent() {
                     e.preventDefault()
                     await handleFilesSelected(e.dataTransfer.files)
                   }}
-                  className="group w-full cursor-pointer rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/50 py-10 text-center transition-all hover:border-[#c62737] hover:bg-[#c62737]/5 sm:py-12"
+                  className="group w-full cursor-pointer rounded-2xl border-2 border-dashed border-slate-200 bg-gradient-to-br from-slate-50 to-white py-12 text-center transition-all hover:border-[#c62737] hover:from-red-50/50 hover:to-rose-50/20 sm:py-14"
                 >
                   <div className="flex flex-col items-center gap-3">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 group-hover:bg-[#c62737]/10 transition-colors">
+                    <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100 border border-slate-200/80 group-hover:bg-gradient-to-br group-hover:from-[#c62737]/10 group-hover:to-rose-100/60 group-hover:border-[#c62737]/30 transition-all shadow-inner">
                       {postType === 'reel' ? (
-                        <Film className="h-6 w-6 text-slate-400 group-hover:text-[#c62737] transition-colors" />
+                        <Film className="h-7 w-7 text-slate-400 group-hover:text-[#c62737] transition-colors" />
                       ) : (
-                        <Upload className="h-6 w-6 text-slate-400 group-hover:text-[#c62737] transition-colors" />
+                        <Upload className="h-7 w-7 text-slate-400 group-hover:text-[#c62737] transition-colors" />
                       )}
                     </div>
                     <div>
@@ -2867,10 +2951,10 @@ function NovaPostagemContent() {
 
               {/* Zona galeria — vazio */}
               {mediaTab === 'gallery' && media.length === 0 && (
-                <div className="w-full rounded-2xl border-2 border-dashed border-blue-100 bg-blue-50/50 py-10 text-center sm:py-12">
+                <div className="w-full rounded-2xl border-2 border-dashed border-blue-200/60 bg-gradient-to-br from-blue-50/60 to-sky-50/30 py-12 text-center sm:py-14">
                   <div className="flex flex-col items-center gap-3">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-100">
-                      <FolderOpen className="h-6 w-6 text-blue-400" />
+                    <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-100 border border-blue-200/80 shadow-inner">
+                      <FolderOpen className="h-7 w-7 text-blue-400" />
                     </div>
                     <div>
                       <p className="text-sm font-semibold text-slate-600">
@@ -2945,8 +3029,8 @@ function NovaPostagemContent() {
           {/* ┌── Card 4: Legenda ────────────────────────────────────┐ */}
           {postType !== 'story' && (
             <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-              <div className="flex flex-wrap items-center gap-2.5 rounded-t-2xl border-b border-slate-100 bg-slate-50/60 px-4 py-3 sm:gap-3 sm:px-5 sm:py-3.5">
-                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#c62737] text-[11px] font-bold text-white flex-shrink-0">
+              <div className="flex flex-wrap items-center gap-2.5 rounded-t-2xl border-b border-slate-100 bg-gradient-to-r from-rose-50/60 via-slate-50/40 to-white/20 px-4 py-3 sm:gap-3 sm:px-5 sm:py-3.5">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-[#c62737] to-[#9e1f2e] text-[11px] font-bold text-white flex-shrink-0 shadow-sm ring-2 ring-[#c62737]/20">
                   4
                 </span>
                 <h2 className="text-sm font-semibold text-slate-800">Legenda</h2>
@@ -2966,24 +3050,24 @@ function NovaPostagemContent() {
                   Gerar com IA
                 </button>
               </div>
-              <div className="px-4 py-4 sm:px-5">
+              <div className="px-3 py-3 sm:px-5 sm:py-4">
                 <textarea
                   ref={textareaRef}
                   value={text}
                   onChange={(e) => setText(e.target.value)}
                   placeholder="Digite a legenda do seu post… ✨"
-                  rows={5}
+                  rows={4}
                   maxLength={2200}
-                  className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50/40 px-4 py-3 text-sm text-slate-800 placeholder:text-slate-400 outline-none transition focus:border-[#c62737] focus:ring-2 focus:ring-[#c62737]/20 focus:bg-white hover:border-slate-300"
+                  className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50/40 px-3 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 outline-none transition focus:border-[#c62737] focus:ring-2 focus:ring-[#c62737]/20 focus:bg-white hover:border-slate-300 sm:rows-5 sm:px-4 sm:py-3"
                 />
-                {/* Barra de emojis */}
-                <div className="mt-2.5 flex flex-wrap items-center gap-1">
+                {/* Barra de emojis — scroll horizontal no mobile */}
+                <div className="mt-2 flex items-center gap-1.5 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible sm:pb-0">
                   {QUICK_EMOJIS.map((e) => (
                     <button
                       key={e}
                       type="button"
                       onClick={() => insertEmoji(e)}
-                      className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm leading-none hover:bg-slate-50 hover:border-slate-300 transition-colors"
+                      className="flex-shrink-0 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm leading-none hover:bg-slate-50 hover:border-slate-300 transition-colors"
                       title={e}
                     >
                       {e}
@@ -2992,7 +3076,7 @@ function NovaPostagemContent() {
                   <button
                     type="button"
                     onClick={() => insertEmoji(' #')}
-                    className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-bold text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors"
+                    className="flex-shrink-0 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors"
                     title="Inserir hashtag"
                   >
                     #
@@ -3010,15 +3094,15 @@ function NovaPostagemContent() {
           {/* ┌── Card 5: Agendamento ────────────────────────────────┐ */}
           {/* Sem overflow-hidden: contém DatePickerInput com calendário position:absolute */}
           <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div className="flex items-center gap-2.5 rounded-t-2xl border-b border-slate-100 bg-slate-50/60 px-4 py-3 sm:gap-3 sm:px-5 sm:py-3.5">
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#c62737] text-[11px] font-bold text-white flex-shrink-0">
+            <div className="flex items-center gap-2.5 rounded-t-2xl border-b border-slate-100 bg-gradient-to-r from-rose-50/60 via-slate-50/40 to-white/20 px-4 py-3 sm:gap-3 sm:px-5 sm:py-3.5">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-[#c62737] to-[#9e1f2e] text-[11px] font-bold text-white flex-shrink-0 shadow-sm ring-2 ring-[#c62737]/20">
                 5
               </span>
               <h2 className="text-sm font-semibold text-slate-800">
                 Quando publicar
               </h2>
             </div>
-            <div className="px-4 py-4 sm:px-5">
+            <div className="px-3 py-3 sm:px-5 sm:py-4">
               <div className="flex overflow-hidden rounded-xl border border-slate-200">
                 <button
                   type="button"
@@ -3111,8 +3195,8 @@ function NovaPostagemContent() {
           <div className="sticky top-6 space-y-4">
             {/* Header */}
             <div className="flex items-center justify-between">
-              <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-400">
-                <LayoutGrid className="h-3.5 w-3.5" /> Prévia
+              <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-widest text-slate-500">
+                <LayoutGrid className="h-3.5 w-3.5 text-[#c62737]" /> Prévia
               </p>
               {media.length > 0 && (
                 <span className="text-xs text-slate-400">
@@ -3208,10 +3292,13 @@ function NovaPostagemContent() {
             )}
 
             {/* Checklist rápido */}
-            <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">
-                Checklist
-              </p>
+            <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
+              <div className="border-b border-slate-100 bg-gradient-to-r from-rose-50/50 via-slate-50/40 to-white/20 px-4 py-3">
+                <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">
+                  Checklist
+                </p>
+              </div>
+              <div className="p-4 space-y-2">
               {[
                 { ok: !!selectedInstanceId, label: 'Perfil selecionado' },
                 {
@@ -3273,87 +3360,92 @@ function NovaPostagemContent() {
                 </div>
               ))}
             </div>
+            </div>
           </div>
         </div>
       </div>
 
       {/* ═══════════ BARRA INFERIOR FIXA ══════════════════════════ */}
-      <div className="fixed bottom-0 left-0 right-0 z-30 border-t border-slate-200 bg-white/95 px-3 py-2.5 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-lg backdrop-blur-sm md:left-[280px] md:px-4 md:py-3">
-        <div className="mx-auto flex w-full max-w-5xl flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-          <div className="flex items-center justify-between gap-2 sm:hidden">
-            <span className="text-[11px] text-slate-500">
-              {media.length} {postType === 'reel' ? 'vídeo' : postType === 'story' ? 'mídia' : media.length === 1 ? 'imagem' : 'imagens'}
-            </span>
-            {selectedInstanceId && (
-              <span className="max-w-[55vw] truncate text-[11px] text-slate-500">{selectedInstance?.name}</span>
-            )}
-          </div>
+      <div className="fixed bottom-0 left-0 right-0 z-30 border-t border-slate-200/70 bg-white/95 px-2.5 py-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] shadow-[0_-8px_30px_-4px_rgba(0,0,0,0.1)] backdrop-blur-md sm:px-3 sm:py-2.5 sm:pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:left-[280px] md:px-4 md:py-3">
+        <div className="mx-auto flex w-full max-w-5xl items-center gap-2 sm:gap-3">
 
-          <div className="grid w-full grid-cols-[auto,1fr] items-center gap-2 sm:flex sm:w-auto sm:items-center sm:gap-3">
-            <button
-              type="button"
-              onClick={resetForm}
-              className="min-h-[42px] rounded-xl border border-slate-200 px-3.5 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 sm:px-4"
-            >
-              Limpar tudo
-            </button>
+          {/* Botão limpar: ícone no mobile, texto no desktop */}
+          <button
+            type="button"
+            onClick={resetForm}
+            className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border border-slate-200 text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-700 sm:h-auto sm:w-auto sm:gap-1.5 sm:px-4 sm:py-2"
+            title="Limpar tudo"
+          >
+            <RefreshCw className="h-4 w-4" />
+            <span className="hidden sm:inline text-sm font-medium">Limpar tudo</span>
+          </button>
 
-            {/* Status rápido */}
-            <div className="hidden sm:flex items-center gap-3 text-xs text-slate-400 mr-1">
+          {/* Status rápido — mobile: icons somente · desktop: texto completo */}
+          <div className="flex flex-1 items-center gap-1.5 overflow-hidden sm:gap-3">
+            {/* Mobile: ícones de canal */}
+            <div className="flex sm:hidden items-center gap-1 min-w-0">
+              {destinations.instagram && <Instagram className="h-4 w-4 flex-shrink-0 text-[#c62737]" />}
+              {destinations.facebook  && <Facebook  className="h-4 w-4 flex-shrink-0 text-[#1877f2]" />}
+              {media.length > 0 && (
+                <span className="ml-1 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600 tabular-nums">
+                  {media.length}{postType === 'reel' ? '🎬' : postType === 'story' ? '⊕' : '📷'}
+                </span>
+              )}
+              {selectedInstanceId && (
+                <span className="truncate text-[10px] text-slate-400 ml-1 max-w-[90px]">{selectedInstance?.name}</span>
+              )}
+            </div>
+            {/* Desktop: status completo */}
+            <div className="hidden sm:flex items-center gap-3 text-xs text-slate-400">
               {media.length > 0 && (
                 <span className="flex items-center gap-1">
                   {postType === 'reel' ? <Film className="h-3.5 w-3.5" /> : <ImageIcon className="h-3.5 w-3.5" />}
-                  {media.length}{' '}
-                  {postType === 'reel' ? 'vídeo' : postType === 'story' ? 'mídia' : media.length === 1 ? 'imagem' : 'imagens'}
+                  {media.length} {postType === 'reel' ? 'vídeo' : postType === 'story' ? 'mídia' : media.length === 1 ? 'imagem' : 'imagens'}
                 </span>
               )}
               {postType !== 'feed' && (
-                <span className="flex items-center gap-1 font-medium text-slate-500 capitalize">
-                  {postType === 'reel' ? '🎬' : '⊕'} {postType}
-                </span>
+                <span className="font-medium text-slate-500 capitalize">{postType}</span>
               )}
               {!!selectedInstanceId && (
                 <span className="flex items-center gap-1 truncate max-w-[160px]">
-                  {destinations.instagram && (
-                    <Instagram className="h-3.5 w-3.5 text-[#c62737] flex-shrink-0" />
-                  )}
-                  {destinations.facebook && (
-                    <Facebook className="h-3.5 w-3.5 text-[#1877f2] flex-shrink-0" />
-                  )}
+                  {destinations.instagram && <Instagram className="h-3.5 w-3.5 text-[#c62737] flex-shrink-0" />}
+                  {destinations.facebook  && <Facebook  className="h-3.5 w-3.5 text-[#1877f2] flex-shrink-0" />}
                   <span className="truncate">{selectedInstance?.name}</span>
                 </span>
               )}
             </div>
-
-            <button
-              type="button"
-              onClick={handlePublish}
-              disabled={
-                publishing ||
-                loadingReplay ||
-                !selectedInstanceId ||
-                media.length === 0 ||
-                igLimitHit ||
-                reelStoryLimitHit
-              }
-              className="flex min-h-[42px] flex-1 items-center justify-center gap-2 rounded-xl bg-[#c62737] px-4 py-2.5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-[#9e1f2e] disabled:cursor-not-allowed disabled:opacity-50 sm:flex-none sm:px-6"
-            >
-              {publishing ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : publishMode === 'now' ? (
-                <Send className="h-4 w-4" />
-              ) : (
-                <CalendarDays className="h-4 w-4" />
-              )}
-              {publishing
-                ? publishMode === 'scheduled'
-                  ? 'Agendando…'
-                  : 'Publicando…'
-                : publishMode === 'scheduled'
-                ? 'Agendar publicação'
-                : 'Publicar agora'}
-            </button>
           </div>
+
+          {/* Botão publicar */}
+          <button
+            type="button"
+            onClick={handlePublish}
+            disabled={
+              publishing ||
+              loadingReplay ||
+              !selectedInstanceId ||
+              media.length === 0 ||
+              igLimitHit ||
+              reelStoryLimitHit
+            }
+            className="flex h-10 flex-shrink-0 items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-[#c62737] to-[#9e1f2e] px-4 text-sm font-bold text-white shadow-md transition-all hover:from-[#a81f2d] hover:to-[#7d1824] hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50 sm:h-auto sm:gap-2 sm:px-6 sm:py-2.5"
+          >
+            {publishing ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : publishMode === 'now' ? (
+              <Send className="h-4 w-4" />
+            ) : (
+              <CalendarDays className="h-4 w-4" />
+            )}
+            <span className="hidden sm:inline">
+              {publishing
+                ? publishMode === 'scheduled' ? 'Agendando…' : 'Publicando…'
+                : publishMode === 'scheduled' ? 'Agendar' : 'Publicar agora'}
+            </span>
+            <span className="sm:hidden">
+              {publishing ? (publishMode === 'scheduled' ? 'Agendando…' : 'Publicando…') : publishMode === 'scheduled' ? 'Agendar' : 'Publicar'}
+            </span>
+          </button>
         </div>
       </div>
 

@@ -1033,7 +1033,7 @@ export default function DemandDetailPage() {
 
   return (
     <PageAccessGuard pageKey="instagram">
-      <div className="p-4 md:p-8 space-y-6">
+      <div className="p-3 sm:p-4 md:p-8 space-y-5 sm:space-y-6">
 
         <AdminPageHeader
           icon={ClipboardList}
@@ -1043,7 +1043,7 @@ export default function DemandDetailPage() {
         />
 
         {/* ── Demand info card ── */}
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 md:p-6 space-y-4">
+        <section className="rounded-2xl border border-slate-200 bg-white p-3 sm:p-5 md:p-6 space-y-4">
           {demand.description && (
             <p className="text-sm text-slate-600 whitespace-pre-wrap">{demand.description}</p>
           )}
@@ -1090,9 +1090,9 @@ export default function DemandDetailPage() {
               </p>
             </div>
             <button type="button" onClick={() => setAddStageOpen(true)} disabled={addingStage}
-              className="inline-flex items-center gap-2 rounded-xl bg-[#c62737] px-4 py-2 text-sm font-semibold text-white hover:bg-[#9e1f2e] disabled:opacity-60 transition-colors">
+              className="inline-flex items-center gap-1.5 sm:gap-2 rounded-xl bg-[#c62737] px-3 py-2 sm:px-4 text-sm font-semibold text-white hover:bg-[#9e1f2e] disabled:opacity-60 transition-colors">
               {addingStage ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-              Adicionar estágio
+              <span className="hidden sm:inline">Adicionar estágio</span>
             </button>
           </div>
 
@@ -1109,7 +1109,7 @@ export default function DemandDetailPage() {
               </button>
             </div>
           ) : (
-            <div className="overflow-x-auto pb-6 -mx-4 px-4 md:-mx-8 md:px-8">
+            <div className="overflow-x-auto pb-6 -mx-3 px-3 sm:-mx-4 sm:px-4 md:-mx-8 md:px-8">
               <div className="flex items-start w-max gap-0">
                 {stages.map((stage, idx) => (
                   <StageColumn

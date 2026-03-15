@@ -255,13 +255,9 @@ export function ImageCropModal({
       fullImg.crossOrigin = 'anonymous'
       
       // Promessa com timeout para evitar travamento infinito
-      console.log('Tentando carregar fullImg...');
       await Promise.race([
         new Promise<void>((res, rej) => {
-          fullImg.onload = () => {
-             console.log('fullImg carregada!');
-             res();
-          }
+          fullImg.onload = () => res()
           fullImg.onerror = (e) => {
             console.error("Erro ao carregar imagem no canvas:", e)
             rej(new Error("Erro de carregamento (CORS ou rede)"))
@@ -269,8 +265,7 @@ export function ImageCropModal({
           fullImg.src = fileSrc
         }),
         new Promise((_, rej) => setTimeout(() => {
-           console.error('Timeout no carregamento da imagem original');
-           rej(new Error("Timeout ao carregar imagem original (está lenta?)"));
+          rej(new Error("Timeout ao carregar imagem original (está lenta?)"))
         }, 15000))
       ])
 
@@ -293,8 +288,6 @@ export function ImageCropModal({
         const cL = cropBoxRef.current.left
         const cT = cropBoxRef.current.top
 
-        const baseScale = Math.max(cW / natW, cH / natW * (natW/natH)) // Ajuste manual da escala base
-        // Simplificando o cálculo para ser mais robusto
         const effectiveBaseScale = Math.max(cW / natW, cH / natH)
         const currentScale = effectiveBaseScale * zoom
 
@@ -316,25 +309,19 @@ export function ImageCropModal({
       ctx.drawImage(fullImg, srcX, srcY, srcW, srcH, 0, 0, outW, outH)
 
       // Converte canvas diretamente para Blob para evitar strings base64 gigantes (mais performático)
-      console.log('Gerando blob...');
       const blob = await new Promise<Blob | null>((resolve) => {
-        const timeout = setTimeout(() => {
-          console.error('Timeout ao gerar blob do canvas');
-          resolve(null);
-        }, 5000);
-        
+        const timeout = setTimeout(() => resolve(null), 5000)
         try {
           canvas.toBlob((b) => {
-            clearTimeout(timeout);
-            resolve(b);
-          }, 'image/jpeg', 0.90);
+            clearTimeout(timeout)
+            resolve(b)
+          }, 'image/jpeg', 0.90)
         } catch (e) {
-          clearTimeout(timeout);
-          console.error('Erro na chamada canvas.toBlob:', e);
-          resolve(null);
+          clearTimeout(timeout)
+          console.error('Erro na chamada canvas.toBlob:', e)
+          resolve(null)
         }
-      });
-      console.log('Blob gerado:', blob ? 'Sim' : 'Não');
+      })
 
       if (!blob) throw new Error("Falha ao gerar o blob da imagem. Tente uma imagem menor ou outro navegador.");
 

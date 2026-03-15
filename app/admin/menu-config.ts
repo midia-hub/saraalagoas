@@ -3,9 +3,8 @@ import {
     Settings,
     Users,
     UserCircle,
-    Upload,
     Image as ImageIcon,
-    Instagram,
+    Share2 as Instagram,
     Shield,
     UserPlus,
     ClipboardList,
@@ -18,7 +17,6 @@ import {
     BarChart3,
     ShoppingCart,
     History,
-    Bookmark,
     UserCheck,
     Store,
     LayoutGrid,
@@ -47,8 +45,12 @@ export interface MenuItem {
 export interface MenuModule {
     id: string
     title: string
+    description?: string
     icon: LucideIcon
+    color?: string
     permission?: string
+    basePaths?: string[]
+    mainHref?: string
     items: MenuItem[]
 }
 
@@ -57,11 +59,15 @@ export interface MenuModule {
  */
 export const menuModules: MenuModule[] = [
 
-    // Dashboard - sempre o primeiro item
+    // Dashboard - hub de seleção de módulos
     {
         id: 'dashboard',
         title: 'Painel Geral',
+        description: 'Visão geral da plataforma',
         icon: LayoutDashboard,
+        color: '#C4232A',
+        basePaths: ['/admin'],
+        mainHref: '/admin',
         items: [
             {
                 href: '/admin',
@@ -76,8 +82,12 @@ export const menuModules: MenuModule[] = [
     {
         id: 'reservas',
         title: 'Reservas de Salas',
+        description: 'Solicitações e gerenciamento de espaços',
         icon: LayoutGrid,
+        color: '#6366f1',
         permission: 'reservas',
+        basePaths: ['/admin/reservas'],
+        mainHref: '/admin/reservas/dashboard',
         items: [
             { href: '/admin/reservas', label: 'Solicitações', icon: ClipboardList, permission: 'reservas' },
             { href: '/admin/reservas/salas', label: 'Salas', icon: Building2, permission: 'reservas' },
@@ -88,8 +98,12 @@ export const menuModules: MenuModule[] = [
     {
         id: 'lideranca',
         title: 'Liderança',
+        description: 'Discipulado e estrutura de liderança',
         icon: UsersRound,
+        color: '#0ea5e9',
         permission: 'pessoas',
+        basePaths: ['/admin/lideranca'],
+        mainHref: '/admin/lideranca',
         items: [
             {
                 href: '/admin/lideranca/meu-discipulado',
@@ -110,8 +124,12 @@ export const menuModules: MenuModule[] = [
     {
         id: 'escalas',
         title: 'Escalas',
+        description: 'Disponibilidades e escala de voluntários',
         icon: CalendarDays,
+        color: '#64748b',
         permission: 'escalas',
+        basePaths: ['/admin/escalas'],
+        mainHref: '/admin/escalas/dashboard',
         items: [
             {
                 href: '/admin/escalas',
@@ -126,8 +144,12 @@ export const menuModules: MenuModule[] = [
     {
         id: 'celulas',
         title: 'Células',
+        description: 'Grupos, realizações, presenças e discipulado',
         icon: UsersRound,
+        color: '#3b82f6',
         permission: 'celulas',
+        basePaths: ['/admin/celulas'],
+        mainHref: '/admin/celulas/dashboard',
         items: [
             {
                 href: '/admin/celulas',
@@ -154,8 +176,12 @@ export const menuModules: MenuModule[] = [
     {
         id: 'consolidacao',
         title: 'Consolidação',
+        description: 'Conversões, followups e acompanhamento pastoral',
         icon: UserPlus,
+        color: '#C4232A',
         permission: 'consolidacao',
+        basePaths: ['/admin/consolidacao'],
+        mainHref: '/admin/consolidacao',
         items: [
             {
                 href: '/admin/consolidacao/conversoes',
@@ -187,6 +213,24 @@ export const menuModules: MenuModule[] = [
                 icon: MessageSquare,
                 permission: 'consolidacao'
             },
+            {
+                href: '/admin/consolidacao/cadastros/igrejas',
+                label: 'Igrejas',
+                icon: Building2,
+                permission: 'consolidacao'
+            },
+            {
+                href: '/admin/consolidacao/cadastros/arenas',
+                label: 'Arenas',
+                icon: Trophy,
+                permission: 'consolidacao'
+            },
+            {
+                href: '/admin/consolidacao/cadastros/equipes',
+                label: 'Equipes',
+                icon: UserCog,
+                permission: 'consolidacao'
+            },
         ],
     },
 
@@ -194,8 +238,12 @@ export const menuModules: MenuModule[] = [
     {
         id: 'revisao-vidas',
         title: 'Revisão de Vidas',
+        description: 'Eventos, inscrições e anamneses pastorais',
         icon: Heart,
+        color: '#14b8a6',
         permission: 'revisao_vidas',
+        basePaths: ['/admin/revisao-vidas'],
+        mainHref: '/admin/revisao-vidas',
         items: [
             {
                 href: '/admin/revisao-vidas',
@@ -216,8 +264,12 @@ export const menuModules: MenuModule[] = [
     {
         id: 'livraria',
         title: 'Livraria',
+        description: 'Produtos, vendas, estoque e PDV',
         icon: BookOpen,
+        color: '#f59e0b',
         permission: 'livraria_produtos',
+        basePaths: ['/admin/livraria'],
+        mainHref: '/admin/livraria/dashboard',
         items: [
             {
                 href: '/admin/livraria/dashboard',
@@ -268,8 +320,19 @@ export const menuModules: MenuModule[] = [
     {
         id: 'midia',
         title: 'Mídia e Social',
+        description: 'Galerias, Instagram, demandas e publicações',
         icon: ImageIcon,
+        color: '#f97316',
         permission: 'galeria',
+        basePaths: [
+            '/admin/galeria',
+            '/admin/midia',
+            '/admin/instagram',
+            '/admin/instancias',
+            '/admin/rekognition',
+            '/admin/upload',
+        ],
+        mainHref: '/admin/midia',
         items: [
             {
                 href: '/admin/galeria',
@@ -316,35 +379,22 @@ export const menuModules: MenuModule[] = [
         ],
     },
 
-    // Módulo de Cadastros (tabelas de referência compartilhadas)
+    // Módulo de Pessoas e Membros
     {
-        id: 'cadastros',
-        title: 'Cadastros',
+        id: 'pessoas',
+        title: 'Pessoas e Membros',
+        description: 'Cadastro de membros, visitantes e pessoas',
         icon: UserCircle,
+        color: '#8b5cf6',
+        permission: 'pessoas',
+        basePaths: ['/admin/pessoas'],
+        mainHref: '/admin/pessoas/dashboard',
         items: [
             {
                 href: '/admin/pessoas',
                 label: 'Membros e Visitantes',
                 icon: UserCircle,
                 permission: 'pessoas'
-            },
-            {
-                href: '/admin/consolidacao/cadastros/igrejas',
-                label: 'Igrejas',
-                icon: Building2,
-                permission: 'consolidacao'
-            },
-            {
-                href: '/admin/consolidacao/cadastros/arenas',
-                label: 'Arenas',
-                icon: Trophy,
-                permission: 'consolidacao'
-            },
-            {
-                href: '/admin/consolidacao/cadastros/equipes',
-                label: 'Equipes',
-                icon: UserCog,
-                permission: 'consolidacao'
             },
         ],
     },
@@ -353,8 +403,12 @@ export const menuModules: MenuModule[] = [
     {
         id: 'sara-kids',
         title: 'Sara Kids',
+        description: 'Check-in, responsáveis e crianças no culto',
         icon: Baby,
+        color: '#ec4899',
         permission: 'pessoas',
+        basePaths: ['/admin/sara-kids'],
+        mainHref: '/admin/sara-kids',
         items: [
             {
                 href: '/admin/sara-kids',
@@ -381,8 +435,21 @@ export const menuModules: MenuModule[] = [
     {
         id: 'configuracoes',
         title: 'Configurações',
+        description: 'Usuários, permissões e configurações do sistema',
         icon: Settings,
+        color: '#475569',
         permission: 'configuracoes',
+        basePaths: [
+            '/admin/configuracoes',
+            '/admin/roles',
+            '/admin/settings',
+            '/admin/usuarios',
+            '/admin/conta',
+            '/admin/criar-acesso',
+            '/admin/midia/ia-config',
+            '/admin/consolidacao/cadastros/api-disparos',
+        ],
+        mainHref: '/admin/configuracoes',
         items: [
             {
                 href: '/admin/configuracoes',
@@ -401,6 +468,12 @@ export const menuModules: MenuModule[] = [
                 label: 'Permissões de Acesso',
                 icon: Shield,
                 permission: 'roles'
+            },
+            {
+                href: '/admin/usuarios',
+                label: 'Usuários',
+                icon: Users,
+                permission: 'usuarios'
             },
             {
                 href: '/admin/consolidacao/cadastros/api-disparos',

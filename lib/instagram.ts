@@ -1,3 +1,10 @@
+import {
+  createInstagramCarouselItemContainer,
+  createInstagramCarouselContainer,
+  publishInstagramMedia,
+  waitForInstagramMediaContainerReady,
+} from '@/lib/meta'
+
 type InstagramMediaInput = {
   imageUrl: string
   caption?: string
@@ -6,16 +13,12 @@ type InstagramMediaInput = {
 }
 
 export async function createMediaContainer(input: InstagramMediaInput): Promise<{ containerId: string }> {
-  console.log('[instagram] createMediaContainer', {
+  const { id } = await createInstagramCarouselItemContainer({
     igUserId: input.igUserId,
     imageUrl: input.imageUrl,
-    hasCaption: !!input.caption,
-    tokenSize: input.accessToken.length,
+    accessToken: input.accessToken,
   })
-
-  return {
-    containerId: `container_${Math.random().toString(36).slice(2, 12)}`,
-  }
+  return { containerId: id }
 }
 
 export async function createCarousel(input: {
@@ -24,16 +27,20 @@ export async function createCarousel(input: {
   accessToken: string
   igUserId: string
 }): Promise<{ carouselContainerId: string }> {
-  console.log('[instagram] createCarousel', {
-    igUserId: input.igUserId,
-    children: input.childContainerIds.length,
-    hasCaption: !!input.caption,
-    tokenSize: input.accessToken.length,
-  })
+  // Aguarda todos os containers filhos ficarem prontos antes de criar o carrossel
+  await Promise.all(
+    input.childContainerIds.map((containerId) =>
+      waitForInstagramMediaContainerReady({ containerId, accessToken: input.accessToken })
+    )
+  )
 
-  return {
-    carouselContainerId: `carousel_${Math.random().toString(36).slice(2, 12)}`,
-  }
+  const { id } = await createInstagramCarouselContainer({
+    igUserId: input.igUserId,
+    childContainerIds: input.childContainerIds,
+    caption: input.caption,
+    accessToken: input.accessToken,
+  })
+  return { carouselContainerId: id }
 }
 
 export async function publish(input: {
@@ -41,13 +48,15 @@ export async function publish(input: {
   accessToken: string
   igUserId: string
 }): Promise<{ mediaId: string }> {
-  console.log('[instagram] publish', {
-    igUserId: input.igUserId,
-    creationId: input.creationId,
-    tokenSize: input.accessToken.length,
+  await waitForInstagramMediaContainerReady({
+    containerId: input.creationId,
+    accessToken: input.accessToken,
   })
 
-  return {
-    mediaId: `media_${Math.random().toString(36).slice(2, 12)}`,
-  }
+  const { id } = await publishInstagramMedia({
+    igUserId: input.igUserId,
+    creationId: input.creationId,
+    accessToken: input.accessToken,
+  })
+  return { mediaId: id }
 }

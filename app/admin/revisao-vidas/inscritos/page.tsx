@@ -479,7 +479,7 @@ export default function RevisaoVidasInscritosPage() {
                               <div>
                                 <span className="font-semibold text-rose-800">{log.person_name ?? '—'}</span>
                                 {log.phone_masked && <span className="ml-2 text-rose-600">{log.phone_masked}</span>}
-                                {log.payload?.error && (
+                                {!!log.payload?.error && (
                                   <span className="ml-2 text-rose-500">({String(log.payload.error)})</span>
                                 )}
                                 <span className="ml-2 text-rose-400">{new Date(log.created_at).toLocaleString('pt-BR')}</span>

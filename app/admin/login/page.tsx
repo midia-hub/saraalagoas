@@ -20,7 +20,7 @@ function getCredentialValues(
 ) {
   const data = new FormData(form)
   const emailValue = (data.get('email')?.toString() ?? getInputValue(emailRef)).trim()
-  const passwordValue = (data.get('password')?.toString() ?? getInputValue(passwordRef)).trim()
+  const passwordValue = data.get('password')?.toString() ?? (passwordRef?.value ?? '')
   return { emailValue, passwordValue }
 }
 
@@ -93,6 +93,7 @@ export default function AdminLoginPage() {
     ]
 
     function draw() {
+      if (!ctx) return
       ctx.clearRect(0, 0, W, H)
 
       const g = ctx.createLinearGradient(0, 0, W * 0.65, H)
@@ -172,6 +173,7 @@ export default function AdminLoginPage() {
     }))
 
     function animP() {
+      if (!ctx || !canvas) return
       const cw = canvas.width
       const ch = canvas.height
       ctx.clearRect(0, 0, cw, ch)
@@ -295,7 +297,7 @@ export default function AdminLoginPage() {
           setLoading(false)
           return
         }
-        window.location.replace(`${basePath}/admin`)
+        window.location.replace(`${basePath}/admin/selecionar`)
         return
       }
     } catch (e) {
@@ -469,9 +471,14 @@ export default function AdminLoginPage() {
                   <Image
                     src={getStorageUrl('CHAMA_SARA.png')}
                     alt="Sara"
-                    width={58}
-                    height={58}
-                    style={{ height: '58px', width: 'auto', objectFit: 'contain', filter: 'drop-shadow(0 2px 6px rgba(196,35,42,0.18))' }}
+                    width={72}
+                    height={72}
+                    style={{
+                      height: '72px',
+                      width: 'auto',
+                      objectFit: 'contain',
+                      filter: 'saturate(1.3) brightness(1.05)',
+                    }}
                     onError={(e) => {
                       ;(e.target as HTMLImageElement).src = '/logo-sara-oficial.png'
                     }}
@@ -505,6 +512,7 @@ export default function AdminLoginPage() {
                         autoCapitalize="none"
                         autoCorrect="off"
                         spellCheck={false}
+                        inputMode="email"
                         required
                         className={styles.innerInput}
                       />

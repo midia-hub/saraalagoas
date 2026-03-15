@@ -13,11 +13,12 @@ import {
   Home,
   LogOut,
   ChevronRight,
+  ChevronLeft,
   Menu,
   X,
   PanelLeft,
-  ChevronDown,
   Loader2,
+  LayoutGrid,
 } from 'lucide-react'
 
 const SIDEBAR_WIDTH_KEY = 'admin-sidebar-width'
@@ -40,22 +41,13 @@ export function AdminSidebar() {
   const [width, setWidth] = useState(DEFAULT_WIDTH)
   const [resizing, setResizing] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
-  const [expandedModules, setExpandedModules] = useState<string[]>([])
   const [pendingHref, setPendingHref] = useState<string | null>(null)
   const [globalBusy, setGlobalBusy] = useState(false)
   const navFallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     setWidth(getStoredWidth())
-
-    // Auto-expandir módulo atual baseado no pathname
-    const currentModule = menuModules.find(m =>
-      m.items.some(item => pathname?.startsWith(item.href))
-    )
-    if (currentModule) {
-      setExpandedModules(prev => prev.includes(currentModule.id) ? prev : [...prev, currentModule.id])
-    }
-  }, [pathname])
+  }, [])
 
   useEffect(() => {
     const unsubscribe = subscribeLoadingOverlayState((state) => {
@@ -144,14 +136,6 @@ export function AdminSidebar() {
     }
   }
 
-  const toggleModule = (moduleId: string) => {
-    setExpandedModules(prev =>
-      prev.includes(moduleId)
-        ? []
-        : [moduleId]
-    )
-  }
-
   // Filtrar módulos e itens baseado nas permissões
   const visibleModules = menuModules.map(module => {
     if (module.permission && !access.isAdmin) {
@@ -175,108 +159,170 @@ export function AdminSidebar() {
     }
   }).filter((m): m is NonNullable<typeof m> => m != null)
 
-  // Encontrar o item ativo (o que tem o match mais longo com o pathname)
-  const activeItemHref = useMemo(() => {
-    let bestMatch = ''
-    visibleModules.forEach(module => {
-      module.items.forEach(item => {
-        if (item.href === '/admin') {
-          if (pathname === '/admin' && bestMatch.length < 6) bestMatch = '/admin'
-        } else if (pathname === item.href || pathname?.startsWith(`${item.href}/`)) {
-          if (item.href.length > bestMatch.length) {
-            bestMatch = item.href
-          }
+  // Detecta o módulo ativo pelo match mais longo de basePaths
+  const activeModule = useMemo(() => {
+    if (!pathname || pathname === '/admin') return null
+
+    let bestMatch: { module: typeof visibleModules[0]; len: number } | null = null
+
+    for (const mod of visibleModules) {
+      if (mod.id === 'dashboard') continue
+      for (const bp of (mod.basePaths ?? [])) {
+        if (
+          (pathname === bp || pathname.startsWith(bp + '/')) &&
+          bp.length > (bestMatch?.len ?? 0)
+        ) {
+          bestMatch = { module: mod, len: bp.length }
         }
-      })
-    })
-    return bestMatch
+      }
+    }
+
+    return bestMatch?.module ?? null
   }, [visibleModules, pathname])
 
+  // Encontrar o item ativo (o que tem o match mais longo com o pathname)
+  const activeItemHref = useMemo(() => {
+    const items = activeModule
+      ? activeModule.items
+      : visibleModules.flatMap(m => m.items)
+
+    let bestMatch = ''
+    for (const item of items) {
+      if (item.href === '/admin') {
+        if (pathname === '/admin' && bestMatch.length < 6) bestMatch = '/admin'
+      } else if (pathname === item.href || pathname?.startsWith(`${item.href}/`)) {
+        if (item.href.length > bestMatch.length) {
+          bestMatch = item.href
+        }
+      }
+    }
+    return bestMatch
+  }, [activeModule, visibleModules, pathname])
+
   const renderNavItems = (isMobile = false) => {
-    const dashboardItem = visibleModules.find(m => m.id === 'dashboard')?.items[0]
-    const otherModules = visibleModules.filter(m => m.id !== 'dashboard')
-    const isHomeActive = activeItemHref === '/admin'
-
-    return (
-    <nav className="flex-1 min-h-0 p-4 space-y-2 overflow-y-auto custom-scrollbar">
-      {dashboardItem && (
-        <Link
-          href={dashboardItem.href}
-          onClick={handleMenuClick(dashboardItem.href, isMobile)}
-          className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
-            isHomeActive
-              ? 'bg-red-600 text-white shadow-lg shadow-red-600/20'
-              : 'text-slate-300 hover:bg-white/5 hover:text-white'
-          }`}
-        >
-          {dashboardItem.icon && <dashboardItem.icon size={20} className="shrink-0" />}
-          <span className="flex-1">{dashboardItem.label}</span>
-          {pendingHref === dashboardItem.href ? (
-            <Loader2 size={13} className="shrink-0 animate-spin opacity-80" aria-hidden />
-          ) : null}
-        </Link>
-      )}
-      {otherModules.map((module) => {
-        const isExpanded = expandedModules.includes(module.id)
-        const hasActiveItem = module.items.some(item => item.href === activeItemHref)
-
-        return (
-          <div key={module.id} className="space-y-1">
-            <button
-              onClick={() => toggleModule(module.id)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 ${hasActiveItem
-                ? 'bg-red-600/10 text-red-500'
-                : 'text-slate-300 hover:bg-white/5 hover:text-white'
-                }`}
+    // ── Modo Hub: usuário está em /admin ──────────────────────────────────
+    if (!activeModule) {
+      const hubModules = visibleModules.filter(m => m.id !== 'dashboard')
+      return (
+        <nav className="flex-1 min-h-0 p-4 space-y-1 overflow-y-auto custom-scrollbar">
+          <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-500 px-3 mb-3">
+            Módulos disponíveis
+          </p>
+          {hubModules.map((mod) => (
+            <Link
+              key={mod.id}
+              href={mod.mainHref ?? mod.items[0]?.href ?? '/admin'}
+              onClick={handleMenuClick(mod.mainHref ?? mod.items[0]?.href ?? '/admin', isMobile)}
+              className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-400 hover:text-white hover:bg-white/5 transition-all duration-200 group"
             >
-              <module.icon size={20} className="shrink-0" />
-              <span className="flex-1 text-left">{module.title}</span>
-              <motion.div
-                animate={{ rotate: isExpanded ? 180 : 0 }}
-                transition={{ duration: 0.2 }}
+              <div
+                className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform"
+                style={{ background: mod.color ? `${mod.color}22` : 'rgba(255,255,255,0.05)' }}
               >
-                <ChevronDown size={16} />
-              </motion.div>
-            </button>
+                <mod.icon size={15} style={{ color: mod.color ?? '#94a3b8' }} />
+              </div>
+              <span className="flex-1 truncate">{mod.title}</span>
+              <ChevronRight size={13} className="opacity-0 group-hover:opacity-60 transition-opacity" />
+            </Link>
+          ))}
+        </nav>
+      )
+    }
 
-            <AnimatePresence initial={false}>
-              {isExpanded && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.3, ease: 'easeInOut' }}
-                  className="overflow-hidden"
-                >
-                  <div className="ml-4 pl-4 border-l border-slate-700/50 space-y-1 mt-1 pb-1">
-                    {module.items.map(({ href, label, icon: Icon }) => {
-                      const isActive = href === activeItemHref
-                      return (
-                        <Link
-                          key={href}
-                          href={href}
-                          onClick={handleMenuClick(href, isMobile)}
-                          className={`flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] font-medium transition-all duration-200 ${isActive
-                            ? 'bg-red-600 text-white shadow-lg shadow-red-600/20'
-                            : 'text-slate-400 hover:text-slate-100 hover:bg-white/5'
-                            }`}
-                        >
-                          {Icon && <Icon size={16} className="shrink-0" />}
-                          <span className="flex-1 truncate">{label}</span>
-                          {pendingHref === href ? (
-                            <Loader2 size={13} className="shrink-0 animate-spin opacity-80" aria-hidden />
-                          ) : null}
-                        </Link>
-                      )
-                    })}
-                  </div>
-                </motion.div>
+    // ── Modo Módulo: usuário está dentro de um módulo específico ──────────
+    return (
+      <nav className="flex-1 min-h-0 flex flex-col overflow-hidden">
+        {/* Botão voltar ao hub */}
+        <div className="px-4 pt-4 pb-2 shrink-0">
+          <Link
+            href="/admin/selecionar"
+            onClick={handleMenuClick('/admin/selecionar', isMobile)}
+            className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-slate-500 hover:text-slate-200 hover:bg-white/5 transition-all duration-200 group"
+          >
+            <ChevronLeft size={15} className="shrink-0 group-hover:-translate-x-0.5 transition-transform" />
+            <span className="text-[12px] font-semibold uppercase tracking-wider">Todos os Módulos</span>
+          </Link>
+        </div>
+
+        {/* Cabeçalho do módulo */}
+        <div className="px-4 pb-3 shrink-0">
+          <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-white/5 bg-white/[0.03]">
+            <div
+              className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+              style={{ background: activeModule.color ? `${activeModule.color}33` : 'rgba(255,255,255,0.08)' }}
+            >
+              <activeModule.icon size={16} style={{ color: activeModule.color ?? '#94a3b8' }} />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[13px] font-bold text-white truncate leading-tight">{activeModule.title}</p>
+              {activeModule.description && (
+                <p className="text-[10px] text-slate-500 truncate leading-tight mt-0.5">{activeModule.description}</p>
               )}
-            </AnimatePresence>
+            </div>
           </div>
-        )
-      })}
-    </nav>
+        </div>
+
+        <div className="mx-4 border-t border-white/5 mb-3 shrink-0" />
+
+        {/* Itens do módulo */}
+        <div className="flex-1 min-h-0 px-4 space-y-1 overflow-y-auto custom-scrollbar pb-4">
+          {activeModule.items.map(({ href, label, icon: Icon }) => {
+            const isActive = href === activeItemHref
+            return (
+              <Link
+                key={href}
+                href={href}
+                onClick={handleMenuClick(href, isMobile)}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${isActive
+                  ? 'bg-red-600 text-white shadow-lg shadow-red-600/20'
+                  : 'text-slate-400 hover:text-slate-100 hover:bg-white/5'
+                  }`}
+              >
+                {Icon && <Icon size={16} className="shrink-0" />}
+                <span className="flex-1 truncate">{label}</span>
+                {pendingHref === href ? (
+                  <Loader2 size={13} className="shrink-0 animate-spin opacity-80" aria-hidden />
+                ) : null}
+              </Link>
+            )
+          })}
+        </div>
+
+        {/* Trocar módulo rápido */}
+        <div className="px-4 pb-3 shrink-0">
+          <div className="border-t border-white/5 pt-3">
+            <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-600 px-3 mb-2">
+              Outros módulos
+            </p>
+            <div className="space-y-0.5">
+              {visibleModules
+                .filter(m => m.id !== 'dashboard' && m.id !== activeModule.id)
+                .slice(0, 4)
+                .map((mod) => (
+                  <Link
+                    key={mod.id}
+                    href={mod.mainHref ?? mod.items[0]?.href ?? '/admin'}
+                    onClick={handleMenuClick(mod.mainHref ?? mod.items[0]?.href ?? '/admin', isMobile)}
+                    className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-[12px] text-slate-500 hover:text-slate-200 hover:bg-white/5 transition-all duration-200 group"
+                  >
+                    <mod.icon size={13} className="shrink-0 opacity-70 group-hover:opacity-100" />
+                    <span className="flex-1 truncate">{mod.title}</span>
+                  </Link>
+                ))}
+              {visibleModules.filter(m => m.id !== 'dashboard' && m.id !== activeModule.id).length > 4 && (
+                <Link
+                  href="/admin/selecionar"
+                  onClick={handleMenuClick('/admin/selecionar', isMobile)}
+                  className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-[12px] text-slate-500 hover:text-slate-200 hover:bg-white/5 transition-all"
+                >
+                  <LayoutGrid size={13} className="shrink-0" />
+                  <span>Ver todos</span>
+                </Link>
+              )}
+            </div>
+          </div>
+        </div>
+      </nav>
     )
   }
 
@@ -360,7 +406,9 @@ export function AdminSidebar() {
           <div className="w-8 h-8 rounded-lg bg-red-600 flex items-center justify-center">
             <span className="text-white font-bold text-sm">S</span>
           </div>
-          <span className="font-bold text-white text-sm">Sara Hub</span>
+          <span className="font-bold text-white text-sm">
+            {activeModule ? activeModule.title : 'Sara Hub'}
+          </span>
         </div>
         <div className="w-10" /> {/* Spacer */}
       </header>
@@ -384,7 +432,9 @@ export function AdminSidebar() {
               </div>
               <div>
                 <h1 className="font-bold text-white text-base leading-tight">Sara Hub</h1>
-                <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Dashboard Admin</p>
+                <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">
+                  {activeModule ? activeModule.title : 'Selecionar Módulo'}
+                </p>
               </div>
             </div>
             <button

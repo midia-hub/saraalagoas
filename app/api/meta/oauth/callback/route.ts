@@ -54,10 +54,8 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    console.log(LOG_PREFIX, '1/6 Validando state...')
     const stateData = await verifySignedState(state)
     if (!stateData) {
-      console.warn(LOG_PREFIX, 'State inválido ou expirado')
       return redirectTo('/admin/instancias/oauth-done', {
         error: 'invalid_state',
         error_description: 'State inválido ou expirado',
@@ -66,13 +64,10 @@ export async function GET(request: NextRequest) {
 
     const isPopup = !!stateData.popup
     const donePath = isPopup ? '/admin/instancias/oauth-done' : '/admin/instancias'
-    console.log(LOG_PREFIX, '2/6 State OK, userId:', stateData.userId)
 
-    console.log(LOG_PREFIX, '3/6 Trocando code por token...')
     const tokenResponse = await exchangeCodeForToken(code)
     const shortToken = tokenResponse.access_token
 
-    console.log(LOG_PREFIX, '4/6 Obtendo long-lived token...')
     const longLivedResponse = await exchangeForLongLivedToken(shortToken)
     const accessToken = longLivedResponse.access_token
     const expiresIn = longLivedResponse.expires_in
@@ -81,7 +76,6 @@ export async function GET(request: NextRequest) {
       ? new Date(Date.now() + expiresIn * 1000).toISOString()
       : null
 
-    console.log(LOG_PREFIX, '5/6 Buscando perfil e páginas...')
     const userProfile = await getUserProfile(accessToken)
     const grantedPermissions = await listGrantedPermissions(accessToken)
     const missingPermissions = getMissingRequiredInstagramPublishScopes(grantedPermissions)
@@ -92,7 +86,6 @@ export async function GET(request: NextRequest) {
       })
     }
     const pages = await listUserPages(accessToken)
-    console.log(LOG_PREFIX, 'Páginas encontradas:', pages.length, '| Usuário:', userProfile.name)
 
     if (pages.length === 0) {
       return redirectTo(donePath, {
@@ -139,7 +132,6 @@ export async function GET(request: NextRequest) {
 
       // Prioriza Instagram: só salva integrações com conta IG Business vinculada.
       if (!instagramAccountId) {
-        console.log(LOG_PREFIX, 'Página sem Instagram Business, ignorando:', page.id, page.name)
         continue
       }
 
@@ -193,8 +185,6 @@ export async function GET(request: NextRequest) {
         error_description: 'Nenhuma Página com Instagram Business vinculada foi encontrada. Vincule uma conta profissional no Meta Business e tente novamente.',
       })
     }
-
-    console.log(LOG_PREFIX, '6/6 Integrações salvas:', savedCount, 'de', pages.length)
 
     const successParams: Record<string, string> = { connected: '1', count: String(savedCount) }
     if (instagramNames.length > 0) successParams.instagram = instagramNames.join(',')

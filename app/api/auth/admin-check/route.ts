@@ -23,7 +23,6 @@ export async function POST(request: NextRequest) {
       permissions: snapshot.permissions,
       userId: snapshot.userId,
       email: snapshot.email,
-      _debug_person_id: snapshot.personId, // Temporário para diagnóstico
     })
   } catch (e) {
     const message = e instanceof Error ? e.message : 'Erro interno.'

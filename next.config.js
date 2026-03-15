@@ -18,7 +18,15 @@ const nextConfig = {
   basePath,
   assetPrefix,
   experimental: {
-    optimizePackageImports: ['lucide-react', 'recharts'],
+    optimizePackageImports: [
+      'lucide-react',
+      'recharts',
+      'framer-motion',
+      'date-fns',
+      '@dnd-kit/core',
+      '@dnd-kit/sortable',
+      '@dnd-kit/utilities',
+    ],
   },
   images: {
     unoptimized: isDev || isStaticExport,

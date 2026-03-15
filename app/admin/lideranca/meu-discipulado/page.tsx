@@ -124,8 +124,7 @@ export default function MeuDiscipuladoPage() {
     try {
       const query = new URLSearchParams(params).toString()
       const endpoint = visao === 'rede' ? 'rede-completa' : 'meu-discipulado'
-      const data = await adminFetchJson(`/api/admin/lideranca/${endpoint}?${query}`) as { items: AttendanceItem[]; debug?: any }
-      console.log('🔍 DEBUG - Dados da API:', data)
+      const data = await adminFetchJson(`/api/admin/lideranca/${endpoint}?${query}`) as { items: AttendanceItem[] }
       setItems(data.items || [])
     } catch (err) {
       console.error('Erro ao carregar discipulado:', err)

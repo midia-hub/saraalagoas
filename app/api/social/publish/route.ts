@@ -97,10 +97,6 @@ export async function POST(request: NextRequest) {
     }
   }
   
-  console.log('[publish] Destinations:', destinations)
-  console.log('[publish] Meta Selections:', metaSelections)
-  console.log('[publish] Integration IDs:', uniqueIntegrationIds)
-
   // Garantir que a galeria existe
   const { data: gallery, error: galleryError } = await db
     .from('galleries')
@@ -255,7 +251,7 @@ export async function POST(request: NextRequest) {
   }
 
   // Fluxo Meta: publica imediatamente para as instâncias virtuais (Instagram/Facebook via OAuth Meta).
-  let metaResults: Array<{ instanceId: string; provider: 'instagram' | 'facebook'; ok: boolean; error?: string }> = []
+  let metaResults: Array<{ instanceId: string; provider: 'instagram' | 'facebook'; ok: boolean; error?: string; mediaId?: string }> = []
   if (metaSelections.length > 0) {
     const result = await executeMetaPublish({
       db,
@@ -343,13 +339,6 @@ export async function POST(request: NextRequest) {
       console.error('[publish] falha ao registrar log da postagem imediata:', logError.message)
     }
   }
-
-  console.log('[publish] Final results:', {
-    metaSuccess,
-    metaFailed,
-    metaResults,
-    destinations,
-  })
 
   return NextResponse.json({
     ok: metaFailed === 0,

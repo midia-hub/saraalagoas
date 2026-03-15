@@ -197,7 +197,6 @@ export function DirectUploadExample() {
           <button
             type="button"
             onClick={() => {
-              console.log('Publicando...', media)
               alert('Imagens prontas para publicação!')
             }}
             className="rounded-lg bg-[#c62737] px-4 py-2 text-sm text-white hover:bg-[#a01f2d]"

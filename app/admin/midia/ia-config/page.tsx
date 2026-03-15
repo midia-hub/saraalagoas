@@ -144,8 +144,8 @@ function IaConfigContent() {
         return (
           <div key={key} className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-visible">
             {/* Header do card */}
-            <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-5 py-4">
-              <div>
+            <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-4 py-3 sm:px-5 sm:py-4">
+              <div className="min-w-0">
                 <p className="text-sm font-semibold text-slate-900 flex items-center gap-2">
                   {label}
                   {isDirty && (
@@ -154,22 +154,22 @@ function IaConfigContent() {
                     </span>
                   )}
                 </p>
-                <p className="mt-0.5 text-xs text-slate-500">{description}</p>
+                <p className="mt-0.5 text-xs text-slate-500 hidden sm:block">{description}</p>
               </div>
               <button
                 type="button"
                 onClick={() => handleReset(key)}
                 disabled={!isDirty}
                 title="Restaurar padrão"
-                className="flex-shrink-0 flex items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs text-slate-500 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                className="flex-shrink-0 flex items-center gap-1.5 rounded-lg border border-slate-200 px-2 py-1.5 text-xs text-slate-500 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors sm:px-2.5"
               >
-                <RotateCcw className="h-3 w-3" />
-                Restaurar padrão
+                <RotateCcw className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Restaurar padrão</span>
               </button>
             </div>
 
             {/* Textarea */}
-            <div className="px-5 py-4">
+            <div className="px-3 py-3 sm:px-5 sm:py-4">
               <textarea
                 value={values[key]}
                 onChange={(e) => handleChange(key, e.target.value)}
@@ -217,7 +217,7 @@ function IaConfigContent() {
 export default function IaConfigPage() {
   return (
     <PageAccessGuard pageKey="instagram">
-      <div className="p-6 md:p-8">
+      <div className="p-3 sm:p-6 md:p-8">
         <AdminPageHeader
           icon={Bot}
           title="Configuração de IA"

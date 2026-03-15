@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { AdminAccessProvider } from '@/lib/admin-access-context'
@@ -10,6 +10,7 @@ import { clearSupabaseLocalSession, getSessionWithRecovery } from '@/lib/auth-re
 import { AdminLoadingScreen } from '@/app/admin/AdminLoadingScreen'
 import { AdminSidebar } from '@/app/admin/AdminSidebar'
 import { GlobalLoadingOverlay } from '@/components/admin/GlobalLoadingOverlay'
+import { MetaTokenExpiryBanner } from '@/components/admin/MetaTokenExpiryBanner'
 
 export default function AdminLayout({
   children,
@@ -20,7 +21,9 @@ export default function AdminLayout({
   const pathname = usePathname()
   const isLoginPage = pathname?.includes('/admin/login')
   const isCompletarCadastroPage = pathname?.includes('/admin/completar-cadastro')
+  const isModuleSelectorPage = pathname?.startsWith('/admin/selecionar')
   const isPublicAdminPage = isLoginPage || isCompletarCadastroPage
+  const loadingRef = useRef(false)
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState<any>(null)
   const [canAccessAdmin, setCanAccessAdmin] = useState(false)
@@ -45,10 +48,15 @@ export default function AdminLayout({
   }
 
   const loadPermissions = useCallback(async () => {
+    // Previne chamadas concorrentes (ex.: disparo direto + onAuthStateChange simultâneos)
+    if (loadingRef.current) return
+    loadingRef.current = true
+
     const client = supabase
     if (!client) {
       clearAccessState()
       setLoading(false)
+      loadingRef.current = false
       return
     }
 
@@ -59,6 +67,7 @@ export default function AdminLayout({
     if (!currentUser) {
       clearAccessState()
       setLoading(false)
+      loadingRef.current = false
       return
     }
 
@@ -116,6 +125,7 @@ export default function AdminLayout({
       clearAccessState()
     } finally {
       setLoading(false)
+      loadingRef.current = false
     }
   }, [])
 
@@ -150,9 +160,9 @@ export default function AdminLayout({
   }, [isPublicAdminPage, loadPermissions])
 
   useEffect(() => {
-    if (loading || isPublicAdminPage) return
+    if (loading || isPublicAdminPage || isModuleSelectorPage) return
     if (!user || !canAccessAdmin) router.replace('/admin/login')
-  }, [loading, isPublicAdminPage, user, canAccessAdmin, router])
+  }, [loading, isPublicAdminPage, isModuleSelectorPage, user, canAccessAdmin, router])
 
   useEffect(() => {
     const ADMIN_TITLES: [string, string][] = [
@@ -205,6 +215,27 @@ export default function AdminLayout({
     return <AdminLoadingScreen message="Redirecionando para o login..." />
   }
 
+  // Página de seleção de módulo: auth verificada, mas sem sidebar
+  if (isModuleSelectorPage) {
+    return (
+      <AdminAccessProvider value={{
+        loading: false,
+        canAccessAdmin,
+        isAdmin,
+        userId: user?.id || null,
+        profileName,
+        roleName,
+        personId,
+        avatarUrl,
+        source,
+        permissions,
+        refresh: loadPermissions
+      }}>
+        {children}
+      </AdminAccessProvider>
+    )
+  }
+
   return (
     <AdminAccessProvider value={{
       loading: false,
@@ -221,9 +252,12 @@ export default function AdminLayout({
     }}>
       <div className="h-screen flex overflow-hidden bg-slate-50">
         <AdminSidebar />
-        <main className="flex-1 overflow-auto pt-14 md:pt-0">
-          {children}
-        </main>
+        <div className="flex flex-1 flex-col overflow-hidden">
+          <MetaTokenExpiryBanner />
+          <main className="flex-1 overflow-auto pt-16 md:pt-0 pb-safe">
+            {children}
+          </main>
+        </div>
         <GlobalLoadingOverlay />
       </div>
     </AdminAccessProvider>

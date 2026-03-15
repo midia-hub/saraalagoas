@@ -651,7 +651,7 @@ export default function AgendaSocialPage() {
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <PageAccessGuard pageKey="instagram">
-      <div className="p-4 md:p-8 space-y-6">
+      <div className="p-3 sm:p-4 md:p-8 space-y-5 sm:space-y-6">
 
         {/* ── Header ── */}
         <AdminPageHeader
@@ -661,10 +661,10 @@ export default function AgendaSocialPage() {
           actions={
             <Link
               href="/admin/midia/demandas"
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:border-slate-300 transition-colors"
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 sm:px-4 text-sm font-medium text-slate-700 hover:border-slate-300 transition-colors"
             >
               <ListChecks className="h-4 w-4 text-slate-500" />
-              Demandas de Mídia
+              <span className="hidden sm:inline">Demandas de Mídia</span>
             </Link>
           }
         />
@@ -672,7 +672,7 @@ export default function AgendaSocialPage() {
         {/* ─────────────────────────────────────────────
             STEP 1 – Contexto da Agenda
         ───────────────────────────────────────────── */}
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 md:p-6 space-y-5">
+        <section className="rounded-2xl border border-slate-200 bg-white p-3 sm:p-5 md:p-6 space-y-4 sm:space-y-5">
           <StepBadge
             n={1}
             label="Contexto da Agenda"
@@ -726,8 +726,8 @@ export default function AgendaSocialPage() {
         {/* ─────────────────────────────────────────────
             STEP 2 – Cadastros da Agenda
         ───────────────────────────────────────────── */}
-        <section className={`rounded-2xl border bg-white p-5 md:p-6 space-y-5 transition-opacity ${churchSelected ? 'border-slate-200 opacity-100' : 'border-slate-100 opacity-50 pointer-events-none select-none'}`}>
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <section className={`rounded-2xl border bg-white p-3 sm:p-5 md:p-6 space-y-4 sm:space-y-5 transition-opacity ${churchSelected ? 'border-slate-200 opacity-100' : 'border-slate-100 opacity-50 pointer-events-none select-none'}`}>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <StepBadge
               n={2}
               label="Cadastros da Agenda"
@@ -738,19 +738,21 @@ export default function AgendaSocialPage() {
                 type="button"
                 disabled={!churchSelected}
                 onClick={() => setModalEventoOpen(true)}
-                className="inline-flex items-center gap-2 rounded-xl border border-[#c62737] px-4 py-2 text-sm font-semibold text-[#c62737] hover:bg-[#c62737]/5 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-[#c62737] px-3 py-2 sm:px-4 text-sm font-semibold text-[#c62737] hover:bg-[#c62737]/5 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 <Plus className="h-4 w-4" />
-                Novo evento
+                <span className="hidden sm:inline">Novo evento</span>
+                <span className="sm:hidden text-xs">Evento</span>
               </button>
               <button
                 type="button"
                 disabled={!churchSelected}
                 onClick={() => setModalItemOpen(true)}
-                className="inline-flex items-center gap-2 rounded-xl bg-[#c62737] px-4 py-2 text-sm font-semibold text-white hover:bg-[#9e1f2e] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-[#c62737] px-3 py-2 sm:px-4 text-sm font-semibold text-white hover:bg-[#9e1f2e] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 <Plus className="h-4 w-4" />
-                Novo item
+                <span className="hidden sm:inline">Novo item</span>
+                <span className="sm:hidden text-xs">Item</span>
               </button>
             </div>
           </div>
@@ -1050,8 +1052,8 @@ export default function AgendaSocialPage() {
         {/* ─────────────────────────────────────────────
             STEP 4 – Visão da Agenda
         ───────────────────────────────────────────── */}
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 md:p-6 space-y-5">
-          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <section className="rounded-2xl border border-slate-200 bg-white p-3 sm:p-5 md:p-6 space-y-4 sm:space-y-5">
+          <div className="flex flex-col gap-3 sm:gap-4 md:flex-row md:items-start md:justify-between">
             <StepBadge
               n={3}
               label="Visão da Agenda"
@@ -1079,27 +1081,29 @@ export default function AgendaSocialPage() {
           </div>
 
           {/* Navigation bar */}
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-            <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 sm:px-4 sm:py-3">
+            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
               <button type="button" onClick={() => shiftCalendarPeriod('prev')}
-                className="inline-flex items-center justify-center h-8 w-8 rounded-lg border border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-800 transition-colors">
-                <ChevronLeft className="h-4 w-4" />
+                className="inline-flex items-center justify-center h-7 w-7 sm:h-8 sm:w-8 rounded-lg border border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-800 transition-colors flex-shrink-0">
+                <ChevronLeft className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               </button>
               <button type="button" onClick={() => shiftCalendarPeriod('next')}
-                className="inline-flex items-center justify-center h-8 w-8 rounded-lg border border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-800 transition-colors">
-                <ChevronRight className="h-4 w-4" />
+                className="inline-flex items-center justify-center h-7 w-7 sm:h-8 sm:w-8 rounded-lg border border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-800 transition-colors flex-shrink-0">
+                <ChevronRight className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               </button>
-              <span className="text-sm font-semibold text-slate-800 min-w-[120px]">
+              <span className="text-xs sm:text-sm font-semibold text-slate-800 truncate">
                 {formatPeriodLabel(referenceDateObj, calendarRange)}
               </span>
-              <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-xs font-medium text-slate-600">
+              <span className="hidden sm:inline-flex items-center rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-xs font-medium text-slate-600 flex-shrink-0">
                 {filteredCalendarEntries.length} {filteredCalendarEntries.length === 1 ? 'item' : 'itens'}
               </span>
             </div>
-            <div className="flex items-center gap-2">
-              <DatePickerInput value={calendarReferenceDate} onChange={setCalendarReferenceDate} />
+            <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
+              <div className="hidden sm:block">
+                <DatePickerInput value={calendarReferenceDate} onChange={setCalendarReferenceDate} />
+              </div>
               <button type="button" onClick={() => setCalendarReferenceDate(todayIso)}
-                className="inline-flex items-center rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:border-slate-300 transition-colors">
+                className="inline-flex items-center rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 sm:px-3 text-xs sm:text-sm font-medium text-slate-700 hover:border-slate-300 transition-colors">
                 Hoje
               </button>
             </div>
@@ -1174,14 +1178,14 @@ export default function AgendaSocialPage() {
           {agendaViewMode === 'calendario' && (
             <div className="space-y-3">
               {calendarRange === 'semanal' && (
-                <div className="grid grid-cols-1 md:grid-cols-7 gap-2">
+                <div className="grid grid-cols-7 gap-1.5 sm:gap-2 overflow-x-auto">
                   {weeklyDates.map((date, index) => {
                     const key = toIsoDate(date)
                     const items = entriesByDate.get(key) ?? []
                     const isToday = key === todayIso
                     return (
                       <div key={key}
-                        className={`rounded-xl border p-3 min-h-[130px] transition-colors ${isToday ? 'border-[#c62737] bg-[#c62737]/5' : 'border-slate-200 bg-white'}`}>
+                        className={`rounded-xl border p-2 sm:p-3 min-h-[100px] sm:min-h-[130px] min-w-[80px] sm:min-w-0 transition-colors ${isToday ? 'border-[#c62737] bg-[#c62737]/5' : 'border-slate-200 bg-white'}`}>
                         <div className="flex items-center gap-1.5 mb-2">
                           <span className="text-xs font-semibold text-slate-400">{WEEKDAY_LABELS[index]}</span>
                           <span className={`text-xs font-bold ${isToday ? 'text-[#c62737]' : 'text-slate-700'}`}>

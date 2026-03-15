@@ -65,7 +65,7 @@ export default function MidiaDemandasPage() {
 
   return (
     <PageAccessGuard pageKey="instagram">
-      <div className="p-4 md:p-8">
+      <div className="p-3 sm:p-4 md:p-8">
         <AdminPageHeader
           icon={ClipboardList}
           title="Demandas de Mídia"
@@ -73,7 +73,7 @@ export default function MidiaDemandasPage() {
           backLink={{ href: '/admin/midia/agenda-social', label: 'Voltar para Agenda' }}
         />
 
-        <section className="rounded-2xl border border-slate-200 bg-white p-6 space-y-4">
+        <section className="rounded-2xl border border-slate-200 bg-white p-3 sm:p-6 space-y-3 sm:space-y-4">
           {loading ? (
             <p className="text-sm text-slate-500">Carregando demandas…</p>
           ) : items.length === 0 ? (
@@ -93,13 +93,32 @@ export default function MidiaDemandasPage() {
                   <Link
                     key={item.id}
                     href={`/admin/midia/demandas/${item.id}`}
-                    className={`group flex items-start justify-between rounded-xl border bg-white px-4 py-3 hover:shadow-sm transition-shadow ${isOverdue ? 'border-red-200 hover:border-red-300' : 'border-slate-200 hover:border-slate-300'}`}
+                    className={`group flex items-center justify-between rounded-xl border bg-white px-3 py-3 sm:px-4 hover:shadow-sm transition-shadow ${isOverdue ? 'border-red-200 hover:border-red-300' : 'border-slate-200 hover:border-slate-300'}`}
                   >
-                    <div className="flex-1 min-w-0 space-y-1">
+                    {/* Faixa colorida de status no mobile */}
+                    <div className={`sm:hidden w-1 self-stretch rounded-full mr-3 shrink-0 ${
+                      item.status === 'concluida' ? 'bg-emerald-400' :
+                      item.status === 'em_andamento' ? 'bg-sky-400' :
+                      item.status === 'cancelada' ? 'bg-red-400' :
+                      isOverdue ? 'bg-red-400' : 'bg-slate-200'
+                    }`} />
+
+                    <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-slate-800 group-hover:text-[#c62737] transition-colors truncate">
                         {item.title}
                       </p>
-                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
+                      {/* Mobile: só igreja + prazo */}
+                      <div className="flex sm:hidden items-center gap-2 mt-0.5 text-xs text-slate-400">
+                        <span className="truncate max-w-[45vw]">{item.churchName}</span>
+                        {item.dueDate && (
+                          <span className={`flex items-center gap-0.5 shrink-0 ${isOverdue ? 'text-red-500 font-semibold' : ''}`}>
+                            <CalendarDays className="h-3 w-3" />
+                            {formatDate(item.dueDate)}
+                          </span>
+                        )}
+                      </div>
+                      {/* Desktop: todos os metadados */}
+                      <div className="hidden sm:flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500 mt-1">
                         <span>{item.churchName}</span>
                         <span className="text-slate-300">·</span>
                         <span>{item.sourceType === 'agenda' ? 'Agenda' : 'Manual'}</span>
@@ -121,12 +140,18 @@ export default function MidiaDemandasPage() {
                         )}
                       </div>
                       {item.description && (
-                        <p className="text-xs text-slate-500 truncate">{item.description}</p>
+                        <p className="hidden sm:block text-xs text-slate-500 truncate mt-0.5">{item.description}</p>
                       )}
                     </div>
-                    <div className="ml-4 shrink-0">
-                      <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${STATUS_COLORS[item.status] ?? 'bg-slate-100 text-slate-600 border-slate-200'}`}>
+
+                    {/* Badge de status — compacto no mobile */}
+                    <div className="ml-3 shrink-0">
+                      <span className={`hidden sm:inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${STATUS_COLORS[item.status] ?? 'bg-slate-100 text-slate-600 border-slate-200'}`}>
                         {STATUS_LABELS[item.status] ?? item.status}
+                      </span>
+                      {/* Mobile: texto abreviado */}
+                      <span className={`sm:hidden inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${STATUS_COLORS[item.status] ?? 'bg-slate-100 text-slate-600 border-slate-200'}`}>
+                        {item.status === 'em_andamento' ? 'Andamento' : STATUS_LABELS[item.status] ?? item.status}
                       </span>
                     </div>
                   </Link>

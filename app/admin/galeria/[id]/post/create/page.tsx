@@ -298,30 +298,58 @@ export default function AlbumPostCreatePage() {
             }`}
           >
             <p>{notice}</p>
-            {publishFailureReasons.length > 0 && (
-              <div className="mt-3 border-t border-amber-200/60 pt-3">
-                <p className="font-medium text-amber-900">Motivo da falha na postagem:</p>
-                <ul className="mt-1 list-inside list-disc text-sm text-amber-900">
-                  {publishFailureReasons.map((reason, i) => (
-                    <li key={i}>{reason}</li>
-                  ))}
-                </ul>
-                <p className="mt-2 text-xs text-amber-700">
-                  Conecte ou reconecte a conta em <strong>Configurações do Instagram/Facebook</strong> no menu ao lado para liberar as postagens.
-                </p>
-                {publishFailureReasons.some((r) => r.includes('pages_manage_posts')) && (
-                  <p className="mt-2 text-xs text-amber-800">
-                    Para publicar no <strong>Facebook</strong>, o app Meta precisa da permissão <code className="rounded bg-amber-100 px-1">pages_manage_posts</code>. Adicione no app em developers.facebook.com → seu app → Configurações do app → Básico → Permissões e solicite a Revisão do app se necessário.
-                  </p>
-                )}
-                <Link
-                  href="/admin/instancias"
-                  className="mt-3 inline-flex items-center gap-2 rounded-lg bg-[#c62737] px-4 py-2 text-sm font-medium text-white hover:bg-[#a01f2d]"
-                >
-                  Ir para Configurações do Instagram/Facebook e conectar
-                </Link>
-              </div>
-            )}
+            {publishFailureReasons.length > 0 && (() => {
+              const hasTokenExpired = publishFailureReasons.some((r) =>
+                r.toLowerCase().includes('token') && r.toLowerCase().includes('expirado')
+              )
+              const hasMissingPermission = publishFailureReasons.some((r) =>
+                r.includes('pages_manage_posts')
+              )
+              return (
+                <div className="mt-3 border-t border-amber-200/60 pt-3">
+                  <p className="font-medium text-amber-900">Motivo da falha na postagem:</p>
+                  <ul className="mt-1 list-inside list-disc text-sm text-amber-900">
+                    {publishFailureReasons.map((reason, i) => (
+                      <li key={i}>{reason}</li>
+                    ))}
+                  </ul>
+
+                  {hasTokenExpired && (
+                    <div className="mt-3 rounded-md border border-amber-300 bg-amber-100 p-3 text-sm text-amber-900">
+                      <p className="font-semibold">O que fazer:</p>
+                      <ol className="mt-1 list-decimal list-inside space-y-1">
+                        <li>Acesse <strong>Configurações → Instagram/Facebook</strong> no menu lateral.</li>
+                        <li>Localize a conta com o aviso de token expirado.</li>
+                        <li>Clique em <strong>Reconectar</strong> e autorize novamente via Meta.</li>
+                        <li>Volte aqui e tente publicar novamente.</li>
+                      </ol>
+                      <p className="mt-2 text-xs text-amber-700">
+                        Os tokens Meta expiram em aproximadamente 60 dias. Após reconectar, o prazo é renovado automaticamente.
+                      </p>
+                    </div>
+                  )}
+
+                  {!hasTokenExpired && (
+                    <p className="mt-2 text-xs text-amber-700">
+                      Conecte ou reconecte a conta em <strong>Configurações do Instagram/Facebook</strong> no menu ao lado para liberar as postagens.
+                    </p>
+                  )}
+
+                  {hasMissingPermission && (
+                    <p className="mt-2 text-xs text-amber-800">
+                      Para publicar no <strong>Facebook</strong>, o app Meta precisa da permissão <code className="rounded bg-amber-100 px-1">pages_manage_posts</code>. Adicione no app em developers.facebook.com → seu app → Configurações do app → Básico → Permissões e solicite a Revisão do app se necessário.
+                    </p>
+                  )}
+
+                  <Link
+                    href="/admin/instancias"
+                    className="mt-3 inline-flex items-center gap-2 rounded-lg bg-[#c62737] px-4 py-2 text-sm font-medium text-white hover:bg-[#a01f2d]"
+                  >
+                    Ir para Configurações do Instagram/Facebook e reconectar
+                  </Link>
+                </div>
+              )
+            })()}
           </div>
         )}
         {error && (

@@ -115,8 +115,7 @@ export default function RedeCompletaPage() {
     setLoading(true)
     try {
       const query = new URLSearchParams(params).toString()
-      const data = await adminFetchJson(`/api/admin/lideranca/rede-completa?${query}`) as { items: AttendanceItem[]; debug?: any }
-      console.log('🔍 DEBUG - Dados da API (Rede Completa):', data)
+      const data = await adminFetchJson(`/api/admin/lideranca/rede-completa?${query}`) as { items: AttendanceItem[] }
       setItems(data.items || [])
     } catch (err) {
       console.error('Erro ao carregar rede completa:', err)
