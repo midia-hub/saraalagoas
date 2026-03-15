@@ -3,18 +3,15 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import {
-  UsersRound, GitBranch, ChevronRight, UserCheck,
-  Network, TrendingUp, Users, Star,
+  UserCircle, Users, TrendingUp, UserPlus,
+  ChevronRight, Search, Upload, Star,
 } from 'lucide-react'
 import { PageAccessGuard } from '@/app/admin/PageAccessGuard'
 import { adminFetchJson } from '@/lib/admin-client'
 import { useAdminAccess } from '@/lib/admin-access-context'
 
-type LiderancaStats = {
-  total_discipulos?: number | null
-  total_lideres?: number | null
-  total_rede?: number | null
-  niveis?: number | null
+type Stats = {
+  pessoas?: { total: number | null; novos_mes: number | null }
 }
 
 function fmt(n: number | null | undefined) {
@@ -68,13 +65,13 @@ function ActionCard({
   )
 }
 
-export default function LiderancaDashboard() {
+export default function PessoasDashboard() {
   const access = useAdminAccess()
-  const [stats, setStats] = useState<LiderancaStats | null>(null)
+  const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    adminFetchJson<LiderancaStats>('/api/admin/lideranca/stats')
+    adminFetchJson<Stats>('/api/admin/dashboard/stats')
       .then(d => setStats(d))
       .catch(() => setStats({}))
       .finally(() => setLoading(false))
@@ -90,23 +87,22 @@ export default function LiderancaDashboard() {
           {/* Hero */}
           <div
             className="rounded-2xl text-white px-6 py-5 flex flex-col md:flex-row md:items-center justify-between gap-4 relative overflow-hidden shadow-md"
-            style={{ background: 'linear-gradient(130deg, #0369a1 0%, #0ea5e9 55%, #38bdf8 100%)' }}
+            style={{ background: 'linear-gradient(130deg, #6d28d9 0%, #8b5cf6 55%, #a78bfa 100%)' }}
           >
             <span className="absolute -right-10 -top-12 w-52 h-52 rounded-full bg-white/[0.05] pointer-events-none" />
             <span className="absolute right-20 -bottom-14 w-40 h-40 rounded-full bg-white/[0.04] pointer-events-none" />
             <div className="relative z-10">
               <div className="flex items-center gap-2 mb-1">
-                <UsersRound size={16} className="opacity-70" />
-                <p className="text-sm text-white/60 font-medium">Módulo de Liderança</p>
+                <UserCircle size={16} className="opacity-70" />
+                <p className="text-sm text-white/60 font-medium">Módulo de Pessoas</p>
               </div>
               <h1 className="text-2xl font-extrabold leading-tight">Olá, {name}!</h1>
-              <p className="text-sm text-white/60 mt-1">Acompanhe sua rede de discipulado e a estrutura de liderança.</p>
+              <p className="text-sm text-white/60 mt-1">Gerencie membros, visitantes e o cadastro geral de pessoas.</p>
             </div>
             <div className="relative z-10 flex gap-3 flex-wrap shrink-0">
               {[
-                { v: loading ? '…' : fmt(stats?.total_discipulos), l: 'Meus discípulos' },
-                { v: loading ? '…' : fmt(stats?.total_lideres), l: 'Líderes' },
-                { v: loading ? '…' : fmt(stats?.total_rede), l: 'Total na rede' },
+                { v: loading ? '…' : fmt(stats?.pessoas?.total), l: 'Total pessoas' },
+                { v: loading ? '…' : fmt(stats?.pessoas?.novos_mes), l: 'Novos este mês' },
               ].map(({ v, l }) => (
                 <div key={l} className="rounded-xl px-5 py-3 text-center border border-white/[0.14]" style={{ background: 'rgba(255,255,255,0.12)' }}>
                   <p className="text-2xl font-extrabold leading-none">{v}</p>
@@ -117,37 +113,36 @@ export default function LiderancaDashboard() {
           </div>
 
           {/* Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <StatCard icon={UserCheck} label="Meus discípulos" value={fmt(stats?.total_discipulos)} sub="diretos" color="#0ea5e9" loading={loading} />
-            <StatCard icon={UsersRound} label="Líderes" value={fmt(stats?.total_lideres)} sub="na estrutura" color="#3b82f6" loading={loading} />
-            <StatCard icon={Network} label="Total na rede" value={fmt(stats?.total_rede)} sub="toda hierarquia" color="#8b5cf6" loading={loading} />
-            <StatCard icon={GitBranch} label="Níveis" value={fmt(stats?.niveis)} sub="de profundidade" color="#14b8a6" loading={loading} />
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <StatCard icon={Users} label="Total de pessoas" value={fmt(stats?.pessoas?.total)} sub="na base de dados" color="#8b5cf6" loading={loading} />
+            <StatCard icon={TrendingUp} label="Novos este mês" value={fmt(stats?.pessoas?.novos_mes)} sub="novas entradas" color="#10b981" loading={loading} />
+            <StatCard icon={Star} label="Membros ativos" value="—" sub="confirmados" color="#f59e0b" loading={loading} />
           </div>
 
-          {/* Ações rápidas */}
+          {/* Ações */}
           <div>
             <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-gray-400 mb-3">Ações rápidas</p>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <ActionCard
-                href="/admin/lideranca/meu-discipulado"
-                icon={UsersRound}
-                label="Meu Discipulado"
-                description="Veja e gerencie seus discípulos diretos e sua rede"
-                color="#0ea5e9"
-              />
-              <ActionCard
-                href="/admin/lideranca/estrutura"
-                icon={GitBranch}
-                label="Estrutura de Liderança"
-                description="Visualize a hierarquia completa de líderes"
-                color="#3b82f6"
-              />
-              <ActionCard
-                href="/admin/lideranca/rede-completa"
-                icon={Network}
-                label="Rede Completa"
-                description="Todos os membros da sua rede de discipulado"
+                href="/admin/pessoas"
+                icon={Search}
+                label="Buscar Pessoas"
+                description="Pesquise membros e visitantes no cadastro geral"
                 color="#8b5cf6"
+              />
+              <ActionCard
+                href="/admin/pessoas/novo"
+                icon={UserPlus}
+                label="Nova Pessoa"
+                description="Cadastre um novo membro ou visitante no sistema"
+                color="#10b981"
+              />
+              <ActionCard
+                href="/admin/pessoas"
+                icon={Upload}
+                label="Importar Planilha"
+                description="Importe vários contatos de uma vez via Excel ou CSV"
+                color="#3b82f6"
               />
             </div>
           </div>

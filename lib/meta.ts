@@ -449,7 +449,7 @@ export async function publishInstagramMedia(params: {
   }
 
   const response = await fetch(
-    `${META_API_BASE}/${igUserId}/media_publish`,
+    `${META_MEDIA_API_BASE}/${igUserId}/media_publish`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -499,7 +499,7 @@ export async function getInstagramMediaContainerStatus(params: {
     access_token: accessToken,
   })
 
-  const response = await fetch(`${META_API_BASE}/${containerId}?${query.toString()}`, {
+  const response = await fetch(`${META_MEDIA_API_BASE}/${containerId}?${query.toString()}`, {
     method: 'GET',
     cache: 'no-store', // Garantir que não use cache no status de processamento
   })

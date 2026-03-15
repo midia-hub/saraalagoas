@@ -186,10 +186,9 @@ function ModuleRow({
   return (
     <div
       ref={cardRef}
-      className="bg-white border border-gray-100 rounded-2xl grid overflow-hidden cursor-pointer relative
-                 transition-shadow duration-200 hover:shadow-lg"
+      className="bg-white border border-gray-100 rounded-2xl flex flex-col md:grid overflow-hidden cursor-pointer relative
+                 transition-shadow duration-200 hover:shadow-lg md:grid-cols-[210px_1fr_48px]"
       style={{
-        gridTemplateColumns: '210px 1fr 48px',
         animationDelay: `${delay}ms`,
         perspective: '600px',
       }}
@@ -200,7 +199,7 @@ function ModuleRow({
       <div className="absolute left-0 top-0 bottom-0 w-[3px] rounded-none" style={{ background: accentColor }} />
 
       {/* Identidade do módulo */}
-      <div className="pl-5 pr-4 py-4 flex flex-col justify-center border-r border-gray-100">
+      <div className="pl-5 pr-4 py-4 flex flex-col justify-center border-b md:border-b-0 md:border-r border-gray-100">
         <div className="flex items-center gap-2.5 mb-2.5">
           <div className="w-9 h-9 rounded-[10px] flex items-center justify-center flex-shrink-0" style={{ background: iconBg }}>
             {icon}
@@ -240,7 +239,7 @@ function ModuleRow({
       {/* Seta de ação */}
       <Link
         href={href}
-        className="flex items-center justify-center border-l border-gray-100 text-gray-300 hover:text-[#C4232A] hover:bg-red-50/30 transition-colors"
+        className="hidden md:flex items-center justify-center border-l border-gray-100 text-gray-300 hover:text-[#C4232A] hover:bg-red-50/30 transition-colors"
       >
         <ChevronRight size={14} strokeWidth={2} />
       </Link>
@@ -314,14 +313,14 @@ export default function AdminPage() {
               </p>
             </div>
 
-            <div className="relative z-10 flex gap-3 flex-shrink-0">
+            <div className="relative z-10 grid grid-cols-2 md:flex gap-3">
               {[
                 { v: loading ? '…' : fmt(heroPessoas), l: 'Pessoas' },
                 { v: loading ? '…' : fmt(heroConversoes), l: 'Conversões' },
                 { v: loading ? '…' : fmt(heroInscricoes), l: 'Inscrições' },
                 { v: loading ? '…' : fmt(heroFotos), l: 'Fotos' },
               ].map(({ v, l }) => (
-                <div key={l} className="rounded-xl px-5 py-3 text-center backdrop-blur-sm border border-white/[0.14]" style={{ background: 'rgba(255,255,255,0.12)' }}>
+                <div key={l} className="rounded-xl px-4 py-3 text-center backdrop-blur-sm border border-white/[0.14]" style={{ background: 'rgba(255,255,255,0.12)' }}>
                   <p className="text-2xl font-extrabold leading-none" style={{ fontFamily: 'Montserrat, sans-serif' }}>{v}</p>
                   <p className="text-[0.65rem] font-semibold uppercase tracking-widest text-white/55 mt-1.5">{l}</p>
                 </div>

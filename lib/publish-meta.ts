@@ -270,15 +270,23 @@ export async function executeMetaPublishWithUrls(params: ExecuteMetaPublishWithU
   const integrationIds = Array.from(new Set(metaSelections.map((s) => s.integrationId)))
   const { data: integrations, error: integrationsError } = await db
     .from('meta_integrations')
-    .select('id,page_id,page_access_token,instagram_business_account_id,is_active')
+    .select('id,page_id,page_access_token,instagram_business_account_id,is_active,token_expires_at')
     .in('id', integrationIds)
     .eq('created_by', userId)
     .eq('is_active', true)
 
   if (integrationsError) throw new Error(integrationsError.message)
 
+  const now = new Date()
   const map = new Map<string, MetaIntegrationRow>()
-  ;(integrations || []).forEach((row) => map.set(row.id, row as MetaIntegrationRow))
+  ;(integrations || []).forEach((row) => {
+    const expiresAt = (row as MetaIntegrationRow & { token_expires_at?: string | null }).token_expires_at
+      ? new Date((row as MetaIntegrationRow & { token_expires_at?: string | null }).token_expires_at!)
+      : null
+    if (!expiresAt || expiresAt > now) {
+      map.set(row.id, row as MetaIntegrationRow)
+    }
+  })
 
   const availableMetaSelections = metaSelections.filter((selection) => {
     if (map.has(selection.integrationId)) return true
@@ -286,11 +294,21 @@ export async function executeMetaPublishWithUrls(params: ExecuteMetaPublishWithU
       selection.type === 'instagram'
         ? `meta_ig:${selection.integrationId}`
         : `meta_fb:${selection.integrationId}`
+    // Verifica se a integração existe mas com token expirado
+    const integration = (integrations || []).find((r) => r.id === selection.integrationId) as
+      | (MetaIntegrationRow & { token_expires_at?: string | null })
+      | undefined
+    const isExpired =
+      integration &&
+      integration.token_expires_at &&
+      new Date(integration.token_expires_at) <= now
     metaResults.push({
       instanceId: missingInstanceId,
       provider: selection.type,
       ok: false,
-      error: 'Integração Meta não encontrada. Reconecte a conta em Configurações.',
+      error: isExpired
+        ? 'Token da integração Meta expirado. Reconecte a conta em Configurações.'
+        : 'Integração Meta não encontrada. Reconecte a conta em Configurações.',
     })
     return false
   })
@@ -486,7 +504,7 @@ export async function executeMetaPublish(params: ExecuteMetaPublishParams): Prom
   const integrationIds = Array.from(new Set(metaSelections.map((s) => s.integrationId)))
   const { data: integrations, error: integrationsError } = await db
     .from('meta_integrations')
-    .select('id,page_id,page_access_token,instagram_business_account_id,is_active')
+    .select('id,page_id,page_access_token,instagram_business_account_id,is_active,token_expires_at')
     .in('id', integrationIds)
     .eq('created_by', userId)
     .eq('is_active', true)
@@ -495,18 +513,35 @@ export async function executeMetaPublish(params: ExecuteMetaPublishParams): Prom
     throw new Error(integrationsError.message)
   }
 
+  const nowTs = new Date()
   const map = new Map<string, MetaIntegrationRow>()
-  ;(integrations || []).forEach((row) => map.set(row.id, row as MetaIntegrationRow))
+  ;(integrations || []).forEach((row) => {
+    const expiresAt = (row as MetaIntegrationRow & { token_expires_at?: string | null }).token_expires_at
+      ? new Date((row as MetaIntegrationRow & { token_expires_at?: string | null }).token_expires_at!)
+      : null
+    if (!expiresAt || expiresAt > nowTs) {
+      map.set(row.id, row as MetaIntegrationRow)
+    }
+  })
 
   const availableMetaSelections = metaSelections.filter((selection) => {
     if (map.has(selection.integrationId)) return true
     const missingInstanceId =
       selection.type === 'instagram' ? `meta_ig:${selection.integrationId}` : `meta_fb:${selection.integrationId}`
+    const integration = (integrations || []).find((r) => r.id === selection.integrationId) as
+      | (MetaIntegrationRow & { token_expires_at?: string | null })
+      | undefined
+    const isExpired =
+      integration &&
+      integration.token_expires_at &&
+      new Date(integration.token_expires_at) <= nowTs
     metaResults.push({
       instanceId: missingInstanceId,
       provider: selection.type,
       ok: false,
-      error: 'Integração Meta não encontrada. Reconecte a conta em Configurações do Instagram/Facebook.',
+      error: isExpired
+        ? 'Token da integração Meta expirado. Reconecte a conta em Configurações do Instagram/Facebook.'
+        : 'Integração Meta não encontrada. Reconecte a conta em Configurações do Instagram/Facebook.',
     })
     return false
   })

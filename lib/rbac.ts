@@ -281,8 +281,8 @@ async function getProfileRowWithUserToken(
 }
 
 async function getProfileRow(userId: string, accessToken?: string): Promise<ProfileRow | null> {
-  // Primeiro tenta buscar com o novo sistema de roles
-  const { data: newData, error: newError } = await supabaseServer
+  // Tenta buscar com o sistema completo (novo RBAC + legacy)
+  const { data, error } = await supabaseServer
     .from('profiles')
     .select(
       `
@@ -325,12 +325,13 @@ async function getProfileRow(userId: string, accessToken?: string): Promise<Prof
     .eq('id', userId)
     .maybeSingle()
 
-  if (!newError && newData) {
-    return (newData as ProfileRow | null) ?? null
+  // Se a query foi bem-sucedida (mesmo que retorne null = perfil não encontrado), retorna o resultado
+  if (!error) {
+    return (data as ProfileRow | null) ?? null
   }
 
-  // Fallback para sistema legado
-  const { data, error } = await supabaseServer
+  // Fallback para schema legado (sem tabela roles ou coluna role_id) — mantém access_profiles para permissões legadas
+  const { data: legacyData, error: legacyError } = await supabaseServer
     .from('profiles')
     .select(
       `
@@ -360,29 +361,17 @@ async function getProfileRow(userId: string, accessToken?: string): Promise<Prof
     .eq('id', userId)
     .maybeSingle()
 
-  if (!error && data) {
-    return (data as ProfileRow | null) ?? null
+  if (!legacyError) {
+    return (legacyData as ProfileRow | null) ?? null
   }
 
-  const { data: fallback, error: fallbackError } = await supabaseServer
-    .from('profiles')
-    .select('role, email, access_profile_id, role_id, person_id')
-    .eq('id', userId)
-    .maybeSingle()
-
-  if (!fallbackError && fallback) {
-    return (fallback as ProfileRow | null) ?? null
-  }
-
+  // Último recurso: usar token do usuário (quando service role não está configurado)
   if (accessToken) {
     const withToken = await getProfileRowWithUserToken(userId, accessToken)
     if (withToken) return withToken
   }
 
-  if (fallbackError) {
-    throw new Error(fallbackError.message)
-  }
-  return null
+  throw new Error(legacyError.message)
 }
 
 function getNestedPermissions(profileRow: ProfileRow | null): PermissionRow[] | null {

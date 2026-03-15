@@ -34,9 +34,9 @@ export function SiteConfigProvider({
   const [loading, setLoading] = useState(false)
 
   const applyCachedConfig = useCallback((): boolean => {
-    // Se temos initialConfig do servidor e não estamos na home recarregando, pule fetch.
+    // Se temos initialConfig do servidor, já foi aplicado no useState inicial
     if (initialConfig) return true
-    
+
     const now = Date.now()
 
     if (memoryCache && now - memoryCache.updatedAt <= SITE_CONFIG_CACHE_TTL_MS) {
@@ -60,6 +60,7 @@ export function SiteConfigProvider({
     } catch {
       return false
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const persistCache = useCallback((nextConfig: SiteConfig) => {
@@ -75,14 +76,9 @@ export function SiteConfigProvider({
   }, [])
 
   const refetch = useCallback(async () => {
-    // Se passamos initialConfig e não estamos mudando manualmente, nada a fazer
+    // Se temos initialConfig do servidor, só busca quando o usuário solicitar explicitamente
+    // (via refetch manual) ou na página inicial
     if (initialConfig && pathname !== '/') {
-       setLoading(false)
-       return
-    }
-
-    const shouldFetch = pathname === '/'
-    if (!shouldFetch && !initialConfig) {
       setLoading(false)
       return
     }
@@ -108,13 +104,12 @@ export function SiteConfigProvider({
         setConfig(merged)
         persistCache(merged)
       }
-      // Se 404: tabela site_config não existe — execute supabase-admin.sql no SQL Editor do Supabase
     } catch {
       // mantém default (ex.: tabela ainda não criada)
     } finally {
       setLoading(false)
     }
-  }, [applyCachedConfig, pathname, persistCache])
+  }, [applyCachedConfig, initialConfig, pathname, persistCache])
 
   useEffect(() => {
     refetch()

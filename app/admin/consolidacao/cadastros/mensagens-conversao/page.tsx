@@ -40,7 +40,6 @@ export default function MensagensConversaoPage() {
         method: 'PATCH',
         body: JSON.stringify({ accepted: accepted.trim(), reconciled: reconciled.trim() }),
       })
-      console.log('[Mensagens conversão] Mensagens salvas com sucesso.')
     } catch (err) {
       console.error('[Mensagens conversão] Erro ao salvar:', err)
     } finally {

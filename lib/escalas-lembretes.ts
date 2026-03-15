@@ -141,8 +141,6 @@ export async function fetchAssignmentsByDate(
 ): Promise<AssignmentItem[]> {
   const [year, month] = targetDate.split('-').map(Number)
 
-  console.log(`[escalas-lembretes] fetchAssignments date=${targetDate} month=${month} year=${year}`)
-
   const { data: links, error: linksErr } = await supabase
     .from('escalas_links')
     .select('id, ministry, church:churches(id, name)')

@@ -68,7 +68,7 @@ export async function GET(request: NextRequest) {
         const refreshMap = new Map(refreshed.map((r: Record<string, unknown>) => [r.id as string, r]))
         for (let i = 0; i < registrations.length; i++) {
           const updated = refreshMap.get(registrations[i].id as string)
-          if (updated) registrations[i] = updated
+          if (updated) registrations[i] = updated as typeof registrations[0]
         }
       }
     }

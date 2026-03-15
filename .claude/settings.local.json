@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls -lh /c/midia_igreja/*.md)",
+      "Bash(wc -l /c/midia_igreja/app/api/*/*route.ts)",
+      "Bash(find /c/midia_igreja/app/api -type f -name \"*.ts\" -exec wc -l {})",
+      "Bash(xargs wc:*)",
+      "Bash(find /c/midia_igreja -name *.sql -o -name *migration* -o -name *schema*)",
+      "Bash(grep -r \"publishFailureReasons\\\\|error_message\\\\|Toast\\\\|setError\\\\|setNotice\" --include=*.tsx --include=*.ts app/admin/galeria app/admin/instancias)",
+      "Bash(find /c/midia_igreja -name *disparos* -o -name *notifi*)",
+      "Bash(grep -E \"\\\\.\\(ts|tsx|sql\\)$\")",
+      "Bash(ls -la /c/midia_igreja/supabase/migrations/*.sql)",
+      "Bash(grep -l \"disparos_log\" /c/midia_igreja/supabase/migrations/*.sql)",
+      "Bash(grep -r \"disparos_log\\\\|CREATE TABLE.*disparos\" --include=*.sql /c/midia_igreja/supabase/migrations)",
+      "Bash(grep -n \"disparos_log\" /c/midia_igreja/supabase/migrations/*.sql)",
+      "Bash(find /c/midia_igreja/supabase/migrations -name *.sql -newer /c/midia_igreja/supabase/migrations/004_gallery_social_module.sql)",
+      "Bash(xargs grep:*)",
+      "Bash(npx tsc:*)",
+      "Bash(for file:*)",
+      "Bash(do echo:*)",
+      "Read(//c/midia_igreja/**)",
+      "Bash(done)"
+    ]
+  }
+}
