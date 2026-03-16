@@ -116,15 +116,51 @@ export default function RekognitionPage() {
 
   // ─── Cadastrar pessoa ──────────────────────────────────────────────────────
 
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+  async function compressImage(file: File): Promise<File> {
+    const MAX_BYTES = 3.5 * 1024 * 1024 // 3.5 MB — bem abaixo do limite do Vercel (4.5 MB)
+    const MAX_DIM = 1600
+
+    if (file.size <= MAX_BYTES) return file
+
+    return new Promise((resolve, reject) => {
+      const img = new Image()
+      const objectUrl = URL.createObjectURL(file)
+      img.onload = () => {
+        URL.revokeObjectURL(objectUrl)
+        let { width, height } = img
+        if (width > MAX_DIM || height > MAX_DIM) {
+          const ratio = Math.min(MAX_DIM / width, MAX_DIM / height)
+          width = Math.round(width * ratio)
+          height = Math.round(height * ratio)
+        }
+        const canvas = document.createElement('canvas')
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext('2d')
+        if (!ctx) { reject(new Error('Canvas não suportado')); return }
+        ctx.drawImage(img, 0, 0, width, height)
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) { reject(new Error('Falha ao comprimir imagem')); return }
+            resolve(new File([blob], file.name.replace(/\.\w+$/, '.jpg'), { type: 'image/jpeg' }))
+          },
+          'image/jpeg',
+          0.82
+        )
+      }
+      img.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error('Falha ao carregar imagem')) }
+      img.src = objectUrl
+    })
+  }
+
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0] ?? null
-    setFormFile(file)
-    if (file) {
-      const url = URL.createObjectURL(file)
-      setFormPreview(url)
-    } else {
-      setFormPreview(null)
-    }
+    if (!file) { setFormFile(null); setFormPreview(null); return }
+
+    const compressed = await compressImage(file).catch(() => file)
+    setFormFile(compressed)
+    const url = URL.createObjectURL(compressed)
+    setFormPreview(url)
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -314,7 +350,7 @@ export default function RekognitionPage() {
                       disabled={formLoading}
                       className="block w-full text-sm text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-[#c62737]/10 file:text-[#c62737] hover:file:bg-[#c62737]/20 disabled:opacity-50"
                     />
-                    <p className="mt-1.5 text-xs text-slate-400">JPEG, PNG ou WebP · máx. 5 MB · rosto centralizado e bem iluminado</p>
+                    <p className="mt-1.5 text-xs text-slate-400">JPEG, PNG ou WebP · imagens grandes são comprimidas automaticamente · rosto centralizado e bem iluminado</p>
                   </div>
                 </div>
               </div>
