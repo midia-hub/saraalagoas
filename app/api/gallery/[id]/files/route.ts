@@ -99,27 +99,37 @@ export async function GET(
     }
 
     const driveFileIds = files.map((file) => file.id)
-    let uploaderRows: Array<{ drive_file_id: string; uploaded_by_name: string | null }> = []
-    if (driveFileIds.length > 0) {
-      const { data } = await supabaseServer
-        .from('gallery_files')
-        .select('drive_file_id, uploaded_by_name')
-        .eq('gallery_id', galleryId)
-        .in('drive_file_id', driveFileIds)
-      uploaderRows = data || []
-    }
+    const driveFileIdSet = new Set(driveFileIds)
+
+    // Busca metadados (uploader) de todos os registros do banco para este álbum —
+    // inclui arquivos de outras pastas do Drive (ex: fotos mescladas de outro álbum)
+    const { data: allDbRows } = await supabaseServer
+      .from('gallery_files')
+      .select('drive_file_id, name, mime_type, web_view_link, thumbnail_link, created_time, uploaded_by_name')
+      .eq('gallery_id', galleryId)
+
+    const dbRows = allDbRows || []
     const uploaderByFileId = new Map<string, string | null>()
-    for (const r of uploaderRows) {
+    for (const r of dbRows) {
       uploaderByFileId.set(r.drive_file_id, r.uploaded_by_name ?? null)
     }
+
     const filesWithUploader: FileItem[] = files.map((f) => ({
       ...f,
       viewUrl: f.viewUrl ?? `https://drive.google.com/uc?export=view&id=${f.id}`,
       uploaded_by_name: uploaderByFileId.get(f.id) ?? null,
     }))
 
-    setCachedFiles(galleryId, filesWithUploader)
-    return NextResponse.json(filesWithUploader)
+    // Inclui arquivos do banco que não estão na pasta do Drive deste álbum
+    // (ocorre após mesclagem de álbuns com pastas diferentes)
+    const extraDbFiles: FileItem[] = dbRows
+      .filter((r) => !driveFileIdSet.has(r.drive_file_id))
+      .map(rowToFileItem)
+
+    const allFiles = [...filesWithUploader, ...extraDbFiles]
+
+    setCachedFiles(galleryId, allFiles)
+    return NextResponse.json(allFiles)
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     console.error('[gallery/files] Drive error, using DB fallback:', message)

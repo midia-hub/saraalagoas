@@ -7,8 +7,7 @@ import { getSiteConfig } from '@/lib/site-config-server'
 /**
  * POST /api/public/gallery/prepare
  * Cria (ou reutiliza) um álbum no Drive + Supabase sem exigir login.
- * Álbuns criados aqui ficam ocultos da galeria pública por padrão.
- * O admin libera em /admin/galeria quando quiser.
+ * Álbuns criados aqui ficam visíveis na galeria pública por padrão.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -80,7 +79,7 @@ export async function POST(request: NextRequest) {
         date,
         description: descriptionFinal,
         drive_folder_id: folderId,
-        hidden_from_public: true,
+        hidden_from_public: false,
       })
       .select('id')
       .single()

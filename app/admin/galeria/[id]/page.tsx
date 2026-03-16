@@ -6,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { GaleriaLoading } from '@/components/GaleriaLoading'
 import { PageAccessGuard } from '@/app/admin/PageAccessGuard'
 import { useAdminAccess } from '@/lib/admin-access-context'
-import { adminFetchJson } from '@/lib/admin-client'
+import { adminFetchJson, getAccessTokenOrThrow } from '@/lib/admin-client'
 import { Toast } from '@/components/Toast'
 
 type Gallery = {
@@ -51,6 +51,20 @@ export default function AdminGaleriaAlbumPage() {
   const [togglingVisibility, setTogglingVisibility] = useState(false)
   const [toast, setToast] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
 
+  // Upload de fotos adicionais
+  const [showUploadModal, setShowUploadModal] = useState(false)
+  const [uploadFiles, setUploadFiles] = useState<File[]>([])
+  const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number; errors: string[] } | null>(null)
+  const [uploading, setUploading] = useState(false)
+
+  // Mesclar álbuns
+  const [showMergeModal, setShowMergeModal] = useState(false)
+  const [mergeAlbums, setMergeAlbums] = useState<Array<{ id: string; title: string; type: string; date: string }>>([])
+  const [mergeSourceId, setMergeSourceId] = useState('')
+  const [mergeDeleteSource, setMergeDeleteSource] = useState(false)
+  const [merging, setMerging] = useState(false)
+  const [loadingMergeAlbums, setLoadingMergeAlbums] = useState(false)
+
   const selected = lightboxIndex !== null ? (files[lightboxIndex] ?? null) : null
 
   const openLightbox = useCallback((index: number) => {
@@ -88,6 +102,12 @@ export default function AdminGaleriaAlbumPage() {
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
   }, [lightboxIndex, closeLightbox, lightboxPrev, lightboxNext])
+
+  const reloadFiles = useCallback(async () => {
+    if (!id) return
+    const list = await adminFetchJson<GalleryFile[]>(`/api/gallery/${id}/files`)
+    setFiles(Array.isArray(list) ? list : [])
+  }, [id])
 
   useEffect(() => {
     if (!id) {
@@ -174,6 +194,84 @@ export default function AdminGaleriaAlbumPage() {
       setDeletingAlbum(false)
     }
   }, [id, canDeletePhotos, deletingAlbum, router])
+
+  const handleUploadMore = useCallback(async () => {
+    if (!id || !uploadFiles.length || uploading) return
+    setUploading(true)
+    setUploadProgress({ done: 0, total: uploadFiles.length, errors: [] })
+    const errors: string[] = []
+    try {
+      const token = await getAccessTokenOrThrow()
+      for (let i = 0; i < uploadFiles.length; i++) {
+        const file = uploadFiles[i]
+        try {
+          const fd = new FormData()
+          fd.append('file', file)
+          const res = await fetch(`/api/gallery/${id}/upload`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}` },
+            body: fd,
+          })
+          const json = await res.json()
+          if (!res.ok) errors.push(`${file.name}: ${json.error ?? 'Erro'}`)
+        } catch {
+          errors.push(`${file.name}: Falha no envio`)
+        }
+        setUploadProgress({ done: i + 1, total: uploadFiles.length, errors })
+      }
+    } catch {
+      errors.push('Não foi possível obter o token de acesso.')
+      setUploadProgress((prev) => prev ? { ...prev, errors } : null)
+    }
+    setUploading(false)
+    const uploaded = uploadFiles.length - errors.length
+    if (uploaded > 0) {
+      setToast({ type: 'ok', text: `${uploaded} foto(s) adicionada(s) com sucesso.` })
+      await reloadFiles()
+    }
+    if (errors.length > 0) {
+      setToast({ type: 'err', text: `${errors.length} arquivo(s) falharam.` })
+    }
+    if (errors.length === 0) {
+      setShowUploadModal(false)
+      setUploadFiles([])
+      setUploadProgress(null)
+    }
+  }, [id, uploadFiles, uploading, reloadFiles])
+
+  const handleOpenMergeModal = useCallback(async () => {
+    setShowMergeModal(true)
+    setMergeSourceId('')
+    setMergeDeleteSource(false)
+    setLoadingMergeAlbums(true)
+    try {
+      const list = await adminFetchJson<Array<{ id: string; title: string; type: string; date: string }>>('/api/gallery/list?limit=200')
+      setMergeAlbums((list ?? []).filter((a) => a.id !== id))
+    } catch {
+      setMergeAlbums([])
+    } finally {
+      setLoadingMergeAlbums(false)
+    }
+  }, [id])
+
+  const handleMerge = useCallback(async () => {
+    if (!id || !mergeSourceId || merging) return
+    setMerging(true)
+    try {
+      const res = await adminFetchJson<{ ok: boolean; moved: number }>(`/api/gallery/${id}/merge`, {
+        method: 'POST',
+        body: JSON.stringify({ sourceId: mergeSourceId, deleteSource: mergeDeleteSource }),
+      })
+      setToast({ type: 'ok', text: `${res.moved} foto(s) mescladas com sucesso.` })
+      setShowMergeModal(false)
+      await reloadFiles()
+      if (mergeDeleteSource) router.refresh()
+    } catch (err) {
+      setToast({ type: 'err', text: err instanceof Error ? err.message : 'Erro ao mesclar álbuns.' })
+    } finally {
+      setMerging(false)
+    }
+  }, [id, mergeSourceId, mergeDeleteSource, merging, reloadFiles, router])
 
   if (loading) {
     return (
@@ -267,6 +365,26 @@ export default function AdminGaleriaAlbumPage() {
               </svg>
             )}
             {gallery.hidden_from_public ? 'Oculto (reexibir)' : 'Ocultar da galeria'}
+          </button>
+          <button
+            type="button"
+            onClick={() => { setShowUploadModal(true); setUploadFiles([]); setUploadProgress(null) }}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Adicionar fotos
+          </button>
+          <button
+            type="button"
+            onClick={handleOpenMergeModal}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+            </svg>
+            Mesclar álbuns
           </button>
           <Link
             href={`/admin/galeria/${gallery.id}/post/select`}
@@ -616,6 +734,147 @@ export default function AdminGaleriaAlbumPage() {
           </div>
         )}
       </div>
+
+      {/* Modal: Adicionar fotos */}
+      {showUploadModal && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          onClick={() => !uploading && setShowUploadModal(false)}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            className="w-full max-w-md rounded-2xl bg-white shadow-xl p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-lg font-semibold text-slate-900 mb-4">Adicionar fotos ao álbum</h2>
+            <div className="mb-4">
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                multiple
+                disabled={uploading}
+                onChange={(e) => setUploadFiles(Array.from(e.target.files ?? []))}
+                className="block w-full text-sm text-slate-600 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-[#c62737]/10 file:text-[#c62737] hover:file:bg-[#c62737]/20 disabled:opacity-50"
+              />
+              <p className="mt-1.5 text-xs text-slate-400">JPEG, PNG, WebP ou GIF · máx. {process.env.NEXT_PUBLIC_MAX_UPLOAD_MB ?? 4} MB por arquivo</p>
+            </div>
+            {uploadProgress && (
+              <div className="mb-4">
+                <div className="flex justify-between text-xs text-slate-500 mb-1">
+                  <span>Enviando {uploadProgress.done} de {uploadProgress.total}…</span>
+                  <span>{Math.round((uploadProgress.done / uploadProgress.total) * 100)}%</span>
+                </div>
+                <div className="h-2 w-full rounded-full bg-slate-200 overflow-hidden">
+                  <div
+                    style={{ width: `${Math.round((uploadProgress.done / uploadProgress.total) * 100)}%` }}
+                    className="h-full rounded-full bg-[#c62737] transition-all"
+                  />
+                </div>
+                {uploadProgress.errors.length > 0 && (
+                  <ul className="mt-2 space-y-1">
+                    {uploadProgress.errors.map((e, i) => (
+                      <li key={i} className="text-xs text-red-600 truncate">{e}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+            <div className="flex flex-row-reverse gap-3">
+              <button
+                type="button"
+                onClick={handleUploadMore}
+                disabled={!uploadFiles.length || uploading}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[#c62737] text-white text-sm font-medium hover:bg-[#a01f2d] disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {uploading && <span className="h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin" />}
+                {uploading ? 'Enviando…' : `Enviar ${uploadFiles.length ? `(${uploadFiles.length})` : ''}`}
+              </button>
+              <button
+                type="button"
+                onClick={() => !uploading && setShowUploadModal(false)}
+                disabled={uploading}
+                className="px-4 py-2.5 rounded-lg border border-slate-300 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50 disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Mesclar álbuns */}
+      {showMergeModal && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          onClick={() => !merging && setShowMergeModal(false)}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            className="w-full max-w-md rounded-2xl bg-white shadow-xl p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-lg font-semibold text-slate-900 mb-1">Mesclar álbuns</h2>
+            <p className="text-sm text-slate-500 mb-4">
+              Todas as fotos do álbum de origem serão movidas para{' '}
+              <span className="font-medium text-slate-700">{gallery.title}</span>.
+            </p>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">Álbum de origem</label>
+              {loadingMergeAlbums ? (
+                <div className="flex items-center gap-2 text-sm text-slate-400 py-2">
+                  <span className="h-4 w-4 rounded-full border-2 border-slate-300 border-t-[#c62737] animate-spin" />
+                  Carregando álbuns…
+                </div>
+              ) : (
+                <select
+                  value={mergeSourceId}
+                  onChange={(e) => setMergeSourceId(e.target.value)}
+                  disabled={merging}
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-800 outline-none focus:border-[#c62737] focus:ring-2 focus:ring-[#c62737]/20 disabled:opacity-50"
+                >
+                  <option value="">Selecione um álbum…</option>
+                  {mergeAlbums.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.title} ({a.type === 'culto' ? 'Culto' : 'Evento'} · {a.date})
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+            <label className="flex items-center gap-2.5 mb-5 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={mergeDeleteSource}
+                onChange={(e) => setMergeDeleteSource(e.target.checked)}
+                disabled={merging}
+                className="w-4 h-4 rounded border-slate-300 text-[#c62737] focus:ring-[#c62737]/30"
+              />
+              <span className="text-sm text-slate-700">Excluir álbum de origem após mesclar</span>
+            </label>
+            <div className="flex flex-row-reverse gap-3">
+              <button
+                type="button"
+                onClick={handleMerge}
+                disabled={!mergeSourceId || merging}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[#c62737] text-white text-sm font-medium hover:bg-[#a01f2d] disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {merging && <span className="h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin" />}
+                {merging ? 'Mesclando…' : 'Mesclar'}
+              </button>
+              <button
+                type="button"
+                onClick={() => !merging && setShowMergeModal(false)}
+                disabled={merging}
+                className="px-4 py-2.5 rounded-lg border border-slate-300 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50 disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <Toast
         visible={!!toast}
