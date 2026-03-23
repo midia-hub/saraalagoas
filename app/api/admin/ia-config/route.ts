@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAccess } from '@/lib/admin-api'
 import { supabaseServer } from '@/lib/supabase-server'
-
-// Chaves válidas e seus rótulos
-export const IA_CONFIG_KEYS = ['system_prompt', 'album_instructions', 'standard_instructions', 'few_shot_examples'] as const
-export type IaConfigKey = typeof IA_CONFIG_KEYS[number]
+import { IA_CONFIG_KEYS } from '@/lib/ia-config-keys'
 
 // ──────────────────────────────────────────────────────────────────────────────
 // GET /api/admin/ia-config

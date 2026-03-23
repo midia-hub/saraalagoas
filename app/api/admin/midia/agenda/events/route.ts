@@ -1,11 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAccess } from '@/lib/admin-api'
 import { createSupabaseAdminClient } from '@/lib/supabase-server'
+import { fkRelationName } from '@/lib/supabase-fk-label'
 
 type EventDayInput = {
   date: string
   startTime: string
   endTime?: string
+}
+
+type EventDayRow = {
+  id: string
+  event_id: string
+  event_date: string
+  start_time: string
+  end_time: string | null
+  sort_order: number
 }
 
 export async function GET(request: NextRequest) {
@@ -26,8 +36,8 @@ export async function GET(request: NextRequest) {
     const { data: events, error } = await query
     if (error) return NextResponse.json({ error: 'Erro ao listar eventos.' }, { status: 500 })
 
-    const eventIds = (events ?? []).map((event: any) => event.id)
-    let days: any[] = []
+    const eventIds = (events ?? []).map((event: { id: string }) => event.id)
+    let days: EventDayRow[] = []
 
     if (eventIds.length > 0) {
       const daysRes = await supabase
@@ -37,14 +47,14 @@ export async function GET(request: NextRequest) {
         .order('sort_order', { ascending: true })
 
       if (!daysRes.error) {
-        days = daysRes.data ?? []
+        days = (daysRes.data ?? []) as EventDayRow[]
       }
     }
 
-    const items = (events ?? []).map((event: any) => ({
+    const items = (events ?? []).map((event) => ({
       id: event.id,
       churchId: event.church_id,
-      churchName: event.churches?.name ?? 'Igreja',
+      churchName: fkRelationName(event.churches, 'Igreja'),
       name: event.name,
       description: event.description ?? '',
       multiDay: !!event.multi_day,
@@ -139,15 +149,16 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    const created = eventRes.data
     const item = {
-      id: eventRes.data.id,
-      churchId: eventRes.data.church_id,
-      churchName: (eventRes.data as any).churches?.name ?? 'Igreja',
-      name: eventRes.data.name,
-      description: eventRes.data.description ?? '',
-      multiDay: !!eventRes.data.multi_day,
-      sendToMedia: !!eventRes.data.send_to_media,
-      schedules: (daysRes.data ?? []).map((day: any) => ({
+      id: created.id,
+      churchId: created.church_id,
+      churchName: fkRelationName(created.churches, 'Igreja'),
+      name: created.name,
+      description: created.description ?? '',
+      multiDay: !!created.multi_day,
+      sendToMedia: !!created.send_to_media,
+      schedules: (daysRes.data ?? []).map((day: EventDayRow) => ({
         id: day.id,
         date: day.event_date,
         startTime: day.start_time,

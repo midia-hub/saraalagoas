@@ -5,7 +5,8 @@ import Link from 'next/link'
 import {
   ImageIcon, Instagram, PenLine, CalendarDays,
   ClipboardList, Settings, ScanFace, Camera,
-  ChevronRight, TrendingUp, LayoutGrid, Upload,
+  ChevronRight, LayoutGrid, Upload,
+  BookOpen,
 } from 'lucide-react'
 import { PageAccessGuard } from '@/app/admin/PageAccessGuard'
 import { adminFetchJson } from '@/lib/admin-client'
@@ -143,6 +144,7 @@ export default function MidiaDashboard() {
                 <ActionCard href="/admin/instagram/posts" icon={Instagram} label="Painel de Posts" description="Visualize e gerencie publicações" color="#f97316" />
                 <ActionCard href="/admin/midia/agenda-social" icon={CalendarDays} label="Agenda Social" description="Calendário de postagens agendadas" color="#3b82f6" />
                 <ActionCard href="/admin/midia/demandas" icon={ClipboardList} label="Demandas" description="Solicitações da equipe de mídia" color="#10b981" />
+                <ActionCard href="/admin/midia/referencias-design" icon={BookOpen} label="Referências de design" description="Bucket, descrições e categorias para a IA" color="#8b5cf6" />
               </div>
             </div>
           )}

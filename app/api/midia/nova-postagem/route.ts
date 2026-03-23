@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAccess } from '@/lib/admin-api'
-import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { createSupabaseServerClient, supabaseServer } from '@/lib/supabase-server'
 import {
   executeMetaPublishWithUrls,
   resolveDriveFileToPublicUrl,
@@ -376,11 +376,12 @@ export async function POST(request: NextRequest) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const containerRows: any[] = []
 
-    const { data: integrations, error: integrationsError } = await db
+    // Usa service role para não depender de created_by — contas de grupos compartilhados
+    // podem ter sido criadas por outro usuário.
+    const { data: integrations, error: integrationsError } = await supabaseServer
       .from('meta_integrations')
       .select('id,instagram_business_account_id,page_access_token,is_active')
       .in('id', integrationIds)
-      .eq('created_by', userId)
       .eq('is_active', true)
 
     if (integrationsError) {

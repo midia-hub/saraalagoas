@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect, useMemo } from 'react'
-import { ChevronDown, Check, Search, X, User } from 'lucide-react'
+import { ChevronDown, Check, Search, X } from 'lucide-react'
 
 export type CustomSelectOption = { value: string; label: string; description?: string }
 

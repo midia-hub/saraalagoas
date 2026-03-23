@@ -29,7 +29,14 @@ export async function GET(
   const { data, error } = await query
   if (error) return NextResponse.json({ error: 'Erro ao listar comentários.' }, { status: 500 })
 
-  const items = (data ?? []).map((row: any) => ({
+  const items = (data ?? []).map((row: {
+    id: string
+    demand_id: string
+    step_id: string | null
+    content: string
+    author_name: string
+    created_at: string
+  }) => ({
     id: row.id,
     demandId: row.demand_id,
     stepId: row.step_id ?? null,
@@ -80,10 +87,7 @@ export async function POST(
 }
 
 // DELETE /api/admin/midia/demandas/[id]/comments?comment_id=...
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function DELETE(request: NextRequest) {
   const access = await requireAccess(request, { pageKey: 'instagram', action: 'delete' })
   if (!access.ok) return access.response
 

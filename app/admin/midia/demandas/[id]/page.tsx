@@ -347,10 +347,9 @@ function CommentSection({ demandId, stepId = null }: { demandId: string; stepId?
 
 // ─── Item Card ────────────────────────────────────────────────────────────────
 function ItemCard({
-  item, demandDueDate, people, onUpdate, onDelete,
+  item, people, onUpdate, onDelete,
 }: {
   item: StepItem
-  demandDueDate: string | null
   people: Person[]
   onUpdate: (u: StepItem) => void
   onDelete: (id: string) => void
@@ -369,7 +368,6 @@ function ItemCard({
   const [tags, setTags] = useState<string[]>(item.tags)
   const [tagOpen, setTagOpen] = useState(false)
   const [itemPickerOpen, setItemPickerOpen] = useState(false)
-  const peopleOpts = useMemo(() => people.map((p) => ({ value: p.id, label: p.full_name })), [people])
   const availTags = ITEM_TAGS.filter((t) => !tags.includes(t.value))
 
   const overdue = checkOverdue(item.dueDate, item.status)
@@ -561,11 +559,10 @@ function ItemCard({
 
 // ─── Stage Column ─────────────────────────────────────────────────────────────
 function StageColumn({
-  stage, demandDueDate, people, isLast,
+  stage, people, isLast,
   onUpdateStage, onDeleteStage, onAddItem, onUpdateItem, onDeleteItem, onOpenWorkflow,
 }: {
   stage: Stage
-  demandDueDate: string | null
   people: Person[]
   isLast: boolean
   onUpdateStage: (s: Stage) => void
@@ -597,7 +594,6 @@ function StageColumn({
   const [stageTitle, setStageTitle] = useState(stage.title)
   const [stageStatus, setStageStatus] = useState(stage.status)
 
-  const peopleOpts = useMemo(() => people.map((p) => ({ value: p.id, label: p.full_name })), [people])
   const availNewTags = ITEM_TAGS.filter((t) => !newTags.includes(t.value))
   const doneCount = stage.children.filter((i) => i.status === 'concluida').length
   const totalCount = stage.children.length
@@ -734,7 +730,7 @@ function StageColumn({
             <p className="text-[11px] text-slate-400 italic text-center py-3">Nenhum item neste estágio</p>
           )}
           {stage.children.map((item) => (
-            <ItemCard key={item.id} item={item} demandDueDate={demandDueDate} people={people}
+            <ItemCard key={item.id} item={item} people={people}
               onUpdate={(updated) => onUpdateItem(stage.id, updated)}
               onDelete={(id) => onDeleteItem(stage.id, id)} />
           ))}
@@ -972,7 +968,7 @@ export default function DemandDetailPage() {
     setAddingStage(true)
     setAddStageOpen(false)
     try {
-      const res = await adminFetchJson<{ item: any }>(`/api/admin/midia/demandas/${id}/steps`, {
+      const res = await adminFetchJson<{ item: Stage }>(`/api/admin/midia/demandas/${id}/steps`, {
         method: 'POST',
         body: JSON.stringify({ title, stepType, parentStepId: null }),
       })
@@ -1115,7 +1111,6 @@ export default function DemandDetailPage() {
                   <StageColumn
                     key={stage.id}
                     stage={stage}
-                    demandDueDate={demand.dueDate}
                     people={people}
                     isLast={idx === stages.length - 1}
                     onUpdateStage={updateStage}

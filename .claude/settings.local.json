@@ -19,7 +19,11 @@
       "Bash(for file:*)",
       "Bash(do echo:*)",
       "Read(//c/midia_igreja/**)",
-      "Bash(done)"
+      "Bash(done)",
+      "Bash(npm install:*)",
+      "Bash(npm list:*)",
+      "Bash(ls:*)",
+      "Bash(node -e \"const { Modality } = require\\(''@google/genai''\\); console.log\\(''Modality.IMAGE ='', Modality?.IMAGE, ''Modality.TEXT ='', Modality?.TEXT\\)\")"
     ]
   }
 }

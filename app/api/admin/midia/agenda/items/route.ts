@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAccess } from '@/lib/admin-api'
 import { createSupabaseAdminClient } from '@/lib/supabase-server'
+import { fkRelationName } from '@/lib/supabase-fk-label'
 
 function normalizeLinkType(raw: string): 'culto' | 'arena' | 'evento' | null {
   if (raw === 'culto' || raw === 'arena' || raw === 'evento') return raw
@@ -39,18 +40,18 @@ export async function GET(request: NextRequest) {
     const { data, error } = await query
     if (error) return NextResponse.json({ error: 'Erro ao listar agenda.' }, { status: 500 })
 
-    const items = (data ?? []).map((row: any) => {
+    const items = (data ?? []).map((row) => {
       const linkLabel =
         row.link_type === 'culto'
-          ? row.worship_services?.name
+          ? fkRelationName(row.worship_services)
           : row.link_type === 'arena'
-            ? row.arenas?.name
-            : row.media_agenda_events?.name
+            ? fkRelationName(row.arenas)
+            : fkRelationName(row.media_agenda_events)
 
       return {
         id: row.id,
         churchId: row.church_id,
-        churchName: row.churches?.name ?? 'Igreja',
+        churchName: fkRelationName(row.churches, 'Igreja'),
         linkType: row.link_type,
         linkId: row.worship_service_id || row.arena_id || row.event_id,
         linkLabel: linkLabel ?? 'Vínculo sem nome',
@@ -121,13 +122,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Não foi possível criar o item de agenda.' }, { status: 500 })
     }
 
-    const row: any = insertRes.data
+    const row = insertRes.data
     const linkLabel =
       linkType === 'culto'
-        ? row.worship_services?.name
+        ? fkRelationName(row.worship_services)
         : linkType === 'arena'
-          ? row.arenas?.name
-          : row.media_agenda_events?.name
+          ? fkRelationName(row.arenas)
+          : fkRelationName(row.media_agenda_events)
 
     if (sendToMedia) {
       await supabase.from('media_demands').insert({
@@ -145,7 +146,7 @@ export async function POST(request: NextRequest) {
     const item = {
       id: row.id,
       churchId: row.church_id,
-      churchName: row.churches?.name ?? 'Igreja',
+      churchName: fkRelationName(row.churches, 'Igreja'),
       linkType,
       linkId,
       linkLabel: linkLabel ?? 'Vínculo sem nome',

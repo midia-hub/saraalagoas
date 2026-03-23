@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAccess } from '@/lib/admin-api'
 import { createSupabaseAdminClient } from '@/lib/supabase-server'
+import { fkRelationName } from '@/lib/supabase-fk-label'
 
 // GET /api/admin/midia/demandas/[id]
 export async function GET(
@@ -30,7 +31,7 @@ export async function GET(
       status: data.status,
       dueDate: data.due_date ?? null,
       churchId: data.church_id,
-      churchName: (data as any).churches?.name ?? 'Sem igreja',
+      churchName: fkRelationName(data.churches, 'Sem igreja'),
       createdAt: data.created_at,
     },
   })
@@ -70,7 +71,7 @@ export async function PATCH(
       status: data.status,
       dueDate: data.due_date ?? null,
       churchId: data.church_id,
-      churchName: (data as any).churches?.name ?? 'Sem igreja',
+      churchName: fkRelationName(data.churches, 'Sem igreja'),
       createdAt: data.created_at,
     },
   })

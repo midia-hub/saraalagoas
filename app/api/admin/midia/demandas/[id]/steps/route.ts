@@ -1,8 +1,58 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAccess } from '@/lib/admin-api'
 import { createSupabaseAdminClient } from '@/lib/supabase-server'
+import { personFromAssigneeJoin } from '@/lib/supabase-fk-label'
 
-function mapStep(step: any, assignees: any[], tags: any[], children?: any[]) {
+type StepRow = {
+  id: string
+  demand_id: string
+  parent_step_id: string | null
+  step_type: string | null
+  title: string
+  description: string | null
+  due_date: string | null
+  status: string
+  sort_order: number
+  metadata: Record<string, unknown> | null
+  created_at: string
+  updated_at: string
+}
+
+type AssigneeJoinRow = {
+  step_id: string
+  person_id: string
+  people?: unknown
+}
+
+type TagJoinRow = {
+  step_id: string
+  tag: string
+}
+
+type MappedStep = {
+  id: string
+  demandId: string
+  parentStepId: string | null
+  stepType: string
+  title: string
+  description: string
+  dueDate: string | null
+  status: string
+  sortOrder: number
+  metadata: Record<string, unknown>
+  createdAt: string
+  updatedAt: string
+  assignees: { personId: string; name: string }[]
+  tags: string[]
+  children?: MappedStep[]
+}
+
+function mapStep(
+  step: StepRow,
+  assignees: AssigneeJoinRow[],
+  tags: TagJoinRow[],
+  children?: MappedStep[],
+): MappedStep {
   return {
     id: step.id,
     demandId: step.demand_id,
@@ -17,9 +67,9 @@ function mapStep(step: any, assignees: any[], tags: any[], children?: any[]) {
     createdAt: step.created_at,
     updatedAt: step.updated_at,
     assignees: assignees
-      .filter((a: any) => a.step_id === step.id)
-      .map((a: any) => ({ personId: a.people?.id ?? a.person_id, name: a.people?.full_name ?? '' })),
-    tags: tags.filter((t: any) => t.step_id === step.id).map((t: any) => t.tag),
+      .filter((a) => a.step_id === step.id)
+      .map((a) => personFromAssigneeJoin(a)),
+    tags: tags.filter((t) => t.step_id === step.id).map((t) => t.tag),
     ...(children !== undefined ? { children } : {}),
   }
 }
@@ -43,9 +93,9 @@ export async function GET(
 
   if (error) return NextResponse.json({ error: 'Erro ao listar etapas.' }, { status: 500 })
 
-  const stepIds = (allSteps ?? []).map((s: any) => s.id)
-  let assignees: any[] = []
-  let tags: any[] = []
+  const stepIds = (allSteps ?? []).map((s: StepRow) => s.id)
+  let assignees: AssigneeJoinRow[] = []
+  let tags: TagJoinRow[] = []
 
   if (stepIds.length > 0) {
     const [assigneesRes, tagsRes] = await Promise.all([
@@ -58,18 +108,19 @@ export async function GET(
         .select('step_id, tag')
         .in('step_id', stepIds),
     ])
-    assignees = assigneesRes.data ?? []
-    tags = tagsRes.data ?? []
+    assignees = (assigneesRes.data ?? []) as AssigneeJoinRow[]
+    tags = (tagsRes.data ?? []) as TagJoinRow[]
   }
 
   // Build hierarchy: stages first, children nested
-  const stages = (allSteps ?? []).filter((s: any) => !s.parent_step_id)
-  const stageItems = (allSteps ?? []).filter((s: any) => !!s.parent_step_id)
+  const rows = (allSteps ?? []) as StepRow[]
+  const stages = rows.filter((s) => !s.parent_step_id)
+  const stageItems = rows.filter((s) => !!s.parent_step_id)
 
-  const stagesWithChildren = stages.map((stage: any) => {
+  const stagesWithChildren = stages.map((stage) => {
     const children = stageItems
-      .filter((item: any) => item.parent_step_id === stage.id)
-      .map((item: any) => mapStep(item, assignees, tags))
+      .filter((item) => item.parent_step_id === stage.id)
+      .map((item) => mapStep(item, assignees, tags))
     return mapStep(stage, assignees, tags, children)
   })
 
@@ -167,7 +218,7 @@ export async function POST(
       dueDate: step.due_date ?? null,
       status: step.status,
       sortOrder: step.sort_order,
-      metadata: (step as any).metadata ?? {},
+      metadata: (step.metadata as Record<string, unknown> | null) ?? {},
       createdAt: step.created_at,
       updatedAt: step.updated_at,
       assignees: [],
