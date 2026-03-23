@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAccess } from '@/lib/admin-api'
 import { createSupabaseAdminClient } from '@/lib/supabase-server'
+import { personFromAssigneeJoin } from '@/lib/supabase-fk-label'
+
+type TagRow = { tag: string }
 
 // PATCH – update step fields, assignees, tags
 export async function PATCH(
@@ -96,12 +99,11 @@ export async function PATCH(
       sortOrder: step.sort_order,
       createdAt: step.created_at,
       updatedAt: step.updated_at,
-      assignees: (assigneesRes.data ?? []).map((a: any) => ({
-        personId: a.people?.id ?? a.person_id,
-        name: a.people?.full_name ?? '',
-      })),
-      tags: (tagsRes.data ?? []).map((t: any) => t.tag),
-      metadata: (step as any).metadata ?? {},
+      assignees: (assigneesRes.data ?? []).map((a: { person_id: string; people?: unknown }) =>
+        personFromAssigneeJoin(a),
+      ),
+      tags: (tagsRes.data ?? []).map((t: TagRow) => t.tag),
+      metadata: (step.metadata as Record<string, unknown> | null) ?? {},
     },
   })
 }

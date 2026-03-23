@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import sharp from 'sharp'
 import { getFileDownloadBuffer } from '@/lib/drive'
+import { supabaseServer } from '@/lib/supabase-server'
 import {
   createInstagramMediaContainer,
   createInstagramCarouselItemContainer,
@@ -242,7 +243,7 @@ export type ExecuteMetaPublishWithUrlsParams = {
 export async function executeMetaPublishWithUrls(params: ExecuteMetaPublishWithUrlsParams): Promise<{
   metaResults: MetaPublishResult[]
 }> {
-  const { db, userId, instanceIds, destinations, text, imageUrls, postType = 'feed', isVideo = false, thumbOffset, coverUrl } = params
+  const { instanceIds, destinations, text, imageUrls, postType = 'feed', isVideo = false, thumbOffset, coverUrl } = params
   if (imageUrls.length === 0) return { metaResults: [] }
 
   // Reels só suportam Instagram; Stories agora suportam Facebook também
@@ -268,11 +269,12 @@ export async function executeMetaPublishWithUrls(params: ExecuteMetaPublishWithU
   }
 
   const integrationIds = Array.from(new Set(metaSelections.map((s) => s.integrationId)))
-  const { data: integrations, error: integrationsError } = await db
+  // Usa service role para não depender de created_by — contas de grupos compartilhados
+  // podem ter sido criadas por outro usuário. O controle de acesso já foi feito via requireAccess.
+  const { data: integrations, error: integrationsError } = await supabaseServer
     .from('meta_integrations')
     .select('id,page_id,page_access_token,instagram_business_account_id,is_active,token_expires_at')
     .in('id', integrationIds)
-    .eq('created_by', userId)
     .eq('is_active', true)
 
   if (integrationsError) throw new Error(integrationsError.message)
@@ -307,8 +309,8 @@ export async function executeMetaPublishWithUrls(params: ExecuteMetaPublishWithU
       provider: selection.type,
       ok: false,
       error: isExpired
-        ? 'Token da integração Meta expirado. Reconecte a conta em Configurações.'
-        : 'Integração Meta não encontrada. Reconecte a conta em Configurações.',
+        ? 'Token expirado — reconecte a conta em Configurações do Instagram/Facebook.'
+        : 'Integração Meta não encontrada — verifique se a conta ainda está ativa em Configurações.',
     })
     return false
   })
@@ -502,11 +504,12 @@ export async function executeMetaPublish(params: ExecuteMetaPublishParams): Prom
   }
 
   const integrationIds = Array.from(new Set(metaSelections.map((s) => s.integrationId)))
-  const { data: integrations, error: integrationsError } = await db
+  // Usa service role para não depender de created_by — contas de grupos compartilhados
+  // podem ter sido criadas por outro usuário. O controle de acesso já foi feito via requireAccess.
+  const { data: integrations, error: integrationsError } = await supabaseServer
     .from('meta_integrations')
     .select('id,page_id,page_access_token,instagram_business_account_id,is_active,token_expires_at')
     .in('id', integrationIds)
-    .eq('created_by', userId)
     .eq('is_active', true)
 
   if (integrationsError) {
@@ -540,8 +543,8 @@ export async function executeMetaPublish(params: ExecuteMetaPublishParams): Prom
       provider: selection.type,
       ok: false,
       error: isExpired
-        ? 'Token da integração Meta expirado. Reconecte a conta em Configurações do Instagram/Facebook.'
-        : 'Integração Meta não encontrada. Reconecte a conta em Configurações do Instagram/Facebook.',
+        ? 'Token expirado — reconecte a conta em Configurações do Instagram/Facebook.'
+        : 'Integração Meta não encontrada — verifique se a conta ainda está ativa em Configurações.',
     })
     return false
   })

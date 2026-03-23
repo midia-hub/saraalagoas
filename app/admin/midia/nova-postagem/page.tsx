@@ -1,5 +1,6 @@
 'use client'
 
+/* eslint-disable @next/next/no-img-element -- pré-visualizações e crop usam data URL/blob */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import {
@@ -83,6 +84,15 @@ type GalleryAlbum = {
 type GalleryFile = { id: string; name: string; thumbnailLink?: string | null }
 
 type ToastState = { visible: boolean; message: string; type: 'ok' | 'err' }
+
+type PublishStep = 'preparing' | 'uploading' | 'meta' | 'done' | 'scheduled' | 'error'
+
+type PublishResult = {
+  instanceId: string
+  provider: string
+  ok: boolean
+  error?: string
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -503,9 +513,6 @@ const ASPECT_PRESETS: AspectPreset[] = [
   { label: '16:9',   ratio: 16 / 9,     outW: 1280, outH: 720,  desc: 'Widescreen'          },
   { label: '9:16',   ratio: 9 / 16,     outW: 1080, outH: 1920, desc: 'Stories / Reels'     },
 ]
-
-const CROP_CONTAINER = 380
-const CROP_BOX_MAX   = 340
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Modal editor de imagem (crop + proporção)
@@ -1877,6 +1884,176 @@ function PreviewTabs({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Modal de progresso de publicação
+// ─────────────────────────────────────────────────────────────────────────────
+
+const PUBLISH_STEP_LIST: Array<{ id: PublishStep; label: string; sub: string }> = [
+  { id: 'preparing', label: 'Preparando mídias',       sub: 'Comprimindo e organizando arquivos' },
+  { id: 'uploading', label: 'Enviando ao servidor',     sub: 'Fazendo upload das mídias' },
+  { id: 'meta',      label: 'Processando na Meta',      sub: 'Aguardando confirmação do Instagram/Facebook' },
+  { id: 'done',      label: 'Publicado com sucesso',    sub: 'Post publicado nas contas selecionadas' },
+]
+
+function PublishingModal({
+  step,
+  results,
+  isScheduled,
+  onClose,
+}: {
+  step: PublishStep | null
+  results: PublishResult[]
+  isScheduled: boolean
+  onClose: () => void
+}) {
+  if (!step) return null
+
+  const isDone    = step === 'done' || step === 'scheduled'
+  const isError   = step === 'error'
+  const isRunning = !isDone && !isError
+
+  const activeIds: PublishStep[] = ['preparing', 'uploading', 'meta', 'done']
+  const curIdx = activeIds.indexOf(step)
+  const succeeded = results.filter((r) => r.ok)
+  const failed    = results.filter((r) => !r.ok)
+
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+      <div className="relative z-10 w-full max-w-md rounded-2xl bg-white shadow-2xl overflow-hidden">
+
+        {/* Header */}
+        <div
+          className={`px-6 py-5 ${
+            isDone  ? 'bg-gradient-to-r from-green-500 to-emerald-500'
+            : isError ? 'bg-gradient-to-r from-red-500 to-rose-600'
+            : 'bg-gradient-to-r from-[#c62737] to-[#9e1f2e]'
+          }`}
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/20">
+              {isDone  ? <CheckCircle2 className="h-5 w-5 text-white" />
+               : isError ? <AlertCircle  className="h-5 w-5 text-white" />
+               : <Loader2 className="h-5 w-5 text-white animate-spin" />}
+            </div>
+            <div>
+              <p className="text-sm font-bold text-white">
+                {isScheduled && isDone ? 'Postagem agendada!'
+                  : isDone   ? 'Publicado com sucesso!'
+                  : isError  ? 'Erro na publicação'
+                  : 'Publicando…'}
+              </p>
+              <p className="text-xs text-white/70">
+                {step === 'preparing' && 'Preparando mídias para envio'}
+                {step === 'uploading' && 'Enviando arquivos ao servidor'}
+                {step === 'meta'      && 'Aguardando processamento da Meta (pode levar até 30s)'}
+                {isDone && !isScheduled && `${succeeded.length} de ${results.length} conta(s) publicada(s)`}
+                {isDone &&  isScheduled && 'Postagem salva na fila de agendamento'}
+                {isError && (results.length > 0 ? `${failed.length} conta(s) com erro` : 'Verifique os detalhes abaixo')}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Steps — visível enquanto processa */}
+        {isRunning && (
+          <div className="px-6 py-4 space-y-2">
+            {PUBLISH_STEP_LIST.filter((s) => s.id !== 'done').map((s) => {
+              const idx     = activeIds.indexOf(s.id)
+              const isPast  = idx < curIdx
+              const isCur   = idx === curIdx
+              return (
+                <div
+                  key={s.id}
+                  className={`flex items-center gap-3 rounded-xl px-3 py-2.5 transition-all ${
+                    isCur ? 'bg-rose-50 border border-rose-200' : isPast ? 'opacity-60' : 'opacity-25'
+                  }`}
+                >
+                  <div
+                    className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full ${
+                      isCur ? 'bg-[#c62737]' : isPast ? 'bg-green-500' : 'bg-slate-200'
+                    }`}
+                  >
+                    {isPast ? (
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><path d="M5 12l5 5L20 7" /></svg>
+                    ) : isCur ? (
+                      <Loader2 className="h-3.5 w-3.5 text-white animate-spin" />
+                    ) : (
+                      <span className="text-[10px] font-bold text-slate-400">{idx + 1}</span>
+                    )}
+                  </div>
+                  <div>
+                    <p className={`text-xs font-semibold ${isCur ? 'text-rose-800' : isPast ? 'text-slate-500' : 'text-slate-300'}`}>
+                      {s.label}
+                    </p>
+                    {isCur && <p className="text-[11px] text-rose-500 mt-0.5">{s.sub}</p>}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        {/* Resultados por conta — visível quando concluído */}
+        {!isRunning && results.length > 0 && (
+          <div className="px-6 py-4 space-y-2 max-h-52 overflow-y-auto">
+            {results.map((r, i) => (
+              <div
+                key={i}
+                className={`flex items-start gap-2.5 rounded-lg px-3 py-2.5 ${r.ok ? 'bg-green-50' : 'bg-red-50'}`}
+              >
+                <div
+                  className={`mt-0.5 flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full ${r.ok ? 'bg-green-500' : 'bg-red-500'}`}
+                >
+                  {r.ok ? (
+                    <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><path d="M5 12l5 5L20 7" /></svg>
+                  ) : (
+                    <X className="h-2.5 w-2.5 text-white" />
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <p className={`text-xs font-semibold ${r.ok ? 'text-green-800' : 'text-red-800'}`}>
+                    {r.provider === 'instagram' ? 'Instagram' : 'Facebook'}
+                    {r.ok ? ' — publicado' : ' — falhou'}
+                  </p>
+                  {!r.ok && r.error && (
+                    <p className="mt-0.5 text-[11px] text-red-600 break-words leading-relaxed">{r.error}</p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Mensagem quando não há resultados de conta (ex: agendamento) */}
+        {!isRunning && results.length === 0 && isScheduled && (
+          <div className="px-6 py-4">
+            <div className="flex items-center gap-2 rounded-xl bg-blue-50 border border-blue-100 px-3 py-2.5">
+              <CalendarDays className="h-4 w-4 text-blue-500 flex-shrink-0" />
+              <p className="text-xs text-blue-700">Postagem salva e será publicada no horário programado.</p>
+            </div>
+          </div>
+        )}
+
+        {/* Botão de fechar — apenas quando concluído */}
+        {!isRunning && (
+          <div className="border-t border-slate-100 px-6 py-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className={`w-full rounded-xl py-2.5 text-sm font-semibold text-white transition-all ${
+                isDone ? 'bg-green-500 hover:bg-green-600' : 'bg-slate-600 hover:bg-slate-700'
+              }`}
+            >
+              {isDone ? 'Fechar' : 'Fechar'}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Conteúdo principal
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -1920,6 +2097,10 @@ function NovaPostagemContent() {
 
   // Estado da publicação
   const [publishing, setPublishing] = useState(false)
+  const [publishStep, setPublishStep] = useState<PublishStep | null>(null)
+  const [publishResults, setPublishResults] = useState<PublishResult[]>([])
+  const [publishIsScheduled, setPublishIsScheduled] = useState(false)
+  const publishTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [notice, setNotice] = useState<{ text: string; ok: boolean } | null>(null)
   const [toast, setToast] = useState<ToastState>({
     visible: false,
@@ -2181,6 +2362,19 @@ function NovaPostagemContent() {
     }
 
     setPublishing(true)
+    setPublishResults([])
+    setPublishIsScheduled(!!scheduledAt)
+    setPublishStep('preparing')
+
+    // Avança etapas visualmente enquanto o servidor processa
+    if (publishTimerRef.current) clearTimeout(publishTimerRef.current)
+    publishTimerRef.current = setTimeout(() => {
+      setPublishStep('uploading')
+      publishTimerRef.current = setTimeout(() => {
+        setPublishStep('meta')
+      }, 2500)
+    }, 1200)
+
     try {
       const orderedMedia = media.map((m) =>
         m.type === 'upload'
@@ -2214,21 +2408,26 @@ function NovaPostagemContent() {
         }),
       })
 
-      const msg =
-        res?.message ??
-        (res?.scheduled ? 'Postagem agendada!' : 'Publicado com sucesso!')
-      const failed = (res?.metaResults ?? []).filter((r) => !r.ok)
+      if (publishTimerRef.current) clearTimeout(publishTimerRef.current)
+
+      const results: PublishResult[] = res?.metaResults ?? []
+      setPublishResults(results)
+
+      const isScheduledRes = !!res?.scheduled
+      setPublishIsScheduled(isScheduledRes)
+
+      const failed = results.filter((r) => !r.ok)
+      const allFailed = results.length > 0 && failed.length === results.length
+
+      setPublishStep(isScheduledRes ? 'scheduled' : allFailed ? 'error' : 'done')
+
+      const msg = res?.message ?? (isScheduledRes ? 'Postagem agendada!' : 'Publicado com sucesso!')
       setNotice({
-        text:
-          msg +
-          (failed.length > 0
-            ? '\n' + failed.map((r) => r.error).join('\n')
-            : ''),
+        text: msg + (failed.length > 0 ? '\n' + failed.map((r) => r.error).join('\n') : ''),
         ok: failed.length === 0,
       })
-      showToast(msg, res?.ok || res?.scheduled ? 'ok' : 'err')
 
-      if (res?.ok || res?.scheduled) {
+      if (res?.ok || isScheduledRes) {
         setMedia([])
         setText('')
         setScheduledDate('')
@@ -2237,8 +2436,10 @@ function NovaPostagemContent() {
         if (clearContextRef.current) clearContextRef.current()
       }
     } catch (e) {
+      if (publishTimerRef.current) clearTimeout(publishTimerRef.current)
       const msg = e instanceof Error ? e.message : 'Erro ao publicar.'
-      showToast(msg, 'err')
+      setPublishResults([{ instanceId: '', provider: '', ok: false, error: msg }])
+      setPublishStep('error')
       setNotice({ text: msg, ok: false })
     } finally {
       setPublishing(false)
@@ -3448,6 +3649,14 @@ function NovaPostagemContent() {
           </button>
         </div>
       </div>
+
+      {/* Modal progresso de publicação */}
+      <PublishingModal
+        step={publishStep}
+        results={publishResults}
+        isScheduled={publishIsScheduled}
+        onClose={() => setPublishStep(null)}
+      />
 
       {/* Modal IA */}
       <AiCaptionModal

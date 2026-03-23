@@ -1,17 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAccess } from '@/lib/admin-api'
 import { createSupabaseAdminClient } from '@/lib/supabase-server'
+import { ALL_PAYMENT_METHODS } from '@/lib/livraria-payment-methods'
 
 const CONFIG_KEY = 'livraria_payment_methods'
-
-export const ALL_PAYMENT_METHODS = [
-  'Dinheiro',
-  'Pix',
-  'Cartão',
-  'Mercado Pago',
-  'QR no caixa',
-  'Outro',
-] as const
 
 /*** GET - Retorna as formas de pagamento habilitadas no PDV da livraria. */
 export async function GET(request: NextRequest) {

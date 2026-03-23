@@ -5,7 +5,6 @@ import type {
   AccessSnapshot,
   PermissionAction,
   PermissionMap,
-  PermissionSet,
   Role,
   UserPermissionRow,
 } from '@/lib/rbac-types'

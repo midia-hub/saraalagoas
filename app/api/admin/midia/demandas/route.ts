@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAccess } from '@/lib/admin-api'
 import { createSupabaseAdminClient } from '@/lib/supabase-server'
+import { fkRelationName } from '@/lib/supabase-fk-label'
 
 export async function GET(request: NextRequest) {
   const access = await requireAccess(request, { pageKey: 'instagram', action: 'view' })
@@ -20,7 +21,7 @@ export async function GET(request: NextRequest) {
     const { data, error } = await query
     if (error) return NextResponse.json({ error: 'Erro ao listar demandas.' }, { status: 500 })
 
-    const items = (data ?? []).map((row: any) => ({
+    const items = (data ?? []).map((row) => ({
       id: row.id,
       sourceType: row.source_type,
       title: row.title,
@@ -28,7 +29,7 @@ export async function GET(request: NextRequest) {
       status: row.status,
       dueDate: row.due_date ?? null,
       churchId: row.church_id,
-      churchName: row.churches?.name ?? 'Sem igreja',
+      churchName: fkRelationName(row.churches, 'Sem igreja'),
       createdAt: row.created_at,
     }))
 
