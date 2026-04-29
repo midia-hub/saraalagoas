@@ -50,14 +50,18 @@ export async function GET(request: NextRequest, { params }: Params) {
 
   const churchName = (link.church as any)?.name || ''
   
-  const { data: allPeople } = ministryRecord
+  const { data: rawAllPeople } = ministryRecord
     ? await supabase
         .from('people')
-        .select('id, full_name, people_ministries!inner(ministry_id)')
+        .select('id, full_name, church_name, people_ministries!inner(ministry_id)')
         .eq('people_ministries.ministry_id', ministryRecord.id)
-        .eq('church_name', churchName)
         .order('full_name')
     : { data: [] }
+
+  // Filtra por igreja em JS — aceita pessoas sem igreja cadastrada para não sumirem da visão
+  const allPeople = (rawAllPeople ?? []).filter((p: any) =>
+    !churchName || !p.church_name || p.church_name === churchName
+  )
 
   // Prepara dados para o frontend
   const volunteersMap: Record<string, string> = {}

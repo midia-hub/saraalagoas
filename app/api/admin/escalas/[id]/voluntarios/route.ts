@@ -47,15 +47,19 @@ export async function GET(request: NextRequest, { params }: Params) {
 
   const ministryId = ministryRecord?.id ?? null
 
-  // 4. Todos os voluntários do ministério + igreja
-  const { data: peopleData } = ministryId
+  // 4. Todos os voluntários do ministério (sem filtro rígido de church_name no SQL)
+  const { data: rawPeopleData } = ministryId
     ? await supabase
         .from('people')
-        .select('id, full_name, people_ministries!inner(ministry_id, funcoes)')
+        .select('id, full_name, church_name, people_ministries!inner(ministry_id, funcoes)')
         .eq('people_ministries.ministry_id', ministryId)
-        .eq('church_name', churchName)
         .order('full_name')
     : { data: [] }
+
+  // Filtra por igreja em JS — mesma lógica do link público (aceita sem igreja para evitar sumir por erro de cadastro)
+  const peopleData = (rawPeopleData ?? []).filter((p: any) =>
+    !churchName || !p.church_name || p.church_name === churchName
+  )
 
   // 5. Registros já gravados de escalas_voluntarios
   const { data: evData } = await supabase
@@ -81,7 +85,8 @@ export async function GET(request: NextRequest, { params }: Params) {
     // ele deve permanecer vazio (usuário pode ter limpado).
     // Mas para o primeiro carregamento, se saved não existir, usamos o default.
 
-    const fallbackFuncoes = (p.people_ministries?.[0]?.funcoes) ?? []
+    const pm = Array.isArray(p.people_ministries) ? p.people_ministries[0] : p.people_ministries
+    const fallbackFuncoes = pm?.funcoes ?? []
 
     return {
       id: p.id,
