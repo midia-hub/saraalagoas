@@ -55,24 +55,50 @@ export async function POST(request: NextRequest, { params }: Params) {
 
   const churchName = (link.church as any)?.name || ''
 
+  // Busca pessoa apenas pelo ministério (sem filtro rígido de church_name no SQL)
   const { data: person } = await supabase
     .from('people')
     .select(`
-      id, 
+      id,
       full_name,
+      church_name,
       people_ministries!inner(ministry_id)
     `)
     .eq('id', person_id)
     .eq('people_ministries.ministry_id', ministryRecord.id)
-    .eq('church_name', churchName) // Garante que a pessoa é da mesma igreja do link
     .maybeSingle()
 
   if (!person) {
-    return NextResponse.json({ error: 'Voluntário não encontrado ou não pertence a esta igreja/ministério.' }, { status: 404 })
+    return NextResponse.json({ error: 'Voluntário não encontrado ou não pertence a este ministério.' }, { status: 404 })
   }
 
-  // 3. Upsert das respostas
-  const upsertPayload = slots.map((s) => ({
+  // Valida a igreja com a mesma lógica permissiva do GET:
+  // aceita se o link não tem igreja, ou se a pessoa não tem igreja cadastrada, ou se a igreja bate
+  if (churchName && person.church_name && person.church_name !== churchName) {
+    return NextResponse.json({ error: 'Voluntário não pertence a esta igreja.' }, { status: 403 })
+  }
+
+  // 3. Valida que os slot_ids pertencem a este link (segurança)
+  const submittedSlotIds = slots.map(s => s.slot_id).filter(Boolean)
+  if (submittedSlotIds.length === 0) {
+    return NextResponse.json({ error: 'Nenhum slot válido informado.' }, { status: 400 })
+  }
+
+  const { data: validSlotsData } = await supabase
+    .from('escalas_slots')
+    .select('id')
+    .eq('link_id', link.id)
+    .in('id', submittedSlotIds)
+
+  const validSlotIds = new Set((validSlotsData ?? []).map((s: any) => s.id))
+  const validSlots = slots.filter(s => validSlotIds.has(s.slot_id))
+
+  if (validSlots.length === 0) {
+    return NextResponse.json({ error: 'Nenhum slot válido para esta escala.' }, { status: 400 })
+  }
+
+  // 4. Upsert das respostas
+  const upsertPayload = validSlots.map((s) => ({
     link_id: link.id,
     person_id,
     slot_id: s.slot_id,
@@ -90,10 +116,9 @@ export async function POST(request: NextRequest, { params }: Params) {
     return NextResponse.json({ error: 'Erro ao salvar disponibilidade.' }, { status: 500 })
   }
 
-  // 4. Se informou funções, atualiza metadados deste link e perfil global
+  // 5. Se informou funções, atualiza metadados deste link e perfil global
   if (Array.isArray(funcoes)) {
-    // Escala específica (usada na geração)
-    await supabase
+    const { error: evErr } = await supabase
       .from('escalas_voluntarios')
       .upsert(
         {
@@ -104,13 +129,14 @@ export async function POST(request: NextRequest, { params }: Params) {
         },
         { onConflict: 'link_id,person_id' }
       )
+    if (evErr) console.error('Erro ao salvar funcoes no escalas_voluntarios:', evErr)
 
-    // Perfil global (salva para futuras escalas)
-    await supabase
+    const { error: pmErr } = await supabase
       .from('people_ministries')
       .update({ funcoes })
       .eq('person_id', person_id)
       .eq('ministry_id', ministryRecord.id)
+    if (pmErr) console.error('Erro ao salvar funcoes no people_ministries:', pmErr)
   }
 
   return NextResponse.json({ ok: true, saved: upsertPayload.length })

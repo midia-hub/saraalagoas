@@ -65,14 +65,18 @@ export async function GET(request: NextRequest, { params }: Params) {
     console.error('❌ [API:public:escalas] Erro ao buscar voluntários:', peopleErr)
   }
 
-  // Filtragem flexível em JS para garantir compatibilidade
+  // Filtragem flexível em JS — inclui pessoas sem igreja definida para evitar sumir por erro de cadastro
   const volunteers = (peopleData ?? [])
     .filter((p: any) => !churchName || !p.church_name || p.church_name === churchName)
-    .map((p: any) => ({
-      id: p.id,
-      full_name: p.full_name,
-      funcoes: (p.people_ministries as any)?.funcoes || []
-    }))
+    .map((p: any) => {
+      // people_ministries retorna array no join do PostgREST
+      const pm = Array.isArray(p.people_ministries) ? p.people_ministries[0] : p.people_ministries
+      return {
+        id: p.id,
+        full_name: p.full_name,
+        funcoes: pm?.funcoes ?? []
+      }
+    })
 
   // 4. Respostas já enviadas (para pre-popular se o voluntário voltar)
   const { data: respostas } = await supabase
