@@ -47,10 +47,10 @@ export async function GET(request: NextRequest, { params }: Params) {
 
   // Depois buscamos as pessoas que pertencem a esse ministério.
   // Buscamos também as funções cadastradas para cada pessoa no people_ministries.
-  let peopleQuery = supabase
+  const peopleQuery = supabase
     .from('people')
     .select(`
-      id, 
+      id,
       full_name,
       church_name,
       people_ministries!inner(ministry_id, funcoes)
@@ -58,7 +58,6 @@ export async function GET(request: NextRequest, { params }: Params) {
     .eq('people_ministries.ministry_id', ministryId || '00000000-0000-0000-0000-000000000001')
     .order('full_name')
 
-  // Se tivermos churchName, filtramos para mostrar apenas dessa igreja ou sem igreja definida (para evitar sumir gente por erro de cadastro)
   const { data: peopleData, error: peopleErr } = await peopleQuery
 
   if (peopleErr) {
@@ -104,6 +103,11 @@ export async function GET(request: NextRequest, { params }: Params) {
     (slots ?? []).flatMap(s => Array.isArray(s.funcoes) ? s.funcoes : [])
   )).sort()
 
+  const NO_CACHE = {
+    'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+    'Pragma': 'no-cache',
+  }
+
   return NextResponse.json({
     link: {
       id: link.id,
@@ -118,5 +122,5 @@ export async function GET(request: NextRequest, { params }: Params) {
     volunteers: volunteersFinal,
     respostas: respostas ?? [],
     funcoes_disponiveis: funcoesDisponiveis,
-  })
+  }, { headers: NO_CACHE })
 }

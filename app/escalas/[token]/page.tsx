@@ -20,7 +20,7 @@ type Slot = {
 }
 
 type Volunteer = { id: string; full_name: string; funcoes?: string[] }
-type Resposta = { slot_id: string; disponivel: boolean }
+type Resposta = { slot_id: string; disponivel: boolean; person_id: string }
 
 type ApiData = {
   link: {
@@ -63,10 +63,12 @@ export default function PublicEscalaPage() {
   const [submitError, setSubmitError] = useState('')
   const [volunteerSearch, setVolunteerSearch] = useState('')
   const searchRef = useRef<HTMLInputElement>(null)
+  /** Voluntário para o qual já sincronizamos availability — distingue troca de pessoa de refetch com o mesmo voluntário */
+  const availabilitySyncedForRef = useRef<string | null>(null)
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch(`/api/public/escalas/${token}`)
+      const res = await fetch(`/api/public/escalas/${token}`, { cache: 'no-store' })
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
         throw new Error(err.error ?? `Erro ${res.status}`)
@@ -82,20 +84,49 @@ export default function PublicEscalaPage() {
 
   useEffect(() => { load() }, [load])
 
+  // Recarrega dados ao voltar à aba — o admin pode ter incluído cultos/eventos com a página aberta
   useEffect(() => {
-    if (!apiData || !selectedVolunteer) return
-    
-    // Inicia disponibilidade
-    const initial: Record<string, boolean> = {}
-    for (const s of apiData.slots) {
-      const existing = apiData.respostas.find(r => r.slot_id === s.id)
-      initial[s.id] = existing ? existing.disponivel : true
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') load()
     }
-    setAvailability(initial)
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [load])
 
-    // Inicia funções (as que ele já tem no perfil)
-    const v = apiData.volunteers.find(v => v.id === selectedVolunteer)
-    setSelectedFunctions(v?.funcoes || [])
+  useEffect(() => {
+    if (!apiData) return
+    if (!selectedVolunteer) {
+      availabilitySyncedForRef.current = null
+      return
+    }
+
+    const volunteerChanged = availabilitySyncedForRef.current !== selectedVolunteer
+
+    if (volunteerChanged) {
+      availabilitySyncedForRef.current = selectedVolunteer
+      const initial: Record<string, boolean> = {}
+      for (const s of apiData.slots) {
+        const existing = apiData.respostas.find(r => r.slot_id === s.id && r.person_id === selectedVolunteer)
+        initial[s.id] = existing ? existing.disponivel : true
+      }
+      setAvailability(initial)
+      setSelectedFunctions([])
+      return
+    }
+
+    // Mesmo voluntário após refetch: mantém escolhas locais e acrescenta novos slots (padrão = disponível ou resposta salva)
+    setAvailability(prev => {
+      const next: Record<string, boolean> = {}
+      for (const s of apiData.slots) {
+        if (Object.prototype.hasOwnProperty.call(prev, s.id)) {
+          next[s.id] = prev[s.id]!
+        } else {
+          const existing = apiData.respostas.find(r => r.slot_id === s.id && r.person_id === selectedVolunteer)
+          next[s.id] = existing ? existing.disponivel : true
+        }
+      }
+      return next
+    })
   }, [selectedVolunteer, apiData])
 
   function toggleSlot(slotId: string) {

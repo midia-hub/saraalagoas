@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { requireAccess } from '@/lib/admin-api'
 import { createSupabaseAdminClient } from '@/lib/supabase-server'
 
 type Params = { params: { id: string } }
@@ -8,6 +9,9 @@ export const dynamic = 'force-dynamic'
 
 /** GET /api/admin/escalas/[id]/respostas  – resumo por voluntário */
 export async function GET(request: NextRequest, { params }: Params) {
+  const access = await requireAccess(request, { pageKey: 'escalas', action: 'view' })
+  if (!access.ok) return access.response
+
   const supabase = createSupabaseAdminClient(request)
 
   const [
