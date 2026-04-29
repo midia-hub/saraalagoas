@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
-import { Calendar, Plus, Link2, Copy, Eye, Trash2, CheckCircle, XCircle, ChevronRight, Loader2, Music, MapPin, CalendarDays, Clock, Sparkles, ArrowLeft, Check, Tags, X, Users, Bell } from 'lucide-react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { Calendar, Plus, Link2, Copy, Eye, Trash2, CheckCircle, XCircle, ChevronRight, Loader2, Music, MapPin, CalendarDays, Clock, Sparkles, ArrowLeft, Check, Tags, X, Users, Pencil, AlertTriangle } from 'lucide-react'
 import { PageAccessGuard } from '@/app/admin/PageAccessGuard'
 import { AdminPageHeader } from '@/app/admin/AdminPageHeader'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
@@ -40,6 +40,15 @@ type PreviewSlot = {
 
 type CustomEvent = { label: string; date: string; time_of_day: string }
 
+type EditSlot = {
+  id: string
+  type: string
+  label: string
+  date: string
+  time_of_day: string
+  has_responses: boolean
+}
+
 function publicUrl(token: string) {
   return `${window.location.origin}/escalas/${token}`
 }
@@ -74,6 +83,26 @@ export default function EscalasPage() {
   // Funções necessárias por culto/slot
   const [funcoes, setFuncoes] = useState<string[]>([])
   const [funcaoInput, setFuncaoInput] = useState('')
+
+  // Modal de edição de slots/funções
+  const [editTarget, setEditTarget] = useState<EscalaLink | null>(null)
+  const [editLoading, setEditLoading] = useState(false)
+  const [editSaving, setEditSaving] = useState(false)
+  const [editSlots, setEditSlots] = useState<EditSlot[]>([])
+  const [editFuncoes, setEditFuncoes] = useState<string[]>([])
+  const [editFuncaoInput, setEditFuncaoInput] = useState('')
+  const [editCustomEvents, setEditCustomEvents] = useState<CustomEvent[]>([])
+  const [editEvLabel, setEditEvLabel] = useState('')
+  const [editEvDate, setEditEvDate] = useState('')
+  const [editEvTime, setEditEvTime] = useState('19:00')
+
+  const editSaveDraftRef = useRef({
+    editTarget: null as EscalaLink | null,
+    editSlots: [] as EditSlot[],
+    editCustomEvents: [] as CustomEvent[],
+    editFuncoes: [] as string[],
+  })
+  editSaveDraftRef.current = { editTarget, editSlots, editCustomEvents, editFuncoes }
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -222,6 +251,54 @@ export default function EscalasPage() {
     setEvTime('19:00')
     setFuncoes([])
     setFuncaoInput('')
+  }
+
+  async function handleOpenEdit(item: EscalaLink) {
+    setEditTarget(item)
+    setEditLoading(true)
+    setEditSlots([])
+    setEditFuncoes([])
+    setEditFuncaoInput('')
+    setEditCustomEvents([])
+    setEditEvLabel('')
+    setEditEvDate('')
+    setEditEvTime('19:00')
+    try {
+      const data = await adminFetchJson<{ slots: EditSlot[]; funcoes: string[] }>(
+        `/api/admin/escalas/${item.id}/slots`
+      )
+      setEditSlots(data.slots ?? [])
+      setEditFuncoes(data.funcoes ?? [])
+    } catch {
+      setToast({ type: 'err', message: 'Erro ao carregar dados da escala.' })
+      setEditTarget(null)
+    } finally {
+      setEditLoading(false)
+    }
+  }
+
+  async function handleSaveEdit() {
+    const { editTarget: target, editSlots: slotsDraft, editCustomEvents: eventsDraft, editFuncoes: funcoesDraft } =
+      editSaveDraftRef.current
+    if (!target) return
+    setEditSaving(true)
+    try {
+      const allSlots = [
+        ...slotsDraft.map(s => ({ id: s.id, type: s.type, label: s.label, date: s.date, time_of_day: s.time_of_day })),
+        ...eventsDraft.map(e => ({ type: 'evento', label: e.label, date: e.date, time_of_day: e.time_of_day })),
+      ]
+      await adminFetchJson(`/api/admin/escalas/${target.id}/slots`, {
+        method: 'PUT',
+        body: JSON.stringify({ slots: allSlots, funcoes: funcoesDraft }),
+      })
+      setToast({ type: 'ok', message: 'Escala atualizada com sucesso!' })
+      setEditTarget(null)
+      void load()
+    } catch (e) {
+      setToast({ type: 'err', message: e instanceof Error ? e.message : 'Erro ao salvar.' })
+    } finally {
+      setEditSaving(false)
+    }
   }
 
   async function copyLink(token: string) {
@@ -419,6 +496,14 @@ export default function EscalasPage() {
                         ? <><XCircle size={13} /> Encerrar</>
                         : <><CheckCircle size={13} /> Reativar</>
                       }
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenEdit(item)}
+                      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-600 text-xs font-semibold hover:bg-slate-100 transition-colors"
+                      title="Editar cultos e funções"
+                    >
+                      <Pencil size={13} /> Editar
                     </button>
                     <button
                       type="button"
@@ -826,6 +911,255 @@ export default function EscalasPage() {
                   </button>
                 )}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de edição de slots e funções */}
+      {editTarget && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl overflow-hidden flex flex-col" style={{ maxHeight: '92vh' }}>
+
+            {/* Header */}
+            <div className="relative bg-gradient-to-br from-slate-700 to-slate-900 px-6 pt-6 pb-5 text-white overflow-hidden shrink-0">
+              <div className="absolute -top-8 -right-8 w-36 h-36 rounded-full bg-white/5" />
+              <div className="relative flex items-start justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2.5 mb-1">
+                    <div className="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center">
+                      <Pencil size={15} />
+                    </div>
+                    <h2 className="text-lg font-bold tracking-tight">Editar Escala</h2>
+                  </div>
+                  <p className="text-white/60 text-sm">
+                    {editTarget.ministry} · {monthLabel(editTarget.month)}/{editTarget.year}
+                    {editTarget.church ? ` · ${editTarget.church.name}` : ''}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEditTarget(null)}
+                  className="shrink-0 w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
+                >
+                  <XCircle size={16} />
+                </button>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="overflow-y-auto flex-1 px-6 py-6 space-y-5">
+              {editLoading ? (
+                <div className="flex flex-col items-center justify-center py-16 gap-3 text-slate-400">
+                  <Loader2 className="animate-spin text-[#c62737]" size={28} />
+                  <p className="text-sm">Carregando dados da escala...</p>
+                </div>
+              ) : (
+                <>
+                  {/* Aviso sobre slots com respostas */}
+                  {editSlots.some(s => s.has_responses) && (
+                    <div className="flex items-start gap-3 p-3.5 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-700">
+                      <AlertTriangle size={15} className="mt-0.5 shrink-0 text-amber-500" />
+                      <p>Cultos marcados com <span className="font-bold">🔒</span> já têm respostas de voluntários e não podem ser removidos.</p>
+                    </div>
+                  )}
+
+                  {/* Funções */}
+                  <div className="border border-violet-200 bg-violet-50/50 rounded-xl p-4 space-y-3">
+                    <p className="text-sm font-semibold text-violet-700 flex items-center gap-1.5">
+                      <Tags size={14} />
+                      Funções necessárias
+                      <span className="text-xs font-normal text-violet-500 ml-1">aplicadas a todos os cultos</span>
+                    </p>
+                    {editFuncoes.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {editFuncoes.map(f => (
+                          <span key={f} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-violet-600 text-white text-xs font-semibold shadow-sm">
+                            {f}
+                            <button
+                              type="button"
+                              onClick={() => setEditFuncoes(prev => prev.filter(x => x !== f))}
+                              className="w-3.5 h-3.5 rounded-full bg-white/20 hover:bg-white/40 flex items-center justify-center transition-colors shrink-0"
+                            >
+                              <X size={9} />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={editFuncaoInput}
+                        onChange={e => setEditFuncaoInput(e.target.value)}
+                        onKeyDown={e => {
+                          if ((e.key === 'Enter' || e.key === ',') && editFuncaoInput.trim()) {
+                            e.preventDefault()
+                            const val = editFuncaoInput.trim().replace(/,$/, '')
+                            if (val && !editFuncoes.includes(val)) setEditFuncoes(prev => [...prev, val])
+                            setEditFuncaoInput('')
+                          }
+                        }}
+                        placeholder="Ex.: Câmera, Transmissão, Áudio…"
+                        className="flex-1 px-3.5 py-2.5 rounded-xl border border-violet-200 bg-white focus:border-violet-400 focus:ring-2 focus:ring-violet-100 outline-none text-sm"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const val = editFuncaoInput.trim()
+                          if (val && !editFuncoes.includes(val)) setEditFuncoes(prev => [...prev, val])
+                          setEditFuncaoInput('')
+                        }}
+                        disabled={!editFuncaoInput.trim()}
+                        className="px-4 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-700 disabled:opacity-40 text-white text-sm font-semibold transition-colors shadow-sm"
+                      >
+                        <Plus size={16} />
+                      </button>
+                    </div>
+                    <p className="text-[11px] text-violet-400">Pressione Enter ou vírgula para adicionar.</p>
+                  </div>
+
+                  {/* Lista de slots existentes */}
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="text-sm font-semibold text-slate-700 flex items-center gap-1.5">
+                        <CalendarDays size={14} className="text-[#c62737]" />
+                        Cultos e eventos
+                      </p>
+                      <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-slate-100 text-slate-500">
+                        {editSlots.length + editCustomEvents.length} datas
+                      </span>
+                    </div>
+
+                    {editSlots.length === 0 && editCustomEvents.length === 0 ? (
+                      <div className="border border-dashed border-slate-200 rounded-xl p-6 text-center text-slate-400 text-sm">
+                        <CalendarDays className="mx-auto mb-2 text-slate-300" size={28} />
+                        Nenhum culto ou evento cadastrado.
+                      </div>
+                    ) : (
+                      <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1 dropdown-scrollbar">
+                        {[...editSlots].sort((a, b) => a.date.localeCompare(b.date) || a.time_of_day.localeCompare(b.time_of_day)).map(s => {
+                          const d = new Date(s.date + 'T00:00:00')
+                          const dayNames = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
+                          return (
+                            <div key={s.id} className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-100 text-sm group">
+                              <div className="w-10 shrink-0 text-center">
+                                <p className="text-[10px] text-slate-400 font-medium uppercase leading-none">{dayNames[d.getDay()]}</p>
+                                <p className="text-base font-bold text-slate-700 leading-tight">{String(d.getDate()).padStart(2, '0')}</p>
+                              </div>
+                              <div className="w-px h-8 bg-slate-200 shrink-0" />
+                              <span className={`text-[11px] px-2 py-0.5 rounded-full font-semibold shrink-0 ${TYPE_BADGE[s.type] ?? 'bg-slate-100 text-slate-600'}`}>{s.type}</span>
+                              <span className="flex-1 font-medium text-slate-700 truncate">{s.label}</span>
+                              <span className="flex items-center gap-1 text-xs text-slate-400 shrink-0">
+                                <Clock size={11} />{s.time_of_day}
+                              </span>
+                              {s.has_responses ? (
+                                <span className="shrink-0 text-base" title="Tem respostas — não pode ser removido">🔒</span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => setEditSlots(prev => prev.filter(x => x.id !== s.id))}
+                                  className="shrink-0 w-6 h-6 rounded-full bg-red-50 text-red-400 opacity-0 group-hover:opacity-100 hover:bg-red-100 hover:text-red-600 flex items-center justify-center text-[10px] transition-all"
+                                  title="Remover este culto"
+                                >
+                                  ✕
+                                </button>
+                              )}
+                            </div>
+                          )
+                        })}
+                        {editCustomEvents.map((ev, i) => (
+                          <div key={`new-${i}`} className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl bg-amber-50 border border-amber-200 text-sm">
+                            <span className="text-[11px] px-2 py-0.5 rounded-full font-semibold bg-amber-100 text-amber-700 shrink-0">evento</span>
+                            <span className="flex-1 font-medium text-slate-700 truncate">{ev.label}</span>
+                            <span className="text-xs text-slate-400 shrink-0">
+                              {new Date(ev.date + 'T00:00:00').toLocaleDateString('pt-BR')} · {ev.time_of_day}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setEditCustomEvents(p => p.filter((_, j) => j !== i))}
+                              className="shrink-0 w-5 h-5 rounded-full bg-red-100 text-red-400 hover:bg-red-200 hover:text-red-600 flex items-center justify-center text-xs transition-colors"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Adicionar evento especial */}
+                  <div className="border border-dashed border-amber-200 bg-amber-50/50 rounded-xl p-4 space-y-3">
+                    <p className="text-sm font-semibold text-amber-700 flex items-center gap-1.5">
+                      <Sparkles size={14} />
+                      Adicionar evento especial
+                    </p>
+                    <div className="grid grid-cols-1 gap-2">
+                      <input
+                        type="text"
+                        value={editEvLabel}
+                        onChange={e => setEditEvLabel(e.target.value)}
+                        placeholder="Nome do evento (ex.: Encontro de Casais)"
+                        className="px-3.5 py-2.5 rounded-xl border border-amber-200 bg-white focus:border-amber-400 focus:ring-2 focus:ring-amber-100 outline-none text-sm"
+                      />
+                      <div className="grid grid-cols-2 gap-2">
+                        <input
+                          type="date"
+                          value={editEvDate}
+                          onChange={e => setEditEvDate(e.target.value)}
+                          className="px-3.5 py-2.5 rounded-xl border border-amber-200 bg-white focus:border-amber-400 outline-none text-sm"
+                        />
+                        <div className="flex gap-2">
+                          <input
+                            type="time"
+                            value={editEvTime}
+                            onChange={e => setEditEvTime(e.target.value)}
+                            className="flex-1 px-3.5 py-2.5 rounded-xl border border-amber-200 bg-white focus:border-amber-400 outline-none text-sm"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!editEvLabel.trim() || !editEvDate) {
+                                setToast({ type: 'err', message: 'Preencha nome e data do evento.' })
+                                return
+                              }
+                              setEditCustomEvents(prev => [...prev, { label: editEvLabel.trim(), date: editEvDate, time_of_day: editEvTime }])
+                              setEditEvLabel('')
+                              setEditEvDate('')
+                              setEditEvTime('19:00')
+                            }}
+                            className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold transition-colors shadow-sm"
+                          >
+                            <Plus size={16} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="shrink-0 px-6 py-4 border-t border-slate-100 bg-slate-50/70 flex items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={() => setEditTarget(null)}
+                className="px-3 py-2 rounded-xl text-sm font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveEdit}
+                disabled={editSaving || editLoading}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-sm font-semibold disabled:opacity-50 transition-all shadow-md active:scale-95"
+              >
+                {editSaving
+                  ? <><Loader2 size={15} className="animate-spin" /> Salvando...</>
+                  : <><Check size={15} /> Salvar alterações</>
+                }
+              </button>
             </div>
           </div>
         </div>

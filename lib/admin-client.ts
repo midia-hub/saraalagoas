@@ -39,13 +39,23 @@ export async function adminFetchJson<T = unknown>(
   }, delayMs)
 
   try {
-    const response = await fetch(input, { ...init, headers })
+    const response = await fetch(input, {
+      ...init,
+      headers,
+      cache: init.cache ?? 'no-store',
+    })
     const payload = await response.json().catch(() => ({}))
     if (!response.ok) {
       const message = typeof payload?.error === 'string' ? payload.error : `Erro ${response.status}`
       throw new Error(message)
     }
     return payload as T
+  } catch (e) {
+    if (e instanceof TypeError) {
+      throw new Error('Sem conexão ou servidor indisponível. Tente de novo.')
+    }
+    if (e instanceof Error) throw e
+    throw new Error('Falha na requisição.')
   } finally {
     clearTimeout(timer)
     if (overlayShown) hideLoadingOverlay()
