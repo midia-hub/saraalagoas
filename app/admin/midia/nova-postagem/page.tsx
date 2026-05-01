@@ -137,8 +137,7 @@ function fileToBase64(file: File): Promise<string> {
  * Redimensiona e comprime uma imagem no cliente antes de enviar ao servidor.
  * Ajuda a evitar erros 413 Payload Too Large.
  */
-async function compressImageClient(dataUrl: string, maxWidth = 1200, quality = 0.8): Promise<string> {
-  // Se não for imagem, retorna original (ex: vídeo)
+async function compressImageClient(dataUrl: string, maxWidth = 1080, quality = 0.85): Promise<string> {
   if (!dataUrl.startsWith('data:image/')) return dataUrl
 
   return new Promise((resolve, reject) => {
@@ -147,7 +146,6 @@ async function compressImageClient(dataUrl: string, maxWidth = 1200, quality = 0
       let width = img.width
       let height = img.height
 
-      // Redimensionar mantendo proporção se exceder maxWidth
       if (width > maxWidth) {
         height = Math.round((height * maxWidth) / width)
         width = maxWidth
@@ -159,13 +157,18 @@ async function compressImageClient(dataUrl: string, maxWidth = 1200, quality = 0
 
       const ctx = canvas.getContext('2d')
       if (!ctx) {
-        resolve(dataUrl) // Fallback para original se canvas falhar
+        resolve(dataUrl)
         return
       }
 
       ctx.drawImage(img, 0, 0, width, height)
-      // Exportar como JPEG comprimido
-      resolve(canvas.toDataURL('image/jpeg', quality))
+      const MAX_B64 = 500_000
+      let result = canvas.toDataURL('image/jpeg', quality)
+      if (result.length > MAX_B64) result = canvas.toDataURL('image/jpeg', 0.75)
+      if (result.length > MAX_B64) result = canvas.toDataURL('image/jpeg', 0.65)
+      if (result.length > MAX_B64) result = canvas.toDataURL('image/jpeg', 0.55)
+      if (result.length > MAX_B64) result = canvas.toDataURL('image/jpeg', 0.45)
+      resolve(result)
     }
     img.onerror = () => reject(new Error('Falha ao carregar imagem para compressão.'))
     img.src = dataUrl
@@ -889,12 +892,14 @@ function ImageCropperModal({
       if (!ctx) return
       ctx.drawImage(fullImg, srcX, srcY, srcW, srcH, 0, 0, preset.outW, preset.outH)
 
-      // 6. Compressão adaptativa ≤ 700 KB em base64
-      const MAX_B64 = 700_000
-      let dataUrl = canvas.toDataURL('image/jpeg', 0.92)
-      if (dataUrl.length > MAX_B64) dataUrl = canvas.toDataURL('image/jpeg', 0.82)
-      if (dataUrl.length > MAX_B64) dataUrl = canvas.toDataURL('image/jpeg', 0.72)
-      if (dataUrl.length > MAX_B64) dataUrl = canvas.toDataURL('image/jpeg', 0.60)
+      // 6. Compressão adaptativa ≤ 500 KB em base64
+      const MAX_B64 = 500_000
+      let dataUrl = canvas.toDataURL('image/jpeg', 0.88)
+      if (dataUrl.length > MAX_B64) dataUrl = canvas.toDataURL('image/jpeg', 0.78)
+      if (dataUrl.length > MAX_B64) dataUrl = canvas.toDataURL('image/jpeg', 0.68)
+      if (dataUrl.length > MAX_B64) dataUrl = canvas.toDataURL('image/jpeg', 0.58)
+      if (dataUrl.length > MAX_B64) dataUrl = canvas.toDataURL('image/jpeg', 0.48)
+      if (dataUrl.length > MAX_B64) dataUrl = canvas.toDataURL('image/jpeg', 0.40)
 
       onApply(item.id, dataUrl)
 
@@ -2376,7 +2381,15 @@ function NovaPostagemContent() {
     }, 1200)
 
     try {
-      const orderedMedia = media.map((m) =>
+      // Recomprimir imagens de upload antes de enviar (evita erro 413)
+      const mediaToSubmit = await Promise.all(
+        media.map(async (m) => {
+          if (m.type !== 'upload' || isVideoDataUrl(m.dataUrl)) return m
+          return { ...m, dataUrl: await compressImageClient(m.dataUrl) }
+        })
+      )
+
+      const orderedMedia = mediaToSubmit.map((m) =>
         m.type === 'upload'
           ? { type: 'upload' as const, value: m.dataUrl }
           : m.type === 'gallery'
