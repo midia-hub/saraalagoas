@@ -25,7 +25,8 @@
       "Bash(ls:*)",
       "Bash(node -e \"const { Modality } = require\\(''@google/genai''\\); console.log\\(''Modality.IMAGE ='', Modality?.IMAGE, ''Modality.TEXT ='', Modality?.TEXT\\)\")",
       "Bash(grep -E \"\\\\.ts$\")",
-      "Bash(grep -E \"\\\\.tsx$|\\\\.ts$\")"
+      "Bash(grep -E \"\\\\.tsx$|\\\\.ts$\")",
+      "Bash(git show *)"
     ]
   }
 }
