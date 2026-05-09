@@ -8,56 +8,10 @@ import {
 } from '@/lib/publish-meta'
 import { createInstagramReelContainer } from '@/lib/meta'
 import { pollAndPublishContainers } from '@/lib/video-container-polling'
-import sharp from 'sharp'
+import { uploadDataUrlToInstagramPostsBucket } from '@/lib/instagram-post-media-upload'
 
 // Vercel: tempo máximo de execução (plano Pro suporta até 300s)
 export const maxDuration = 300
-
-const BUCKET = 'instagram_posts'
-
-/**
- * Faz upload de base64 para Supabase Storage e retorna a URL pública.
- */
-async function uploadBase64ToStorage(
-  db: ReturnType<typeof createSupabaseServerClient>,
-  base64DataUrl: string,
-  path: string
-): Promise<string> {
-  const comma = base64DataUrl.indexOf(',')
-  if (comma < 0)
-    throw new Error('base64 inválido: separador "," não encontrado.')
-  const buffer = Buffer.from(base64DataUrl.slice(comma + 1), 'base64')
-
-  // Detectar tipo de mídia pelo header do data URL
-  const mimeMatch = base64DataUrl.match(/^data:([^;]+);base64,/)
-  const mime = mimeMatch?.[1] ?? 'image/jpeg'
-  const isVideo = mime.startsWith('video/')
-
-  let finalBuffer: Buffer
-  let contentType: string
-
-  if (isVideo) {
-    // Vídeos: sem processamento sharp, upload direto
-    finalBuffer = buffer
-    contentType = mime
-  } else {
-    // Imagens: normalizar com sharp
-    finalBuffer = await sharp(buffer)
-      .rotate()
-      .jpeg({ quality: 90, mozjpeg: true })
-      .toBuffer()
-    contentType = 'image/jpeg'
-  }
-
-  const { error } = await db.storage
-    .from(BUCKET)
-    .upload(path, finalBuffer, { upsert: true, contentType })
-
-  if (error) throw new Error(`Falha ao enviar mídia: ${error.message}`)
-
-  const { data } = db.storage.from(BUCKET).getPublicUrl(path)
-  return data.publicUrl
-}
 
 /**
  * POST /api/midia/nova-postagem
@@ -71,6 +25,8 @@ async function uploadBase64ToStorage(
  *   orderedMedia:  Array<{ type: 'upload'; value: string } | { type: 'gallery'; value: string }>
  *                  – Lista ordenada de mídias (upload = base64, gallery = Drive fileId)
  *   scheduledAt?:  string      – ISO 8601 para agendamento (omitir = publicar agora)
+ *   saveAsDraft?:  boolean     – Grava como rascunho (status draft), sem publicar
+ *   customCoverUrl?: string    – URL https da capa do Reel (após upload em /api/midia/staging-upload)
  * }
  */
 export async function POST(request: NextRequest) {
@@ -145,8 +101,20 @@ export async function POST(request: NextRequest) {
       ? Math.round(body.thumbOffset)
       : undefined
 
+  const saveAsDraft = Boolean(body.saveAsDraft)
+
+  const customCoverUrlFromClient: string | undefined =
+    postType === 'reel' &&
+    typeof body.customCoverUrl === 'string' &&
+    /^https?:\/\//i.test(body.customCoverUrl.trim())
+      ? body.customCoverUrl.trim()
+      : undefined
+
   const customCover: string | undefined =
-    postType === 'reel' && typeof body.customCover === 'string' && body.customCover.startsWith('data:image/')
+    postType === 'reel' &&
+    !customCoverUrlFromClient &&
+    typeof body.customCover === 'string' &&
+    body.customCover.startsWith('data:image/')
       ? body.customCover
       : undefined
 
@@ -197,11 +165,11 @@ export async function POST(request: NextRequest) {
   const userId = access.snapshot.userId
   const batchKey = `${Date.now()}-${userId}`
 
-  // Processar capa customizada se existir
-  let customCoverPublicUrl: string | undefined = undefined
-  if (customCover) {
+  // Capa do Reel: URL já enviada ao Storage (cliente) ou data URL legado
+  let customCoverPublicUrl: string | undefined = customCoverUrlFromClient
+  if (!customCoverPublicUrl && customCover) {
     try {
-      customCoverPublicUrl = await uploadBase64ToStorage(
+      customCoverPublicUrl = await uploadDataUrlToInstagramPostsBucket(
         db,
         customCover,
         `direct/${batchKey}/reel_cover.jpg`
@@ -246,7 +214,7 @@ export async function POST(request: NextRequest) {
       { status: 400 }
     )
   }
-  if (scheduledAt) {
+  if (scheduledAt && !saveAsDraft) {
     const scheduledDate = new Date(scheduledAt)
     if (
       isNaN(scheduledDate.getTime()) ||
@@ -283,7 +251,7 @@ export async function POST(request: NextRequest) {
       const ext = isItemVideo ? 'mp4' : 'jpg'
       const path = `direct/${batchKey}/${String(i + 1).padStart(2, '0')}.${ext}`
       if (entry.type === 'upload') {
-        const publicUrl = await uploadBase64ToStorage(
+        const publicUrl = await uploadDataUrlToInstagramPostsBucket(
           db,
           entry.value,
           path
@@ -316,6 +284,52 @@ export async function POST(request: NextRequest) {
       },
       { status: 500 }
     )
+  }
+
+  // RASCUNHO: mídia já está em URLs públicas; só persiste no banco
+  if (saveAsDraft) {
+    const mediaSpecs = mediaUrls.map((url, i) => {
+      if (i === 0 && postType === 'reel') {
+        return {
+          url,
+          ...(customCoverPublicUrl ? { coverUrl: customCoverPublicUrl } : {}),
+          ...(!customCoverPublicUrl && thumbOffset !== undefined ? { thumbOffset } : {}),
+        }
+      }
+      return { url }
+    })
+    const { data: draftRow, error: draftError } = await db
+      .from('scheduled_social_posts')
+      .insert({
+        album_id: null,
+        created_by: userId,
+        scheduled_at: new Date().toISOString(),
+        instance_ids: integrationIds,
+        destinations,
+        caption: text,
+        media_specs: mediaSpecs,
+        status: 'draft',
+        publication_group_id:
+          body.groupId && typeof body.groupId === 'string' ? body.groupId : null,
+        post_type: postType,
+      })
+      .select('id')
+      .single()
+
+    if (draftError) {
+      return NextResponse.json(
+        { error: draftError.message },
+        { status: 500 }
+      )
+    }
+
+    return NextResponse.json({
+      ok: true,
+      draft: true,
+      id: draftRow?.id,
+      message:
+        'Rascunho salvo. No painel de publicações você pode definir data ou publicar agora.',
+    })
   }
 
   // AGENDAMENTO

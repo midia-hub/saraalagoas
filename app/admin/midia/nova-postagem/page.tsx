@@ -17,6 +17,7 @@ import {
   CheckCircle2,
   AlertCircle,
   PenLine,
+  Bookmark,
   ChevronLeft,
   ChevronRight,
   FolderOpen,
@@ -162,17 +163,64 @@ async function compressImageClient(dataUrl: string, maxWidth = 1080, quality = 0
       }
 
       ctx.drawImage(img, 0, 0, width, height)
-      const MAX_B64 = 500_000
+      // ~280k caracteres base64 ≈ 210 KB por imagem; várias fotos cabem no limite da Vercel (~4,5 MB).
+      const MAX_B64 = 280_000
       let result = canvas.toDataURL('image/jpeg', quality)
       if (result.length > MAX_B64) result = canvas.toDataURL('image/jpeg', 0.75)
       if (result.length > MAX_B64) result = canvas.toDataURL('image/jpeg', 0.65)
       if (result.length > MAX_B64) result = canvas.toDataURL('image/jpeg', 0.55)
       if (result.length > MAX_B64) result = canvas.toDataURL('image/jpeg', 0.45)
+      if (result.length > MAX_B64) result = canvas.toDataURL('image/jpeg', 0.38)
       resolve(result)
     }
     img.onerror = () => reject(new Error('Falha ao carregar imagem para compressão.'))
     img.src = dataUrl
   })
+}
+
+/** Uma imagem por requisição — corpo pequeno; evita 413 ao montar o JSON final. */
+async function stageImageDataUrlForPost(dataUrl: string): Promise<string> {
+  const compressed = await compressImageClient(dataUrl)
+  const data = await adminFetchJson<{ url?: string; error?: string }>('/api/midia/staging-upload', {
+    method: 'POST',
+    body: JSON.stringify({ dataUrl: compressed }),
+  })
+  if (!data?.url) {
+    throw new Error(data?.error || 'Falha ao enviar imagem (upload intermediário).')
+  }
+  return data.url
+}
+
+type SubmitMediaEntry =
+  | { type: 'upload'; value: string }
+  | { type: 'gallery'; value: string }
+  | { type: 'url'; value: string }
+
+async function buildOrderedMediaPayload(
+  media: MediaItem[],
+  reelCustomCover: string | null,
+  postType: PostType
+): Promise<{ orderedMedia: SubmitMediaEntry[]; customCoverUrl?: string }> {
+  const orderedMedia: SubmitMediaEntry[] = []
+  for (const m of media) {
+    if (m.type === 'gallery') {
+      orderedMedia.push({ type: 'gallery', value: m.fileId })
+    } else if (m.type === 'url') {
+      orderedMedia.push({ type: 'url', value: m.url })
+    } else if (m.type === 'upload') {
+      if (isVideoDataUrl(m.dataUrl)) {
+        orderedMedia.push({ type: 'upload', value: m.dataUrl })
+      } else {
+        const url = await stageImageDataUrlForPost(m.dataUrl)
+        orderedMedia.push({ type: 'url', value: url })
+      }
+    }
+  }
+  let customCoverUrl: string | undefined
+  if (postType === 'reel' && reelCustomCover && reelCustomCover.startsWith('data:image/')) {
+    customCoverUrl = await stageImageDataUrlForPost(reelCustomCover)
+  }
+  return { orderedMedia, customCoverUrl }
 }
 
 function buildScheduledAt(date: string, time: string): string | null {
@@ -2066,10 +2114,11 @@ const QUICK_EMOJIS = ['😊', '🙏', '🔥', '❤️', '✨', '👏', '🎉', '
 
 function NovaPostagemContent() {
   const searchParams = useSearchParams()
-  const replayId = searchParams?.get('replay') || ''
+  const hydrateScheduledId =
+    searchParams?.get('replay') || searchParams?.get('resumeDraft') || ''
   const [instances, setInstances] = useState<PublicationInstance[]>([])
   const [loadingInstances, setLoadingInstances] = useState(true)
-  const [loadingReplay, setLoadingReplay] = useState(false)
+  const [loadingHydrate, setLoadingHydrate] = useState(false)
 
   // Formulário
   const [selectedInstanceId, setSelectedInstanceId] = useState('')
@@ -2102,6 +2151,7 @@ function NovaPostagemContent() {
 
   // Estado da publicação
   const [publishing, setPublishing] = useState(false)
+  const [savingDraft, setSavingDraft] = useState(false)
   const [publishStep, setPublishStep] = useState<PublishStep | null>(null)
   const [publishResults, setPublishResults] = useState<PublishResult[]>([])
   const [publishIsScheduled, setPublishIsScheduled] = useState(false)
@@ -2138,16 +2188,17 @@ function NovaPostagemContent() {
   }, [])
 
   useEffect(() => {
-    if (!replayId) return
-    setLoadingReplay(true)
+    if (!hydrateScheduledId) return
+    setLoadingHydrate(true)
     adminFetchJson<{
       id: string
       publication_group_id?: string
       instance_ids?: string[]
       destinations?: { instagram?: boolean; facebook?: boolean }
       caption?: string
+      post_type?: string | null
       media_specs?: Array<{ id?: string; url?: string }>
-    }>(`/api/social/scheduled/${replayId}`)
+    }>(`/api/social/scheduled/${hydrateScheduledId}`)
       .then((post) => {
         if (post.publication_group_id) {
           setSelectedInstanceId(post.publication_group_id)
@@ -2164,6 +2215,11 @@ function NovaPostagemContent() {
           facebook: Boolean(post.destinations?.facebook ?? false),
         })
         setText(typeof post.caption === 'string' ? post.caption : '')
+
+        const pt = post.post_type
+        if (pt === 'reel' || pt === 'story' || pt === 'feed') {
+          setPostType(pt)
+        }
 
         const specs = Array.isArray(post.media_specs) ? post.media_specs : []
         const replayMedia = (specs
@@ -2194,11 +2250,11 @@ function NovaPostagemContent() {
         }
       })
       .catch((e) => {
-        const msg = e instanceof Error ? e.message : 'NÃ£o foi possÃ­vel carregar a postagem para refazer.'
+        const msg = e instanceof Error ? e.message : 'Não foi possível carregar a postagem.'
         showToast(msg, 'err')
       })
-      .finally(() => setLoadingReplay(false))
-  }, [replayId, normalizeIntegrationId, showToast])
+      .finally(() => setLoadingHydrate(false))
+  }, [hydrateScheduledId, normalizeIntegrationId, showToast])
 
   useEffect(() => {
     const inst = instances.find((i) => i.id === selectedInstanceId)
@@ -2300,9 +2356,11 @@ function NovaPostagemContent() {
     })
   }
 
-  function handleCropApply(id: string, newDataUrl: string) {
+  async function handleCropApply(id: string, newDataUrl: string) {
+    const dataUrl =
+      newDataUrl.startsWith('data:image/') ? await compressImageClient(newDataUrl) : newDataUrl
     setMedia((prev) =>
-      prev.map((m): MediaItem => (m.id !== id ? m : { id: m.id, type: 'upload', dataUrl: newDataUrl }))
+      prev.map((m): MediaItem => (m.id !== id ? m : { id: m.id, type: 'upload', dataUrl }))
     )
   }
 
@@ -2381,26 +2439,17 @@ function NovaPostagemContent() {
     }, 1200)
 
     try {
-      // Recomprimir imagens de upload antes de enviar (evita erro 413)
-      const mediaToSubmit = await Promise.all(
-        media.map(async (m) => {
-          if (m.type !== 'upload' || isVideoDataUrl(m.dataUrl)) return m
-          return { ...m, dataUrl: await compressImageClient(m.dataUrl) }
-        })
-      )
-
-      const orderedMedia = mediaToSubmit.map((m) =>
-        m.type === 'upload'
-          ? { type: 'upload' as const, value: m.dataUrl }
-          : m.type === 'gallery'
-          ? { type: 'gallery' as const, value: m.fileId }
-          : { type: 'url' as const, value: m.url }
+      const { orderedMedia, customCoverUrl } = await buildOrderedMediaPayload(
+        media,
+        reelCustomCover,
+        postType
       )
 
       const res = await adminFetchJson<{
         ok?: boolean
         message?: string
         scheduled?: boolean
+        draft?: boolean
         metaResults?: Array<{
           instanceId: string
           provider: string
@@ -2415,7 +2464,13 @@ function NovaPostagemContent() {
           text,
           postType,
           orderedMedia,
-          ...(postType === 'reel' && reelCustomCover ? { customCover: reelCustomCover } : {}),
+          ...(postType === 'reel' && customCoverUrl ? { customCoverUrl } : {}),
+          ...(postType === 'reel' &&
+          !customCoverUrl &&
+          reelCustomCover &&
+          reelCustomCover.startsWith('data:image/')
+            ? { customCover: reelCustomCover }
+            : {}),
           ...(postType === 'reel' && !reelCustomCover && reelThumbOffsetMs > 0 ? { thumbOffset: reelThumbOffsetMs } : {}),
           ...(scheduledAt ? { scheduledAt } : {}),
         }),
@@ -2459,6 +2514,83 @@ function NovaPostagemContent() {
     }
   }
 
+  async function handleSaveDraft() {
+    setNotice(null)
+    if (!selectedInstanceId) {
+      showToast('Selecione uma instância.', 'err')
+      return
+    }
+    if (!destinations.instagram && !destinations.facebook) {
+      showToast('Selecione ao menos um canal.', 'err')
+      return
+    }
+    if (media.length === 0) {
+      showToast('Adicione pelo menos uma mídia.', 'err')
+      return
+    }
+    if (destinations.instagram && postType === 'feed' && media.length > 10) {
+      showToast('Máximo 10 imagens para post de feed no Instagram.', 'err')
+      return
+    }
+    if ((postType === 'reel' || postType === 'story') && media.length > 1) {
+      showToast(`${postType === 'reel' ? 'Reels' : 'Stories'} aceitam apenas 1 mídia.`, 'err')
+      return
+    }
+    if (postType === 'reel') {
+      const hasVideo = media.some((m) => m.type === 'upload' && isVideoDataUrl(m.dataUrl))
+      if (!hasVideo) {
+        showToast('Reels exigem um arquivo de vídeo.', 'err')
+        return
+      }
+    }
+
+    setSavingDraft(true)
+    try {
+      const { orderedMedia, customCoverUrl } = await buildOrderedMediaPayload(
+        media,
+        reelCustomCover,
+        postType
+      )
+      const res = await adminFetchJson<{
+        ok?: boolean
+        message?: string
+        draft?: boolean
+        id?: string
+      }>('/api/midia/nova-postagem', {
+        method: 'POST',
+        body: JSON.stringify({
+          groupId: selectedInstanceId,
+          destinations,
+          text,
+          postType,
+          orderedMedia,
+          saveAsDraft: true,
+          ...(postType === 'reel' && customCoverUrl ? { customCoverUrl } : {}),
+          ...(postType === 'reel' &&
+          !customCoverUrl &&
+          reelCustomCover &&
+          reelCustomCover.startsWith('data:image/')
+            ? { customCover: reelCustomCover }
+            : {}),
+          ...(postType === 'reel' && !reelCustomCover && reelThumbOffsetMs > 0 ? { thumbOffset: reelThumbOffsetMs } : {}),
+        }),
+      })
+      if (res?.ok) {
+        const msg =
+          res.message ||
+          'Rascunho salvo. No painel de publicações defina data ou use Publicar agora.'
+        showToast(msg, 'ok')
+        setNotice({ text: msg, ok: true })
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Erro ao salvar rascunho.'
+      showToast(msg, 'err')
+      setNotice({ text: msg, ok: false })
+    } finally {
+      setSavingDraft(false)
+    }
+  }
+
   function resetForm() {
     setMedia([])
     setText('')
@@ -2489,10 +2621,10 @@ function NovaPostagemContent() {
           backLink={{ href: '/admin/instagram/posts', label: 'Painel de Posts' }}
         />
       </div>
-      {loadingReplay && (
+      {loadingHydrate && (
         <div className="mb-4 flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
           <Loader2 className="h-4 w-4 animate-spin" />
-          Carregando dados da postagem para refazer...
+          Carregando dados da postagem…
         </div>
       )}
 
@@ -3630,13 +3762,37 @@ function NovaPostagemContent() {
             </div>
           </div>
 
+          <button
+            type="button"
+            onClick={handleSaveDraft}
+            disabled={
+              savingDraft ||
+              publishing ||
+              loadingHydrate ||
+              !selectedInstanceId ||
+              media.length === 0 ||
+              igLimitHit ||
+              reelStoryLimitHit
+            }
+            className="flex h-10 flex-shrink-0 items-center justify-center gap-1 rounded-xl border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 sm:h-auto sm:gap-1.5 sm:px-4 sm:py-2.5 sm:text-sm"
+            title="Salvar no servidor sem publicar"
+          >
+            {savingDraft ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Bookmark className="h-4 w-4 text-amber-600" />
+            )}
+            <span className="hidden min-[380px]:inline">Rascunho</span>
+          </button>
+
           {/* Botão publicar */}
           <button
             type="button"
             onClick={handlePublish}
             disabled={
               publishing ||
-              loadingReplay ||
+              savingDraft ||
+              loadingHydrate ||
               !selectedInstanceId ||
               media.length === 0 ||
               igLimitHit ||
