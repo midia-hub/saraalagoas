@@ -59,6 +59,7 @@ const STATUS_CFG: Record<
   publishing: { label: 'Publicando',  dotColor: 'bg-blue-400',   cardBg: 'bg-blue-50',   cardBorder: 'border-blue-200',   cardText: 'text-blue-900',   badgeBg: 'bg-blue-100',  badgeText: 'text-blue-700' },
   published:  { label: 'Publicada',   dotColor: 'bg-green-500',  cardBg: 'bg-green-50',  cardBorder: 'border-green-200',  cardText: 'text-green-900',  badgeBg: 'bg-green-100', badgeText: 'text-green-700' },
   failed:     { label: 'Falha',       dotColor: 'bg-red-500',    cardBg: 'bg-red-50',    cardBorder: 'border-red-200',    cardText: 'text-red-900',    badgeBg: 'bg-red-100',   badgeText: 'text-red-700'  },
+  draft:      { label: 'Rascunho',    dotColor: 'bg-slate-400',  cardBg: 'bg-slate-50',  cardBorder: 'border-slate-200',  cardText: 'text-slate-800',  badgeBg: 'bg-slate-100', badgeText: 'text-slate-600' },
   queued:     { label: 'Na fila',     dotColor: 'bg-amber-400',  cardBg: 'bg-amber-50',  cardBorder: 'border-amber-200',  cardText: 'text-amber-900',  badgeBg: 'bg-amber-100', badgeText: 'text-amber-700' },
   running:    { label: 'Publicando',  dotColor: 'bg-blue-400',   cardBg: 'bg-blue-50',   cardBorder: 'border-blue-200',   cardText: 'text-blue-900',   badgeBg: 'bg-blue-100',  badgeText: 'text-blue-700' },
 }
@@ -99,7 +100,10 @@ function mergeAll(scheduled: ScheduledItem[], legacy: LegacyPostItem[]): Unified
     const dateIso = s.published_at || s.scheduled_at || s.created_at
     return {
       id: `sch-${s.id}`,
-      title: s.galleries?.title ?? 'Postagem',
+      title:
+        s.status === 'draft'
+          ? 'Rascunho'
+          : (s.galleries?.title ?? 'Postagem'),
       caption: s.caption,
       dateIso,
       dateKey: toDateKey(dateIso),
@@ -404,13 +408,14 @@ function DetailCard({ post, integrations, onDeleted }: { post: UnifiedPost, inte
             </button>
           )}
           {/* Editar/Alterar programação — apenas pendentes */}
-          {post.status === 'pending' && post.source === 'scheduled' && (
+          {(post.status === 'pending' || post.status === 'draft') && post.source === 'scheduled' && (
             <button
               type="button"
               onClick={() => setEditModalOpen(true)}
               className="inline-flex items-center gap-1 rounded-lg bg-[#c62737] px-2 py-1 text-[11px] font-semibold text-white hover:bg-[#9e1f2e]"
             >
-              <Pencil className="h-3 w-3" /> Alterar programação
+              <Pencil className="h-3 w-3" />{' '}
+              {post.status === 'draft' ? 'Editar rascunho' : 'Alterar programação'}
             </button>
           )}
           {post.albumId && post.source === 'scheduled' && post.status !== 'pending' && (
@@ -422,7 +427,8 @@ function DetailCard({ post, integrations, onDeleted }: { post: UnifiedPost, inte
             </Link>
           )}
           {/* Excluir — apenas programadas e com falha */}
-          {(post.status === 'pending' || post.status === 'failed') && post.source === 'scheduled' && (
+          {(post.status === 'pending' || post.status === 'failed' || post.status === 'draft') &&
+            post.source === 'scheduled' && (
             <button
               type="button"
               onClick={() => setDeleteDialogOpen(true)}
@@ -462,7 +468,7 @@ function DetailCard({ post, integrations, onDeleted }: { post: UnifiedPost, inte
               id: post.scheduledId,
               caption: post.caption ?? '',
               scheduled_at: post.dateIso,
-              status: post.status as 'pending',
+              status: post.status as 'pending' | 'draft',
               post_type: (post.post_type ?? 'feed') as 'feed' | 'reel' | 'story',
               album_id: post.albumId ?? null,
               galleries: null,

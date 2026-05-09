@@ -67,6 +67,14 @@ const STATUS_CONFIG: Record<
     text: 'text-red-700',
     border: 'border-red-200',
   },
+  draft: {
+    label: 'Rascunho',
+    icon: CalendarClock,
+    dot: 'bg-slate-400',
+    bg: 'bg-slate-50',
+    text: 'text-slate-700',
+    border: 'border-slate-200',
+  },
 }
 
 // ─────────────────────────────────────────────
@@ -403,14 +411,14 @@ export function PostCard({ post, thumbnailUrl, metrics, integrations, onDeleted 
                   : <><ExternalLink className="h-3.5 w-3.5" /> Visualizar</>
                 }
               </button>
-            ) : post.status === 'pending' ? (
+            ) : post.status === 'pending' || post.status === 'draft' ? (
               <button
                 type="button"
                 onClick={() => setEditModalOpen(true)}
                 className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#c62737] px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#9e1f2e]"
               >
                 <Pencil className="h-3.5 w-3.5" />
-                Alterar programação
+                {post.status === 'draft' ? 'Editar rascunho' : 'Alterar programação'}
               </button>
             ) : (
               <Link
@@ -427,7 +435,7 @@ export function PostCard({ post, thumbnailUrl, metrics, integrations, onDeleted 
             )}
 
             {/* Botão excluir — apenas para programadas e com falha */}
-            {(post.status === 'pending' || post.status === 'failed') && (
+            {(post.status === 'pending' || post.status === 'failed' || post.status === 'draft') && (
               <button
                 type="button"
                 onClick={() => setDeleteDialogOpen(true)}

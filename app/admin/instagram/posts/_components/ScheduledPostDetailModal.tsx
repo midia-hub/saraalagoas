@@ -37,6 +37,7 @@ const STATUS_CONFIG: Record<
   publishing: { label: 'Publicando',  icon: Clock,         pill: 'bg-blue-50 text-blue-700 border-blue-200',          dot: 'bg-blue-400' },
   published:  { label: 'Publicada',   icon: CheckCircle2,  pill: 'bg-emerald-50 text-emerald-700 border-emerald-200', dot: 'bg-emerald-500' },
   failed:     { label: 'Falha',       icon: XCircle,       pill: 'bg-red-50 text-red-700 border-red-200',             dot: 'bg-red-500' },
+  draft:      { label: 'Rascunho',    icon: FileText,    pill: 'bg-slate-50 text-slate-700 border-slate-200',       dot: 'bg-slate-400' },
 }
 
 const POST_TYPE_CONFIG: Record<string, { label: string; icon: typeof LayoutGrid; chip: string }> = {

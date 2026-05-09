@@ -36,7 +36,7 @@ export type ScheduledItem = {
   album_id: string | null
   scheduled_at: string
   caption: string
-  status: 'pending' | 'publishing' | 'published' | 'failed'
+  status: 'pending' | 'publishing' | 'published' | 'failed' | 'draft' | 'cancelled' | 'video_processing'
   published_at: string | null
   error_message: string | null
   created_at: string
@@ -72,6 +72,7 @@ export const DATE_RANGE_OPTIONS: { value: DateRangeKey; label: string }[] = [
 export const SCHEDULED_STATUS_OPTIONS = [
   { value: 'all', label: 'Todos' },
   { value: 'pending', label: 'Programadas' },
+  { value: 'draft', label: 'Rascunhos' },
   { value: 'published', label: 'Publicadas' },
   { value: 'failed', label: 'Falhas' },
 ] as const

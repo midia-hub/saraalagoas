@@ -189,14 +189,13 @@ export function EditScheduledPostModal({ open, post, displayTitle, onClose, onSa
           setSaving(false)
           return
         }
-        if (new Date(newIso).getTime() <= Date.now()) {
-          setSaveError('A data e hora devem ser no futuro.')
-          setSaving(false)
-          return
-        }
-        // Only send if date changed
         const originalIso = post.scheduled_at
         if (newIso !== originalIso) {
+          if (new Date(newIso).getTime() <= Date.now()) {
+            setSaveError('A data e hora devem ser no futuro.')
+            setSaving(false)
+            return
+          }
           body.scheduled_at = newIso
         }
       }
@@ -257,7 +256,7 @@ export function EditScheduledPostModal({ open, post, displayTitle, onClose, onSa
             </div>
             <div>
               <p id="edit-modal-title" className="text-sm font-semibold text-slate-900">
-                Alterar programação
+                {post.status === 'draft' ? 'Editar rascunho' : 'Alterar programação'}
               </p>
               <p className="text-[11px] text-slate-400 truncate max-w-[260px]">
                 {displayTitle ?? post.galleries?.title ?? 'Postagem'}

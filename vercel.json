@@ -6,6 +6,9 @@
     "app/api/midia/nova-postagem/route.ts": {
       "maxDuration": 300
     },
+    "app/api/midia/staging-upload/route.ts": {
+      "maxDuration": 60
+    },
     "app/api/social/run-scheduled/route.ts": {
       "maxDuration": 300
     },

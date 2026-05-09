@@ -20,7 +20,7 @@ export async function GET(
   const db = createSupabaseServerClient(request)
   const { data, error } = await db
     .from('scheduled_social_posts')
-    .select('id, album_id, created_by, scheduled_at, instance_ids, destinations, caption, media_specs, status, published_at, error_message, created_at, updated_at, publication_group_id')
+    .select('id, album_id, created_by, scheduled_at, instance_ids, destinations, caption, media_specs, status, published_at, error_message, created_at, updated_at, publication_group_id, post_type')
     .eq('id', id)
     .single()
 
@@ -67,6 +67,9 @@ export async function PATCH(
     return NextResponse.json({ error: 'Postagem programada não encontrada.' }, { status: 404 })
   }
 
+  const existingStatus = (existing as { status: string }).status
+  const canEditScheduleOrCaption = existingStatus === 'pending' || existingStatus === 'draft'
+
   const updates: Record<string, unknown> = { updated_at: new Date().toISOString() }
 
   // Atualizar post_type (qualquer status)
@@ -78,11 +81,11 @@ export async function PATCH(
     updates.post_type = body.post_type
   }
 
-  // Atualizar legenda (apenas pending)
+  // Atualizar legenda (programada ou rascunho)
   if (body?.caption !== undefined) {
-    if ((existing as { status: string }).status !== 'pending') {
+    if (!canEditScheduleOrCaption) {
       return NextResponse.json(
-        { error: 'Apenas postagens com status "Programada" podem ter a legenda alterada.' },
+        { error: 'Apenas postagens programadas ou em rascunho podem ter a legenda alterada.' },
         { status: 400 }
       )
     }
@@ -91,16 +94,19 @@ export async function PATCH(
 
   // Postar agora: agenda para agora (run-scheduled processará em seguida)
   if (body?.publish_now === true) {
-    if ((existing as { status: string }).status !== 'pending') {
+    if (!canEditScheduleOrCaption) {
       return NextResponse.json(
-        { error: 'Apenas postagens com status "Programada" podem ser publicadas agora.' },
+        { error: 'Apenas postagens programadas ou em rascunho podem ser publicadas agora.' },
         { status: 400 }
       )
     }
     updates.scheduled_at = new Date(Date.now() - 5000).toISOString()
+    if (existingStatus === 'draft') {
+      updates.status = 'pending'
+    }
   }
 
-  // Reprogramar data/hora (apenas pending)
+  // Reprogramar data/hora (programada ou rascunho)
   if (body?.scheduled_at !== undefined && body?.publish_now !== true) {
     const scheduledAtRaw = body.scheduled_at
     if (typeof scheduledAtRaw !== 'string' || !scheduledAtRaw.trim()) {
@@ -113,13 +119,16 @@ export async function PATCH(
     if (scheduledAt.getTime() <= Date.now()) {
       return NextResponse.json({ error: 'A nova data/hora deve ser no futuro.' }, { status: 400 })
     }
-    if ((existing as { status: string }).status !== 'pending') {
+    if (!canEditScheduleOrCaption) {
       return NextResponse.json(
-        { error: 'Apenas postagens com status "Programada" podem ser reprogramadas.' },
+        { error: 'Apenas postagens programadas ou em rascunho podem ser reprogramadas.' },
         { status: 400 }
       )
     }
     updates.scheduled_at = scheduledAt.toISOString()
+    if (existingStatus === 'draft') {
+      updates.status = 'pending'
+    }
   }
 
   if (Object.keys(updates).length === 1) {
@@ -170,7 +179,7 @@ export async function DELETE(
     return NextResponse.json({ error: 'Postagem programada não encontrada.' }, { status: 404 })
   }
 
-  const allowedStatuses = ['pending', 'failed']
+  const allowedStatuses = ['pending', 'failed', 'draft']
   if (!allowedStatuses.includes((existing as { status: string }).status)) {
     return NextResponse.json(
       { error: 'Apenas postagens com status "Programada" ou "Falha" podem ser excluídas.' },
