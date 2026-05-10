@@ -26,7 +26,11 @@
       "Bash(node -e \"const { Modality } = require\\(''@google/genai''\\); console.log\\(''Modality.IMAGE ='', Modality?.IMAGE, ''Modality.TEXT ='', Modality?.TEXT\\)\")",
       "Bash(grep -E \"\\\\.ts$\")",
       "Bash(grep -E \"\\\\.tsx$|\\\\.ts$\")",
-      "Bash(git show *)"
+      "Bash(git show *)",
+      "Bash(npx skills *)",
+      "Bash(Get-ChildItem *)",
+      "WebFetch(domain:saraalagoas.com)",
+      "Bash(bash *)"
     ]
   }
 }

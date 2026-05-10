@@ -1,0 +1,107 @@
+{
+  "version": 1,
+  "skills": {
+    "agent-development": {
+      "source": "anthropics/claude-plugins-official",
+      "sourceType": "github",
+      "skillPath": "plugins/plugin-dev/skills/agent-development/SKILL.md",
+      "computedHash": "2363c8bf1b686fa477212110bd1f78086daad505dfe50d48b1981e9007bee3df"
+    },
+    "ai-image-generation": {
+      "source": "inferen-sh/skills",
+      "sourceType": "github",
+      "skillPath": "tools/image/ai-image-generation/SKILL.md",
+      "computedHash": "c3422219915efc1d9c3bb72378b48c9ce61598501a81398c3412a5a58b161bed"
+    },
+    "ai-video-generation": {
+      "source": "inferen-sh/skills",
+      "sourceType": "github",
+      "skillPath": "tools/video/ai-video-generation/SKILL.md",
+      "computedHash": "586437842af9fa7a513100b2aeb79e62f9b4acb81dd1b9895da6a452714b78ce"
+    },
+    "brainstorming": {
+      "source": "obra/superpowers",
+      "sourceType": "github",
+      "skillPath": "skills/brainstorming/SKILL.md",
+      "computedHash": "f483c304fcde060211ffae00f49bb728536e7e7613c99db45b5b924d9fc17243"
+    },
+    "content-strategy": {
+      "source": "coreyhaines31/marketingskills",
+      "sourceType": "github",
+      "skillPath": "skills/content-strategy/SKILL.md",
+      "computedHash": "e1ab02527702ead90a9e5774cfe1be9a222bdcc6e861f2cae778ad7cc293f225"
+    },
+    "copywriting": {
+      "source": "coreyhaines31/marketingskills",
+      "sourceType": "github",
+      "skillPath": "skills/copywriting/SKILL.md",
+      "computedHash": "c008c80aff1eec1aba190edf421772a3f350e91405d4207575092b663c3702a7"
+    },
+    "find-skills": {
+      "source": "vercel-labs/skills",
+      "sourceType": "github",
+      "skillPath": "skills/find-skills/SKILL.md",
+      "computedHash": "9e1c8b3103f92fa8092568a44fe64858de7c5c9dc65ce4bea8f168080e889cfd"
+    },
+    "frontend-design": {
+      "source": "anthropics/skills",
+      "sourceType": "github",
+      "skillPath": "skills/frontend-design/SKILL.md",
+      "computedHash": "516bd2154eb843a8240e43d5b285229129853114ad7075a5e141e1c08e408c84"
+    },
+    "mcp-builder": {
+      "source": "anthropics/skills",
+      "sourceType": "github",
+      "skillPath": "skills/mcp-builder/SKILL.md",
+      "computedHash": "6498a736a8dc5c645047c8a875b8ea7417e2ad97146f005200e50d20a9337ada"
+    },
+    "nano-banana-2": {
+      "source": "inferen-sh/skills",
+      "sourceType": "github",
+      "skillPath": "tools/image/nano-banana-2/SKILL.md",
+      "computedHash": "53c218982b4e3773f7b829522eadf1c95a80182a8ed4e408a3f2f293745a015d"
+    },
+    "shadcn": {
+      "source": "shadcn/ui",
+      "sourceType": "github",
+      "skillPath": "skills/shadcn/SKILL.md",
+      "computedHash": "f0fdd03f4755cbb3b57e20fe6fd4a97c00d34e6780187b6559316986e8d848db"
+    },
+    "skill-creator": {
+      "source": "anthropics/skills",
+      "sourceType": "github",
+      "skillPath": "skills/skill-creator/SKILL.md",
+      "computedHash": "7e3c9cd74e9e2b4828527a857170e86310f2dab5ea8030a9043df2c7e6c88857"
+    },
+    "skill-development": {
+      "source": "anthropics/claude-plugins-official",
+      "sourceType": "github",
+      "skillPath": "plugins/plugin-dev/skills/skill-development/SKILL.md",
+      "computedHash": "0f91d445e350793549a8ed7b450ef3777a5a82c800b71523961c042eb65cca27"
+    },
+    "stripe-best-practices": {
+      "source": "stripe/agent-toolkit",
+      "sourceType": "github",
+      "skillPath": "skills/stripe-best-practices/SKILL.md",
+      "computedHash": "7735fd4a5b61f20e520dac0f297cef6782f84a1dcf9799228f4f22a0fc95e491"
+    },
+    "supabase-postgres-best-practices": {
+      "source": "supabase/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/supabase-postgres-best-practices/SKILL.md",
+      "computedHash": "8e41c7417894e6f394614ee7ca3ee5322b1e58d890255d441f42dea98732597f"
+    },
+    "web-design-guidelines": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/web-design-guidelines/SKILL.md",
+      "computedHash": "f3bc47f890f42a44db1007ab390709ec368e4b8c089baee6b0007182236ac474"
+    },
+    "webapp-testing": {
+      "source": "anthropics/skills",
+      "sourceType": "github",
+      "skillPath": "skills/webapp-testing/SKILL.md",
+      "computedHash": "3f14af7f5690695209c22fbf8c8d133769a86d64892602c09bb13f135e14e857"
+    }
+  }
+}

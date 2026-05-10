@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Design Final — Selecionar</title>
+<script src="http://localhost:53735/helper.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0f172a;
+    color: #e2e8f0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    padding: 28px 24px;
+  }
+  h2 { font-size: 17px; font-weight: 700; color: #f8fafc; margin-bottom: 4px; }
+  .subtitle { font-size: 12px; color: #64748b; margin-bottom: 24px; }
+
+  /* ─── FRAME ─── */
+  .frame {
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 16px;
+    overflow: hidden;
+    display: flex;
+    height: 520px;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.6);
+  }
+
+  /* ─── SIDEBAR ─── */
+  .sidebar {
+    width: 112px;
+    background: #080e1a;
+    border-right: 1px solid rgba(255,255,255,0.05);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    padding: 14px 8px 10px;
+  }
+
+  .brand {
+    display: flex; align-items: center; gap: 6px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    margin-bottom: 10px;
+  }
+  .brand-dot {
+    width: 26px; height: 26px; border-radius: 7px;
+    background: linear-gradient(135deg,#ef4444,#b91c1c);
+    flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 12px rgba(239,68,68,0.3);
+    font-size: 11px;
+  }
+  .brand-txt { font-size: 10px; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+  .brand-sub { font-size: 7px; color: #ef4444; font-weight: 600; letter-spacing: 0.5px; }
+
+  .user-pill {
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px; border-radius: 8px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.05);
+    margin-bottom: 14px;
+  }
+  .avatar {
+    width: 24px; height: 24px; border-radius: 6px;
+    background: #1e3a5f; display: flex; align-items: center;
+    justify-content: center; font-size: 9px; font-weight: 800; color: #93c5fd;
+    flex-shrink: 0;
+  }
+  .uname { font-size: 8px; font-weight: 700; color: #f1f5f9; }
+  .urole { font-size: 6.5px; color: #64748b; }
+
+  .section-lbl {
+    font-size: 6.5px; text-transform: uppercase; letter-spacing: 1px;
+    color: #334155; padding: 0 4px 5px; font-weight: 600;
+  }
+
+  .nav-item {
+    display: flex; align-items: center; gap: 6px;
+    padding: 5px 6px; border-radius: 6px; margin-bottom: 1px;
+    cursor: pointer; transition: background .15s;
+    position: relative;
+  }
+  .nav-item:hover { background: rgba(255,255,255,0.05); }
+  .nav-item .ico { width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0; }
+  .nav-item .lbl { font-size: 7.5px; color: #94a3b8; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .nav-item.pinned .lbl { color: #e2e8f0; }
+
+  .pin-star {
+    width: 8px; height: 8px; margin-left: auto; flex-shrink: 0;
+    color: #fbbf24; font-size: 8px; line-height: 1;
+  }
+
+  .divider { height: 1px; background: rgba(255,255,255,0.04); margin: 8px 0; }
+
+  .sidebar-footer {
+    margin-top: auto;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255,255,255,0.05);
+    display: flex; flex-direction: column; gap: 1px;
+  }
+  .footer-item {
+    display: flex; align-items: center; gap: 6px;
+    padding: 4px 6px; border-radius: 5px; cursor: pointer;
+    font-size: 7.5px; color: #475569;
+  }
+  .footer-item:hover { background: rgba(255,255,255,0.04); color: #94a3b8; }
+  .footer-item.danger:hover { background: rgba(239,68,68,0.08); color: #f87171; }
+  .footer-item .ico-sm { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 9px; }
+
+  /* ─── CONTENT ─── */
+  .content {
+    flex: 1; display: flex; flex-direction: column;
+    background: #0f172a; overflow: hidden;
+  }
+
+  .content-inner {
+    flex: 1; padding: 28px 28px 20px;
+    overflow-y: auto;
+  }
+
+  .greeting-area { margin-bottom: 24px; }
+  .greeting-hello { font-size: 12px; color: #475569; margin-bottom: 3px; }
+  .greeting-name { font-size: 24px; font-weight: 800; color: #f8fafc; letter-spacing: -0.5px; line-height: 1.1; }
+  .greeting-sub { font-size: 12px; color: #475569; margin-top: 6px; }
+
+  .section-title {
+    font-size: 9px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 1px; color: #334155; margin-bottom: 10px;
+  }
+
+  .modules-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+
+  .mod-card {
+    background: #131c2e;
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 12px;
+    padding: 14px;
+    cursor: pointer;
+    transition: border-color .2s, background .2s, transform .15s;
+    position: relative;
+    overflow: hidden;
+  }
+  .mod-card:hover {
+    border-color: rgba(255,255,255,0.12);
+    background: #182035;
+    transform: translateY(-1px);
+  }
+
+  /* pin icon on hover */
+  .pin-btn {
+    position: absolute; top: 8px; right: 8px;
+    width: 18px; height: 18px; border-radius: 4px;
+    background: rgba(255,255,255,0.06);
+    display: none; align-items: center; justify-content: center;
+    font-size: 9px; cursor: pointer; color: #64748b;
+    transition: background .15s, color .15s;
+  }
+  .mod-card:hover .pin-btn { display: flex; }
+  .pin-btn:hover { background: rgba(251,191,36,0.15); color: #fbbf24; }
+  .pin-btn.active { display: flex; color: #fbbf24; background: rgba(251,191,36,0.12); }
+
+  .glow {
+    position: absolute; top: 0; right: 0;
+    width: 80px; height: 80px; border-radius: 50%;
+    opacity: 0; transition: opacity .3s;
+    transform: translate(30%, -30%);
+    filter: blur(20px);
+    pointer-events: none;
+  }
+  .mod-card:hover .glow { opacity: 0.08; }
+
+  .mod-icon {
+    width: 34px; height: 34px; border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 10px; font-size: 15px;
+    transition: transform .2s;
+  }
+  .mod-card:hover .mod-icon { transform: scale(1.05); }
+
+  .mod-title { font-size: 11px; font-weight: 700; color: #f1f5f9; margin-bottom: 3px; }
+  .mod-desc { font-size: 9px; color: #64748b; line-height: 1.4; }
+
+  .mod-subitems {
+    display: flex; gap: 4px; flex-wrap: wrap;
+    margin-top: 10px; padding-top: 8px;
+    border-top: 1px solid rgba(255,255,255,0.04);
+  }
+  .mod-subitem {
+    font-size: 8.5px; color: #475569;
+    transition: color .2s;
+  }
+  .mod-subitem + .mod-subitem::before { content: "·"; margin-right: 4px; }
+  .mod-card:hover .mod-subitem { color: #64748b; }
+
+  .content-footer {
+    padding: 8px 28px;
+    border-top: 1px solid rgba(255,255,255,0.04);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .footer-txt { font-size: 9px; color: #1e293b; }
+
+  /* colors */
+  .i-red    { background: rgba(239,68,68,.18); }
+  .i-amber  { background: rgba(245,158,11,.18); }
+  .i-orange { background: rgba(249,115,22,.18); }
+  .i-blue   { background: rgba(59,130,246,.18); }
+  .i-purple { background: rgba(99,102,241,.18); }
+  .i-pink   { background: rgba(236,72,153,.18); }
+  .i-teal   { background: rgba(20,184,166,.18); }
+  .i-slate  { background: rgba(100,116,139,.18); }
+
+  /* ─── ANOTAÇÕES ─── */
+  .annotations {
+    display: grid; grid-template-columns: repeat(2, 1fr);
+    gap: 10px; margin-top: 20px;
+  }
+  .note {
+    background: #1e293b; border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 10px; padding: 12px 14px;
+  }
+  .note-title { font-size: 11px; font-weight: 700; color: #f1f5f9; margin-bottom: 5px; }
+  .note ul { padding-left: 14px; }
+  .note li { font-size: 10px; color: #94a3b8; line-height: 1.7; }
+  .note li span { color: #fbbf24; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<h2>Design completo — /admin/selecionar</h2>
+<p class="subtitle">Mockup em escala real. Passe o mouse nos cards para ver o ícone de fixar.</p>
+
+<div class="frame">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="brand">
+      <div class="brand-dot">✦</div>
+      <div>
+        <div class="brand-txt">Sara Hub</div>
+        <div class="brand-sub">Alagoas</div>
+      </div>
+    </div>
+
+    <div class="user-pill">
+      <div class="avatar">M</div>
+      <div>
+        <div class="uname">Melque</div>
+        <div class="urole">Admin</div>
+      </div>
+    </div>
+
+    <div class="section-lbl">⭐ Fixados</div>
+    <div class="nav-item pinned">
+      <div class="ico i-orange" style="font-size:8px;display:flex;align-items:center;justify-content:center;">📱</div>
+      <span class="lbl">Mídia</span>
+      <span class="pin-star">★</span>
+    </div>
+    <div class="nav-item pinned">
+      <div class="ico i-amber" style="font-size:8px;display:flex;align-items:center;justify-content:center;">📖</div>
+      <span class="lbl">Livraria</span>
+      <span class="pin-star">★</span>
+    </div>
+    <div class="nav-item pinned">
+      <div class="ico i-red" style="font-size:8px;display:flex;align-items:center;justify-content:center;">🙏</div>
+      <span class="lbl">Consolidação</span>
+      <span class="pin-star">★</span>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="section-lbl">🕐 Recentes</div>
+    <div class="nav-item">
+      <div class="ico i-blue" style="font-size:8px;display:flex;align-items:center;justify-content:center;">👥</div>
+      <span class="lbl">Células</span>
+    </div>
+    <div class="nav-item">
+      <div class="ico i-pink" style="font-size:8px;display:flex;align-items:center;justify-content:center;">👶</div>
+      <span class="lbl">Sara Kids</span>
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="footer-item">
+        <span class="ico-sm">🌐</span>
+        <span>Ver site</span>
+      </div>
+      <div class="footer-item">
+        <span class="ico-sm">⚙️</span>
+        <span>Minha conta</span>
+      </div>
+      <div class="footer-item danger">
+        <span class="ico-sm">↩</span>
+        <span>Sair</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONTENT -->
+  <div class="content">
+    <div class="content-inner">
+
+      <div class="greeting-area">
+        <div class="greeting-hello">Boa tarde,</div>
+        <div class="greeting-name">Melque!</div>
+        <div class="greeting-sub">Selecione um módulo para começar.</div>
+      </div>
+
+      <div class="section-title">Todos os módulos</div>
+
+      <div class="modules-grid">
+
+        <div class="mod-card">
+          <div class="glow" style="background:#f97316;"></div>
+          <div class="pin-btn active" title="Fixado">★</div>
+          <div class="mod-icon i-orange">📱</div>
+          <div class="mod-title">Mídia e Social</div>
+          <div class="mod-desc">Galerias, Instagram e publicações</div>
+          <div class="mod-subitems">
+            <span class="mod-subitem">Galeria</span>
+            <span class="mod-subitem">Nova Postagem</span>
+            <span class="mod-subitem">+4</span>
+          </div>
+        </div>
+
+        <div class="mod-card">
+          <div class="glow" style="background:#f59e0b;"></div>
+          <div class="pin-btn active">★</div>
+          <div class="mod-icon i-amber">📖</div>
+          <div class="mod-title">Livraria</div>
+          <div class="mod-desc">Produtos, vendas, estoque e PDV</div>
+          <div class="mod-subitems">
+            <span class="mod-subitem">Dashboard</span>
+            <span class="mod-subitem">Vendas</span>
+            <span class="mod-subitem">+5</span>
+          </div>
+        </div>
+
+        <div class="mod-card">
+          <div class="glow" style="background:#ef4444;"></div>
+          <div class="pin-btn active">★</div>
+          <div class="mod-icon i-red">🙏</div>
+          <div class="mod-title">Consolidação</div>
+          <div class="mod-desc">Conversões, followups e acompanhamento</div>
+          <div class="mod-subitems">
+            <span class="mod-subitem">Conversões</span>
+            <span class="mod-subitem">Lista</span>
+            <span class="mod-subitem">+6</span>
+          </div>
+        </div>
+
+        <div class="mod-card">
+          <div class="glow" style="background:#3b82f6;"></div>
+          <div class="pin-btn">☆</div>
+          <div class="mod-icon i-blue">👥</div>
+          <div class="mod-title">Células</div>
+          <div class="mod-desc">Grupos, realizações e presenças</div>
+          <div class="mod-subitems">
+            <span class="mod-subitem">Gerenciar</span>
+            <span class="mod-subitem">Painel</span>
+            <span class="mod-subitem">PD</span>
+          </div>
+        </div>
+
+        <div class="mod-card">
+          <div class="glow" style="background:#ec4899;"></div>
+          <div class="pin-btn">☆</div>
+          <div class="mod-icon i-pink">👶</div>
+          <div class="mod-title">Sara Kids</div>
+          <div class="mod-desc">Check-in, responsáveis e crianças</div>
+          <div class="mod-subitems">
+            <span class="mod-subitem">Painel</span>
+            <span class="mod-subitem">Check-in</span>
+            <span class="mod-subitem">Presentes</span>
+          </div>
+        </div>
+
+        <div class="mod-card">
+          <div class="glow" style="background:#6366f1;"></div>
+          <div class="pin-btn">☆</div>
+          <div class="mod-icon i-purple">📋</div>
+          <div class="mod-title">Reservas de Salas</div>
+          <div class="mod-desc">Solicitações e espaços</div>
+          <div class="mod-subitems">
+            <span class="mod-subitem">Solicitações</span>
+            <span class="mod-subitem">Salas</span>
+          </div>
+        </div>
+
+        <div class="mod-card">
+          <div class="glow" style="background:#0ea5e9;"></div>
+          <div class="pin-btn">☆</div>
+          <div class="mod-icon i-blue" style="background:rgba(14,165,233,.18);">🤝</div>
+          <div class="mod-title">Liderança</div>
+          <div class="mod-desc">Discipulado e estrutura</div>
+          <div class="mod-subitems">
+            <span class="mod-subitem">Discipulado</span>
+            <span class="mod-subitem">Estrutura</span>
+          </div>
+        </div>
+
+        <div class="mod-card">
+          <div class="glow" style="background:#64748b;"></div>
+          <div class="pin-btn">☆</div>
+          <div class="mod-icon i-slate">📅</div>
+          <div class="mod-title">Escalas</div>
+          <div class="mod-desc">Disponibilidades e voluntários</div>
+          <div class="mod-subitems">
+            <span class="mod-subitem">Disponibilidades</span>
+          </div>
+        </div>
+
+        <div class="mod-card">
+          <div class="glow" style="background:#475569;"></div>
+          <div class="pin-btn">☆</div>
+          <div class="mod-icon i-slate" style="background:rgba(71,85,105,.25);">⚙️</div>
+          <div class="mod-title">Configurações</div>
+          <div class="mod-desc">Usuários, permissões e sistema</div>
+          <div class="mod-subitems">
+            <span class="mod-subitem">Site</span>
+            <span class="mod-subitem">Permissões</span>
+            <span class="mod-subitem">+3</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="content-footer">
+      <span class="footer-txt">Sara Nossa Terra — Plataforma de Gestão · 2025</span>
+    </div>
+  </div>
+
+</div>
+
+<!-- Anotações do design -->
+<div class="annotations">
+  <div class="note">
+    <div class="note-title">Sidebar — comportamento</div>
+    <ul>
+      <li><span>Fixados:</span> salvos no banco por usuário (até 5)</li>
+      <li><span>Recentes:</span> últimas 2 rotas visitadas (localStorage)</li>
+      <li>Hover no card do grid → ícone ★ aparece para fixar/desafixar</li>
+      <li>Sidebar sem header próprio — brand + user substituem o antigo header</li>
+    </ul>
+  </div>
+  <div class="note">
+    <div class="note-title">Grid — mudanças vs. atual</div>
+    <ul>
+      <li>Cards menores e mais compactos (padding reduzido)</li>
+      <li>Sub-itens em <span>text-xs</span> (12px), separados por ·</li>
+      <li>Efeito glow no hover mantido</li>
+      <li>Grid passa a 3 colunas fixas (sidebar absorve o espaço do header)</li>
+    </ul>
+  </div>
+  <div class="note">
+    <div class="note-title">O que foi removido</div>
+    <ul>
+      <li>Header horizontal completo (logo, "Ver site", user pill, logout)</li>
+      <li>Footer de copyright (compactado em rodapé do content)</li>
+      <li><span>mb-10</span> da saudação → espaçamento integrado ao layout</li>
+    </ul>
+  </div>
+  <div class="note">
+    <div class="note-title">Implementação — pontos de atenção</div>
+    <ul>
+      <li>Fixados: nova coluna <span>pinned_modules</span> em profiles ou tabela própria</li>
+      <li>Recentes: <span>localStorage</span> com array de IDs de módulo</li>
+      <li>Layout não tem sidebar no mobile — colapsa para o grid atual</li>
+    </ul>
+  </div>
+</div>
+
+</body>
+</html>

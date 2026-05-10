@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sidebar — Comportamento</title>
+<script src="http://localhost:53735/helper.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0f172a; color: #e2e8f0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 28px 24px; }
+  h2 { font-size: 17px; font-weight: 700; color: #f8fafc; margin-bottom: 5px; }
+  .subtitle { font-size: 12px; color: #64748b; margin-bottom: 24px; }
+
+  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+
+  .card {
+    background: #1e293b;
+    border: 2px solid #334155;
+    border-radius: 14px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: border-color .2s, transform .15s;
+  }
+  .card:hover { border-color: #475569; transform: translateY(-2px); }
+  .card.selected { border-color: #ef4444; }
+
+  .card-header {
+    padding: 10px 14px;
+    background: #0f172a;
+    border-bottom: 1px solid #1e293b;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .letter {
+    width: 22px; height: 22px; border-radius: 5px;
+    background: #ef4444; color: white;
+    font-size: 11px; font-weight: 800;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .card-header h3 { font-size: 12px; font-weight: 700; color: #f1f5f9; }
+  .card-header p { font-size: 10px; color: #64748b; margin-top: 1px; }
+
+  /* ─── MOCKUP BASE ─── */
+  .mock {
+    display: flex;
+    height: 260px;
+    background: #0f172a;
+  }
+  .sidebar {
+    width: 88px;
+    background: #0a1020;
+    border-right: 1px solid rgba(255,255,255,0.05);
+    padding: 10px 7px;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+  }
+  .brand { display: flex; align-items: center; gap: 5px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.05); margin-bottom: 8px; }
+  .brand-dot { width: 22px; height: 22px; border-radius: 6px; background: linear-gradient(135deg,#ef4444,#b91c1c); flex-shrink: 0; }
+  .brand-text { font-size: 9px; font-weight: 700; color: #f1f5f9; }
+
+  .avatar-row { display: flex; align-items: center; gap: 5px; padding: 5px; border-radius: 6px; background: rgba(255,255,255,0.04); margin-bottom: 8px; }
+  .avatar { width: 22px; height: 22px; border-radius: 5px; background: #334155; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 8px; font-weight: 700; color: #94a3b8; }
+  .avatar-info .uname { font-size: 7.5px; font-weight: 700; color: #f1f5f9; }
+  .avatar-info .urole { font-size: 6px; color: #64748b; }
+
+  .nav-item { display: flex; align-items: center; gap: 5px; padding: 4px 5px; border-radius: 5px; margin-bottom: 2px; }
+  .nav-item .icon { width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0; }
+  .nav-item .label { font-size: 7px; color: #94a3b8; line-height: 1.2; }
+  .nav-item.active { background: rgba(239,68,68,0.12); }
+  .nav-item.active .label { color: #fca5a5; }
+
+  .section-label { font-size: 6px; text-transform: uppercase; letter-spacing: 0.8px; color: #475569; padding: 6px 5px 3px; }
+
+  .content { flex: 1; padding: 10px; overflow: hidden; }
+  .greeting-sm { font-size: 8px; color: #64748b; }
+  .name-sm { font-size: 13px; font-weight: 800; color: #f8fafc; margin-bottom: 8px; }
+
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+  .module-card { background: #1e293b; border: 1px solid rgba(255,255,255,0.06); border-radius: 6px; padding: 6px; }
+  .module-card .ico { width: 16px; height: 16px; border-radius: 4px; margin-bottom: 4px; }
+  .module-card .t { font-size: 7.5px; font-weight: 700; color: #f1f5f9; }
+  .module-card .d { font-size: 6px; color: #64748b; margin-top: 1px; }
+  .module-card.highlighted { border-color: rgba(239,68,68,0.35); background: rgba(239,68,68,0.05); }
+
+  .badge { font-size: 6px; background: rgba(239,68,68,0.15); color: #fca5a5; padding: 1px 4px; border-radius: 3px; display: inline-block; margin-top: 2px; }
+
+  .i-purple { background: rgba(99,102,241,.25); }
+  .i-blue   { background: rgba(59,130,246,.25); }
+  .i-slate  { background: rgba(100,116,139,.25); }
+  .i-red    { background: rgba(239,68,68,.25); }
+  .i-amber  { background: rgba(245,158,11,.25); }
+  .i-orange { background: rgba(249,115,22,.25); }
+  .i-teal   { background: rgba(20,184,166,.25); }
+  .i-pink   { background: rgba(236,72,153,.25); }
+
+  .tag { font-size: 8.5px; color: #94a3b8; background: rgba(148,163,184,.08); padding: 3px 8px; border-radius: 4px; display: inline-block; }
+  .card-footer { padding: 7px 12px; background: #0f172a; border-top: 1px solid #1e293b; }
+
+  .pin-icon { font-size: 8px; }
+  .recents-section { margin-top: 4px; padding-top: 6px; border-top: 1px solid rgba(255,255,255,0.04); }
+</style>
+</head>
+<body>
+
+<h2>O que o sidebar deve conter?</h2>
+<p class="subtitle">A sidebar precisa ter algo diferente do grid — senão fica redundante. Escolha o modelo que faz mais sentido.</p>
+
+<div class="cards">
+
+  <!-- A: Perfil + navegação direta -->
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-header">
+      <div class="letter">A</div>
+      <div>
+        <h3>Perfil + Módulos</h3>
+        <p>Sidebar leva direto ao módulo, sem passar pelo grid</p>
+      </div>
+    </div>
+    <div class="mock">
+      <div class="sidebar">
+        <div class="brand">
+          <div class="brand-dot"></div>
+          <div class="brand-text">Hub</div>
+        </div>
+        <div class="avatar-row">
+          <div class="avatar">M</div>
+          <div class="avatar-info">
+            <div class="uname">Melque</div>
+            <div class="urole">Admin</div>
+          </div>
+        </div>
+        <div class="section-label">Módulos</div>
+        <div class="nav-item"><div class="icon i-red"></div><span class="label">Consolidação</span></div>
+        <div class="nav-item"><div class="icon i-amber"></div><span class="label">Livraria</span></div>
+        <div class="nav-item"><div class="icon i-orange"></div><span class="label">Mídia</span></div>
+        <div class="nav-item"><div class="icon i-blue"></div><span class="label">Células</span></div>
+        <div class="nav-item"><div class="icon i-purple"></div><span class="label">Reservas</span></div>
+        <div class="nav-item"><div class="icon i-pink"></div><span class="label">Kids</span></div>
+      </div>
+      <div class="content">
+        <div class="greeting-sm">Boa tarde,</div>
+        <div class="name-sm">Melque!</div>
+        <div class="grid-3">
+          <div class="module-card"><div class="ico i-red"></div><div class="t">Consolidação</div><div class="d">Conversões</div></div>
+          <div class="module-card"><div class="ico i-amber"></div><div class="t">Livraria</div><div class="d">PDV</div></div>
+          <div class="module-card"><div class="ico i-orange"></div><div class="t">Mídia</div><div class="d">Instagram</div></div>
+          <div class="module-card"><div class="ico i-blue"></div><div class="t">Células</div><div class="d">Grupos</div></div>
+          <div class="module-card"><div class="ico i-purple"></div><div class="t">Reservas</div><div class="d">Salas</div></div>
+          <div class="module-card"><div class="ico i-pink"></div><div class="t">Kids</div><div class="d">Check-in</div></div>
+        </div>
+        <div style="margin-top:6px;font-size:6.5px;color:#475569;">Sidebar e grid são independentes — o sidebar navega direto</div>
+      </div>
+    </div>
+    <div class="card-footer">
+      <span class="tag">Acesso rápido via sidebar</span>
+    </div>
+  </div>
+
+  <!-- B: Perfil + Fixados/Recentes -->
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-header">
+      <div class="letter">B</div>
+      <div>
+        <h3>Perfil + Fixados</h3>
+        <p>Sidebar mostra atalhos fixados pelo usuário</p>
+      </div>
+    </div>
+    <div class="mock">
+      <div class="sidebar">
+        <div class="brand">
+          <div class="brand-dot"></div>
+          <div class="brand-text">Hub</div>
+        </div>
+        <div class="avatar-row">
+          <div class="avatar">M</div>
+          <div class="avatar-info">
+            <div class="uname">Melque</div>
+            <div class="urole">Admin</div>
+          </div>
+        </div>
+        <div class="section-label">⭐ Fixados</div>
+        <div class="nav-item active"><div class="icon i-orange"></div><span class="label">Mídia</span></div>
+        <div class="nav-item"><div class="icon i-amber"></div><span class="label">Livraria</span></div>
+        <div class="nav-item"><div class="icon i-red"></div><span class="label">Consolidação</span></div>
+        <div class="recents-section">
+          <div class="section-label">🕐 Recentes</div>
+          <div class="nav-item"><div class="icon i-blue"></div><span class="label">Células</span></div>
+          <div class="nav-item"><div class="icon i-pink"></div><span class="label">Kids</span></div>
+        </div>
+      </div>
+      <div class="content">
+        <div class="greeting-sm">Boa tarde,</div>
+        <div class="name-sm">Melque!</div>
+        <div class="grid-3">
+          <div class="module-card highlighted"><div class="ico i-orange"></div><div class="t">Mídia</div><div class="d">Instagram</div><div class="badge">fixado</div></div>
+          <div class="module-card highlighted"><div class="ico i-amber"></div><div class="t">Livraria</div><div class="d">PDV</div><div class="badge">fixado</div></div>
+          <div class="module-card highlighted"><div class="ico i-red"></div><div class="t">Consolidação</div><div class="d">Conversões</div><div class="badge">fixado</div></div>
+          <div class="module-card"><div class="ico i-blue"></div><div class="t">Células</div><div class="d">Grupos</div></div>
+          <div class="module-card"><div class="ico i-purple"></div><div class="t">Reservas</div><div class="d">Salas</div></div>
+          <div class="module-card"><div class="ico i-pink"></div><div class="t">Kids</div><div class="d">Check-in</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="card-footer">
+      <span class="tag">Personalização por usuário</span>
+    </div>
+  </div>
+
+  <!-- C: Perfil puro, sidebar sem módulos -->
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-header">
+      <div class="letter">C</div>
+      <div>
+        <h3>Só o Perfil</h3>
+        <p>Sidebar mostra perfil, cargo e ações — grid tem os módulos</p>
+      </div>
+    </div>
+    <div class="mock">
+      <div class="sidebar" style="width:96px;align-items:center;">
+        <div style="width:40px;height:40px;border-radius:10px;background:#334155;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#f1f5f9;margin-bottom:6px;">M</div>
+        <div style="font-size:9px;font-weight:700;color:#f1f5f9;text-align:center;">Melque</div>
+        <div style="font-size:7px;color:#64748b;text-align:center;margin-bottom:10px;">Admin</div>
+        <div style="width:100%;border-top:1px solid rgba(255,255,255,0.05);padding-top:8px;display:flex;flex-direction:column;gap:4px;">
+          <div style="font-size:7px;color:#94a3b8;text-align:center;padding:4px;border-radius:5px;background:rgba(255,255,255,0.04);">🌐 Ver site</div>
+          <div style="font-size:7px;color:#94a3b8;text-align:center;padding:4px;border-radius:5px;background:rgba(255,255,255,0.04);">⚙️ Conta</div>
+          <div style="margin-top:auto;font-size:7px;color:#ef4444;text-align:center;padding:4px;border-radius:5px;background:rgba(239,68,68,0.08);">Sair</div>
+        </div>
+        <div style="margin-top:auto;"></div>
+        <div style="width:100%;margin-top:8px;border-top:1px solid rgba(255,255,255,0.05);padding-top:8px;">
+          <div style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,#ef4444,#b91c1c);margin:0 auto;"></div>
+        </div>
+      </div>
+      <div class="content">
+        <div class="greeting-sm">Boa tarde,</div>
+        <div class="name-sm">Melque!</div>
+        <div class="grid-3">
+          <div class="module-card"><div class="ico i-red"></div><div class="t">Consolidação</div><div class="d">Conversões</div></div>
+          <div class="module-card"><div class="ico i-amber"></div><div class="t">Livraria</div><div class="d">PDV</div></div>
+          <div class="module-card"><div class="ico i-orange"></div><div class="t">Mídia</div><div class="d">Instagram</div></div>
+          <div class="module-card"><div class="ico i-blue"></div><div class="t">Células</div><div class="d">Grupos</div></div>
+          <div class="module-card"><div class="ico i-purple"></div><div class="t">Reservas</div><div class="d">Salas</div></div>
+          <div class="module-card"><div class="ico i-pink"></div><div class="t">Kids</div><div class="d">Check-in</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="card-footer">
+      <span class="tag">Sidebar como identidade</span>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>
