@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sidebar — Largura</title>
+<script src="http://localhost:53735/helper.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0f172a; color: #e2e8f0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 28px 24px; }
+  h2 { font-size: 17px; font-weight: 700; color: #f8fafc; margin-bottom: 5px; }
+  .subtitle { font-size: 12px; color: #64748b; margin-bottom: 24px; }
+
+  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+
+  .card {
+    background: #1e293b; border: 2px solid #334155; border-radius: 14px;
+    overflow: hidden; cursor: pointer; transition: border-color .2s, transform .15s;
+  }
+  .card:hover { border-color: #475569; transform: translateY(-2px); }
+  .card.selected { border-color: #ef4444; }
+
+  .card-header { padding: 10px 14px; background: #0f172a; border-bottom: 1px solid #1e293b; display: flex; align-items: center; gap: 8px; }
+  .letter { width: 22px; height: 22px; border-radius: 5px; background: #ef4444; color: white; font-size: 11px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .card-header h3 { font-size: 12px; font-weight: 700; color: #f1f5f9; }
+  .card-header p { font-size: 10px; color: #64748b; margin-top: 1px; }
+  .card-footer { padding: 7px 12px; background: #0f172a; border-top: 1px solid #1e293b; }
+  .tag { font-size: 8.5px; color: #94a3b8; background: rgba(148,163,184,.08); padding: 3px 8px; border-radius: 4px; display: inline-block; }
+
+  .mock { display: flex; height: 270px; background: #0f172a; }
+  .content { flex: 1; padding: 10px; overflow: hidden; }
+  .greeting-sm { font-size: 8px; color: #64748b; }
+  .name-sm { font-size: 13px; font-weight: 800; color: #f8fafc; margin-bottom: 8px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+  .module-card { background: #1e293b; border: 1px solid rgba(255,255,255,0.06); border-radius: 6px; padding: 6px; }
+  .module-card .ico { width: 16px; height: 16px; border-radius: 4px; margin-bottom: 4px; }
+  .module-card .t { font-size: 7.5px; font-weight: 700; color: #f1f5f9; }
+  .module-card .d { font-size: 6px; color: #64748b; margin-top: 1px; }
+
+  .i-red    { background: rgba(239,68,68,.25); }
+  .i-amber  { background: rgba(245,158,11,.25); }
+  .i-orange { background: rgba(249,115,22,.25); }
+  .i-blue   { background: rgba(59,130,246,.25); }
+  .i-purple { background: rgba(99,102,241,.25); }
+  .i-pink   { background: rgba(236,72,153,.25); }
+  .i-teal   { background: rgba(20,184,166,.25); }
+  .i-slate  { background: rgba(100,116,139,.25); }
+
+  /* ─── SIDEBAR A: Ícones apenas (56px) ─── */
+  .sb-a {
+    width: 56px; background: #0a1020; border-right: 1px solid rgba(255,255,255,0.05);
+    padding: 10px 0; display: flex; flex-direction: column; align-items: center; gap: 2px; flex-shrink: 0;
+  }
+  .sb-a-brand { width: 28px; height: 28px; border-radius: 8px; background: linear-gradient(135deg,#ef4444,#b91c1c); margin-bottom: 8px; }
+  .sb-a-avatar { width: 28px; height: 28px; border-radius: 7px; background: #334155; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: #f1f5f9; margin-bottom: 10px; border: 1px solid rgba(255,255,255,0.08); }
+  .sb-a-section { width: 20px; height: 1px; background: rgba(255,255,255,0.05); margin: 4px 0 6px; }
+  .sb-a-item { width: 36px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; position: relative; }
+  .sb-a-item:hover { background: rgba(255,255,255,0.06); }
+  .sb-a-item.active { background: rgba(239,68,68,0.12); }
+  .sb-a-item .ico { width: 16px; height: 16px; border-radius: 4px; }
+  .sb-a-dot { width: 5px; height: 5px; border-radius: 50%; background: #fca5a5; position: absolute; top: 4px; right: 4px; }
+
+  /* ─── SIDEBAR B: Compacto com labels (112px) ─── */
+  .sb-b {
+    width: 112px; background: #0a1020; border-right: 1px solid rgba(255,255,255,0.05);
+    padding: 10px 8px; display: flex; flex-direction: column; flex-shrink: 0;
+  }
+  .sb-b-brand { display: flex; align-items: center; gap: 6px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.05); margin-bottom: 8px; }
+  .sb-b-dot { width: 22px; height: 22px; border-radius: 6px; background: linear-gradient(135deg,#ef4444,#b91c1c); flex-shrink: 0; }
+  .sb-b-brand-txt { font-size: 9px; font-weight: 700; color: #f1f5f9; }
+  .sb-b-user { display: flex; align-items: center; gap: 5px; padding: 5px; border-radius: 6px; background: rgba(255,255,255,0.04); margin-bottom: 8px; }
+  .sb-b-avatar { width: 20px; height: 20px; border-radius: 5px; background: #334155; display: flex; align-items: center; justify-content: center; font-size: 8px; font-weight: 700; color: #f1f5f9; flex-shrink: 0; }
+  .sb-b-uname { font-size: 7.5px; font-weight: 700; color: #f1f5f9; }
+  .sb-b-urole { font-size: 6px; color: #64748b; }
+  .sb-b-section { font-size: 6px; text-transform: uppercase; letter-spacing: 0.8px; color: #475569; padding: 4px 5px 2px; }
+  .sb-b-item { display: flex; align-items: center; gap: 5px; padding: 4px 5px; border-radius: 5px; margin-bottom: 1px; }
+  .sb-b-item .ico { width: 13px; height: 13px; border-radius: 3px; flex-shrink: 0; }
+  .sb-b-item .lbl { font-size: 7px; color: #94a3b8; line-height: 1.2; }
+  .sb-b-item.pinned .lbl { color: #fbbf24; }
+  .sb-b-item.recent .lbl { color: #94a3b8; }
+  .sb-b-divider { height: 1px; background: rgba(255,255,255,0.04); margin: 5px 0; }
+
+  /* ─── SIDEBAR C: Largo com descrições (160px) ─── */
+  .sb-c {
+    width: 152px; background: #0a1020; border-right: 1px solid rgba(255,255,255,0.05);
+    padding: 12px 10px; display: flex; flex-direction: column; flex-shrink: 0;
+  }
+  .sb-c-brand { display: flex; align-items: center; gap: 7px; padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.05); margin-bottom: 10px; }
+  .sb-c-dot { width: 26px; height: 26px; border-radius: 7px; background: linear-gradient(135deg,#ef4444,#b91c1c); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 11px; }
+  .sb-c-brand-txt { font-size: 10px; font-weight: 700; color: #f1f5f9; }
+  .sb-c-brand-sub { font-size: 7.5px; color: #ef4444; }
+  .sb-c-user { display: flex; align-items: center; gap: 7px; padding: 6px 7px; border-radius: 8px; background: rgba(255,255,255,0.04); margin-bottom: 10px; }
+  .sb-c-avatar { width: 26px; height: 26px; border-radius: 6px; background: #334155; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: #f1f5f9; flex-shrink: 0; }
+  .sb-c-uname { font-size: 9px; font-weight: 700; color: #f1f5f9; }
+  .sb-c-urole { font-size: 7px; color: #64748b; }
+  .sb-c-section { font-size: 7px; text-transform: uppercase; letter-spacing: 0.8px; color: #475569; padding: 3px 5px 4px; }
+  .sb-c-item { display: flex; align-items: center; gap: 6px; padding: 5px 6px; border-radius: 6px; margin-bottom: 2px; }
+  .sb-c-item .ico { width: 16px; height: 16px; border-radius: 4px; flex-shrink: 0; }
+  .sb-c-item .lbl { font-size: 8px; font-weight: 600; color: #cbd5e1; line-height: 1.2; }
+  .sb-c-item .sub { font-size: 6.5px; color: #64748b; margin-top: 1px; }
+  .sb-c-item.active { background: rgba(239,68,68,0.1); }
+  .sb-c-item.active .lbl { color: #fca5a5; }
+  .sb-c-divider { height: 1px; background: rgba(255,255,255,0.04); margin: 5px 0; }
+</style>
+</head>
+<body>
+
+<h2>Qual é a largura e densidade do sidebar?</h2>
+<p class="subtitle">O sidebar com Fixados + Recentes — quanto espaço ele deve ocupar?</p>
+
+<div class="cards">
+
+  <!-- A: Só ícones -->
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-header">
+      <div class="letter">A</div>
+      <div>
+        <h3>Só ícones (56px)</h3>
+        <p>Minimalista — tooltip ao passar o mouse</p>
+      </div>
+    </div>
+    <div class="mock">
+      <div class="sb-a">
+        <div class="sb-a-brand"></div>
+        <div class="sb-a-avatar">M</div>
+        <div class="sb-a-section"></div>
+        <div class="sb-a-item active"><div class="ico i-orange"></div><div class="sb-a-dot"></div></div>
+        <div class="sb-a-item"><div class="ico i-amber"></div></div>
+        <div class="sb-a-item"><div class="ico i-red"></div></div>
+        <div class="sb-a-section"></div>
+        <div class="sb-a-item"><div class="ico i-blue"></div></div>
+        <div class="sb-a-item"><div class="ico i-pink"></div></div>
+      </div>
+      <div class="content">
+        <div class="greeting-sm">Boa tarde,</div>
+        <div class="name-sm">Melque!</div>
+        <div class="grid-3">
+          <div class="module-card"><div class="ico i-orange"></div><div class="t">Mídia</div><div class="d">Instagram e posts</div></div>
+          <div class="module-card"><div class="ico i-amber"></div><div class="t">Livraria</div><div class="d">PDV e estoque</div></div>
+          <div class="module-card"><div class="ico i-red"></div><div class="t">Consolidação</div><div class="d">Conversões</div></div>
+          <div class="module-card"><div class="ico i-blue"></div><div class="t">Células</div><div class="d">Grupos e PD</div></div>
+          <div class="module-card"><div class="ico i-purple"></div><div class="t">Reservas</div><div class="d">Salas</div></div>
+          <div class="module-card"><div class="ico i-pink"></div><div class="t">Sara Kids</div><div class="d">Check-in</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="card-footer"><span class="tag">Máximo espaço para o grid</span></div>
+  </div>
+
+  <!-- B: Compacto com labels -->
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-header">
+      <div class="letter">B</div>
+      <div>
+        <h3>Compacto + Labels (112px)</h3>
+        <p>Ícone + nome curto — boa legibilidade</p>
+      </div>
+    </div>
+    <div class="mock">
+      <div class="sb-b">
+        <div class="sb-b-brand">
+          <div class="sb-b-dot"></div>
+          <span class="sb-b-brand-txt">Sara Hub</span>
+        </div>
+        <div class="sb-b-user">
+          <div class="sb-b-avatar">M</div>
+          <div>
+            <div class="sb-b-uname">Melque</div>
+            <div class="sb-b-urole">Admin</div>
+          </div>
+        </div>
+        <div class="sb-b-section">⭐ Fixados</div>
+        <div class="sb-b-item pinned"><div class="ico i-orange"></div><span class="lbl">Mídia</span></div>
+        <div class="sb-b-item pinned"><div class="ico i-amber"></div><span class="lbl">Livraria</span></div>
+        <div class="sb-b-item pinned"><div class="ico i-red"></div><span class="lbl">Consolidação</span></div>
+        <div class="sb-b-divider"></div>
+        <div class="sb-b-section">🕐 Recentes</div>
+        <div class="sb-b-item recent"><div class="ico i-blue"></div><span class="lbl">Células</span></div>
+        <div class="sb-b-item recent"><div class="ico i-pink"></div><span class="lbl">Sara Kids</span></div>
+      </div>
+      <div class="content">
+        <div class="greeting-sm">Boa tarde,</div>
+        <div class="name-sm">Melque!</div>
+        <div class="grid-3">
+          <div class="module-card"><div class="ico i-orange"></div><div class="t">Mídia</div><div class="d">Instagram</div></div>
+          <div class="module-card"><div class="ico i-amber"></div><div class="t">Livraria</div><div class="d">PDV</div></div>
+          <div class="module-card"><div class="ico i-red"></div><div class="t">Consolidação</div><div class="d">Conversões</div></div>
+          <div class="module-card"><div class="ico i-blue"></div><div class="t">Células</div><div class="d">Grupos</div></div>
+          <div class="module-card"><div class="ico i-purple"></div><div class="t">Reservas</div><div class="d">Salas</div></div>
+          <div class="module-card"><div class="ico i-pink"></div><div class="t">Kids</div><div class="d">Check-in</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="card-footer"><span class="tag">Equilíbrio entre sidebar e grid</span></div>
+  </div>
+
+  <!-- C: Largo -->
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-header">
+      <div class="letter">C</div>
+      <div>
+        <h3>Largo com descrição (152px)</h3>
+        <p>Nome + subtítulo — mais contexto por item</p>
+      </div>
+    </div>
+    <div class="mock">
+      <div class="sb-c">
+        <div class="sb-c-brand">
+          <div class="sb-c-dot">✦</div>
+          <div>
+            <div class="sb-c-brand-txt">Sara Hub</div>
+            <div class="sb-c-brand-sub">Alagoas</div>
+          </div>
+        </div>
+        <div class="sb-c-user">
+          <div class="sb-c-avatar">M</div>
+          <div>
+            <div class="sb-c-uname">Melque</div>
+            <div class="sb-c-urole">Administrador</div>
+          </div>
+        </div>
+        <div class="sb-c-section">⭐ Fixados</div>
+        <div class="sb-c-item active"><div class="ico i-orange"></div><div><div class="lbl">Mídia</div><div class="sub">Posts e galeria</div></div></div>
+        <div class="sb-c-item"><div class="ico i-amber"></div><div><div class="lbl">Livraria</div><div class="sub">PDV e estoque</div></div></div>
+        <div class="sb-c-item"><div class="ico i-red"></div><div><div class="lbl">Consolidação</div><div class="sub">Conversões</div></div></div>
+        <div class="sb-c-divider"></div>
+        <div class="sb-c-section">🕐 Recentes</div>
+        <div class="sb-c-item"><div class="ico i-blue"></div><div><div class="lbl">Células</div></div></div>
+      </div>
+      <div class="content" style="padding:10px 8px;">
+        <div class="greeting-sm">Boa tarde,</div>
+        <div class="name-sm">Melque!</div>
+        <div class="grid-3" style="grid-template-columns:repeat(2,1fr);">
+          <div class="module-card"><div class="ico i-orange"></div><div class="t">Mídia</div><div class="d">Instagram e posts</div></div>
+          <div class="module-card"><div class="ico i-amber"></div><div class="t">Livraria</div><div class="d">PDV e estoque</div></div>
+          <div class="module-card"><div class="ico i-red"></div><div class="t">Consolidação</div><div class="d">Conversões</div></div>
+          <div class="module-card"><div class="ico i-blue"></div><div class="t">Células</div><div class="d">Grupos e PD</div></div>
+        </div>
+        <div style="margin-top:4px;font-size:6px;color:#475569;">Grid reduz para 2 colunas com sidebar largo</div>
+      </div>
+    </div>
+    <div class="card-footer"><span class="tag">Sidebar dominante — grid menor</span></div>
+  </div>
+
+</div>
+
+</body>
+</html>

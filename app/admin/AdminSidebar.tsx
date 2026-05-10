@@ -18,7 +18,6 @@ import {
   X,
   PanelLeft,
   Loader2,
-  LayoutGrid,
 } from 'lucide-react'
 
 const SIDEBAR_WIDTH_KEY = 'admin-sidebar-width'
@@ -288,40 +287,6 @@ export function AdminSidebar() {
           })}
         </div>
 
-        {/* Trocar módulo rápido */}
-        <div className="px-4 pb-3 shrink-0">
-          <div className="border-t border-white/5 pt-3">
-            <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-600 px-3 mb-2">
-              Outros módulos
-            </p>
-            <div className="space-y-0.5">
-              {visibleModules
-                .filter(m => m.id !== 'dashboard' && m.id !== activeModule.id)
-                .slice(0, 4)
-                .map((mod) => (
-                  <Link
-                    key={mod.id}
-                    href={mod.mainHref ?? mod.items[0]?.href ?? '/admin'}
-                    onClick={handleMenuClick(mod.mainHref ?? mod.items[0]?.href ?? '/admin', isMobile)}
-                    className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-[12px] text-slate-500 hover:text-slate-200 hover:bg-white/5 transition-all duration-200 group"
-                  >
-                    <mod.icon size={13} className="shrink-0 opacity-70 group-hover:opacity-100" />
-                    <span className="flex-1 truncate">{mod.title}</span>
-                  </Link>
-                ))}
-              {visibleModules.filter(m => m.id !== 'dashboard' && m.id !== activeModule.id).length > 4 && (
-                <Link
-                  href="/admin/selecionar"
-                  onClick={handleMenuClick('/admin/selecionar', isMobile)}
-                  className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-[12px] text-slate-500 hover:text-slate-200 hover:bg-white/5 transition-all"
-                >
-                  <LayoutGrid size={13} className="shrink-0" />
-                  <span>Ver todos</span>
-                </Link>
-              )}
-            </div>
-          </div>
-        </div>
       </nav>
     )
   }
