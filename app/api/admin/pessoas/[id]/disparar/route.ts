@@ -70,6 +70,19 @@ export async function POST(request: NextRequest, context: RouteContext) {
       variables: { ...variables, nome },
     })
 
+    await supabase.from('disparos_log').insert({
+      phone: rawPhone,
+      nome,
+      status_code: result.statusCode ?? null,
+      source: 'pessoas',
+      conversion_type:
+        messageId === MESSAGE_ID_CULTO
+          ? 'pessoas_culto'
+          : messageId === MESSAGE_ID_ARENA
+            ? 'pessoas_arena'
+            : 'pessoas_momento_deus',
+    }).then(({ error }) => { if (error) console.error('disparos_log pessoas:', error) })
+
     if (!result.success) {
       return NextResponse.json(
         { error: `Falha ao enviar mensagem (HTTP ${result.statusCode ?? 'timeout'})` },

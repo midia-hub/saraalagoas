@@ -10,6 +10,7 @@ import {
   MESSAGE_ID_ESCALA_LEMBRETE_1,
   MESSAGE_ID_ESCALA_DIA,
 } from '@/lib/disparos-webhook'
+import { isEvolutionConfigured } from '@/lib/evolution-api'
 import { siteConfig } from '@/config/site'
 
 type Params = { params: { id: string } }
@@ -21,6 +22,14 @@ type SlotResult  = {
   slot_id: string; type: string; label: string; date: string
   time_of_day: string; sort_order: number
   assignments: Assignment[]; faltando: string[]
+}
+
+type PublishedScaleData = {
+  slots?: SlotResult[]
+}
+
+type ChurchRef = {
+  name?: string | null
 }
 
 const WEEKDAYS_PT = [
@@ -88,7 +97,7 @@ async function executeDisparoJob({ escalaId, tipo, teste, phoneTeste, nomeTeste 
     throw new Error('A escala precisa estar publicada para enviar disparos.')
   }
 
-  const slots: SlotResult[] = (publicada.dados as any)?.slots ?? []
+  const slots: SlotResult[] = (publicada.dados as PublishedScaleData | null)?.slots ?? []
   if (slots.length === 0) {
     throw new Error('Nenhum slot encontrado na escala publicada.')
   }
@@ -107,7 +116,7 @@ async function executeDisparoJob({ escalaId, tipo, teste, phoneTeste, nomeTeste 
     personMap[p.id] = { full_name: p.full_name, phone: p.mobile_phone || p.phone || null }
   }
 
-  const churchName = (link.church as any)?.name ?? link.ministry
+  const churchName = (link.church as ChurchRef | null)?.name ?? link.ministry
   const mesNum = String(link.month).padStart(2, '0')
   const anoStr = String(link.year)
   const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || 'https://saraalagoas.com').replace(/\/$/, '')
@@ -214,9 +223,18 @@ async function executeDisparoJob({ escalaId, tipo, teste, phoneTeste, nomeTeste 
 
       if (!testAssignment) {
         testAssignment = {
-          slot: slots[0] || { label: 'Culto de Teste', date: targetDate, time_of_day: '19:00', type: 'culto' },
+          slot: slots[0] || {
+            slot_id: 'teste',
+            type: 'culto',
+            label: 'Culto de Teste',
+            date: targetDate,
+            time_of_day: '19:00',
+            sort_order: 0,
+            assignments: [],
+            faltando: [],
+          },
           assignment: { funcao: 'Voluntário de Teste', person_name: 'Nome de Teste', person_id: 'dummy' },
-        } as any
+        }
       }
     }
 
@@ -310,11 +328,9 @@ export async function POST(request: NextRequest, { params }: Params) {
     return NextResponse.json({ error: 'phone_teste é obrigatório no modo teste.' }, { status: 400 })
   }
 
-  const webhookUrl = process.env.DISPAROS_WEBHOOK_URL
-  const webhookBearer = process.env.DISPAROS_WEBHOOK_BEARER
-  if (!webhookUrl || !webhookBearer) {
+  if (!isEvolutionConfigured()) {
     return NextResponse.json(
-      { error: 'Webhook de disparos não configurado (DISPAROS_WEBHOOK_URL / DISPAROS_WEBHOOK_BEARER).' },
+      { error: 'Evolution API nao configurada (EVOLUTION_API_URL / EVOLUTION_API_KEY / EVOLUTION_INSTANCE).' },
       { status: 503 },
     )
   }

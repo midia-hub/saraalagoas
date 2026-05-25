@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
+import { useSearchParams } from 'next/navigation'
 import { Loader2, Mail, Lock, Eye, EyeOff } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { clearSupabaseLocalSession } from '@/lib/auth-recovery'
@@ -39,6 +40,7 @@ const MODULES = [
 ]
 
 export default function AdminLoginPage() {
+  const searchParams = useSearchParams()
   const formRef = useRef<HTMLFormElement>(null)
   const emailRef = useRef<HTMLInputElement>(null)
   const passwordRef = useRef<HTMLInputElement>(null)
@@ -297,7 +299,12 @@ export default function AdminLoginPage() {
           setLoading(false)
           return
         }
-        window.location.replace(`${basePath}/admin/selecionar`)
+        const nextPath = searchParams.get('next')
+        const safeNextPath =
+          nextPath && nextPath.startsWith('/') && !nextPath.startsWith('//')
+            ? nextPath
+            : '/admin/selecionar'
+        window.location.replace(`${basePath}${safeNextPath}`)
         return
       }
     } catch (e) {

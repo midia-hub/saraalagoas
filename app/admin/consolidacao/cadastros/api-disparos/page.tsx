@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import Link from 'next/link'
-import { Send, ArrowLeft, Save, RefreshCw, CheckCircle2, XCircle, Activity, Filter, Loader2, Clock, Bell, ChevronDown, MessageSquare } from 'lucide-react'
+import { Send, ArrowLeft, Save, CheckCircle2, XCircle, Filter } from 'lucide-react'
 import { PageAccessGuard } from '@/app/admin/PageAccessGuard'
 import { Button } from '@/components/ui/Button'
 import { adminFetchJson } from '@/lib/admin-client'
@@ -62,28 +62,9 @@ const TIPO_LABELS: Record<string, { label: string; color: string }> = {
   kids_encerramento:         { label: 'Kids Encerramento',   color: 'bg-pink-100 text-pink-700' },
   midia_arte_responsavel:    { label: 'MÃ­dia â€“ Arte',        color: 'bg-indigo-100 text-indigo-700' },
   midia_producao_video:      { label: 'MÃ­dia â€“ VÃ­deo',       color: 'bg-indigo-100 text-indigo-700' },
-}
-
-const JOB_TIPO_LABELS: Record<string, string> = {
-  mes:            'Envio da Escala do MÃªs',
-  lembrete_3dias: 'Lembrete â€“ 3 dias antes',
-  lembrete_1dia:  'Lembrete â€“ 1 dia antes',
-  dia_da_escala:  'Lembrete no dia',
-}
-
-const JOB_STATUS_UI: Record<string, { label: string; color: string }> = {
-  queued:    { label: 'Aguardando',   color: 'bg-yellow-100 text-yellow-700' },
-  running:   { label: 'Em andamento', color: 'bg-blue-100 text-blue-700'    },
-  completed: { label: 'ConcluÃ­do',    color: 'bg-green-100 text-green-700'  },
-  failed:    { label: 'Com erro',     color: 'bg-red-100 text-red-600'      },
-}
-
-function JobStatusIcon({ status }: { status: string }) {
-  if (status === 'queued')    return <Clock size={11} />
-  if (status === 'running')   return <Loader2 size={11} className="animate-spin" />
-  if (status === 'completed') return <CheckCircle2 size={11} />
-  if (status === 'failed')    return <XCircle size={11} />
-  return null
+  pessoas_culto:             { label: 'Pessoa â€“ Culto',       color: 'bg-cyan-100 text-cyan-700' },
+  pessoas_arena:             { label: 'Pessoa â€“ Arena',       color: 'bg-cyan-100 text-cyan-700' },
+  pessoas_momento_deus:      { label: 'Pessoa â€“ Momento',     color: 'bg-cyan-100 text-cyan-700' },
 }
 
 const SOURCE_LABELS: Record<string, string> = {
@@ -93,6 +74,7 @@ const SOURCE_LABELS: Record<string, string> = {
   escala:  'Escalas',
   kids:    'Sara Kids',
   midia:   'MÃ­dia',
+  pessoas: 'Pessoas',
 }
 
 function getTipoInfo(conversion_type: string) {
@@ -111,13 +93,6 @@ export default function ApiDisparosPage() {
   const [disparosLog, setDisparosLog] = useState<DisparosLogEntry[]>([])
   const [disparosLogLoading, setDisparosLogLoading] = useState(true)
   const [jobs, setJobs] = useState<BackgroundJobEntry[]>([])
-  const [cronJobs, setCronJobs] = useState<CronJobEntry[]>([])
-
-  // Disparo manual de lembretes de escala - DESATIVADO
-  const [triggerLoading] = useState<Record<string, boolean>>({})
-  const [triggerResult] = useState<Record<string, { enviados: number; erros: number; aviso?: string } | { error: string } | null>>({})
-  const [triggerForce] = useState<Record<string, boolean>>({})
-  const [showPreview] = useState<Record<string, boolean>>({})
 
   // Filtros do log
   const [filterSource, setFilterSource] = useState('')
@@ -143,7 +118,6 @@ export default function ApiDisparosPage() {
       const data = await adminFetchJson<{ items: DisparosLogEntry[]; jobs?: BackgroundJobEntry[]; cron?: CronJobEntry[] }>('/api/admin/disparos-log?limit=200')
       setDisparosLog(data.items ?? [])
       setJobs(data.jobs ?? [])
-      setCronJobs(data.cron ?? [])
     } catch (err) {
       console.error('[API disparos] Erro ao carregar log:', err)
       setDisparosLog([])
@@ -242,7 +216,7 @@ export default function ApiDisparosPage() {
               </div>
               <div>
                 <h1 className="text-2xl font-bold text-slate-800">API de disparos</h1>
-                <p className="text-slate-500">Envio automÃ¡tico de mensagem ao finalizar o formulÃ¡rio de consolidaÃ§Ã£o</p>
+                <p className="text-slate-500">Envio automÃ¡tico de WhatsApp pela Evolution API</p>
               </div>
             </div>
           </div>
@@ -258,7 +232,7 @@ export default function ApiDisparosPage() {
               <div className="px-6 py-4 border-b border-slate-200 bg-slate-50 rounded-t-xl">
                 <h2 className="text-lg font-semibold text-slate-800">Ativar API de disparos</h2>
                 <p className="text-sm text-slate-500">
-                  Quando ativa, ao finalizar o formulÃ¡rio de consolidaÃ§Ã£o (pÃºblico ou admin) serÃ¡ chamado o webhook de disparos com o telefone e nome do convertido. A mensagem enviada depende do tipo: &quot;Aceitou&quot; ou &quot;Reconciliou&quot;.
+                  Quando ativa, os processos da plataforma enviam mensagens diretamente pela Evolution API. A mensagem enviada depende do tipo de processo registrado.
                 </p>
               </div>
               <div className="p-6 flex items-center gap-4">
@@ -275,7 +249,7 @@ export default function ApiDisparosPage() {
             </div>
 
             <p className="text-sm text-slate-500">
-              Configure no servidor as variÃ¡veis <code className="bg-slate-100 px-1 rounded">DISPAROS_WEBHOOK_URL</code> e <code className="bg-slate-100 px-1 rounded">DISPAROS_WEBHOOK_BEARER</code> para que o envio funcione.
+              Configure no servidor as variÃ¡veis <code className="bg-slate-100 px-1 rounded">EVOLUTION_API_URL</code>, <code className="bg-slate-100 px-1 rounded">EVOLUTION_API_KEY</code> e <code className="bg-slate-100 px-1 rounded">EVOLUTION_INSTANCE</code> para que o envio funcione.
             </p>
 
             <div className="flex justify-end">
@@ -380,7 +354,6 @@ export default function ApiDisparosPage() {
                     {filteredLog.map((row) => {
                       const tipoInfo = getTipoInfo(row.conversion_type)
                       const isSuccess = row.status_code != null && row.status_code >= 200 && row.status_code < 300
-                      const isError   = row.status_code != null && !isSuccess
                       return (
                         <tr key={row.id} className="hover:bg-slate-50/40 transition-colors">
                           <td className="py-3 px-4 text-slate-500 text-xs whitespace-nowrap">

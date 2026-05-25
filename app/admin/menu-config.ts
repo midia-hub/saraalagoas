@@ -34,6 +34,7 @@ import {
     ScanFace,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
+import { getAdminModuleRoute } from '@/lib/admin-module-routes'
 
 export interface MenuItem {
     href: string
@@ -49,9 +50,14 @@ export interface MenuModule {
     icon: LucideIcon
     color?: string
     permission?: string
+    subdomain?: string
     basePaths?: string[]
     mainHref?: string
     items: MenuItem[]
+}
+
+function routeFor(id: string) {
+    return getAdminModuleRoute(id)
 }
 
 /**
@@ -86,8 +92,9 @@ export const menuModules: MenuModule[] = [
         icon: LayoutGrid,
         color: '#6366f1',
         permission: 'reservas',
-        basePaths: ['/admin/reservas'],
-        mainHref: '/admin/reservas/dashboard',
+        subdomain: routeFor('reservas')?.subdomain,
+        basePaths: routeFor('reservas')?.basePaths,
+        mainHref: routeFor('reservas')?.mainHref,
         items: [
             { href: '/admin/reservas', label: 'Solicitações', icon: ClipboardList, permission: 'reservas' },
             { href: '/admin/reservas/salas', label: 'Salas', icon: Building2, permission: 'reservas' },
@@ -102,8 +109,9 @@ export const menuModules: MenuModule[] = [
         icon: UsersRound,
         color: '#0ea5e9',
         permission: 'pessoas',
-        basePaths: ['/admin/lideranca'],
-        mainHref: '/admin/lideranca',
+        subdomain: routeFor('lideranca')?.subdomain,
+        basePaths: routeFor('lideranca')?.basePaths,
+        mainHref: routeFor('lideranca')?.mainHref,
         items: [
             {
                 href: '/admin/lideranca/meu-discipulado',
@@ -128,8 +136,9 @@ export const menuModules: MenuModule[] = [
         icon: CalendarDays,
         color: '#64748b',
         permission: 'escalas',
-        basePaths: ['/admin/escalas'],
-        mainHref: '/admin/escalas/dashboard',
+        subdomain: routeFor('escalas')?.subdomain,
+        basePaths: routeFor('escalas')?.basePaths,
+        mainHref: routeFor('escalas')?.mainHref,
         items: [
             {
                 href: '/admin/escalas',
@@ -148,8 +157,9 @@ export const menuModules: MenuModule[] = [
         icon: UsersRound,
         color: '#3b82f6',
         permission: 'celulas',
-        basePaths: ['/admin/celulas'],
-        mainHref: '/admin/celulas/dashboard',
+        subdomain: routeFor('celulas')?.subdomain,
+        basePaths: routeFor('celulas')?.basePaths,
+        mainHref: routeFor('celulas')?.mainHref,
         items: [
             {
                 href: '/admin/celulas',
@@ -180,8 +190,9 @@ export const menuModules: MenuModule[] = [
         icon: UserPlus,
         color: '#C4232A',
         permission: 'consolidacao',
-        basePaths: ['/admin/consolidacao'],
-        mainHref: '/admin/consolidacao',
+        subdomain: routeFor('consolidacao')?.subdomain,
+        basePaths: routeFor('consolidacao')?.basePaths,
+        mainHref: routeFor('consolidacao')?.mainHref,
         items: [
             {
                 href: '/admin/consolidacao/conversoes',
@@ -242,8 +253,9 @@ export const menuModules: MenuModule[] = [
         icon: Heart,
         color: '#14b8a6',
         permission: 'revisao_vidas',
-        basePaths: ['/admin/revisao-vidas'],
-        mainHref: '/admin/revisao-vidas',
+        subdomain: routeFor('revisao-vidas')?.subdomain,
+        basePaths: routeFor('revisao-vidas')?.basePaths,
+        mainHref: routeFor('revisao-vidas')?.mainHref,
         items: [
             {
                 href: '/admin/revisao-vidas',
@@ -268,8 +280,9 @@ export const menuModules: MenuModule[] = [
         icon: BookOpen,
         color: '#f59e0b',
         permission: 'livraria_produtos',
-        basePaths: ['/admin/livraria'],
-        mainHref: '/admin/livraria/dashboard',
+        subdomain: routeFor('livraria')?.subdomain,
+        basePaths: routeFor('livraria')?.basePaths,
+        mainHref: routeFor('livraria')?.mainHref,
         items: [
             {
                 href: '/admin/livraria/dashboard',
@@ -324,15 +337,9 @@ export const menuModules: MenuModule[] = [
         icon: ImageIcon,
         color: '#f97316',
         permission: 'galeria',
-        basePaths: [
-            '/admin/galeria',
-            '/admin/midia',
-            '/admin/instagram',
-            '/admin/instancias',
-            '/admin/rekognition',
-            '/admin/upload',
-        ],
-        mainHref: '/admin/midia',
+        subdomain: routeFor('midia')?.subdomain,
+        basePaths: routeFor('midia')?.basePaths,
+        mainHref: routeFor('midia')?.mainHref,
         items: [
             {
                 href: '/admin/galeria',
@@ -387,8 +394,9 @@ export const menuModules: MenuModule[] = [
         icon: UserCircle,
         color: '#8b5cf6',
         permission: 'pessoas',
-        basePaths: ['/admin/pessoas'],
-        mainHref: '/admin/pessoas/dashboard',
+        subdomain: routeFor('pessoas')?.subdomain,
+        basePaths: routeFor('pessoas')?.basePaths,
+        mainHref: routeFor('pessoas')?.mainHref,
         items: [
             {
                 href: '/admin/pessoas',
@@ -407,8 +415,9 @@ export const menuModules: MenuModule[] = [
         icon: Baby,
         color: '#ec4899',
         permission: 'pessoas',
-        basePaths: ['/admin/sara-kids'],
-        mainHref: '/admin/sara-kids',
+        subdomain: routeFor('sara-kids')?.subdomain,
+        basePaths: routeFor('sara-kids')?.basePaths,
+        mainHref: routeFor('sara-kids')?.mainHref,
         items: [
             {
                 href: '/admin/sara-kids',
@@ -439,17 +448,9 @@ export const menuModules: MenuModule[] = [
         icon: Settings,
         color: '#475569',
         permission: 'configuracoes',
-        basePaths: [
-            '/admin/configuracoes',
-            '/admin/roles',
-            '/admin/settings',
-            '/admin/usuarios',
-            '/admin/conta',
-            '/admin/criar-acesso',
-            '/admin/midia/ia-config',
-            '/admin/consolidacao/cadastros/api-disparos',
-        ],
-        mainHref: '/admin/configuracoes',
+        subdomain: routeFor('configuracoes')?.subdomain,
+        basePaths: routeFor('configuracoes')?.basePaths,
+        mainHref: routeFor('configuracoes')?.mainHref,
         items: [
             {
                 href: '/admin/configuracoes',

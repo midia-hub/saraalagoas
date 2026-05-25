@@ -4,6 +4,7 @@ import {
   getNomeExibicao,
   MESSAGE_ID_ESCALA_MES,
 } from './disparos-webhook'
+import { isEvolutionConfigured } from './evolution-api'
 
 type Assignment = { funcao: string; person_id: string; person_name: string }
 type SlotResult = {
@@ -36,9 +37,7 @@ export async function triggerScalePublishedNotifications(
   linkId: string,
   dados: { slots: SlotResult[] }
 ) {
-  const webhookUrl = process.env.DISPAROS_WEBHOOK_URL
-  const webhookBearer = process.env.DISPAROS_WEBHOOK_BEARER
-  if (!webhookUrl || !webhookBearer) return { ok: false, error: 'Webhook não configurado.' }
+  if (!isEvolutionConfigured()) return { ok: false, error: 'Evolution API nao configurada.' }
 
   const slots = dados.slots || []
   if (slots.length === 0) return { ok: true, enviados: 0 }
