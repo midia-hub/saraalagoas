@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { ROOT_DOMAIN, adminModuleRoutes } from '@/lib/admin-module-routes'
 
 function hasAdminAccess(request: NextRequest): boolean {
   const access = request.cookies.get('admin_access')?.value
@@ -27,9 +28,27 @@ function applySecurityHeaders(response: NextResponse): NextResponse {
   return response
 }
 
+function getHostname(request: NextRequest): string {
+  const forwardedHost = request.headers.get('x-forwarded-host')
+  const host = forwardedHost || request.headers.get('host') || request.nextUrl.host
+  return host.split(':')[0].toLowerCase()
+}
+
+function getModuleRouteByHost(request: NextRequest) {
+  const hostname = getHostname(request)
+  const rootDomain = ROOT_DOMAIN.toLowerCase()
+  if (!hostname.endsWith(`.${rootDomain}`)) return null
+
+  const subdomain = hostname.slice(0, -(rootDomain.length + 1))
+  if (!subdomain || subdomain.includes('.')) return null
+
+  return adminModuleRoutes.find((route) => route.subdomain === subdomain) ?? null
+}
+
 export function middleware(request: NextRequest) {
   try {
     const { pathname } = request.nextUrl
+    const moduleRoute = getModuleRouteByHost(request)
     // Nunca aplicar regras a estáticos: _next (CSS, JS, chunks), favicon, etc.
     if (
       pathname.startsWith('/_next') ||
@@ -44,6 +63,8 @@ export function middleware(request: NextRequest) {
     }
     const normalizedPath =
       pathname.length > 1 && pathname.endsWith('/') ? pathname.slice(0, -1) : pathname
+    const effectivePath =
+      moduleRoute && normalizedPath === '/' ? moduleRoute.mainHref : normalizedPath
     
     // Bypass para Cron (Supabase/GitHub)
     if (normalizedPath.startsWith('/api/cron')) {
@@ -57,10 +78,10 @@ export function middleware(request: NextRequest) {
       return applySecurityHeaders(NextResponse.next())
     }
 
-    const isAdminPage = normalizedPath.startsWith('/admin')
-    const isAdminApi = normalizedPath.startsWith('/api/admin')
-    const isLoginPage = normalizedPath === '/admin/login'
-    const isCompletarCadastroPage = normalizedPath === '/admin/completar-cadastro'
+    const isAdminPage = effectivePath.startsWith('/admin')
+    const isAdminApi = effectivePath.startsWith('/api/admin')
+    const isLoginPage = effectivePath === '/admin/login'
+    const isCompletarCadastroPage = effectivePath === '/admin/completar-cadastro'
     const isPublicAdminPage = isLoginPage || isCompletarCadastroPage
 
     if ((isAdminPage || isAdminApi) && !isPublicAdminPage) {
@@ -70,8 +91,15 @@ export function middleware(request: NextRequest) {
         }
         const url = request.nextUrl.clone()
         url.pathname = '/admin/login'
+        url.searchParams.set('next', normalizedPath)
         return applySecurityHeaders(NextResponse.redirect(url))
       }
+    }
+
+    if (moduleRoute && normalizedPath === '/') {
+      const url = request.nextUrl.clone()
+      url.pathname = moduleRoute.mainHref
+      return applySecurityHeaders(NextResponse.rewrite(url))
     }
 
     return applySecurityHeaders(NextResponse.next())

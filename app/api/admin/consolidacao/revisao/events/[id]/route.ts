@@ -4,6 +4,13 @@ import { createSupabaseAdminClient } from '@/lib/supabase-server'
 
 const REVISAO_EVENT_SELECT = 'id, name, church_id, start_date, end_date, active, secretary_person_id, created_at, updated_at'
 
+function isEventExpired(ev: { start_date: string; end_date: string | null }): boolean {
+  const ref = ev.end_date ?? ev.start_date
+  const end = new Date(ref + 'T00:00:00')
+  end.setDate(end.getDate() + 1)
+  return new Date() >= end
+}
+
 /**
  * GET    /api/admin/consolidacao/revisao/events/[id]
  * PATCH  /api/admin/consolidacao/revisao/events/[id]
@@ -35,7 +42,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       secretary = sec
     }
 
-    return NextResponse.json({ item: { ...event, secretary } })
+    return NextResponse.json({ item: { ...event, active: event.active && !isEventExpired(event), secretary } })
   } catch (err) {
     console.error('GET revisao/events [id]:', err)
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 })

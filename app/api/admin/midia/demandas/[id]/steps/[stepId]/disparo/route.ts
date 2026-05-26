@@ -88,14 +88,15 @@ export async function POST(
   let sendSuccess = false
   let sendError   = ''
 
-  // Verifica se message ID está configurado
-  const isConfigured =
-    !messageId.startsWith('CONFIGURAR_')
+  const isConfigured = true
 
   if (isConfigured) {
     try {
       const sendResult = await sendDisparoRaw({ phone: cleanPhone, messageId, variables })
-      sendSuccess = true
+      sendSuccess = sendResult.success
+      if (!sendSuccess) {
+        sendError = `Falha ao enviar mensagem (HTTP ${sendResult.statusCode ?? 'timeout'})`
+      }
       // Registra no log unificado de disparos
       supabaseAdmin.from('disparos_log').insert({
         phone: cleanPhone,

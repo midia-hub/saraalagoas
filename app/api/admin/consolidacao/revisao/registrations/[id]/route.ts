@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAccess } from '@/lib/admin-api'
 import { createSupabaseAdminClient } from '@/lib/supabase-server'
 
-const REGISTRATION_SELECT = 'id, event_id, person_id, leader_person_id, status, notes, created_at, updated_at, anamnese_token, anamnese_completed, anamnese_completed_at, pre_revisao_aplicado, payment_status, payment_date, payment_method, amount, payment_notes, payment_validated_by, payment_validated_at'
+const REGISTRATION_SELECT = 'id, event_id, person_id, leader_person_id, status, notes, created_at, updated_at, anamnese_token, anamnese_completed, anamnese_completed_at, pre_revisao_aplicado, payment_status, payment_date, payment_method, amount, payment_notes, payment_validated_by, payment_validated_at, leader_name, team, decision_type'
 
 /**
  * PATCH  /api/admin/consolidacao/revisao/registrations/[id]

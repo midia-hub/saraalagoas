@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseAdminClient } from '@/lib/supabase-server'
+import { sendEvolutionText, isEvolutionConfigured } from '@/lib/evolution-api'
 
 type InscricaoLogAction =
   | 'attempt'
@@ -8,6 +9,37 @@ type InscricaoLogAction =
   | 'registration_exists'
   | 'registration_created'
   | 'registration_error'
+
+function buildAnamneseUrl(origin: string, token: string) {
+  return `${origin}/revisao-vidas/anamnese/${token}`
+}
+
+function sendAnamneseWhatsApp(phone: string, name: string, eventName: string, anamneseUrl: string) {
+  if (!isEvolutionConfigured() || !phone) return
+  const firstName = name.trim().split(' ')[0]
+  const text = [
+    `Olá, ${firstName}! 🙏`,
+    '',
+    `Recebemos a sua inscrição para a *${eventName}*!`,
+    '',
+    'Preencha o formulário de Anamnese pelo link abaixo:',
+    '',
+    anamneseUrl,
+    '',
+    '_Obs: caso essa seja a nossa primeira mensagem, responda antes de clicar no link para liberar o acesso no WhatsApp._',
+  ].join('\n')
+
+  sendEvolutionText({ phone, text }).catch((err) =>
+    console.error('[revisao-inscricao] falha ao enviar WhatsApp de anamnese:', err)
+  )
+}
+
+function isEventExpired(ev: { start_date: string; end_date: string | null }): boolean {
+  const ref = ev.end_date ?? ev.start_date
+  const end = new Date(ref + 'T00:00:00')
+  end.setDate(end.getDate() + 1)
+  return new Date() >= end
+}
 
 /**
  * Normaliza dígitos do telefone e retorna no formato local brasileiro (sem prefixo 55).
@@ -105,7 +137,7 @@ export async function GET(
     return NextResponse.json({ error: 'Evento não encontrado' }, { status: 404 })
   }
 
-  return NextResponse.json({ event })
+  return NextResponse.json({ event: { ...event, active: event.active && !isEventExpired(event) } })
 }
 
 /**
@@ -123,7 +155,7 @@ export async function POST(
   // 1. Validar evento
   const { data: event, error: evErr } = await supabase
     .from('revisao_vidas_events')
-    .select('id, name, active')
+    .select('id, name, active, start_date, end_date')
     .eq('id', params.eventId)
     .single()
 
@@ -131,7 +163,7 @@ export async function POST(
     return NextResponse.json({ error: 'Evento não encontrado' }, { status: 404 })
   }
 
-  if (!event.active) {
+  if (!event.active || isEventExpired(event)) {
     return NextResponse.json({ error: 'Este evento não está aceitando inscrições no momento.' }, { status: 400 })
   }
 
@@ -309,6 +341,11 @@ export async function POST(
           payload: { status: existingReg.status, via: 'conflict_recovery' },
         })
 
+        if (existingReg.anamnese_token) {
+          const origin = request.nextUrl.origin
+          sendAnamneseWhatsApp(phone, fullName, event.name, buildAnamneseUrl(origin, existingReg.anamnese_token))
+        }
+
         return NextResponse.json({
           alreadyRegistered: true,
           registrationId: existingReg.id,
@@ -341,6 +378,11 @@ export async function POST(
     personId, registrationId: reg.id,
     personName: fullName, phoneMasked: maskedPhone,
   })
+
+  if (reg.anamnese_token) {
+    const origin = request.nextUrl.origin
+    sendAnamneseWhatsApp(phone, fullName, event.name, buildAnamneseUrl(origin, reg.anamnese_token))
+  }
 
   return NextResponse.json({
     alreadyRegistered: false,

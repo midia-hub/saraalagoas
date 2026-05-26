@@ -6,6 +6,7 @@ import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { useAdminAccess } from '@/lib/admin-access-context'
+import { getModuleRootHref } from '@/lib/admin-module-routes'
 import { menuModules } from '@/app/admin/menu-config'
 import { LogOut, Home, Settings, Star, ChevronRight } from 'lucide-react'
 
@@ -125,7 +126,7 @@ export default function SelecionarModuloPage() {
             </p>
             {pinnedModules.map(mod => {
               const Icon = mod.icon
-              const href = mod.mainHref ?? mod.items[0]?.href ?? '/admin'
+              const href = getModuleRootHref(mod)
               return (
                 <Link
                   key={mod.id}
@@ -161,7 +162,7 @@ export default function SelecionarModuloPage() {
             </p>
             {recentModules.map(mod => {
               const Icon = mod.icon
-              const href = mod.mainHref ?? mod.items[0]?.href ?? '/admin'
+              const href = getModuleRootHref(mod)
               return (
                 <Link
                   key={mod.id}
@@ -266,7 +267,7 @@ export default function SelecionarModuloPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {visibleModules.map((mod) => {
                 const Icon = mod.icon
-                const href = mod.mainHref ?? mod.items[0]?.href ?? '/admin'
+                const href = getModuleRootHref(mod)
                 const isPinned = pinned.includes(mod.id)
 
                 return (

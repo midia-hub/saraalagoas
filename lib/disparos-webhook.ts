@@ -1,6 +1,8 @@
+import { isEvolutionConfigured, normalizeBrazilPhone, sendEvolutionText } from './evolution-api'
+
 /**
- * Nome reduzido para exibição (mesma lógica da página de sucesso da consolidação).
- * Primeiro nome; para nomes comuns (Maria, João, etc.) usa primeiro + segundo.
+ * Nome reduzido para exibicao (mesma logica da pagina de sucesso da consolidacao).
+ * Primeiro nome; para nomes comuns (Maria, Joao, etc.) usa primeiro + segundo.
  */
 const PRIMEIRO_NOME_COM_SEGUNDO = new Set([
   'maria', 'ana', 'sofia', 'laura', 'isabel',
@@ -17,7 +19,6 @@ export function getNomeExibicao(nome: string): string {
   return primeiro
 }
 
-const CHANNEL_ID = '06bbe7a9-642b-46d0-97cd-d77b6aff9d94'
 const MESSAGE_ID_ACEITOU = 'd3d770e5-6c68-4c91-b985-ceb920768a61'
 const MESSAGE_ID_RECONCILIOU = '8f32bd0d-ae13-4261-af91-4845284ab1fe'
 
@@ -39,9 +40,8 @@ export const MESSAGE_ID_ESCALA_LEMBRETE_1 = '96a161e3-087c-4755-b31e-0c127c36d6b
 export const MESSAGE_ID_ESCALA_DIA        = '27eb5277-f8d8-45b3-98cc-15f9e0b55d0c'
 
 // ── Message IDs do módulo de Demandas de Mídia ───────────────────────────
-// ⚠️ Configurar os IDs reais após criar os templates no painel Disparos
-export const MESSAGE_ID_DEMANDA_ARTE       = process.env.MESSAGE_ID_DEMANDA_ARTE       ?? 'CONFIGURAR_MESSAGE_ID_ARTE'
-export const MESSAGE_ID_DEMANDA_VIDEO      = process.env.MESSAGE_ID_DEMANDA_VIDEO      ?? 'CONFIGURAR_MESSAGE_ID_VIDEO'
+export const MESSAGE_ID_DEMANDA_ARTE       = 'demanda_arte'
+export const MESSAGE_ID_DEMANDA_VIDEO      = 'demanda_video'
 
 // ── Message IDs do módulo Sara Kids ──────────────────────────────────────
 export const MESSAGE_ID_KIDS_CHECKIN      = '7f9fb081-bb8f-4db7-9b9c-25df8c3b110a'
@@ -52,46 +52,143 @@ export const MESSAGE_ID_KIDS_ENCERRAMENTO = '851978a9-e0d2-4202-b332-4b144476a24
 export const MESSAGE_ID_CULTO        = '16155aa7-ce8f-4bba-a37a-b4d60c04782f' // Hoje é dia de culto!
 export const MESSAGE_ID_ARENA        = 'bfaa202b-e385-4c2f-9fe5-ce0b026b80c5' // Hoje é dia de ARENA!
 export const MESSAGE_ID_MOMENTO_DEUS = 'fc1e2ddf-dea2-4422-abf8-f36df567e678' // Momento com Deus
+
+function value(variables: Record<string, string>, key: string, fallback = '') {
+  const raw = variables[key]
+  return raw == null || raw === '' ? fallback : raw
+}
+
+function renderDisparoText(messageId: string, variables: Record<string, string>) {
+  const nome = value(variables, 'nome', 'irmao(a)')
+
+  switch (messageId) {
+    case MESSAGE_ID_ACEITOU:
+      return `Ola ${nome}, que alegria pela sua decisao por Jesus!\n\nA Sara Nossa Terra Alagoas quer caminhar com voce nessa nova etapa. Em breve nossa equipe de consolidacao vai falar com voce.`
+    case MESSAGE_ID_RECONCILIOU:
+      return `Ola ${nome}, ficamos muito felizes com sua reconciliacao!\n\nA Sara Nossa Terra Alagoas quer estar perto de voce e ajudar nos proximos passos. Em breve nossa equipe de consolidacao vai falar com voce.`
+    case MESSAGE_ID_RESERVA_RECEBIDA:
+      return [
+        `Ola ${nome}, recebemos sua solicitacao de reserva de sala.`,
+        `Sala: ${value(variables, 'sala', '-')}`,
+        `Data: ${value(variables, 'data', '-')}`,
+        `Horario: ${value(variables, 'hora_inicio', '-')} as ${value(variables, 'hora_fim', '-')}`,
+        `Pessoas: ${value(variables, 'quantidade_pessoas', '-')}`,
+        value(variables, 'motivo') ? `Motivo: ${value(variables, 'motivo')}` : '',
+      ].filter(Boolean).join('\n')
+    case MESSAGE_ID_RESERVA_PENDENTE_APROVACAO:
+      return [
+        'Nova reserva pendente de aprovacao.',
+        `Solicitante: ${value(variables, 'solicitante', nome)}`,
+        `Sala: ${value(variables, 'sala', '-')}`,
+        `Data: ${value(variables, 'data', '-')}`,
+        `Horario: ${value(variables, 'hora_inicio', '-')} as ${value(variables, 'hora_fim', '-')}`,
+        value(variables, 'motivo') ? `Motivo: ${value(variables, 'motivo')}` : '',
+      ].filter(Boolean).join('\n')
+    case MESSAGE_ID_RESERVA_APROVADA:
+      return [
+        `Ola ${nome}, sua reserva foi aprovada.`,
+        `Sala: ${value(variables, 'sala', '-')}`,
+        `Data: ${value(variables, 'data', '-')}`,
+        `Horario: ${value(variables, 'hora_inicio', '-')} as ${value(variables, 'hora_fim', '-')}`,
+        value(variables, 'aprovador_nome') ? `Aprovado por: ${value(variables, 'aprovador_nome')}` : '',
+      ].filter(Boolean).join('\n')
+    case MESSAGE_ID_RESERVA_REPROVADA:
+      return [
+        `Ola ${nome}, sua reserva nao foi aprovada.`,
+        `Sala: ${value(variables, 'sala', '-')}`,
+        `Data: ${value(variables, 'data', '-')}`,
+        value(variables, 'motivo_reprovacao') ? `Motivo: ${value(variables, 'motivo_reprovacao')}` : '',
+      ].filter(Boolean).join('\n')
+    case MESSAGE_ID_RESERVA_CANCELADA:
+      return [
+        `Ola ${nome}, sua reserva foi cancelada.`,
+        `Sala: ${value(variables, 'sala', '-')}`,
+        `Data: ${value(variables, 'data', '-')}`,
+        value(variables, 'motivo_cancelamento') ? `Motivo: ${value(variables, 'motivo_cancelamento')}` : '',
+      ].filter(Boolean).join('\n')
+    case MESSAGE_ID_ESCALA_MES:
+      return [
+        `Ola ${nome}, saiu sua escala de ${value(variables, 'ministerio', 'ministerio')} para ${value(variables, 'mes', '-')}/${value(variables, 'ano', '-')}.`,
+        '',
+        value(variables, 'escala_lista', ''),
+        '',
+        value(variables, 'link_escala') ? `Confira a escala completa: ${value(variables, 'link_escala')}` : '',
+      ].filter((line) => line !== '').join('\n')
+    case MESSAGE_ID_ESCALA_LEMBRETE_3:
+    case MESSAGE_ID_ESCALA_LEMBRETE_1:
+      return [
+        `Ola ${nome}, passando para lembrar que voce esta escalado(a).`,
+        `Dia: ${value(variables, 'dia_semana', '')} ${value(variables, 'data', '')}`.trim(),
+        `Funcao: ${value(variables, 'funcao', '-')}`,
+        `Horario: ${value(variables, 'hora', '-')}`,
+        `Local: ${value(variables, 'local', '-')}`,
+      ].join('\n')
+    case MESSAGE_ID_ESCALA_DIA:
+      return [
+        `Ola ${nome}, hoje e dia da sua escala.`,
+        `Funcao: ${value(variables, 'funcao', '-')}`,
+        `Horario: ${value(variables, 'hora', '-')}`,
+        `Local: ${value(variables, 'local', '-')}`,
+        value(variables, 'whats_lider') ? `Em caso de imprevisto, fale com a lideranca: ${value(variables, 'whats_lider')}` : '',
+      ].filter(Boolean).join('\n')
+    case MESSAGE_ID_DEMANDA_ARTE:
+    case MESSAGE_ID_DEMANDA_VIDEO:
+      return [
+        `Ola ${nome}, voce recebeu uma nova demanda de midia.`,
+        `Demanda: ${value(variables, 'demanda_titulo', '-')}`,
+        `Tipo: ${value(variables, 'tipo_tarefa', '-')}`,
+        value(variables, 'descricao') ? `Descricao: ${value(variables, 'descricao')}` : '',
+        value(variables, 'prazo') || '',
+      ].filter(Boolean).join('\n')
+    case MESSAGE_ID_KIDS_CHECKIN:
+      return [
+        `Ola ${value(variables, 'responsavel_nome', nome)}, ${value(variables, 'crianca_nome', 'sua crianca')} fez check-in no Sara Kids.`,
+        `Culto: ${value(variables, 'culto_nome', '-')}`,
+        `Data: ${value(variables, 'data', '-')}`,
+        `Horario: ${value(variables, 'hora_checkin', '-')}`,
+      ].join('\n')
+    case MESSAGE_ID_KIDS_CHECKOUT:
+      return [
+        `Ola ${value(variables, 'responsavel_nome', nome)}, ${value(variables, 'crianca_nome', 'sua crianca')} fez check-out no Sara Kids.`,
+        `Culto: ${value(variables, 'culto_nome', '-')}`,
+        `Data: ${value(variables, 'data', '-')}`,
+        `Horario: ${value(variables, 'hora_checkout', '-')}`,
+      ].join('\n')
+    case MESSAGE_ID_KIDS_ALERTA:
+      return `Ola ${value(variables, 'responsavel_nome', nome)}, precisamos da sua presenca no Sara Kids para ${value(variables, 'crianca_nome', 'sua crianca')}.`
+    case MESSAGE_ID_KIDS_ENCERRAMENTO:
+      return `Ola ${value(variables, 'responsavel_nome', nome)}, o Sara Kids esta encerrando. Por favor, busque ${value(variables, 'crianca_nome', 'sua crianca')}.`
+    case MESSAGE_ID_CULTO:
+      return `Ola ${nome}, hoje e dia de culto! Esperamos voce na Sara Nossa Terra Alagoas.`
+    case MESSAGE_ID_ARENA:
+      return `Ola ${nome}, hoje e dia de ARENA! Esperamos voce para esse tempo de comunhao.`
+    case MESSAGE_ID_MOMENTO_DEUS:
+      return `Ola ${nome}, passando para lembrar do seu Momento com Deus. Separe esse tempo e esteja conosco.`
+    default:
+      return Object.entries(variables)
+        .map(([key, val]) => `${key}: ${val}`)
+        .join('\n')
+  }
+}
+
 /**
- * Envia disparo diretamente com message_id e variáveis arbitrárias.
- * Usado pelo módulo de escalas (sem necessidade de ConversionType).
+ * Envia disparo diretamente via Evolution API com message_id legado e variaveis.
  */
 export async function sendDisparoRaw(params: {
   phone: string
   messageId: string
   variables: Record<string, string>
 }): Promise<{ success: boolean; statusCode?: number }> {
-  const url = process.env.DISPAROS_WEBHOOK_URL
-  const bearer = process.env.DISPAROS_WEBHOOK_BEARER
-  if (!url || !bearer) return { success: false }
+  if (!isEvolutionConfigured()) return { success: false, statusCode: 400 }
 
-  const digits = params.phone.replace(/\D/g, '')
-  const sem55 = digits.startsWith('55') ? digits.slice(2) : digits
-  const phoneE164 = `55${sem55}`.slice(0, 13)
-
-  try {
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${bearer}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        phone: phoneE164,
-        channel_id: CHANNEL_ID,
-        message_id: params.messageId,
-        variables: params.variables,
-      }),
-    })
-    return { success: res.ok, statusCode: res.status }
-  } catch {
-    return { success: false }
-  }
+  const text = renderDisparoText(params.messageId, params.variables)
+  const result = await sendEvolutionText({ phone: params.phone, text })
+  return { success: result.success, statusCode: result.statusCode }
 }
 
 /**
- * Chama o webhook de disparos após conversão ou reserva (se configurado).
- * Retorna resultado para registro em disparos_log; não propaga erro.
+ * Envia mensagem apos conversao ou reserva.
+ * Retorna resultado para registro em disparos_log; nao propaga erro.
  */
 export async function callDisparosWebhook(params: {
   phone: string
@@ -99,18 +196,11 @@ export async function callDisparosWebhook(params: {
   conversionType: ConversionTypeDisparos
   variables?: Record<string, string>  // Variáveis adicionais para templates de reserva
 }): Promise<DisparosWebhookResult | null> {
-  const url = process.env.DISPAROS_WEBHOOK_URL
-  const bearer = process.env.DISPAROS_WEBHOOK_BEARER
-  if (!url || !bearer) {
-    console.warn('Disparos webhook: DISPAROS_WEBHOOK_URL ou DISPAROS_WEBHOOK_BEARER não configurados. URL=', !!url, 'Bearer=', !!bearer)
+  if (!isEvolutionConfigured()) {
+    console.warn('Evolution API nao configurada para disparos de WhatsApp.')
     return null
   }
 
-  const digits = params.phone.replace(/\D/g, '')
-  const sem55 = digits.startsWith('55') ? digits.slice(2) : digits
-  const phoneE164 = `55${sem55}`.slice(0, 13)
-  
-  // Selecionar message_id baseado no tipo
   let messageId: string
   switch (params.conversionType) {
     case 'accepted':
@@ -139,36 +229,14 @@ export async function callDisparosWebhook(params: {
   }
   
   const nomeReduzido = getNomeExibicao(params.nome)
-  
-  // Para conversões: usa apenas o nome
-  // Para reservas: usa as variáveis fornecidas
   const variables = params.variables ? { ...params.variables, nome: nomeReduzido } : { nome: nomeReduzido }
+  const phoneE164 = normalizeBrazilPhone(params.phone)
 
   try {
-    const body = {
-      phone: phoneE164,
-      channel_id: CHANNEL_ID,
-      message_id: messageId,
-      variables,
-    }
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Disparos webhook chamando:', url, body)
-    }
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${bearer}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(body),
-    })
-    if (!res.ok) {
-      const text = await res.text()
-      console.error('Disparos webhook falhou:', res.status, text)
-    }
-    return { success: res.ok, statusCode: res.status, phone: phoneE164, nome: nomeReduzido }
+    const result = await sendDisparoRaw({ phone: params.phone, messageId, variables })
+    return { success: result.success, statusCode: result.statusCode, phone: phoneE164, nome: nomeReduzido }
   } catch (err) {
-    console.error('Disparos webhook erro:', err)
+    console.error('Evolution API disparo erro:', err)
     return { success: false, phone: phoneE164, nome: nomeReduzido }
   }
 }

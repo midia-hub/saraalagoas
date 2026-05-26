@@ -4,10 +4,10 @@ import { useCallback, useEffect, useState, useMemo, useRef, type MouseEvent } fr
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
-import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '@/lib/supabase'
 import { useAdminAccess } from '@/lib/admin-access-context'
 import { notifyNavigation, completeNavigation, subscribeLoadingOverlayState } from '@/lib/loading-overlay'
+import { getModuleRootHref } from '@/lib/admin-module-routes'
 import { menuModules } from './menu-config'
 import {
   Home,
@@ -207,23 +207,26 @@ export function AdminSidebar() {
           <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-500 px-3 mb-3">
             Módulos disponíveis
           </p>
-          {hubModules.map((mod) => (
-            <Link
-              key={mod.id}
-              href={mod.mainHref ?? mod.items[0]?.href ?? '/admin'}
-              onClick={handleMenuClick(mod.mainHref ?? mod.items[0]?.href ?? '/admin', isMobile)}
-              className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-400 hover:text-white hover:bg-white/5 transition-all duration-200 group"
-            >
-              <div
-                className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform"
-                style={{ background: mod.color ? `${mod.color}22` : 'rgba(255,255,255,0.05)' }}
+          {hubModules.map((mod) => {
+            const href = getModuleRootHref(mod)
+            return (
+              <Link
+                key={mod.id}
+                href={href}
+                onClick={handleMenuClick(href, isMobile)}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-400 hover:text-white hover:bg-white/5 transition-all duration-200 group"
               >
-                <mod.icon size={15} style={{ color: mod.color ?? '#94a3b8' }} />
-              </div>
-              <span className="flex-1 truncate">{mod.title}</span>
-              <ChevronRight size={13} className="opacity-0 group-hover:opacity-60 transition-opacity" />
-            </Link>
-          ))}
+                <div
+                  className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform"
+                  style={{ background: mod.color ? `${mod.color}22` : 'rgba(255,255,255,0.05)' }}
+                >
+                  <mod.icon size={15} style={{ color: mod.color ?? '#94a3b8' }} />
+                </div>
+                <span className="flex-1 truncate">{mod.title}</span>
+                <ChevronRight size={13} className="opacity-0 group-hover:opacity-60 transition-opacity" />
+              </Link>
+            )
+          })}
         </nav>
       )
     }
