@@ -10,12 +10,13 @@ type InscricaoLogAction =
   | 'registration_created'
   | 'registration_error'
 
-function buildAnamneseUrl(origin: string, token: string) {
-  return `${origin}/revisao-vidas/anamnese/${token}`
+function buildAnamneseUrl(requestOrigin: string, token: string) {
+  return `${requestOrigin}/revisao-vidas/anamnese/${token}`
 }
 
 function sendAnamneseWhatsApp(phone: string, name: string, eventName: string, anamneseUrl: string) {
   if (!isEvolutionConfigured() || !phone) return
+
   const firstName = name.trim().split(' ')[0]
   const text = [
     `Olá, ${firstName}! 🙏`,
@@ -29,9 +30,7 @@ function sendAnamneseWhatsApp(phone: string, name: string, eventName: string, an
     '_Obs: caso essa seja a nossa primeira mensagem, responda antes de clicar no link para liberar o acesso no WhatsApp._',
   ].join('\n')
 
-  sendEvolutionText({ phone, text }).catch((err) =>
-    console.error('[revisao-inscricao] falha ao enviar WhatsApp de anamnese:', err)
-  )
+  sendEvolutionText({ phone, text }).catch(() => {})
 }
 
 function isEventExpired(ev: { start_date: string; end_date: string | null }): boolean {
