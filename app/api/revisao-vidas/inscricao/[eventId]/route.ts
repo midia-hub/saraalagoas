@@ -22,11 +22,11 @@ function sendAnamneseWhatsApp(phone: string, name: string, eventName: string, an
     '',
     `Recebemos a sua inscrição para a *${eventName}*!`,
     '',
-    'Para confirmar sua participação, preencha o formulário de Anamnese pelo link abaixo:',
+    'Preencha o formulário de Anamnese pelo link abaixo:',
     '',
     anamneseUrl,
     '',
-    '_Obs: para liberar o acesso ao link no WhatsApp, responda esta mensagem antes de clicar._',
+    '_Obs: caso essa seja a nossa primeira mensagem, responda antes de clicar no link para liberar o acesso no WhatsApp._',
   ].join('\n')
 
   sendEvolutionText({ phone, text }).catch((err) =>
