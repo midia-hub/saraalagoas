@@ -29,7 +29,12 @@ function formatDate(iso: string) {
 }
 
 function maskPhone(value: string) {
-  const digits = value.replace(/\D/g, '').slice(0, 11)
+  let digits = value.replace(/\D/g, '')
+  // Remove DDI 55 para exibir sempre no formato local (DDD + número)
+  if (digits.startsWith('55') && (digits.length === 12 || digits.length === 13)) {
+    digits = digits.slice(2)
+  }
+  digits = digits.slice(0, 11)
   if (digits.length <= 10) {
     return digits
       .replace(/^(\d{2})(\d)/, '($1) $2')
@@ -125,6 +130,9 @@ export default function InscricaoRevisaoPage() {
     if (!team) { setError('Selecione a equipe.'); return }
     if (!preRevisao) { setError('Confirme que já realizou o Pré-Revisão.'); return }
 
+    // Garante que o número vai com DDI 55 para o servidor
+    const phoneWithCountry = rawPhone.startsWith('55') ? rawPhone : `55${rawPhone}`
+
     setSaving(true)
     try {
       const resp = await fetch(`/api/revisao-vidas/inscricao/${eventId}`, {
@@ -132,7 +140,7 @@ export default function InscricaoRevisaoPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           full_name: fullName.trim(),
-          mobile_phone: rawPhone,
+          mobile_phone: phoneWithCountry,
           email: email.trim() || undefined,
           birth_date: birthDate || undefined,
           sex: sex || undefined,

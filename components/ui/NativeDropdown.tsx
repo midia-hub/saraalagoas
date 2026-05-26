@@ -37,21 +37,21 @@ export function NativeDropdown({
     ? options.filter((o) => o.label.toLowerCase().includes(search.toLowerCase()))
     : options
 
-  // Fecha ao clicar fora
+  // Fecha ao clicar/tocar fora (pointerdown cobre mouse e touch)
   useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
+    function handleClickOutside(e: PointerEvent) {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setOpen(false)
         setSearch('')
       }
     }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
+    document.addEventListener('pointerdown', handleClickOutside)
+    return () => document.removeEventListener('pointerdown', handleClickOutside)
   }, [])
 
-  // Foca o campo de busca ao abrir
+  // Foca o campo de busca ao abrir — apenas em dispositivos sem toque (desktop)
   useEffect(() => {
-    if (open && searchable) {
+    if (open && searchable && typeof window !== 'undefined' && !('ontouchstart' in window)) {
       setTimeout(() => searchRef.current?.focus(), 50)
     }
   }, [open, searchable])
@@ -87,7 +87,7 @@ export function NativeDropdown({
 
       {/* Dropdown panel */}
       {open && (
-        <div className="absolute z-50 mt-2 w-full bg-white rounded-2xl border border-slate-200 shadow-xl shadow-slate-900/10 overflow-hidden"
+        <div className="absolute z-50 mt-2 w-full min-w-[160px] bg-white rounded-2xl border border-slate-200 shadow-xl shadow-slate-900/10 overflow-hidden"
           style={{ animation: 'dropdown-in 0.15s ease-out' }}
         >
           {/* Search */}
@@ -120,8 +120,9 @@ export function NativeDropdown({
                   <li key={opt.value}>
                     <button
                       type="button"
+                      onPointerDown={(e) => e.stopPropagation()}
                       onClick={() => select(opt)}
-                      className={`w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl text-sm font-medium text-left transition-colors
+                      className={`w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl text-sm font-medium text-left transition-colors cursor-pointer
                         ${isSelected
                           ? 'bg-purple-50 text-purple-700'
                           : 'text-slate-700 hover:bg-slate-50'
