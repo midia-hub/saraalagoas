@@ -14,7 +14,7 @@ function buildAnamneseUrl(requestOrigin: string, token: string) {
   return `${requestOrigin}/revisao-vidas/anamnese/${token}`
 }
 
-function sendAnamneseWhatsApp(phone: string, name: string, eventName: string, anamneseUrl: string) {
+async function sendAnamneseWhatsApp(phone: string, name: string, eventName: string, anamneseUrl: string) {
   if (!isEvolutionConfigured() || !phone) return
 
   const firstName = name.trim().split(' ')[0]
@@ -30,7 +30,7 @@ function sendAnamneseWhatsApp(phone: string, name: string, eventName: string, an
     '_Obs: caso essa seja a nossa primeira mensagem, responda antes de clicar no link para liberar o acesso no WhatsApp._',
   ].join('\n')
 
-  sendEvolutionText({ phone, text }).catch(() => {})
+  await sendEvolutionText({ phone, text }).catch(() => {})
 }
 
 function isEventExpired(ev: { start_date: string; end_date: string | null }): boolean {
@@ -342,7 +342,7 @@ export async function POST(
 
         if (existingReg.anamnese_token) {
           const origin = request.nextUrl.origin
-          sendAnamneseWhatsApp(phone, fullName, event.name, buildAnamneseUrl(origin, existingReg.anamnese_token))
+          await sendAnamneseWhatsApp(phone, fullName, event.name, buildAnamneseUrl(origin, existingReg.anamnese_token))
         }
 
         return NextResponse.json({
@@ -380,7 +380,7 @@ export async function POST(
 
   if (reg.anamnese_token) {
     const origin = request.nextUrl.origin
-    sendAnamneseWhatsApp(phone, fullName, event.name, buildAnamneseUrl(origin, reg.anamnese_token))
+    await sendAnamneseWhatsApp(phone, fullName, event.name, buildAnamneseUrl(origin, reg.anamnese_token))
   }
 
   return NextResponse.json({

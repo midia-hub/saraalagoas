@@ -30,7 +30,11 @@
       "Bash(npx skills *)",
       "Bash(Get-ChildItem *)",
       "WebFetch(domain:saraalagoas.com)",
-      "Bash(bash *)"
+      "Bash(bash *)",
+      "Bash(npm run *)",
+      "Bash(curl -s http://localhost:3000/api/revisao-vidas/inscricao/aa6ba4d8-c4f7-416f-9e38-03642438d450)",
+      "Bash(curl *)",
+      "Bash(pkill -f \"next dev\")"
     ]
   }
 }
