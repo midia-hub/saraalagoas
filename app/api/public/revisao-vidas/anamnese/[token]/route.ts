@@ -151,7 +151,7 @@ export async function POST(request: NextRequest, { params }: { params: { token: 
 
     await supabase
       .from('revisao_vidas_registrations')
-      .update({ anamnese_completed_at: nowIso })
+      .update({ anamnese_completed_at: nowIso, anamnese_completed: true })
       .eq('id', registration.id)
 
     if (registration.person_id) {

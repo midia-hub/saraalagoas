@@ -20,7 +20,7 @@ export default function Hero() {
   }
 
   return (
-    <section className="relative h-screen min-h-[600px] flex items-center justify-center overflow-hidden">
+    <section className="relative min-h-[100svh] flex items-center justify-center overflow-hidden pt-24 pb-16">
       {/* Vídeo de fundo */}
       <div className="absolute inset-0 z-0">
         <video
@@ -44,9 +44,10 @@ export default function Hero() {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, ease: 'easeOut' }}
-          className="text-6xl md:text-8xl font-black text-white mb-6 uppercase tracking-[-0.02em] leading-tight"
+          className="text-[3.35rem] sm:text-6xl md:text-8xl font-black text-white mb-6 uppercase tracking-normal leading-none"
         >
-          SEJA <span className="text-sara-red">BEM-VINDO</span>
+          <span className="block md:inline">SEJA</span>{' '}
+          <span className="block md:inline text-sara-red whitespace-nowrap">BEM-VINDO</span>
         </motion.h1>
         <motion.p
           initial={{ opacity: 0, y: 20 }}

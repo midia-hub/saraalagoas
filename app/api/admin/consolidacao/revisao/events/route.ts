@@ -4,6 +4,14 @@ import { createSupabaseAdminClient } from '@/lib/supabase-server'
 
 const REVISAO_EVENTS_SELECT = 'id, name, church_id, start_date, end_date, active, secretary_person_id, created_at, updated_at'
 
+/** Evento expirado quando o dia seguinte ao end_date (ou start_date) já passou. */
+function isEventExpired(ev: { start_date: string; end_date: string | null }): boolean {
+  const ref = ev.end_date ?? ev.start_date
+  const end = new Date(ref + 'T00:00:00')
+  end.setDate(end.getDate() + 1)
+  return new Date() >= end
+}
+
 /**
  * GET  /api/admin/consolidacao/revisao/events  ?church_id=  &active=
  * POST /api/admin/consolidacao/revisao/events
@@ -48,6 +56,7 @@ export async function GET(request: NextRequest) {
     const secretaryMap = new Map((secretaries ?? []).map((s: any) => [s.id, s]))
     const enriched = (events ?? []).map(e => ({
       ...e,
+      active: e.active && !isEventExpired(e),
       secretary: e.secretary_person_id ? secretaryMap.get(e.secretary_person_id) ?? null : null,
     }))
 

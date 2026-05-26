@@ -139,15 +139,17 @@ export async function GET(request: NextRequest) {
     // Calcular status dinâmico para cada registro inline (evita N+1 RPC por inscrição)
     // Replica a mesma lógica da função PG calculate_revisao_registration_status
     function calcStatus(reg: any, ev: any): string {
-      if (ev?.start_date) {
+      const deadlinePassed = (() => {
+        if (!ev?.start_date) return false
         const deadline = new Date(ev.start_date)
         deadline.setDate(deadline.getDate() - 1)
-        if (new Date() > deadline) return 'bloqueado'
-      }
-      if (!reg.pre_revisao_aplicado) return 'aguardando_pre_revisao'
-      if (!reg.payment_date) return 'aguardando_pagamento'
-      if (!reg.payment_validated_by) return 'aguardando_validacao'
-      if (!reg.anamnese_completed) return 'aguardando_anamnese'
+        return new Date() > deadline
+      })()
+
+      if (!reg.pre_revisao_aplicado) return deadlinePassed ? 'bloqueado' : 'aguardando_pre_revisao'
+      if (!reg.payment_date) return deadlinePassed ? 'bloqueado' : 'aguardando_pagamento'
+      if (!reg.payment_validated_by) return deadlinePassed ? 'bloqueado' : 'aguardando_validacao'
+      if (!reg.anamnese_completed) return deadlinePassed ? 'bloqueado' : 'aguardando_anamnese'
       return 'confirmado'
     }
     const statusMap = new Map<string, string>(
