@@ -68,43 +68,71 @@ function renderDisparoText(messageId: string, variables: Record<string, string>)
       return `Ola ${nome}, ficamos muito felizes com sua reconciliacao!\n\nA Sara Nossa Terra Alagoas quer estar perto de voce e ajudar nos proximos passos. Em breve nossa equipe de consolidacao vai falar com voce.`
     case MESSAGE_ID_RESERVA_RECEBIDA:
       return [
-        `Ola ${nome}, recebemos sua solicitacao de reserva de sala.`,
-        `Sala: ${value(variables, 'sala', '-')}`,
-        `Data: ${value(variables, 'data', '-')}`,
-        `Horario: ${value(variables, 'hora_inicio', '-')} as ${value(variables, 'hora_fim', '-')}`,
-        `Pessoas: ${value(variables, 'quantidade_pessoas', '-')}`,
-        value(variables, 'motivo') ? `Motivo: ${value(variables, 'motivo')}` : '',
+        `Olá, ${nome}! 👋`,
+        '',
+        'Recebemos sua solicitação de reserva de sala. Ela agora está aguardando confirmação da liderança. ⏳',
+        '',
+        `🏛️ Sala: ${value(variables, 'sala', '-')}`,
+        `📅 Data: ${value(variables, 'data', '-')}`,
+        `🕒 Horário: ${value(variables, 'hora_inicio', '-')} às ${value(variables, 'hora_fim', '-')}`,
+        `👥 Pessoas: ${value(variables, 'quantidade_pessoas', '-')}`,
+        value(variables, 'motivo') ? `📝 Motivo: ${value(variables, 'motivo')}` : '',
+        '',
+        'Assim que houver uma resposta, você será avisado por aqui.',
       ].filter(Boolean).join('\n')
     case MESSAGE_ID_RESERVA_PENDENTE_APROVACAO:
       return [
-        'Nova reserva pendente de aprovacao.',
-        `Solicitante: ${value(variables, 'solicitante', nome)}`,
-        `Sala: ${value(variables, 'sala', '-')}`,
-        `Data: ${value(variables, 'data', '-')}`,
-        `Horario: ${value(variables, 'hora_inicio', '-')} as ${value(variables, 'hora_fim', '-')}`,
-        value(variables, 'motivo') ? `Motivo: ${value(variables, 'motivo')}` : '',
+        `Olá, ${value(variables, 'aprovador_nome', nome)}! 👋`,
+        '',
+        'Há uma nova solicitação de reserva aguardando sua confirmação. ✅',
+        '',
+        `👤 Solicitante: ${value(variables, 'solicitante', '-')}`,
+        `🏛️ Sala: ${value(variables, 'sala', '-')}`,
+        `📅 Data: ${value(variables, 'data', '-')}`,
+        `🕒 Horário: ${value(variables, 'hora_inicio', '-')} às ${value(variables, 'hora_fim', '-')}`,
+        `👥 Pessoas: ${value(variables, 'quantidade_pessoas', '-')}`,
+        value(variables, 'motivo') ? `📝 Motivo: ${value(variables, 'motivo')}` : '',
+        '',
+        'Acesse o painel de reservas para aprovar ou recusar essa solicitação.',
       ].filter(Boolean).join('\n')
     case MESSAGE_ID_RESERVA_APROVADA:
       return [
-        `Ola ${nome}, sua reserva foi aprovada.`,
-        `Sala: ${value(variables, 'sala', '-')}`,
-        `Data: ${value(variables, 'data', '-')}`,
-        `Horario: ${value(variables, 'hora_inicio', '-')} as ${value(variables, 'hora_fim', '-')}`,
-        value(variables, 'aprovador_nome') ? `Aprovado por: ${value(variables, 'aprovador_nome')}` : '',
+        `Olá, ${nome}! ✅`,
+        '',
+        'Sua reserva de sala foi aprovada.',
+        '',
+        `🏛️ Sala: ${value(variables, 'sala', '-')}`,
+        `📅 Data: ${value(variables, 'data', '-')}`,
+        `🕒 Horário: ${value(variables, 'hora_inicio', '-')} às ${value(variables, 'hora_fim', '-')}`,
+        value(variables, 'aprovador_nome') ? `👤 Aprovado por: ${value(variables, 'aprovador_nome')}` : '',
+        '',
+        'A sala estará reservada para você nesse horário. Obrigado por organizar com antecedência.',
       ].filter(Boolean).join('\n')
     case MESSAGE_ID_RESERVA_REPROVADA:
       return [
-        `Ola ${nome}, sua reserva nao foi aprovada.`,
-        `Sala: ${value(variables, 'sala', '-')}`,
-        `Data: ${value(variables, 'data', '-')}`,
-        value(variables, 'motivo_reprovacao') ? `Motivo: ${value(variables, 'motivo_reprovacao')}` : '',
+        `Olá, ${nome}.`,
+        '',
+        'Sua solicitação de reserva não pôde ser aprovada neste momento. ❌',
+        '',
+        `🏛️ Sala: ${value(variables, 'sala', '-')}`,
+        `📅 Data: ${value(variables, 'data', '-')}`,
+        `🕒 Horário: ${value(variables, 'hora_inicio', '-')} às ${value(variables, 'hora_fim', '-')}`,
+        value(variables, 'motivo_reprovacao') ? `📝 Motivo: ${value(variables, 'motivo_reprovacao')}` : '',
+        '',
+        'Se necessário, envie uma nova solicitação com outro horário ou procure a liderança.',
       ].filter(Boolean).join('\n')
     case MESSAGE_ID_RESERVA_CANCELADA:
       return [
-        `Ola ${nome}, sua reserva foi cancelada.`,
-        `Sala: ${value(variables, 'sala', '-')}`,
-        `Data: ${value(variables, 'data', '-')}`,
-        value(variables, 'motivo_cancelamento') ? `Motivo: ${value(variables, 'motivo_cancelamento')}` : '',
+        `Olá, ${nome}.`,
+        '',
+        'Sua reserva de sala foi cancelada. 🚫',
+        '',
+        `🏛️ Sala: ${value(variables, 'sala', '-')}`,
+        `📅 Data: ${value(variables, 'data', '-')}`,
+        `🕒 Horário: ${value(variables, 'hora_inicio', '-')} às ${value(variables, 'hora_fim', '-')}`,
+        value(variables, 'motivo_cancelamento') ? `📝 Motivo: ${value(variables, 'motivo_cancelamento')}` : '',
+        '',
+        'Se ainda precisar da sala, faça uma nova solicitação pelo link de reservas.',
       ].filter(Boolean).join('\n')
     case MESSAGE_ID_ESCALA_MES:
       return [
