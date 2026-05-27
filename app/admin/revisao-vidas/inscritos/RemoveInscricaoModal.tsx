@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Loader2, AlertTriangle, X } from 'lucide-react'
 
 interface RemoveInscricaoModalProps {
@@ -22,6 +22,13 @@ export function RemoveInscricaoModal({
 }: RemoveInscricaoModalProps) {
   const [error, setError] = useState('')
   const [isProcessing, setIsProcessing] = useState(false)
+
+  useEffect(() => {
+    if (!isOpen) {
+      setIsProcessing(false)
+      setError('')
+    }
+  }, [isOpen])
 
   if (!isOpen) return null
 

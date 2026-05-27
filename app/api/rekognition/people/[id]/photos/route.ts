@@ -6,7 +6,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseServer } from '@/lib/supabase-server'
 import { requireAccess } from '@/lib/admin-api'
 import { indexReferenceFace, ensureCollection } from '@/lib/rekognition'
-import { checkApiQuota, checkStorageQuota, REKOGNITION_LIMITS } from '@/lib/rekognition-limits'
+import { checkApiQuota, checkStorageQuota, REKOGNITION_LIMITS, RekognitionQuotaError } from '@/lib/rekognition-limits'
 
 const BUCKET = 'rekognition-references'
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp']
@@ -130,6 +130,7 @@ export async function POST(
     // Remove arquivo do Storage em caso de erro
     await supabaseServer.storage.from(BUCKET).remove([storagePath]).catch(() => {})
     const message = err instanceof Error ? err.message : 'Erro desconhecido.'
-    return NextResponse.json({ error: message }, { status: 500 })
+    const status = err instanceof RekognitionQuotaError ? err.statusCode : 500
+    return NextResponse.json({ error: message }, { status })
   }
 }

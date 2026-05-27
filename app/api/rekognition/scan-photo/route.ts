@@ -9,7 +9,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseServer } from '@/lib/supabase-server'
 import { searchFacesInPhoto } from '@/lib/rekognition'
-import { checkApiQuota, incrementUsage } from '@/lib/rekognition-limits'
+import { checkApiQuota, RekognitionQuotaError } from '@/lib/rekognition-limits'
 import { getFileThumbnailBuffer, getFileDownloadBuffer } from '@/lib/drive'
 
 async function getImageBuffer(driveFileId: string): Promise<Buffer | null> {
@@ -72,11 +72,19 @@ export async function POST(request: NextRequest) {
   // Usa a collection da primeira pessoa (todas usam a mesma collection)
   const collectionId = people[0].collection_id
 
-  const faceMatches = await searchFacesInPhoto(imageBuffer, {
-    collectionId,
-    threshold: 80,
-    maxFaces: 20,
-  })
+  let faceMatches
+  try {
+    faceMatches = await searchFacesInPhoto(imageBuffer, {
+      collectionId,
+      threshold: 80,
+      maxFaces: 20,
+    })
+  } catch (err) {
+    if (err instanceof RekognitionQuotaError) {
+      return NextResponse.json({ matches: 0, message: err.message }, { status: err.statusCode })
+    }
+    throw err
+  }
 
   // Grava no cache por pessoa: marca esta foto como verificada para TODAS as pessoas atuais.
   // Quando uma nova pessoa for adicionada, a entrada dela não existirá aqui → re-scan ocorrerá

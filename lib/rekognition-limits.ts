@@ -91,6 +91,15 @@ export interface UsageCheckResult {
   errorMessage?: string
 }
 
+export class RekognitionQuotaError extends Error {
+  statusCode = 429
+
+  constructor(message: string) {
+    super(message)
+    this.name = 'RekognitionQuotaError'
+  }
+}
+
 export async function checkApiQuota(
   apiCall: RekognitionApiCall,
   callCount = 1
@@ -120,6 +129,69 @@ export async function checkApiQuota(
   }
 
   return { allowed: true, remaining: usage.remaining, usage }
+}
+
+/**
+ * Reserva cota antes de chamar a AWS.
+ *
+ * Importante: esta função falha fechada se a RPC atômica não estiver aplicada.
+ * Isso evita chamadas ao Rekognition sem contabilização prévia.
+ */
+export async function reserveApiQuota(
+  apiCall: RekognitionApiCall,
+  callCount = 1
+): Promise<UsageCheckResult> {
+  const ym = currentYearMonth()
+  const limit = REKOGNITION_LIMITS.FREE_TIER_API_CALLS_PER_MONTH
+
+  const { data, error } = await supabaseServer.rpc('rekognition_reserve_usage', {
+    p_year_month: ym,
+    p_api_call: apiCall,
+    p_count: callCount,
+    p_limit: limit,
+  })
+
+  if (error) {
+    throw new RekognitionQuotaError(
+      `Não foi possível reservar cota do AWS Rekognition antes da chamada. ` +
+        `A operação foi bloqueada para evitar custos fora do plano gratuito. (${error.message})`
+    )
+  }
+
+  const result = Array.isArray(data) ? data[0] : data
+  if (!result) {
+    throw new RekognitionQuotaError(
+      'Não foi possível reservar cota do AWS Rekognition antes da chamada. A operação foi bloqueada.'
+    )
+  }
+
+  const currentTotal = Number(result.current_total ?? 0)
+  const remaining = Number(result.remaining ?? 0)
+  const indexFaces = Number(result.index_faces ?? 0)
+  const searchFaces = Number(result.search_faces_by_image ?? 0)
+  const usage: MonthlyUsage = {
+    IndexFaces: indexFaces,
+    SearchFacesByImage: searchFaces,
+    total: currentTotal,
+    remaining,
+    percentUsed: Math.round((currentTotal / limit) * 100),
+    yearMonth: ym,
+    nearLimit: currentTotal >= Math.floor(limit * (REKOGNITION_LIMITS.WARN_THRESHOLD_PERCENT / 100)),
+    overLimit: currentTotal >= limit,
+  }
+
+  if (!result.allowed) {
+    return {
+      allowed: false,
+      remaining,
+      usage,
+      errorMessage:
+        result.error_message ??
+        `Cota mensal do AWS Rekognition esgotada (${currentTotal}/${limit} chamadas usadas em ${ym}).`,
+    }
+  }
+
+  return { allowed: true, remaining, usage }
 }
 
 // ─── Incremento de uso ────────────────────────────────────────────────────────
