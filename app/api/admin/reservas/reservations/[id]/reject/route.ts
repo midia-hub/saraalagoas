@@ -43,44 +43,40 @@ export async function POST(
     try {
       const { data: settings } = await supabase.from('consolidation_settings').select('disparos_api_enabled').eq('id', 1).maybeSingle()
       if (settings?.disparos_api_enabled) {
-        void (async () => {
-          const { data: resData } = await supabase
-            .from('room_reservations')
-            .select('*, room:room_id(name)')
-            .eq('id', id)
-            .single()
+        const { data: resData } = await supabase
+          .from('room_reservations')
+          .select('*, room:room_id(name)')
+          .eq('id', id)
+          .single()
 
-          if (resData?.requester_phone) {
-            const roomName = (resData.room as { name?: string } | null)?.name ?? String(resData.room_id)
-            const variables = {
-              nome: resData.requester_name ?? '',
-              sala: roomName,
-              data: formatDatePtBr(resData.start_datetime),
-              hora_inicio: formatTimePtBr(resData.start_datetime),
-              hora_fim: formatTimePtBr(resData.end_datetime),
-              motivo_reprovacao: reason || 'Motivo não informado',
-            }
-
-            const result = await callDisparosWebhook({
-              phone: resData.requester_phone,
-              nome: resData.requester_name ?? '',
-              conversionType: 'reserva_reprovada',
-              variables,
-            })
-
-            if (result) {
-              await supabase.from('disparos_log').insert({
-                phone: result.phone,
-                nome: result.nome,
-                status_code: result.statusCode ?? null,
-                source: 'reservas',
-                conversion_type: 'reserva_reprovada'
-              })
-            }
+        if (resData?.requester_phone) {
+          const roomName = (resData.room as { name?: string } | null)?.name ?? String(resData.room_id)
+          const variables = {
+            nome: resData.requester_name ?? '',
+            sala: roomName,
+            data: formatDatePtBr(resData.start_datetime),
+            hora_inicio: formatTimePtBr(resData.start_datetime),
+            hora_fim: formatTimePtBr(resData.end_datetime),
+            motivo_reprovacao: reason || 'Motivo não informado',
           }
-        })().catch((err) => {
-          console.error('reject reservation webhook async error:', err)
-        })
+
+          const result = await callDisparosWebhook({
+            phone: resData.requester_phone,
+            nome: resData.requester_name ?? '',
+            conversionType: 'reserva_reprovada',
+            variables,
+          })
+
+          if (result) {
+            await supabase.from('disparos_log').insert({
+              phone: result.phone,
+              nome: result.nome,
+              status_code: result.statusCode ?? null,
+              source: 'reservas',
+              conversion_type: 'reserva_reprovada'
+            })
+          }
+        }
       }
     } catch (err) {
       console.error('reject reservation webhook error:', err)

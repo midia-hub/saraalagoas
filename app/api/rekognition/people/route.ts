@@ -6,7 +6,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseServer } from '@/lib/supabase-server'
 import { requireAccess } from '@/lib/admin-api'
 import { indexReferenceFace, getCollectionId, ensureCollection } from '@/lib/rekognition'
-import { checkApiQuota, checkStorageQuota } from '@/lib/rekognition-limits'
+import { checkApiQuota, checkStorageQuota, RekognitionQuotaError } from '@/lib/rekognition-limits'
 
 const BUCKET = 'rekognition-references'
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp']
@@ -144,6 +144,7 @@ export async function POST(request: NextRequest) {
     })
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Erro desconhecido.'
+    const status = err instanceof RekognitionQuotaError ? err.statusCode : 500
 
     // Marca como erro mas mantém o registro
     await supabaseServer
@@ -151,6 +152,6 @@ export async function POST(request: NextRequest) {
       .update({ status: 'error', status_message: message, updated_at: new Date().toISOString() })
       .eq('id', personId)
 
-    return NextResponse.json({ error: message }, { status: 500 })
+    return NextResponse.json({ error: message }, { status })
   }
 }
