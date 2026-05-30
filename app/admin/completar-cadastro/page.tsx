@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import { Loader2, User, Lock, Phone, Eye, EyeOff } from 'lucide-react'
+import { getAppBasePath } from '@/lib/admin-auth-client'
 import { supabase } from '@/lib/supabase'
 import { getStorageUrl } from '@/lib/storage-url'
 import { DatePickerInput } from '@/components/ui/DatePickerInput'
@@ -54,12 +55,18 @@ function maskPhoneInput(value: string): string {
   return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`
 }
 
-async function getAccessToken(): Promise<string> {
+async function getSessionTokens(): Promise<{ accessToken: string; refreshToken: string }> {
   if (!supabase) throw new Error('Serviço temporariamente indisponível.')
   const { data: { session } } = await supabase.auth.getSession()
-  const token = session?.access_token
-  if (!token) throw new Error('Sessão inválida. Abra novamente o link do e-mail.')
-  return token
+  const accessToken = session?.access_token
+  const refreshToken = session?.refresh_token
+  if (!accessToken || !refreshToken) throw new Error('Sessão inválida. Abra novamente o link do e-mail.')
+  return { accessToken, refreshToken }
+}
+
+async function getAccessToken(): Promise<string> {
+  const { accessToken } = await getSessionTokens()
+  return accessToken
 }
 
 async function authFetchJson<T = unknown>(input: string, init: RequestInit = {}): Promise<T> {
@@ -222,7 +229,7 @@ export default function CompletarCadastroPage() {
       })
 
       // 3. Verifica acesso ao painel e obtém token atualizado
-      const accessToken = await getAccessToken()
+      const { accessToken, refreshToken } = await getSessionTokens()
       const adminCheckRes = await fetch(`${basePath}/api/auth/admin-check`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -239,7 +246,7 @@ export default function CompletarCadastroPage() {
       const setCookieRes = await fetch(`${basePath}/api/auth/set-admin-cookie`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ accessToken }),
+        body: JSON.stringify({ accessToken, refreshToken }),
         credentials: 'same-origin',
       })
       if (!setCookieRes.ok) {

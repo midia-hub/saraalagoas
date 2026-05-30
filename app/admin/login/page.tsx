@@ -7,6 +7,7 @@ import { useSearchParams } from 'next/navigation'
 import { Loader2, Mail, Lock, Eye, EyeOff } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { clearSupabaseLocalSession } from '@/lib/auth-recovery'
+import { clearClientAdminAccessFlag, getAppBasePath } from '@/lib/admin-auth-client'
 import { getStorageUrl } from '@/lib/storage-url'
 import styles from './login.module.css'
 
@@ -255,11 +256,16 @@ export default function AdminLoginPage() {
           return
         }
 
-        const basePath =
-          typeof process.env.NEXT_PUBLIC_USE_BASEPATH === 'string' &&
-          process.env.NEXT_PUBLIC_USE_BASEPATH === 'true'
-            ? '/saraalagoas'
-            : ''
+        const refreshToken = data.session?.refresh_token
+        if (!refreshToken) {
+          await supabase.auth.signOut()
+          clearClientAdminAccessFlag()
+          showToastMessage('Sessão inválida. Faça login novamente.')
+          setLoading(false)
+          return
+        }
+
+        const basePath = getAppBasePath()
         const adminCheckRes = await fetch(`${basePath}/api/auth/admin-check`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -269,7 +275,7 @@ export default function AdminLoginPage() {
 
         if (!adminCheckRes.ok) {
           await supabase.auth.signOut()
-          document.cookie = 'admin_access=; path=/; max-age=0'
+          clearClientAdminAccessFlag()
           showToastMessage(
             adminCheckRes.status === 401
               ? 'Sessão inválida. Faça login novamente.'
@@ -280,7 +286,7 @@ export default function AdminLoginPage() {
         }
         if (!adminCheckJson.canAccessAdmin) {
           await supabase.auth.signOut()
-          document.cookie = 'admin_access=; path=/; max-age=0'
+          clearClientAdminAccessFlag()
           showToastMessage('Seu perfil não possui acesso ao painel administrativo.')
           setLoading(false)
           return
@@ -289,12 +295,12 @@ export default function AdminLoginPage() {
         const setCookieRes = await fetch(`${basePath}/api/auth/set-admin-cookie`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ accessToken }),
+          body: JSON.stringify({ accessToken, refreshToken }),
           credentials: 'same-origin',
         })
         if (!setCookieRes.ok) {
           await supabase.auth.signOut()
-          document.cookie = 'admin_access=; path=/; max-age=0'
+          clearClientAdminAccessFlag()
           showToastMessage('Erro ao definir sessão. Tente novamente.')
           setLoading(false)
           return
@@ -334,11 +340,7 @@ export default function AdminLoginPage() {
     setLoadingResetSenha(true)
     setToast(null)
     try {
-      const basePath =
-        typeof process.env.NEXT_PUBLIC_USE_BASEPATH === 'string' &&
-        process.env.NEXT_PUBLIC_USE_BASEPATH === 'true'
-          ? '/saraalagoas'
-          : ''
+      const basePath = getAppBasePath()
       const appOrigin =
         typeof process.env.NEXT_PUBLIC_APP_URL === 'string' && process.env.NEXT_PUBLIC_APP_URL
           ? process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, '')

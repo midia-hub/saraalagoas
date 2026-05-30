@@ -7,6 +7,12 @@ import { AdminAccessProvider } from '@/lib/admin-access-context'
 import { adminFetchJson } from '@/lib/admin-client'
 import type { PermissionMap } from '@/lib/rbac-types'
 import { clearSupabaseLocalSession, getSessionWithRecovery } from '@/lib/auth-recovery'
+import {
+  clearClientAdminAccessFlag,
+  restoreSupabaseSessionFromCookie,
+  setClientAdminAccessFlag,
+  syncAdminAuthCookies,
+} from '@/lib/admin-auth-client'
 import { AdminLoadingScreen } from '@/app/admin/AdminLoadingScreen'
 import { AdminSidebar } from '@/app/admin/AdminSidebar'
 import { GlobalLoadingOverlay } from '@/components/admin/GlobalLoadingOverlay'
@@ -36,7 +42,7 @@ export default function AdminLayout({
   const [permissions, setPermissions] = useState<PermissionMap>({})
 
   function clearAccessState() {
-    document.cookie = 'admin_access=; path=/; max-age=0'
+    clearClientAdminAccessFlag()
     setCanAccessAdmin(false)
     setIsAdmin(false)
     setProfileName('')
@@ -60,7 +66,12 @@ export default function AdminLayout({
       return
     }
 
-    const session = await getSessionWithRecovery(client)
+    let session = await getSessionWithRecovery(client)
+    if (!session?.user) {
+      await restoreSupabaseSessionFromCookie()
+      session = await getSessionWithRecovery(client)
+    }
+
     const currentUser = session?.user ?? null
     setUser(currentUser)
 
@@ -72,6 +83,7 @@ export default function AdminLayout({
     }
 
     const accessToken = session?.access_token
+    const refreshToken = session?.refresh_token
 
     try {
       const access = await fetch('/api/auth/admin-check', {
@@ -114,8 +126,10 @@ export default function AdminLayout({
       }
 
       if (access.canAccessAdmin) {
-        const isHttps = typeof window !== 'undefined' && window.location?.protocol === 'https:'
-        document.cookie = `admin_access=1; path=/; max-age=86400; SameSite=Lax${isHttps ? '; Secure' : ''}`
+        setClientAdminAccessFlag()
+        if (accessToken && refreshToken) {
+          await syncAdminAuthCookies(accessToken, refreshToken)
+        }
       } else {
         clearAccessState()
       }

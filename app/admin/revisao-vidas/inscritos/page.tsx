@@ -15,6 +15,13 @@ import { AdminPageHeader } from '@/app/admin/AdminPageHeader'
 import { RevisaoInscricaoModal } from '../RevisaoInscricaoModal'
 import { ValidarPagamentoModal } from '../ValidarPagamentoModal'
 import { RemoveInscricaoModal } from './RemoveInscricaoModal'
+import { RevisaoInscritosExportMenu } from './RevisaoInscritosExportMenu'
+import {
+  buildRevisaoInscritosExportFilename,
+  buildRevisaoInscritosExportRows,
+  downloadRevisaoInscritosCsv,
+  downloadRevisaoInscritosPdf,
+} from '@/lib/revisao-vidas-export'
 
 type ReviewEvent = {
   id: string
@@ -56,6 +63,8 @@ export default function RevisaoVidasInscritosPage() {
   }>>([])
   const [logsLoading, setLogsLoading] = useState(false)
   const [showLogsPanel, setShowLogsPanel] = useState(false)
+  const [exporting, setExporting] = useState<'csv' | 'pdf' | null>(null)
+  const [exportError, setExportError] = useState<string | null>(null)
 
   const load = useCallback(() => {
     setLoading(true)
@@ -196,6 +205,50 @@ export default function RevisaoVidasInscritosPage() {
     }, 250)
   }
 
+  const selectedEventName = events.find((event) => event.id === selectedEventId)?.name
+
+  function handleExportCsv() {
+    if (filtered.length === 0) return
+    setExportError(null)
+    setExporting('csv')
+    try {
+      const rows = buildRevisaoInscritosExportRows(filtered)
+      const filename = buildRevisaoInscritosExportFilename(selectedEventName, 'csv')
+      downloadRevisaoInscritosCsv(rows, filename)
+    } catch (error) {
+      console.error(error)
+      setExportError('Não foi possível exportar CSV. Tente novamente.')
+    } finally {
+      setExporting(null)
+    }
+  }
+
+  async function handleExportListPdf() {
+    if (filtered.length === 0) return
+    setExportError(null)
+    setExporting('pdf')
+    try {
+      const rows = buildRevisaoInscritosExportRows(filtered)
+      const filename = buildRevisaoInscritosExportFilename(selectedEventName, 'pdf')
+      await downloadRevisaoInscritosPdf(
+        rows,
+        { eventName: selectedEventName, search },
+        filename,
+      )
+    } catch (error) {
+      console.error(error)
+      setExportError('Não foi possível exportar PDF. Tente novamente.')
+    } finally {
+      setExporting(null)
+    }
+  }
+
+  function runExport(action: 'csv' | 'pdf' | 'labels') {
+    if (action === 'csv') handleExportCsv()
+    else if (action === 'pdf') void handleExportListPdf()
+    else handleGeneratePdf()
+  }
+
   const statusCounts = {
     total:    filtered.length,
     inscrito: filtered.filter(r => r.status === 'inscrito').length,
@@ -257,16 +310,14 @@ export default function RevisaoVidasInscritosPage() {
         subtitle="Acompanhamento de inscrições em todos os eventos"
         backLink={{ href: '/admin/revisao-vidas', label: 'Voltar aos eventos' }}
         actions={
-          <div className="flex gap-2">
-            <button
-              onClick={handleGeneratePdf}
-              disabled={selectedRegs.length === 0}
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 shadow-sm transition hover:bg-slate-50 hover:text-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
-              title={selectedRegs.length === 0 ? 'Selecione inscritos para gerar etiquetas' : 'Gerar etiquetas em PDF (A4)'}
-            >
-              <Printer className="w-4 h-4" />
-              Etiquetas PDF ({selectedRegs.length})
-            </button>
+          <div className="flex w-full flex-wrap gap-2 md:w-auto">
+            <RevisaoInscritosExportMenu
+              className="hidden md:block"
+              filteredCount={filtered.length}
+              selectedCount={selectedRegs.length}
+              exporting={exporting}
+              onExport={runExport}
+            />
             <button
               onClick={() => setInscricaoModalOpen(true)}
               className="inline-flex items-center gap-2 rounded-xl bg-purple-600 text-white px-4 py-2 text-sm font-medium shadow-sm transition hover:bg-purple-700 disabled:opacity-50"
@@ -286,6 +337,13 @@ export default function RevisaoVidasInscritosPage() {
           </div>
         }
       />
+
+      {exportError && (
+        <div className="flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+          <AlertTriangle className="w-4 h-4 shrink-0" />
+          {exportError}
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -500,6 +558,14 @@ export default function RevisaoVidasInscritosPage() {
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         {/* Toolbar: search + count */}
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 border-b border-slate-100 bg-slate-50/70 px-4 py-3">
+          <RevisaoInscritosExportMenu
+            className="md:hidden"
+            fullWidth
+            filteredCount={filtered.length}
+            selectedCount={selectedRegs.length}
+            exporting={exporting}
+            onExport={runExport}
+          />
           {/* Seletor de evento */}
           <div className="shrink-0">
             <select
