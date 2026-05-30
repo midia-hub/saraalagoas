@@ -4,7 +4,7 @@ import { useMemo, useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
+import { signOutAdmin } from '@/lib/admin-auth-client'
 import { useAdminAccess } from '@/lib/admin-access-context'
 import { getModuleRootHref } from '@/lib/admin-module-routes'
 import { menuModules } from '@/app/admin/menu-config'
@@ -27,8 +27,7 @@ export default function SelecionarModuloPage() {
   }, [])
 
   async function handleSignOut() {
-    await supabase?.auth.signOut()
-    document.cookie = 'admin_access=; path=/; max-age=0'
+    await signOutAdmin()
     router.replace('/admin/login')
   }
 

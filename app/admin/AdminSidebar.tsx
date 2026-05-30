@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState, useMemo, useRef, type MouseEvent } fr
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
+import { signOutAdmin } from '@/lib/admin-auth-client'
 import { useAdminAccess } from '@/lib/admin-access-context'
 import { notifyNavigation, completeNavigation, subscribeLoadingOverlayState } from '@/lib/loading-overlay'
 import { getModuleRootHref } from '@/lib/admin-module-routes'
@@ -111,8 +111,7 @@ export function AdminSidebar() {
   }, [resizing, handleResizeMove, handleResizeEnd])
 
   async function handleSignOut() {
-    await supabase?.auth.signOut()
-    document.cookie = 'admin_access=; path=/; max-age=0'
+    await signOutAdmin()
     router.replace('/admin/login')
   }
 
