@@ -20,6 +20,8 @@ export default function PessoasPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [q, setQ] = useState('')
+  const [debouncedQ, setDebouncedQ] = useState('')
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>()
   const [churchProfile, setChurchProfile] = useState('')
   const [churchSituation, setChurchSituation] = useState('')
   const [churchRole, setChurchRole] = useState('')
@@ -43,7 +45,7 @@ export default function PessoasPage() {
     setError(null)
     try {
       const list = await fetchPeople({
-        q: q || undefined,
+        q: debouncedQ || undefined,
         church_profile: churchProfile || undefined,
         church_situation: churchSituation || undefined,
         church_role: churchRole || undefined,
@@ -55,7 +57,11 @@ export default function PessoasPage() {
     } finally {
       setLoading(false)
     }
-  }, [q, churchProfile, churchSituation, churchRole])
+  }, [debouncedQ, churchProfile, churchSituation, churchRole])
+
+  useEffect(() => {
+    return () => clearTimeout(debounceRef.current)
+  }, [])
 
   useEffect(() => {
     load()
@@ -190,7 +196,12 @@ export default function PessoasPage() {
                   id="people-search"
                   name="people-search"
                   value={q}
-                  onChange={(e) => setQ(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value
+                    setQ(val)
+                    clearTimeout(debounceRef.current)
+                    debounceRef.current = setTimeout(() => setDebouncedQ(val), 350)
+                  }}
                   placeholder="Nome, telefone, e-mail ou CPF..."
                   autoComplete="off"
                   autoCorrect="off"

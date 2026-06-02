@@ -89,11 +89,11 @@ export async function GET(request: NextRequest, ctx: Ctx) {
         .eq('resource_id', resource.id)
 
       for (const rp of rps ?? []) {
-        const action = Array.isArray((rp as { permissions: unknown }).permissions)
-          ? (rp as { permissions: { action: string }[] }).permissions[0]?.action
-          : (rp as { permissions: { action: string } }).permissions?.action
+        const row = rp as { role_id: string; permissions: { action: string } | { action: string }[] | null }
+        const perm = row.permissions
+        const action = Array.isArray(perm) ? perm[0]?.action : perm?.action
         if (action === 'view' || action === 'manage') {
-          rbacRoleIds.add((rp as { role_id: string }).role_id)
+          rbacRoleIds.add(row.role_id)
         }
       }
     }
@@ -227,7 +227,21 @@ export async function POST(request: NextRequest, ctx: Ctx) {
     return NextResponse.json({ error: 'Erro ao conceder acesso' }, { status: 500 })
   }
 
-  return NextResponse.json({ ok: true, message: 'Acesso concedido com sucesso.' })
+  const { data: verified } = await supabase
+    .from('profiles')
+    .select('access_profile_id')
+    .eq('id', user_id)
+    .maybeSingle()
+
+  if (verified?.access_profile_id !== apId) {
+    return NextResponse.json({ error: 'Acesso não foi vinculado ao usuário. Tente novamente.' }, { status: 500 })
+  }
+
+  return NextResponse.json({
+    ok: true,
+    message: 'Acesso concedido com sucesso.',
+    requiresRelogin: true,
+  })
 }
 
 // ─── DELETE: revoga acesso ────────────────────────────────────────────────────

@@ -8,12 +8,16 @@ import { signOutAdmin } from '@/lib/admin-auth-client'
 import { useAdminAccess } from '@/lib/admin-access-context'
 import { notifyNavigation, completeNavigation, subscribeLoadingOverlayState } from '@/lib/loading-overlay'
 import { getModuleRootHref } from '@/lib/admin-module-routes'
+import {
+  filterVisibleModules,
+  findActiveMenuItemHref,
+  isModuleNavActive,
+} from '@/lib/admin-menu-access'
 import { menuModules } from './menu-config'
 import {
   Home,
   LogOut,
   ChevronRight,
-  ChevronLeft,
   Menu,
   X,
   PanelLeft,
@@ -134,28 +138,16 @@ export function AdminSidebar() {
     }
   }
 
-  // Filtrar módulos e itens baseado nas permissões
-  const visibleModules = menuModules.map(module => {
-    if (module.permission && !access.isAdmin) {
-      const hasModulePermission = !!access.permissions[module.permission]?.view
-      if (!hasModulePermission) return null
-    }
+  // Módulos e itens liberados para este usuário
+  const visibleModules = useMemo(
+    () => filterVisibleModules(menuModules, access.permissions, access.isAdmin),
+    [access.permissions, access.isAdmin]
+  )
 
-    const visibleItems = module.items.filter(item => {
-      if (access.isAdmin) return true
-      if (!item.permission) return true
-      const perms = Array.isArray(item.permission) ? item.permission : [item.permission]
-      if (perms.includes('dashboard')) return true
-      return perms.some(p => !!access.permissions[p]?.view)
-    })
-
-    if (visibleItems.length === 0) return null
-
-    return {
-      ...module,
-      items: visibleItems
-    }
-  }).filter((m): m is NonNullable<typeof m> => m != null)
+  const hubModules = useMemo(
+    () => visibleModules.filter((m) => m.id !== 'dashboard'),
+    [visibleModules]
+  )
 
   // Detecta o módulo ativo pelo match mais longo de basePaths
   const activeModule = useMemo(() => {
@@ -182,113 +174,87 @@ export function AdminSidebar() {
   const activeItemHref = useMemo(() => {
     const items = activeModule
       ? activeModule.items
-      : visibleModules.flatMap(m => m.items)
-
-    let bestMatch = ''
-    for (const item of items) {
-      if (item.href === '/admin') {
-        if (pathname === '/admin' && bestMatch.length < 6) bestMatch = '/admin'
-      } else if (pathname === item.href || pathname?.startsWith(`${item.href}/`)) {
-        if (item.href.length > bestMatch.length) {
-          bestMatch = item.href
-        }
-      }
-    }
-    return bestMatch
+      : visibleModules.flatMap((m) => m.items)
+    return findActiveMenuItemHref(pathname, items)
   }, [activeModule, visibleModules, pathname])
 
   const renderNavItems = (isMobile = false) => {
-    // ── Modo Hub: usuário está em /admin ──────────────────────────────────
-    if (!activeModule) {
-      const hubModules = visibleModules.filter(m => m.id !== 'dashboard')
-      return (
-        <nav className="flex-1 min-h-0 p-4 space-y-1 overflow-y-auto custom-scrollbar">
-          <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-500 px-3 mb-3">
-            Módulos disponíveis
-          </p>
-          {hubModules.map((mod) => {
-            const href = getModuleRootHref(mod)
-            return (
-              <Link
-                key={mod.id}
-                href={href}
-                onClick={handleMenuClick(href, isMobile)}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-400 hover:text-white hover:bg-white/5 transition-all duration-200 group"
-              >
-                <div
-                  className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform"
-                  style={{ background: mod.color ? `${mod.color}22` : 'rgba(255,255,255,0.05)' }}
-                >
-                  <mod.icon size={15} style={{ color: mod.color ?? '#94a3b8' }} />
-                </div>
-                <span className="flex-1 truncate">{mod.title}</span>
-                <ChevronRight size={13} className="opacity-0 group-hover:opacity-60 transition-opacity" />
-              </Link>
-            )
-          })}
-        </nav>
-      )
-    }
-
-    // ── Modo Módulo: usuário está dentro de um módulo específico ──────────
     return (
       <nav className="flex-1 min-h-0 flex flex-col overflow-hidden">
-        {/* Botão voltar ao hub */}
-        <div className="px-4 pt-4 pb-2 shrink-0">
-          <Link
-            href="/admin"
-            onClick={handleMenuClick('/admin', isMobile)}
-            className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-slate-500 hover:text-slate-200 hover:bg-white/5 transition-all duration-200 group"
-          >
-            <ChevronLeft size={15} className="shrink-0 group-hover:-translate-x-0.5 transition-transform" />
-            <span className="text-[12px] font-semibold uppercase tracking-wider">Todos os Módulos</span>
-          </Link>
-        </div>
-
-        {/* Cabeçalho do módulo */}
-        <div className="px-4 pb-3 shrink-0">
-          <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-white/5 bg-white/[0.03]">
-            <div
-              className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-              style={{ background: activeModule.color ? `${activeModule.color}33` : 'rgba(255,255,255,0.08)' }}
-            >
-              <activeModule.icon size={16} style={{ color: activeModule.color ?? '#94a3b8' }} />
-            </div>
-            <div className="min-w-0">
-              <p className="text-[13px] font-bold text-white truncate leading-tight">{activeModule.title}</p>
-              {activeModule.description && (
-                <p className="text-[10px] text-slate-500 truncate leading-tight mt-0.5">{activeModule.description}</p>
-              )}
-            </div>
-          </div>
-        </div>
-
-        <div className="mx-4 border-t border-white/5 mb-3 shrink-0" />
-
-        {/* Itens do módulo */}
-        <div className="flex-1 min-h-0 px-4 space-y-1 overflow-y-auto custom-scrollbar pb-4">
-          {activeModule.items.map(({ href, label, icon: Icon }) => {
-            const isActive = href === activeItemHref
-            return (
-              <Link
-                key={href}
-                href={href}
-                onClick={handleMenuClick(href, isMobile)}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${isActive
-                  ? 'bg-red-600 text-white shadow-lg shadow-red-600/20'
-                  : 'text-slate-400 hover:text-slate-100 hover:bg-white/5'
+        {/* Módulos liberados — sempre visíveis */}
+        <div className="px-4 pt-4 pb-2 shrink-0 space-y-1 overflow-y-auto custom-scrollbar max-h-[42vh]">
+          <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-500 px-3 mb-2">
+            Módulos disponíveis
+          </p>
+          {hubModules.length === 0 ? (
+            <p className="px-3 text-xs text-slate-500">Nenhum módulo liberado.</p>
+          ) : (
+            hubModules.map((mod) => {
+              const href = getModuleRootHref(mod)
+              const isActiveModule = isModuleNavActive(pathname, mod)
+              return (
+                <Link
+                  key={mod.id}
+                  href={href}
+                  onClick={handleMenuClick(href, isMobile)}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group ${
+                    isActiveModule
+                      ? 'bg-white/10 text-white border border-white/10'
+                      : 'text-slate-400 hover:text-white hover:bg-white/5'
                   }`}
-              >
-                {Icon && <Icon size={16} className="shrink-0" />}
-                <span className="flex-1 truncate">{label}</span>
-                {pendingHref === href ? (
-                  <Loader2 size={13} className="shrink-0 animate-spin opacity-80" aria-hidden />
-                ) : null}
-              </Link>
-            )
-          })}
+                >
+                  <div
+                    className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform"
+                    style={{ background: mod.color ? `${mod.color}22` : 'rgba(255,255,255,0.05)' }}
+                  >
+                    <mod.icon size={15} style={{ color: mod.color ?? '#94a3b8' }} />
+                  </div>
+                  <span className="flex-1 truncate">{mod.title}</span>
+                  {isActiveModule ? (
+                    <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
+                  ) : (
+                    <ChevronRight size={13} className="opacity-0 group-hover:opacity-60 transition-opacity shrink-0" />
+                  )}
+                </Link>
+              )
+            })
+          )}
         </div>
 
+        {/* Itens do módulo ativo */}
+        {activeModule && activeModule.id !== 'dashboard' ? (
+          <>
+            <div className="mx-4 border-t border-white/5 my-2 shrink-0" />
+            <div className="px-4 pb-2 shrink-0">
+              <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-500 px-3 mb-2">
+                {activeModule.title}
+              </p>
+            </div>
+            <div className="flex-1 min-h-0 px-4 space-y-1 overflow-y-auto custom-scrollbar pb-4">
+              {activeModule.items.map(({ href, label, icon: Icon }) => {
+                const isActive = href === activeItemHref
+                return (
+                  <Link
+                    key={href}
+                    href={href}
+                    onClick={handleMenuClick(href, isMobile)}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
+                      isActive
+                        ? 'bg-red-600 text-white shadow-lg shadow-red-600/20'
+                        : 'text-slate-400 hover:text-slate-100 hover:bg-white/5'
+                    }`}
+                  >
+                    {Icon && <Icon size={16} className="shrink-0" />}
+                    <span className="flex-1 truncate">{label}</span>
+                    {pendingHref === href ? (
+                      <Loader2 size={13} className="shrink-0 animate-spin opacity-80" aria-hidden />
+                    ) : null}
+                  </Link>
+                )
+              })}
+            </div>
+          </>
+        ) : null}
       </nav>
     )
   }

@@ -416,6 +416,111 @@ function getNestedPermissions(profileRow: ProfileRow | null): PermissionRow[] | 
   return related?.access_profile_permissions ?? null
 }
 
+function getAccessProfileName(profileRow: ProfileRow | null): string | undefined {
+  const related = Array.isArray(profileRow?.access_profiles)
+    ? profileRow.access_profiles[0]
+    : profileRow?.access_profiles
+  return related?.name
+}
+
+/** Carrega permissões do access_profile — join aninhado ou query direta por access_profile_id. */
+async function fetchAccessProfilePermissionContext(
+  profileRow: ProfileRow | null
+): Promise<{ rows: PermissionRow[]; profileName: string | undefined }> {
+  const nested = getNestedPermissions(profileRow)
+  const profileName = getAccessProfileName(profileRow)
+  if (nested?.length) {
+    return { rows: nested, profileName }
+  }
+
+  const apId = profileRow?.access_profile_id
+  if (!apId) {
+    return { rows: [], profileName }
+  }
+
+  try {
+    const [{ data: perms }, { data: ap }] = await Promise.all([
+      supabaseServer
+        .from('access_profile_permissions')
+        .select('page_key, can_view, can_create, can_edit, can_delete')
+        .eq('profile_id', apId),
+      supabaseServer
+        .from('access_profiles')
+        .select('name')
+        .eq('id', apId)
+        .maybeSingle(),
+    ])
+
+    return {
+      rows: (perms as PermissionRow[]) ?? [],
+      profileName: ap?.name ?? profileName,
+    }
+  } catch {
+    return { rows: [], profileName }
+  }
+}
+
+/** Perfil Acesso:{modulo} → concede sempre as page_keys definidas em ADMIN_MODULE_ACCESS. */
+function applyModuleAccessProfileGrant(
+  map: PermissionMap,
+  profileName: string | undefined
+): PermissionMap {
+  if (!profileName?.startsWith('Acesso:')) return map
+
+  const moduleKey = profileName.slice('Acesso:'.length)
+  const config = ADMIN_MODULE_ACCESS[moduleKey]
+  if (!config) return map
+
+  const modulePerms = {
+    view: true,
+    create: false,
+    edit: true,
+    delete: false,
+    manage: false,
+  }
+
+  for (const pageKey of config.usuarioPageKeys) {
+    const current = map[pageKey]
+    map[pageKey] = {
+      view: current?.view || modulePerms.view,
+      create: current?.create || modulePerms.create,
+      edit: current?.edit || modulePerms.edit,
+      delete: current?.delete || modulePerms.delete,
+      manage: current?.manage || modulePerms.manage,
+    }
+  }
+
+  return map
+}
+
+/** Mescla permissões do access_profile legado (ex.: Acesso:revisao-vidas) no mapa RBAC. */
+async function mergeLegacyAccessProfilePermissions(
+  map: PermissionMap,
+  profileRow: ProfileRow | null
+): Promise<PermissionMap> {
+  const { rows, profileName } = await fetchAccessProfilePermissionContext(profileRow)
+
+  let legacyMap = rows.length ? buildPermissionMap(rows) : {}
+  legacyMap = applyLegacyModulePermissionAliases(legacyMap, profileName)
+
+  for (const [pageKey, perms] of Object.entries(legacyMap)) {
+    const current = map[pageKey]
+    if (!current) {
+      map[pageKey] = { ...perms }
+      continue
+    }
+    map[pageKey] = {
+      view: current.view || perms.view,
+      create: current.create || perms.create,
+      edit: current.edit || perms.edit,
+      delete: current.delete || perms.delete,
+      manage: current.manage || perms.manage,
+    }
+  }
+
+  return applyModuleAccessProfileGrant(map, profileName)
+}
+
 /**
  * Busca as permissões do usuário no novo sistema RBAC
  */
@@ -510,11 +615,12 @@ export async function getAccessSnapshotByToken(accessToken: string): Promise<Acc
       }
     }
 
-    // Buscar permissões do novo sistema
+    // Buscar permissões do novo sistema + perfis de módulo legados (Acesso:*)
     const userPermissions = await getNewSystemPermissions(user.id)
-    const permissionMap = buildPermissionMapFromNewSystem(userPermissions)
-    // Todo usuário com role tem acesso ao Dashboard (página inicial do painel)
+    let permissionMap = buildPermissionMapFromNewSystem(userPermissions)
     permissionMap.dashboard = { ...(permissionMap.dashboard || {}), view: true }
+    permissionMap = await mergeLegacyAccessProfilePermissions(permissionMap, profileRow)
+    const legacyProfile = resolveAccessProfile(profileRow, legacyRole)
     const canAccessAdmin = hasAnyAdminViewPermission(permissionMap)
 
     return {
@@ -526,6 +632,7 @@ export async function getAccessSnapshotByToken(accessToken: string): Promise<Acc
       canAccessAdmin,
       isAdmin: false,
       legacyRole,
+      legacyProfile,
       personId,
       avatarUrl,
       source: 'rbac-user',
@@ -561,7 +668,7 @@ export async function getAccessSnapshotByToken(accessToken: string): Promise<Acc
       ? LEGACY_EDITOR_PERMISSIONS
       : LEGACY_VIEWER_PERMISSIONS
 
-  permissionMap = applyLegacyModulePermissionAliases(permissionMap, legacyProfile.name)
+  permissionMap = await mergeLegacyAccessProfilePermissions(permissionMap, profileRow)
 
   const canAccessAdmin = hasAnyAdminViewPermission(permissionMap)
 

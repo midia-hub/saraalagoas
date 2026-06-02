@@ -232,7 +232,7 @@ export function ModuleAccessManager({ moduleKey, moduleName }: Props) {
           method: 'POST',
           body: JSON.stringify({ user_id: addUserLink.user.id, level: addLevel }),
         })
-        setAddMessage({ type: 'ok', text: 'Acesso concedido com sucesso.' })
+        setAddMessage({ type: 'ok', text: 'Acesso concedido. O usuário precisa sair e entrar novamente.' })
         await load()
         setTimeout(closeAddModal, 1800)
       } else {
@@ -254,7 +254,7 @@ export function ModuleAccessManager({ moduleKey, moduleName }: Props) {
               body: JSON.stringify({ user_id: ul.user.id, level: addLevel }),
             })
           }
-          setAddMessage({ type: 'ok', text: result.message ?? 'Acesso concedido.' })
+          setAddMessage({ type: 'ok', text: result.message ?? 'Acesso concedido. O usuário precisa sair e entrar novamente.' })
           await load(); setTimeout(closeAddModal, 1800)
         } else if (result.link) {
           setAddGeneratedLink(result.link)
@@ -279,7 +279,7 @@ export function ModuleAccessManager({ moduleKey, moduleName }: Props) {
         method: 'POST',
         body: JSON.stringify({ user_id: assignTarget.id, level: assignLevel }),
       })
-      setToast({ type: 'ok', text: 'Nível atualizado.' })
+      setToast({ type: 'ok', text: 'Nível atualizado. O usuário precisa sair e entrar novamente.' })
       setAssignTarget(null)
       await load()
     } catch (err) {
