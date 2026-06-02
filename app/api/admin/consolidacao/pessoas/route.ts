@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAccess } from '@/lib/admin-api'
+import { requireAccessAny } from '@/lib/admin-api'
 import { createSupabaseAdminClient } from '@/lib/supabase-server'
 
 /**
@@ -8,7 +8,10 @@ import { createSupabaseAdminClient } from '@/lib/supabase-server'
  */
 
 export async function GET(request: NextRequest) {
-  const access = await requireAccess(request, { pageKey: 'consolidacao', action: 'view' })
+  const access = await requireAccessAny(request, [
+    { pageKey: 'consolidacao', action: 'view' },
+    { pageKey: 'revisao_vidas', action: 'view' },
+  ])
   if (!access.ok) return access.response
 
   try {

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAccess } from '@/lib/admin-api'
+import { requireLiderancaAccess } from '@/lib/admin-api'
 import { createSupabaseAdminClient } from '@/lib/supabase-server'
 import { getLeadershipTree } from '@/lib/people-access'
 import { getTodayBrasilia } from '@/lib/date-utils'
@@ -56,7 +56,7 @@ function listWeekdayDates(start: Date, end: Date, weekday: number): string[] {
  * Query params: start (YYYY-MM-DD), end (YYYY-MM-DD), service_id (uuid | 'all')
  */
 export async function GET(request: NextRequest) {
-  const access = await requireAccess(request, { pageKey: 'cultos', action: 'view' })
+  const access = await requireLiderancaAccess(request, 'view')
   if (!access.ok) return access.response
 
   try {

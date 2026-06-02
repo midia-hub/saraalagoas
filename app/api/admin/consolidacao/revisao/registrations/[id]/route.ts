@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAccess } from '@/lib/admin-api'
+import { requireRevisaoVidasAccess } from '@/lib/admin-api'
 import { createSupabaseAdminClient } from '@/lib/supabase-server'
 
 const REGISTRATION_SELECT = 'id, event_id, person_id, leader_person_id, status, notes, created_at, updated_at, anamnese_token, anamnese_completed, anamnese_completed_at, pre_revisao_aplicado, payment_status, payment_date, payment_method, amount, payment_notes, payment_validated_by, payment_validated_at, leader_name, team, decision_type'
@@ -10,7 +10,7 @@ const REGISTRATION_SELECT = 'id, event_id, person_id, leader_person_id, status, 
  */
 
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
-  const access = await requireAccess(request, { pageKey: 'consolidacao', action: 'edit' })
+  const access = await requireRevisaoVidasAccess(request, 'edit')
   if (!access.ok) return access.response
 
   try {
@@ -106,7 +106,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 }
 
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
-  const access = await requireAccess(request, { pageKey: 'consolidacao', action: 'delete' })
+  const access = await requireRevisaoVidasAccess(request, 'delete')
   if (!access.ok) return access.response
 
   try {

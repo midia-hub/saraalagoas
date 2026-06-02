@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAccess } from '@/lib/admin-api'
+import { requireRevisaoVidasAccess } from '@/lib/admin-api'
 import { createSupabaseAdminClient } from '@/lib/supabase-server'
 
 export const dynamic = 'force-dynamic'
@@ -12,7 +12,7 @@ export const dynamic = 'force-dynamic'
  * - limit?: number (default 40, max 200)
  */
 export async function GET(request: NextRequest) {
-  const access = await requireAccess(request, { pageKey: 'consolidacao', action: 'view' })
+  const access = await requireRevisaoVidasAccess(request, 'view')
   if (!access.ok) return access.response
 
   if (!access.snapshot.isAdmin) {

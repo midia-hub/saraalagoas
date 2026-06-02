@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAccess } from '@/lib/admin-api'
+import { requireLiderancaAccess } from '@/lib/admin-api'
 import { createSupabaseAdminClient } from '@/lib/supabase-server'
 
 function normalizeArenaDay(day: string | null | undefined): number {
@@ -28,7 +28,7 @@ function normalizeName(value: string): string {
  * Lista os cultos (worship_services) vinculados à igreja do líder logado.
  */
 export async function GET(request: NextRequest) {
-  const access = await requireAccess(request, { pageKey: 'cultos', action: 'view' })
+  const access = await requireLiderancaAccess(request, 'view')
   if (!access.ok) return access.response
 
   try {

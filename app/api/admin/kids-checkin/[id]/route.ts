@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAccess } from '@/lib/admin-api'
+import { requireSaraKidsAccess } from '@/lib/admin-api'
 import { createSupabaseAdminClient } from '@/lib/supabase-server'
 import { MESSAGE_ID_KIDS_CHECKOUT, sendDisparoRaw, getNomeExibicao } from '@/lib/disparos-webhook'
 
@@ -15,7 +15,7 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const access = await requireAccess(request, { pageKey: 'pessoas', action: 'edit' })
+  const access = await requireSaraKidsAccess(request, 'edit')
   if (!access.ok) return access.response
 
   const { id } = await params
@@ -88,7 +88,7 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const access = await requireAccess(request, { pageKey: 'pessoas', action: 'delete' })
+  const access = await requireSaraKidsAccess(request, 'delete')
   if (!access.ok) return access.response
 
   const { id } = await params

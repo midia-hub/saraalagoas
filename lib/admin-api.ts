@@ -41,6 +41,40 @@ export async function requireAccess(
   }
 }
 
+/** Revisão de Vidas — aceita permissão nova (revisao_vidas) e legado (consolidacao). */
+export async function requireRevisaoVidasAccess(
+  request: NextRequest,
+  action: PermissionAction = 'view'
+): Promise<{ ok: true; snapshot: AccessSnapshot } | { ok: false; response: NextResponse }> {
+  return requireAccessAny(request, [
+    { pageKey: 'revisao_vidas', action },
+    { pageKey: 'consolidacao', action },
+  ])
+}
+
+/** Sara Kids — aceita permissão do módulo ou legado (pessoas). */
+export async function requireSaraKidsAccess(
+  request: NextRequest,
+  action: PermissionAction = 'view'
+): Promise<{ ok: true; snapshot: AccessSnapshot } | { ok: false; response: NextResponse }> {
+  return requireAccessAny(request, [
+    { pageKey: 'sara_kids', action },
+    { pageKey: 'pessoas', action },
+  ])
+}
+
+/** Liderança — aceita liderança, cultos (APIs) ou legado (pessoas). */
+export async function requireLiderancaAccess(
+  request: NextRequest,
+  action: PermissionAction = 'view'
+): Promise<{ ok: true; snapshot: AccessSnapshot } | { ok: false; response: NextResponse }> {
+  return requireAccessAny(request, [
+    { pageKey: 'lideranca', action },
+    { pageKey: 'cultos', action },
+    { pageKey: 'pessoas', action },
+  ])
+}
+
 /** Permite acesso se o usuário tiver qualquer uma das permissões indicadas. */
 export async function requireAccessAny(
   request: NextRequest,

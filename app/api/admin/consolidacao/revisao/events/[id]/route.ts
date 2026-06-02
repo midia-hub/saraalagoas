@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAccess } from '@/lib/admin-api'
+import { requireRevisaoVidasAccess } from '@/lib/admin-api'
 import { createSupabaseAdminClient } from '@/lib/supabase-server'
 
 const REVISAO_EVENT_SELECT = 'id, name, church_id, start_date, end_date, active, secretary_person_id, created_at, updated_at'
@@ -18,7 +18,7 @@ function isEventExpired(ev: { start_date: string; end_date: string | null }): bo
  */
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
-  const access = await requireAccess(request, { pageKey: 'consolidacao', action: 'view' })
+  const access = await requireRevisaoVidasAccess(request, 'view')
   if (!access.ok) return access.response
 
   try {
@@ -50,7 +50,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
-  const access = await requireAccess(request, { pageKey: 'consolidacao', action: 'edit' })
+  const access = await requireRevisaoVidasAccess(request, 'edit')
   if (!access.ok) return access.response
 
   try {
@@ -83,7 +83,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 }
 
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
-  const access = await requireAccess(request, { pageKey: 'consolidacao', action: 'delete' })
+  const access = await requireRevisaoVidasAccess(request, 'delete')
   if (!access.ok) return access.response
 
   try {
