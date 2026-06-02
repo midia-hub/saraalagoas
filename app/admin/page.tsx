@@ -8,6 +8,7 @@ import { adminFetchJson } from '@/lib/admin-client'
 import { PageAccessGuard } from '@/app/admin/PageAccessGuard'
 import { menuModules } from '@/app/admin/menu-config'
 import { getModuleRootHref } from '@/lib/admin-module-routes'
+import { filterVisibleModules } from '@/lib/admin-menu-access'
 
 type HomeContext = {
   myCells: { id: string; name: string; dayLabel: string; timeOfDay: string | null }[]
@@ -32,13 +33,11 @@ export default function AdminPage() {
 
   const name = access.profileName?.split(' ')[0] ?? 'Líder'
 
-  const visibleModules = menuModules.filter((m) => {
-    if (m.id === 'dashboard' || m.id === 'configuracoes') return false
-    if (access.isAdmin) return true
-    if (!m.permission) return true
-    const perms = Array.isArray(m.permission) ? m.permission : [m.permission]
-    return perms.some((p) => !!access.permissions[p]?.view || !!access.permissions[p]?.manage)
-  })
+  const visibleModules = filterVisibleModules(
+    menuModules,
+    access.permissions,
+    access.isAdmin
+  ).filter((m) => m.id !== 'dashboard' && m.id !== 'configuracoes')
 
   const badges: Record<string, number> = {}
   if (homeCtx?.pendingFollowups && homeCtx.pendingFollowups > 0) {

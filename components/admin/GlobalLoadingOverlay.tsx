@@ -44,6 +44,9 @@ export function GlobalLoadingOverlay() {
     const pathname = usePathname()
     const prevPathname = useRef(pathname)
     const navTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+    // Timer de handoff: ao trocar de página, aguarda brevemente antes de esconder
+    // para que os fetches da nova página possam "assumir" o overlay sem piscar
+    const navHandoffTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
     // Quando o pathname muda: a navegação terminou
     useEffect(() => {
@@ -54,8 +57,15 @@ export function GlobalLoadingOverlay() {
                 navTimerRef.current = null
             }
             if (navShownRef.current) {
-                navShownRef.current = false
-                recompute(fetchCountRef.current, false)
+                // Não esconde imediatamente: aguarda 250ms para os fetches da nova
+                // página se registrarem. Se houver fetches ativos quando o timer
+                // disparar, o fetchCountRef mantém o overlay visível sozinho.
+                if (navHandoffTimerRef.current) clearTimeout(navHandoffTimerRef.current)
+                navHandoffTimerRef.current = setTimeout(() => {
+                    navShownRef.current = false
+                    recompute(fetchCountRef.current, false)
+                    navHandoffTimerRef.current = null
+                }, 250)
             }
         }
     }, [pathname, recompute])
@@ -68,8 +78,12 @@ export function GlobalLoadingOverlay() {
             const href = anchor.getAttribute('href')
             if (!href || href.startsWith('http') || href.startsWith('#') || href.startsWith('mailto') || href === prevPathname.current) return
 
-            // Cancela timer anterior
+            // Cancela timers anteriores
             if (navTimerRef.current) clearTimeout(navTimerRef.current)
+            if (navHandoffTimerRef.current) {
+                clearTimeout(navHandoffTimerRef.current)
+                navHandoffTimerRef.current = null
+            }
 
             // Mostra overlay imediatamente
             notifyNavigation()

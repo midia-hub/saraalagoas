@@ -21,18 +21,12 @@ export function PageAccessGuard({
     keys.some((k) => !!access.permissions[k]?.view)
 
   useEffect(() => {
-    if (!access.loading && !allowed) {
+    if (!allowed) {
       router.replace('/admin/acesso-negado')
     }
-  }, [access.loading, allowed, router])
+  }, [allowed, router])
 
-  if (access.loading) {
-    return <p className="text-slate-600">Carregando permissões...</p>
-  }
-
-  if (!allowed) {
-    return <p className="text-slate-600">Redirecionando...</p>
-  }
+  if (!allowed) return null
 
   return <>{children}</>
 }

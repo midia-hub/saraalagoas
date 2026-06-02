@@ -152,7 +152,7 @@ function CheckinDetailModal({
           </div>
 
           {/* Grade de dados */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <InfoCard icon={<Clock size={13} />} label="Entrada" value={
               new Date(checkin.checked_in_at).toLocaleString('pt-BR', {
                 day: '2-digit', month: '2-digit', year: 'numeric',
@@ -554,7 +554,7 @@ export default function KidsCheckinPage() {
                     {searchResults.length > 0 && (
                       <div
                         ref={dropdownRef}
-                        className="absolute z-20 mt-2 w-full rounded-2xl border-2 border-slate-200 bg-white shadow-[0_25px_50px_-12px_rgba(15,23,42,0.2)] overflow-hidden"
+                        className="absolute z-20 mt-2 w-full rounded-2xl border-2 border-slate-200 bg-white shadow-[0_25px_50px_-12px_rgba(15,23,42,0.2)] max-h-64 overflow-x-hidden overflow-y-auto"
                       >
                         {searchResults.map((child) => (
                           <button

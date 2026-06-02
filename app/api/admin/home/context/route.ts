@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAccess } from '@/lib/admin-api'
+import { getAccessSnapshotFromRequest } from '@/lib/rbac'
 import { createSupabaseAdminClient } from '@/lib/supabase-server'
 
 const DAY_NAMES: Record<string, string> = {
@@ -8,10 +8,11 @@ const DAY_NAMES: Record<string, string> = {
 }
 
 export async function GET(request: NextRequest) {
-  const access = await requireAccess(request, { pageKey: 'dashboard', action: 'view' })
-  if (!access.ok) return access.response
+  const snapshot = await getAccessSnapshotFromRequest(request).catch(() => null)
+  if (!snapshot?.canAccessAdmin) {
+    return NextResponse.json({ error: 'Acesso negado.' }, { status: 403 })
+  }
 
-  const { snapshot } = access
   const personId = snapshot.personId
   const supabase = createSupabaseAdminClient(request)
 
