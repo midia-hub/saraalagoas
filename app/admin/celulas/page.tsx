@@ -1,9 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { UsersRound, Plus, Search, MapPin, Filter } from 'lucide-react'
+import { useState, useEffect, useMemo } from 'react'
+import { UsersRound, Plus, Search, MapPin, Star } from 'lucide-react'
+import { ModuleAccessLink } from '@/components/admin/ModuleAccessLink'
 import { PageAccessGuard } from '@/app/admin/PageAccessGuard'
 import { adminFetchJson } from '@/lib/admin-client'
+import { computeEliteCells } from '@/lib/cells-elite'
 import { Button } from '@/components/ui/Button'
 import { CustomSelect } from '@/components/ui/CustomSelect'
 import { CelulaForm } from '@/components/celulas/CelulaForm'
@@ -13,6 +15,7 @@ import Link from 'next/link'
 export default function CelulasPage() {
   const [cells, setCells] = useState<any[]>([])
   const [churches, setChurches] = useState<any[]>([])
+  const [eliteRealizations, setEliteRealizations] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowShowForm] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -23,15 +26,28 @@ export default function CelulasPage() {
   const [churchId, setChurchId] = useState('')
   const [status, setStatus] = useState('ativa')
 
+  const currentMonthKey = useMemo(() => {
+    const now = new Date()
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // computed once on mount (client-only, evita hydration mismatch)
+
+  const eliteCellIds = useMemo(
+    () => computeEliteCells({ monthKey: currentMonthKey, realizations: eliteRealizations }),
+    [eliteRealizations, currentMonthKey]
+  )
+
   async function loadData() {
     setLoading(true)
     try {
-      const [cellsData, churchesData] = await Promise.all([
+      const [cellsData, churchesData, relsData] = await Promise.all([
         adminFetchJson<{ items: any[] }>(`/api/admin/celulas?church_id=${churchId}&status=${status}`),
-        adminFetchJson<{ items: any[] }>('/api/admin/consolidacao/churches')
+        adminFetchJson<{ items: any[] }>('/api/admin/consolidacao/churches'),
+        adminFetchJson<{ items: any[] }>(`/api/admin/celulas/realizacoes?reference_month=${currentMonthKey}`),
       ])
       setCells(cellsData.items || [])
       setChurches(churchesData.items || [])
+      setEliteRealizations(relsData.items || [])
     } catch (err) {
       console.error(err)
     } finally {
@@ -43,7 +59,7 @@ export default function CelulasPage() {
     loadData()
   }, [churchId, status])
 
-  const filteredCells = cells.filter(c => 
+  const filteredCells = cells.filter(c =>
     c.name.toLowerCase().includes(q.toLowerCase()) ||
     c.leader?.full_name?.toLowerCase().includes(q.toLowerCase())
   )
@@ -80,6 +96,7 @@ export default function CelulasPage() {
           </div>
 
           <div className="flex gap-2">
+            <ModuleAccessLink href="/admin/celulas/acesso" />
             <Link href="/admin/celulas/dashboard">
               <Button variant="outline" className="gap-2">
                 Ver Dashboard
@@ -138,50 +155,70 @@ export default function CelulasPage() {
                   <div key={i} className="h-48 bg-slate-100 animate-pulse rounded-2xl border border-slate-200" />
                 ))
               ) : filteredCells.length > 0 ? (
-                filteredCells.map((cell) => (
-                  <Link key={cell.id} href={`/admin/celulas/${cell.id}`}>
-                    <div className="bg-white rounded-2xl border border-slate-200 p-6 hover:shadow-lg hover:border-emerald-500/30 transition-all group">
-                      <div className="flex justify-between items-start mb-4">
-                        <div className="space-y-1">
-                          <h3 className="font-bold text-slate-800 group-hover:text-emerald-600 transition-colors">{cell.name}</h3>
-                          <p className="text-xs text-slate-500 uppercase font-semibold tracking-wider">{cell.church?.name}</p>
-                        </div>
-                        <span className={`px-2 py-1 rounded-lg text-[10px] font-bold uppercase ${
-                          cell.status === 'ativa' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'
-                        }`}>
-                          {cell.status}
-                        </span>
-                      </div>
+                filteredCells.map((cell) => {
+                  const isElite = eliteCellIds.has(cell.id)
+                  return (
+                    <Link key={cell.id} href={`/admin/celulas/${cell.id}`}>
+                      <div className={`bg-white rounded-2xl border p-6 hover:shadow-lg transition-all group relative overflow-hidden ${
+                        isElite
+                          ? 'border-amber-300 hover:border-amber-400 shadow-amber-100'
+                          : 'border-slate-200 hover:border-emerald-500/30'
+                      }`}>
+                        {/* Elite glow strip */}
+                        {isElite && (
+                          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-400" />
+                        )}
 
-                      <div className="space-y-3">
-                        <div className="flex items-center gap-2 text-sm text-slate-600">
-                          <UsersRound size={16} className="text-slate-400" />
-                          <span>Líder: <strong className="text-slate-700">{cell.leader?.full_name || '—'}</strong></span>
+                        <div className="flex justify-between items-start mb-4">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <h3 className="font-bold text-slate-800 group-hover:text-emerald-600 transition-colors">{cell.name}</h3>
+                              {isElite && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-[10px] font-black uppercase tracking-wide border border-amber-200">
+                                  <Star size={9} className="fill-amber-500 text-amber-500" />
+                                  Elite
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-slate-500 uppercase font-semibold tracking-wider">{cell.church?.name}</p>
+                          </div>
+                          <span className={`px-2 py-1 rounded-lg text-[10px] font-bold uppercase ${
+                            cell.status === 'ativa' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'
+                          }`}>
+                            {cell.status}
+                          </span>
                         </div>
-                        <div className="flex items-center gap-2 text-sm text-slate-600">
-                          <MapPin size={16} className="text-slate-400" />
-                          <span className="truncate">{cell.neighborhood || 'Local não informado'}</span>
-                        </div>
-                      </div>
 
-                      <div className="mt-6 pt-4 border-t border-slate-50 flex items-center justify-between">
-                        <span className="text-xs text-slate-400">
-                          {cell.day_of_week === 'mon' && 'Segunda'}
-                          {cell.day_of_week === 'tue' && 'Terça'}
-                          {cell.day_of_week === 'wed' && 'Quarta'}
-                          {cell.day_of_week === 'thu' && 'Quinta'}
-                          {cell.day_of_week === 'fri' && 'Sexta'}
-                          {cell.day_of_week === 'sat' && 'Sábado'}
-                          {cell.day_of_week === 'sun' && 'Domingo'}
-                          {' • '}{cell.time_of_day?.slice(0, 5)}
-                        </span>
-                        <div className="text-emerald-600 font-bold text-xs group-hover:translate-x-1 transition-transform flex items-center gap-1">
-                          Ver Detalhes →
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-2 text-sm text-slate-600">
+                            <UsersRound size={16} className="text-slate-400" />
+                            <span>Líder: <strong className="text-slate-700">{cell.leader?.full_name || '—'}</strong></span>
+                          </div>
+                          <div className="flex items-center gap-2 text-sm text-slate-600">
+                            <MapPin size={16} className="text-slate-400" />
+                            <span className="truncate">{cell.neighborhood || 'Local não informado'}</span>
+                          </div>
+                        </div>
+
+                        <div className="mt-6 pt-4 border-t border-slate-50 flex items-center justify-between">
+                          <span className="text-xs text-slate-400">
+                            {cell.day_of_week === 'mon' && 'Segunda'}
+                            {cell.day_of_week === 'tue' && 'Terça'}
+                            {cell.day_of_week === 'wed' && 'Quarta'}
+                            {cell.day_of_week === 'thu' && 'Quinta'}
+                            {cell.day_of_week === 'fri' && 'Sexta'}
+                            {cell.day_of_week === 'sat' && 'Sábado'}
+                            {cell.day_of_week === 'sun' && 'Domingo'}
+                            {' • '}{cell.time_of_day?.slice(0, 5)}
+                          </span>
+                          <div className="text-emerald-600 font-bold text-xs group-hover:translate-x-1 transition-transform flex items-center gap-1">
+                            Ver Detalhes →
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </Link>
-                ))
+                    </Link>
+                  )
+                })
               ) : (
                 <div className="col-span-full py-20 text-center text-slate-400">
                   Nenhuma célula encontrada com os filtros aplicados.

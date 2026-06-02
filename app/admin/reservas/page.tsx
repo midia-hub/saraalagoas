@@ -4,6 +4,7 @@ import { PageAccessGuard } from '@/app/admin/PageAccessGuard'
 import ReservationsAdminClient from '@/components/admin/reservas/ReservationsAdminClient'
 import Link from 'next/link'
 import { Plus, Building2 } from 'lucide-react'
+import { ModuleAccessLink } from '@/components/admin/ModuleAccessLink'
 
 export default function ReservasPage() {
   return (
@@ -16,6 +17,7 @@ export default function ReservasPage() {
             <p className="text-sm text-slate-500 mt-0.5">Gerencie solicitações de uso das salas da Igreja</p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
+            <ModuleAccessLink href="/admin/reservas/acesso" />
             <Link
               href="/admin/reservas/salas"
               className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-sm font-medium px-3 py-2 transition-colors"

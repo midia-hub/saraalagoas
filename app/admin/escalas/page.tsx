@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { Calendar, Plus, Link2, Copy, Eye, Trash2, CheckCircle, XCircle, ChevronRight, Loader2, Music, MapPin, CalendarDays, Clock, Sparkles, ArrowLeft, Check, Tags, X, Users, Pencil, AlertTriangle } from 'lucide-react'
+import { ModuleAccessLink } from '@/components/admin/ModuleAccessLink'
 import { PageAccessGuard } from '@/app/admin/PageAccessGuard'
 import { AdminPageHeader } from '@/app/admin/AdminPageHeader'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
@@ -353,6 +354,7 @@ export default function EscalasPage() {
           subtitle="Gere links de disponibilidade por ministério e mês."
           actions={
             <div className="flex items-center gap-2">
+              <ModuleAccessLink href="/admin/escalas/acesso" />
               <button
                 type="button"
                 onClick={() => { resetModal(); setModalOpen(true) }}

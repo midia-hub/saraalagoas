@@ -309,7 +309,7 @@ export default function AdminLoginPage() {
         const safeNextPath =
           nextPath && nextPath.startsWith('/') && !nextPath.startsWith('//')
             ? nextPath
-            : '/admin/selecionar'
+            : '/admin'
         window.location.replace(`${basePath}${safeNextPath}`)
         return
       }

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { UserCircle, Search, UserPlus, Upload, MessageCircle, Loader2, CheckCircle2, XCircle } from 'lucide-react'
+import { ModuleAccessLink } from '@/components/admin/ModuleAccessLink'
 import { PageAccessGuard } from '@/app/admin/PageAccessGuard'
 import { CustomSelect } from '@/components/ui/CustomSelect'
 import { PeopleTable } from '@/components/admin/people/PeopleTable'
@@ -145,6 +146,7 @@ export default function PessoasPage() {
           </div>
 
           <div className="flex items-center gap-2">
+            <ModuleAccessLink href="/admin/pessoas/acesso" />
             {access.isAdmin && (
               <button
                 type="button"

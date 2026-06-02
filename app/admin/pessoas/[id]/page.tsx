@@ -21,6 +21,8 @@ import {
   Send,
   Loader2,
   Mail,
+  ScanFace,
+  ExternalLink,
 } from 'lucide-react'
 import Link from 'next/link'
 import { PageAccessGuard } from '@/app/admin/PageAccessGuard'
@@ -198,6 +200,7 @@ export default function PessoaDetalhePage() {
   const [userLink, setUserLink] = useState<UserLinkState | null>(null)
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [rekognitionId, setRekognitionId] = useState<string | null>(null)
 
   async function loadUserLink(personId: string) {
     try {
@@ -275,6 +278,15 @@ export default function PessoaDetalhePage() {
     if (!inviteModalOpen) return
     loadInviteRoles()
   }, [inviteModalOpen])
+
+  useEffect(() => {
+    if (!person?.full_name) return
+    adminFetchJson<{ person: { id: string } | null }>(
+      `/api/rekognition/people/lookup?name=${encodeURIComponent(person.full_name)}`
+    )
+      .then((data) => setRekognitionId(data.person?.id ?? null))
+      .catch(() => {})
+  }, [person?.full_name])
 
   async function handleSubmit(data: PersonFormData) {
     if (!id) return
@@ -502,6 +514,17 @@ export default function PessoaDetalhePage() {
                   {isActive ? 'ATIVO' : 'INATIVO'}
                 </span>
                 <div className="flex gap-2 flex-wrap justify-end">
+                  {rekognitionId && (
+                    <Link
+                      href={`/admin/rekognition/${rekognitionId}`}
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-300 text-slate-700 text-sm font-medium hover:bg-slate-50 transition-colors"
+                      title="Ver álbum de reconhecimento facial"
+                    >
+                      <ScanFace size={16} />
+                      <ExternalLink size={14} />
+                      Álbum de fotos
+                    </Link>
+                  )}
                   {!userLink?.linked && (
                     <button
                       type="button"

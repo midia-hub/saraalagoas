@@ -34,7 +34,15 @@
       "Bash(npm run *)",
       "Bash(curl -s http://localhost:3000/api/revisao-vidas/inscricao/aa6ba4d8-c4f7-416f-9e38-03642438d450)",
       "Bash(curl *)",
-      "Bash(pkill -f \"next dev\")"
+      "Bash(pkill -f \"next dev\")",
+      "Bash(Remove-Item -Path \"C:\\\\midia_igreja\\\\app\\\\admin\\\\selecionar\\\\page.tsx\" -Force)",
+      "Bash(Remove-Item -Path \"C:\\\\midia_igreja\\\\app\\\\admin\\\\selecionar\" -Force)",
+      "Bash(grep -n 'justify-between\\\\|AdminPageHeader\\\\|flex gap\\\\|actions\\\\|<Button\\\\|<Link href' C:/midia_igreja/app/admin/__TRACKED_VAR__/page.tsx)",
+      "mcp__plugin_supabase_supabase__list_projects",
+      "mcp__plugin_supabase_supabase__execute_sql",
+      "mcp__plugin_supabase_supabase__list_tables",
+      "Bash(grep -E \"\\\\.sql$\")",
+      "mcp__plugin_supabase_supabase__apply_migration"
     ]
   }
 }

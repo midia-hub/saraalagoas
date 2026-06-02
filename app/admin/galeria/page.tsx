@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Loader2, Image as ImageIcon, Upload, RefreshCw, Trash2, Link2 } from 'lucide-react'
+import { ModuleAccessLink } from '@/components/admin/ModuleAccessLink'
 import { PageAccessGuard } from '@/app/admin/PageAccessGuard'
 import { useAdminAccess } from '@/lib/admin-access-context'
 import { adminFetchJson } from '@/lib/admin-client'
@@ -340,6 +341,7 @@ export default function AdminGaleriaPage() {
           subtitle="Gerencie álbuns de cultos e eventos"
           actions={
             <div className="flex items-center gap-2">
+              <ModuleAccessLink href="/admin/galeria/acesso" />
               <button
                 type="button"
                 onClick={() => {

@@ -32,6 +32,8 @@ import { PDSection } from '@/components/celulas/PDSection'
 import { CelulaForm } from '@/components/celulas/CelulaForm'
 import { useRBAC } from '@/lib/hooks/useRBAC'
 import Link from 'next/link'
+import { UserLinkWidget } from '@/components/admin/UserLinkWidget'
+import { CelulaEliteStatus } from '@/components/celulas/CelulaEliteStatus'
 
 const DAY_MAP: Record<string, number> = {
   sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6
@@ -146,6 +148,11 @@ export default function CelulaDetalhePage() {
     if (cell.co_leader) {
       coreIds.add(cell.co_leader.id)
       members.push({ person: cell.co_leader, id: cell.co_leader.id })
+    }
+
+    if (cell.lt) {
+      coreIds.add(cell.lt.id)
+      members.push({ person: cell.lt, id: cell.lt.id })
     }
 
     for (const cp of cellPeople) {
@@ -387,6 +394,26 @@ export default function CelulaDetalhePage() {
                 </span>
               </div>
               <p className="text-slate-500 font-medium">{cell.church?.name}</p>
+              <div className="flex flex-wrap items-center gap-2 mt-1">
+                {cell.leader && (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-xs font-semibold text-emerald-700">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+                    Líder: {cell.leader.full_name}
+                  </span>
+                )}
+                {cell.co_leader && (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-50 border border-blue-200 text-xs font-semibold text-blue-700">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block" />
+                    Co-líder: {cell.co_leader.full_name}
+                  </span>
+                )}
+                {cell.lt && (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-violet-50 border border-violet-200 text-xs font-semibold text-violet-700">
+                    <span className="w-1.5 h-1.5 rounded-full bg-violet-500 inline-block" />
+                    LT: {cell.lt.full_name}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
 
@@ -502,17 +529,20 @@ export default function CelulaDetalhePage() {
                 )
               })()}
 
-              <AttendanceGrid 
+              <CelulaEliteStatus cellId={id} realizations={realizations} viewDate={viewDate} />
+
+              <AttendanceGrid
                 members={gridMembers}
-                dates={monthDates} 
+                dates={monthDates}
                 attendances={realizations}
                 onToggle={handleToggleAttendance}
                 onAddVisitor={handleAddVisitorToAttendance}
                 onAddPerson={handleAddPersonToAttendance}
                 onRemoveMember={handleRemoveMember}
                 coreMembers={[
-                  ...(cell.leader ? [{ id: cell.leader.id, full_name: cell.leader.full_name, role: 'leader' as const }] : []),
-                  ...(cell.co_leader ? [{ id: cell.co_leader.id, full_name: cell.co_leader.full_name, role: 'co-leader' as const }] : [])
+                  ...(cell.leader   ? [{ id: cell.leader.id,   full_name: cell.leader.full_name,   role: 'leader'    as const }] : []),
+                  ...(cell.co_leader ? [{ id: cell.co_leader.id, full_name: cell.co_leader.full_name, role: 'co-leader' as const }] : []),
+                  ...(cell.lt       ? [{ id: cell.lt.id,       full_name: cell.lt.full_name,       role: 'lt'        as const }] : []),
                 ]}
                 visitors={visitorsAdded}
               />
@@ -846,6 +876,44 @@ export default function CelulaDetalhePage() {
                   </ul>
                 </div>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Liderança e vínculos de usuário */}
+        {!editing && (cell.leader || cell.co_leader) && (
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+            <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2 mb-4">
+              <Users size={20} className="text-emerald-600" />
+              Liderança
+            </h2>
+            <div className="space-y-4">
+              {cell.leader && (
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-xl bg-slate-50 border border-slate-100">
+                  <div>
+                    <p className="text-xs text-slate-500 uppercase font-semibold tracking-wide">Líder</p>
+                    <p className="text-sm font-semibold text-slate-800 mt-0.5">{cell.leader.full_name}</p>
+                  </div>
+                  <UserLinkWidget
+                    personId={cell.leader.id}
+                    personEmail={cell.leader.email ?? null}
+                    personName={cell.leader.full_name}
+                  />
+                </div>
+              )}
+              {cell.co_leader && (
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-xl bg-slate-50 border border-slate-100">
+                  <div>
+                    <p className="text-xs text-slate-500 uppercase font-semibold tracking-wide">Co-líder</p>
+                    <p className="text-sm font-semibold text-slate-800 mt-0.5">{cell.co_leader.full_name}</p>
+                  </div>
+                  <UserLinkWidget
+                    personId={cell.co_leader.id}
+                    personEmail={cell.co_leader.email ?? null}
+                    personName={cell.co_leader.full_name}
+                  />
+                </div>
+              )}
             </div>
           </div>
         )}

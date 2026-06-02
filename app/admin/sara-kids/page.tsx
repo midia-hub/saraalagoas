@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Baby, Link2, Copy, Check, ExternalLink, Users, ArrowRight, QrCode, Heart } from 'lucide-react'
+import { ModuleAccessLink } from '@/components/admin/ModuleAccessLink'
 import { PageAccessGuard } from '@/app/admin/PageAccessGuard'
 import { adminFetchJson } from '@/lib/admin-client'
 import Link from 'next/link'
@@ -70,14 +71,17 @@ export default function SaraKidsAdminPage() {
     <PageAccessGuard pageKey="pessoas">
       <div className="p-6 md:p-8">
         {/* ── Cabeçalho ─────────────────────────────────────────── */}
-        <div className="mb-8 flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl bg-indigo-100 flex items-center justify-center">
-            <Baby className="text-indigo-600" size={24} />
+        <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-xl bg-indigo-100 flex items-center justify-center">
+              <Baby className="text-indigo-600" size={24} />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-slate-800">Sara Kids</h1>
+              <p className="text-slate-500">Cadastro de crianças e responsáveis</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-2xl font-bold text-slate-800">Sara Kids</h1>
-            <p className="text-slate-500">Cadastro de crianças e responsáveis</p>
-          </div>
+          <ModuleAccessLink href="/admin/sara-kids/acesso" />
         </div>
 
         <div className="grid gap-6 md:grid-cols-2">

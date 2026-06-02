@@ -7,6 +7,7 @@ import {
   ShoppingBag, DollarSign, CreditCard, User, Smartphone, Clock, Receipt,
   ArrowDownCircle, ArrowUpCircle, Banknote, ExternalLink,
 } from 'lucide-react'
+import { ModuleAccessLink } from '@/components/admin/ModuleAccessLink'
 import { PageAccessGuard } from '@/app/admin/PageAccessGuard'
 import { adminFetchJson } from '@/lib/admin-client'
 
@@ -177,10 +178,11 @@ export default function LivrariaDashboardPage() {
               <div className="w-9 h-9 rounded-xl bg-white/15 flex items-center justify-center flex-shrink-0">
                 <BarChart3 className="text-white" size={18} />
               </div>
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <h1 className="text-base sm:text-lg font-bold text-white leading-tight">Dashboard Livraria</h1>
                 <p className="text-white/60 text-xs">Últimos 30 dias</p>
               </div>
+              <ModuleAccessLink href="/admin/livraria/acesso" />
             </div>
 
             {/* Nav rápida */}

@@ -236,8 +236,8 @@ export function AdminSidebar() {
         {/* Botão voltar ao hub */}
         <div className="px-4 pt-4 pb-2 shrink-0">
           <Link
-            href="/admin/selecionar"
-            onClick={handleMenuClick('/admin/selecionar', isMobile)}
+            href="/admin"
+            onClick={handleMenuClick('/admin', isMobile)}
             className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-slate-500 hover:text-slate-200 hover:bg-white/5 transition-all duration-200 group"
           >
             <ChevronLeft size={15} className="shrink-0 group-hover:-translate-x-0.5 transition-transform" />

@@ -1,13 +1,14 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { UserCircle, Plus, Pencil, Trash2, ArrowLeft } from 'lucide-react'
+import { UserCircle, Plus, Pencil, Trash2, ArrowLeft, UserPlus } from 'lucide-react'
 import Link from 'next/link'
 import { PageAccessGuard } from '@/app/admin/PageAccessGuard'
 import { Button } from '@/components/ui/Button'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { TableSkeleton } from '@/components/ui/TableSkeleton'
 import { adminFetchJson } from '@/lib/admin-client'
+import { UserLinkWidget } from '@/components/admin/UserLinkWidget'
 
 type Person = { id: string; full_name: string; email?: string | null; mobile_phone?: string | null }
 
@@ -23,6 +24,7 @@ export default function CadastrosPessoasPage() {
   const [saveLoading, setSaveLoading] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<Person | null>(null)
   const [deleteLoading, setDeleteLoading] = useState(false)
+  const [linkTarget, setLinkTarget] = useState<Person | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -148,6 +150,9 @@ export default function CadastrosPessoasPage() {
                     <td className="px-6 py-4 text-slate-600">{row.mobile_phone ?? '—'}</td>
                     <td className="px-6 py-4 text-right">
                       <Link href={`/admin/pessoas/${row.id}`} className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg mr-1 inline-block" title="Cadastro completo">Ver</Link>
+                      <button type="button" onClick={() => setLinkTarget(row)} className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg mr-1" title="Vincular usuário">
+                        <UserPlus size={18} />
+                      </button>
                       <button type="button" onClick={() => openEdit(row)} className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg mr-1" title="Editar">
                         <Pencil size={18} />
                       </button>
@@ -190,6 +195,33 @@ export default function CadastrosPessoasPage() {
         )}
 
         <ConfirmDialog open={!!deleteTarget} title="Excluir pessoa" message={deleteTarget ? `Confirma a exclusão de "${deleteTarget.full_name}"? Pessoas vinculadas a células/arenas/igrejas não podem ser excluídas.` : ''} variant="danger" loading={deleteLoading} onConfirm={confirmDelete} onCancel={() => setDeleteTarget(null)} />
+
+        {linkTarget && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+            onClick={() => setLinkTarget(null)}
+          >
+            <div
+              className="bg-white rounded-xl shadow-xl max-w-md w-full p-6"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-base font-bold text-slate-800">Vincular usuário</h3>
+                  <p className="text-sm text-slate-500">{linkTarget.full_name}</p>
+                </div>
+                <button type="button" onClick={() => setLinkTarget(null)} className="p-1 text-slate-400 hover:text-slate-600">
+                  ✕
+                </button>
+              </div>
+              <UserLinkWidget
+                personId={linkTarget.id}
+                personEmail={linkTarget.email}
+                personName={linkTarget.full_name}
+              />
+            </div>
+          </div>
+        )}
       </div>
     </PageAccessGuard>
   )

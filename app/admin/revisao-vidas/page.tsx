@@ -6,6 +6,7 @@ import type { ReviewEvent } from '@/lib/consolidacao-types'
 import { Loader2, Plus, RefreshCw, Calendar, Users, BookOpen, X, Clock, Edit, ClipboardList, Link2, Check, RotateCcw, Activity } from 'lucide-react'
 import Link from 'next/link'
 import { AdminPageHeader } from '@/app/admin/AdminPageHeader'
+import { ModuleAccessLink } from '@/components/admin/ModuleAccessLink'
 import { CustomSelect } from '@/components/ui/CustomSelect'
 import { CustomSearchSelect } from '@/components/ui/CustomSearchSelect'
 import { DatePickerInput } from '@/components/ui/DatePickerInput'
@@ -398,6 +399,7 @@ export default function RevisaoVidasPage() {
         subtitle="Gerencie eventos e acompanhe as inscrições"
         actions={
           <div className="flex items-center gap-2">
+            <ModuleAccessLink href="/admin/revisao-vidas/acesso" />
             <button
               onClick={load}
               disabled={loading}

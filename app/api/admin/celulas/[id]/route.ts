@@ -14,19 +14,33 @@ export async function GET(request: NextRequest, context: RouteContext) {
   const { id } = await context.params
   const supabase = createSupabaseAdminClient(request)
 
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from('cells')
     .select(`
       *,
       church:churches(id, name),
       leader:people!leader_person_id(id, full_name),
       co_leader:people!co_leader_person_id(id, full_name),
-      members:cell_lt_members(
-        person:people(id, full_name)
-      )
+      lt:people!lt_person_id(id, full_name),
+      members:cell_lt_members(person:people(id, full_name))
     `)
     .eq('id', id)
     .maybeSingle()
+
+  // Fallback: se lt_person_id ainda não existe no banco (migration pendente)
+  if (error && error.message?.includes('lt_person_id')) {
+    ;({ data, error } = await supabase
+      .from('cells')
+      .select(`
+        *,
+        church:churches(id, name),
+        leader:people!leader_person_id(id, full_name),
+        co_leader:people!co_leader_person_id(id, full_name),
+        members:cell_lt_members(person:people(id, full_name))
+      `)
+      .eq('id', id)
+      .maybeSingle())
+  }
 
   if (error) {
     console.error('Erro ao buscar célula:', error)
@@ -55,14 +69,15 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     // Filtrar apenas campos permitidos para evitar erro de coluna inexistente
     const allowedFields = [
       'church_id', 'name', 'day_of_week', 'time_of_day', 'frequency',
-      'leader_person_id', 'co_leader_person_id', 'cep', 'street',
+      'leader_person_id', 'co_leader_person_id', 'lt_person_id', 'cep', 'street',
       'address_number', 'neighborhood', 'city', 'state', 'latitude', 'longitude', 'status'
     ]
 
     const nullableUuidFields = new Set([
       'church_id',
       'leader_person_id',
-      'co_leader_person_id'
+      'co_leader_person_id',
+      'lt_person_id',
     ])
 
     const nullableNumericFields = new Set([

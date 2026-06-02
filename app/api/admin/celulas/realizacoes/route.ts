@@ -13,7 +13,8 @@ export async function GET(request: NextRequest) {
   if (!access.ok) return access.response
 
   const { searchParams } = new URL(request.url)
-  const cellId = searchParams.get('cell_id')
+  const cellId         = searchParams.get('cell_id')
+  const referenceMonth = searchParams.get('reference_month')
 
   const supabase = createSupabaseAdminClient(request)
   let query = supabase
@@ -41,9 +42,8 @@ export async function GET(request: NextRequest) {
     `)
     .order('realization_date', { ascending: false })
 
-  if (cellId) {
-    query = query.eq('cell_id', cellId)
-  }
+  if (cellId)         query = query.eq('cell_id', cellId)
+  if (referenceMonth) query = query.eq('reference_month', referenceMonth)
 
   const { data, error } = await query
   if (error) {

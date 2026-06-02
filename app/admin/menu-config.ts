@@ -32,6 +32,7 @@ import {
     QrCode,
     Bot,
     ScanFace,
+    KeyRound,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { getAdminModuleRoute } from '@/lib/admin-module-routes'
@@ -98,6 +99,7 @@ export const menuModules: MenuModule[] = [
         items: [
             { href: '/admin/reservas', label: 'Solicitações', icon: ClipboardList, permission: 'reservas' },
             { href: '/admin/reservas/salas', label: 'Salas', icon: Building2, permission: 'reservas' },
+            { href: '/admin/reservas/acesso', label: 'Acesso ao módulo', icon: KeyRound, permission: 'usuarios' },
         ],
     },
 
@@ -125,6 +127,7 @@ export const menuModules: MenuModule[] = [
                 icon: UsersRound,
                 permission: 'pessoas'
             },
+            { href: '/admin/lideranca/acesso', label: 'Acesso ao módulo', icon: KeyRound, permission: 'usuarios' },
         ],
     },
 
@@ -146,6 +149,7 @@ export const menuModules: MenuModule[] = [
                 icon: CalendarDays,
                 permission: 'escalas'
             },
+            { href: '/admin/escalas/acesso', label: 'Acesso ao módulo', icon: KeyRound, permission: 'usuarios' },
         ],
     },
 
@@ -179,6 +183,7 @@ export const menuModules: MenuModule[] = [
                 icon: DollarSign,
                 permission: 'celulas'
             },
+            { href: '/admin/celulas/acesso', label: 'Acesso ao módulo', icon: KeyRound, permission: 'usuarios' },
         ],
     },
 
@@ -242,6 +247,7 @@ export const menuModules: MenuModule[] = [
                 icon: UserCog,
                 permission: 'consolidacao'
             },
+            { href: '/admin/consolidacao/acesso', label: 'Acesso ao módulo', icon: KeyRound, permission: 'usuarios' },
         ],
     },
 
@@ -269,6 +275,7 @@ export const menuModules: MenuModule[] = [
                 icon: ClipboardList,
                 permission: 'revisao_vidas'
             },
+            { href: '/admin/revisao-vidas/acesso', label: 'Acesso ao módulo', icon: KeyRound, permission: 'usuarios' },
         ],
     },
 
@@ -326,6 +333,7 @@ export const menuModules: MenuModule[] = [
                 icon: UserCheck,
                 permission: ['livraria_clientes', 'livraria_fiado', 'livraria_reservas']
             },
+            { href: '/admin/livraria/acesso', label: 'Acesso ao módulo', icon: KeyRound, permission: 'usuarios' },
         ],
     },
 
@@ -383,6 +391,7 @@ export const menuModules: MenuModule[] = [
                 icon: ScanFace,
                 permission: 'galeria'
             },
+            { href: '/admin/galeria/acesso', label: 'Acesso ao módulo', icon: KeyRound, permission: 'usuarios' },
         ],
     },
 
@@ -404,6 +413,7 @@ export const menuModules: MenuModule[] = [
                 icon: UserCircle,
                 permission: 'pessoas'
             },
+            { href: '/admin/pessoas/acesso', label: 'Acesso ao módulo', icon: KeyRound, permission: 'usuarios' },
         ],
     },
 
@@ -437,6 +447,7 @@ export const menuModules: MenuModule[] = [
                 icon: Heart,
                 permission: 'pessoas'
             },
+            { href: '/admin/sara-kids/acesso', label: 'Acesso ao módulo', icon: KeyRound, permission: 'usuarios' },
         ],
     },
 
