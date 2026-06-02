@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAccess } from '@/lib/admin-api'
+import { requireSaraKidsAccess } from '@/lib/admin-api'
 import { createSupabaseAdminClient } from '@/lib/supabase-server'
 import { MESSAGE_ID_KIDS_CHECKIN, sendDisparoRaw, getNomeExibicao } from '@/lib/disparos-webhook'
 
@@ -12,7 +12,7 @@ import { MESSAGE_ID_KIDS_CHECKIN, sendDisparoRaw, getNomeExibicao } from '@/lib/
  */
 
 export async function GET(request: NextRequest) {
-  const access = await requireAccess(request, { pageKey: 'pessoas', action: 'view' })
+  const access = await requireSaraKidsAccess(request, 'view')
   if (!access.ok) return access.response
 
   const { searchParams } = new URL(request.url)
@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const access = await requireAccess(request, { pageKey: 'pessoas', action: 'create' })
+  const access = await requireSaraKidsAccess(request, 'create')
   if (!access.ok) return access.response
 
   const body = await request.json()

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAccessAny } from '@/lib/admin-api'
+import { requireLiderancaAccess } from '@/lib/admin-api'
 import { createSupabaseAdminClient } from '@/lib/supabase-server'
 import { getVisiblePeopleIdsForLeader } from '@/lib/consolidacao-scope'
 import { getTodayBrasilia } from '@/lib/date-utils'
@@ -62,12 +62,7 @@ function normalizeServiceDay(day: number | string | null | undefined): number | 
 }
 
 export async function POST(request: NextRequest) {
-  const access = await requireAccessAny(request, [
-    { pageKey: 'cultos', action: 'create' },
-    { pageKey: 'cultos', action: 'edit' },
-    { pageKey: 'cultos', action: 'manage' },
-    { pageKey: 'cultos', action: 'view' },
-  ])
+  const access = await requireLiderancaAccess(request, 'edit')
   if (!access.ok) return access.response
 
   try {

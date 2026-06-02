@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAccess } from '@/lib/admin-api'
+import { requireSaraKidsAccess } from '@/lib/admin-api'
 import { createSupabaseAdminClient } from '@/lib/supabase-server'
 
 /**
@@ -7,7 +7,7 @@ import { createSupabaseAdminClient } from '@/lib/supabase-server'
  * Busca crianças cadastradas (is_child = true) para o seletor de check-in
  */
 export async function GET(request: NextRequest) {
-  const access = await requireAccess(request, { pageKey: 'pessoas', action: 'view' })
+  const access = await requireSaraKidsAccess(request, 'view')
   if (!access.ok) return access.response
 
   const { searchParams } = new URL(request.url)

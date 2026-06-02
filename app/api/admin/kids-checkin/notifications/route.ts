@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAccess } from '@/lib/admin-api'
+import { requireSaraKidsAccess } from '@/lib/admin-api'
 import { createSupabaseAdminClient } from '@/lib/supabase-server'
 import { getBackgroundJob, startBackgroundJob } from '@/lib/background-jobs'
 import {
@@ -79,7 +79,7 @@ async function executeKidsNotificationsJob(type: KidsNotificationType, checkinId
 }
 
 export async function POST(request: NextRequest) {
-  const access = await requireAccess(request, { pageKey: 'pessoas', action: 'edit' })
+  const access = await requireSaraKidsAccess(request, 'edit')
   if (!access.ok) return access.response
 
   const body = await request.json()
@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
-  const access = await requireAccess(request, { pageKey: 'pessoas', action: 'edit' })
+  const access = await requireSaraKidsAccess(request, 'edit')
   if (!access.ok) return access.response
 
   const jobId = request.nextUrl.searchParams.get('job_id')

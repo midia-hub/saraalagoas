@@ -9,6 +9,7 @@ import type {
   UserPermissionRow,
 } from '@/lib/rbac-types'
 import { type AppPermissionCode, APP_PERMISSION_CODES } from '@/lib/rbac-types'
+import { ADMIN_MODULE_ACCESS } from '@/lib/admin-module-access'
 
 export type { AccessSnapshot, PermissionAction, PermissionMap, PermissionSet } from '@/lib/rbac-types'
 
@@ -76,6 +77,7 @@ const ADMIN_PAGE_KEYS = [
   'roles',
   'pessoas',
   'consolidacao',
+  'revisao_vidas',
   'livraria_produtos',
   'livraria_estoque',
   'livraria_movimentacoes',
@@ -93,6 +95,10 @@ const ADMIN_PAGE_KEYS = [
   'cultos',
   'reservas',
   'consolidacao_config',
+  'celulas',
+  'escalas',
+  'lideranca',
+  'sara_kids',
 ]
 
 const LEGACY_ADMIN_PERMISSIONS: PermissionMap = {
@@ -107,6 +113,9 @@ const LEGACY_ADMIN_PERMISSIONS: PermissionMap = {
   consolidacao: { view: true, create: true, edit: true, delete: true, manage: true },
   consolidacao_config: { view: true, create: true, edit: true, delete: true, manage: true },
   celulas: { view: true, create: true, edit: true, delete: true, manage: true },
+  escalas: { view: true, create: true, edit: true, delete: true, manage: true },
+  lideranca: { view: true, create: true, edit: true, delete: true, manage: true },
+  sara_kids: { view: true, create: true, edit: true, delete: true, manage: true },
   revisao_vidas: { view: true, create: true, edit: true, delete: true, manage: true },
   instagram: { view: true, create: true, edit: true, delete: true, manage: true },
   facebook: { view: true, create: true, edit: true, delete: true, manage: true },
@@ -188,6 +197,33 @@ function buildPermissionMap(rows: PermissionRow[] | null | undefined): Permissio
       edit: !!row.can_edit,
       delete: !!row.can_delete,
     }
+  }
+  return map
+}
+
+/** Corrige permissões legadas concedidas com page_key errado em perfis exclusivos de módulo. */
+function applyLegacyModulePermissionAliases(
+  map: PermissionMap,
+  accessProfileName: string | undefined
+): PermissionMap {
+  if (!accessProfileName?.startsWith('Acesso:')) return map
+
+  const moduleKey = accessProfileName.slice('Acesso:'.length)
+  const config = ADMIN_MODULE_ACCESS[moduleKey]
+  if (!config) return map
+
+  const hasPrimary = config.usuarioPageKeys.some((k) => map[k]?.view)
+  if (hasPrimary) return map
+
+  const legacyAlias = config.legacyAliases?.find((a) => map[a]?.view)
+  if (!legacyAlias) return map
+
+  const perms = map[legacyAlias]!
+  for (const pageKey of config.usuarioPageKeys) {
+    if (!map[pageKey]?.view) map[pageKey] = { ...perms }
+  }
+  for (const alias of config.legacyAliases ?? []) {
+    delete map[alias]
   }
   return map
 }
@@ -519,11 +555,13 @@ export async function getAccessSnapshotByToken(accessToken: string): Promise<Acc
   }
 
   const legacyPermissions = getNestedPermissions(profileRow)
-  const permissionMap = legacyPermissions?.length
+  let permissionMap = legacyPermissions?.length
     ? buildPermissionMap(legacyPermissions)
     : legacyRole === 'editor'
       ? LEGACY_EDITOR_PERMISSIONS
       : LEGACY_VIEWER_PERMISSIONS
+
+  permissionMap = applyLegacyModulePermissionAliases(permissionMap, legacyProfile.name)
 
   const canAccessAdmin = hasAnyAdminViewPermission(permissionMap)
 

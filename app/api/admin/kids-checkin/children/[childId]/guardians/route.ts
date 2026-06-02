@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAccess } from '@/lib/admin-api'
+import { requireSaraKidsAccess } from '@/lib/admin-api'
 import { createSupabaseAdminClient } from '@/lib/supabase-server'
 
 /**
@@ -10,7 +10,7 @@ export async function GET(
   request: NextRequest,
   { params }: { params: { childId: string } }
 ) {
-  const access = await requireAccess(request, { pageKey: 'pessoas', action: 'view' })
+  const access = await requireSaraKidsAccess(request, 'view')
   if (!access.ok) return access.response
 
   const { childId } = params

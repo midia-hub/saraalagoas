@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAccess } from '@/lib/admin-api'
+import { requireAccess, requireAccessAny } from '@/lib/admin-api'
 import { createSupabaseAdminClient } from '@/lib/supabase-server'
 
 const CHURCH_SELECT = 'id, name, created_at'
 
 /** GET /api/admin/consolidacao/churches - lista igrejas */
 export async function GET(request: NextRequest) {
-  const access = await requireAccess(request, { pageKey: 'consolidacao', action: 'view' })
+  const access = await requireAccessAny(request, [
+    { pageKey: 'consolidacao', action: 'view' },
+    { pageKey: 'revisao_vidas', action: 'view' },
+  ])
   if (!access.ok) return access.response
   try {
     const q = (request.nextUrl.searchParams.get('q') ?? '').trim()

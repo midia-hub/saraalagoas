@@ -110,7 +110,7 @@ export const menuModules: MenuModule[] = [
         description: 'Discipulado e estrutura de liderança',
         icon: UsersRound,
         color: '#0ea5e9',
-        permission: 'pessoas',
+        permission: 'lideranca',
         subdomain: routeFor('lideranca')?.subdomain,
         basePaths: routeFor('lideranca')?.basePaths,
         mainHref: routeFor('lideranca')?.mainHref,
@@ -119,13 +119,13 @@ export const menuModules: MenuModule[] = [
                 href: '/admin/lideranca/meu-discipulado',
                 label: 'Discipulado',
                 icon: UsersRound,
-                permission: 'pessoas'
+                permission: 'lideranca'
             },
             {
                 href: '/admin/lideranca/estrutura',
                 label: 'Estrutura de Liderança',
                 icon: UsersRound,
-                permission: 'pessoas'
+                permission: 'lideranca'
             },
             { href: '/admin/lideranca/acesso', label: 'Acesso ao módulo', icon: KeyRound, permission: 'usuarios' },
         ],
@@ -424,7 +424,7 @@ export const menuModules: MenuModule[] = [
         description: 'Check-in, responsáveis e crianças no culto',
         icon: Baby,
         color: '#ec4899',
-        permission: 'pessoas',
+        permission: 'sara_kids',
         subdomain: routeFor('sara-kids')?.subdomain,
         basePaths: routeFor('sara-kids')?.basePaths,
         mainHref: routeFor('sara-kids')?.mainHref,
@@ -433,19 +433,19 @@ export const menuModules: MenuModule[] = [
                 href: '/admin/sara-kids',
                 label: 'Painel Sara Kids',
                 icon: Baby,
-                permission: 'pessoas'
+                permission: 'sara_kids'
             },
             {
                 href: '/admin/sara-kids/checkin',
                 label: 'Check-in Culto Kids',
                 icon: QrCode,
-                permission: 'pessoas'
+                permission: 'sara_kids'
             },
             {
                 href: '/admin/sara-kids/presentes',
                 label: 'Crianças no Culto',
                 icon: Heart,
-                permission: 'pessoas'
+                permission: 'sara_kids'
             },
             { href: '/admin/sara-kids/acesso', label: 'Acesso ao módulo', icon: KeyRound, permission: 'usuarios' },
         ],

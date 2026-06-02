@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAccess } from '@/lib/admin-api'
+import { requireLiderancaAccess } from '@/lib/admin-api'
 import { createSupabaseAdminClient } from '@/lib/supabase-server'
 import { getVisiblePeopleIdsForLeader } from '@/lib/consolidacao-scope'
 import { getTodayBrasilia } from '@/lib/date-utils'
@@ -59,7 +59,7 @@ function maxDate(a: Date, b: Date): Date {
  * Query params: start (YYYY-MM-DD), end (YYYY-MM-DD), service_id (uuid | 'all')
  */
 export async function GET(request: NextRequest) {
-  const access = await requireAccess(request, { pageKey: 'cultos', action: 'view' })
+  const access = await requireLiderancaAccess(request, 'view')
   if (!access.ok) return access.response
 
   try {
