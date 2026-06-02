@@ -2,12 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAccess } from '@/lib/admin-api'
 import { createSupabaseAdminClient } from '@/lib/supabase-server'
 import {
-  ADMIN_MODULE_ACCESS,
   getModuleAccessConfig,
   getModuleLegacyQueryKeys,
   getModuleProfileName,
 } from '@/lib/admin-module-access'
 import {
+  findOrCreateModuleAccessProfile,
   removeModuleLegacyAliases,
   removeModulePermissions,
   upsertModulePermissions,
@@ -27,8 +27,9 @@ export async function GET(request: NextRequest, ctx: Ctx) {
 
   const supabase = createSupabaseAdminClient(request)
   const legacyPageKeys = getModuleLegacyQueryKeys(config)
+  const moduleProfileName = getModuleProfileName(key)
 
-  const [profilesResult, legacyPermsResult, adminRolesResult, adminApsResult] = await Promise.all([
+  const [profilesResult, legacyPermsResult, moduleProfilesResult, adminRolesResult, adminApsResult] = await Promise.all([
     supabase
       .from('profiles')
       .select('id, email, role, role_id, access_profile_id, person_id, people:person_id(full_name)')
@@ -40,6 +41,11 @@ export async function GET(request: NextRequest, ctx: Ctx) {
       .in('page_key', legacyPageKeys)
       .eq('can_view', true),
 
+    supabase
+      .from('access_profiles')
+      .select('id')
+      .eq('name', moduleProfileName),
+
     supabase.from('roles').select('id').eq('is_admin', true),
     supabase.from('access_profiles').select('id').eq('is_admin', true),
   ])
@@ -50,6 +56,17 @@ export async function GET(request: NextRequest, ctx: Ctx) {
   const legacyProfileIds = new Set<string>(
     (legacyPermsResult.data ?? []).map((r: { profile_id: string }) => r.profile_id).filter(Boolean)
   )
+  const moduleAccessProfileIds = new Set<string>(
+    (moduleProfilesResult.data ?? []).map((r: { id: string }) => r.id).filter(Boolean)
+  )
+
+  // Repara perfis do módulo que perderam permissões (ex.: bug ao remover alias legado)
+  for (const profileId of moduleAccessProfileIds) {
+    if (!legacyProfileIds.has(profileId)) {
+      const repaired = await upsertModulePermissions(supabase, profileId, config.usuarioPageKeys)
+      if (repaired.ok) legacyProfileIds.add(profileId)
+    }
+  }
   const adminRoleIds = new Set<string>(
     (adminRolesResult.data ?? []).map((r: { id: string }) => r.id).filter(Boolean)
   )
@@ -93,7 +110,8 @@ export async function GET(request: NextRequest, ctx: Ctx) {
       (u.access_profile_id ? adminApIds.has(u.access_profile_id as string) : false)
 
     const hasLegacyAccess = u.access_profile_id
-      ? legacyProfileIds.has(u.access_profile_id as string)
+      ? legacyProfileIds.has(u.access_profile_id as string) ||
+        moduleAccessProfileIds.has(u.access_profile_id as string)
       : false
 
     const hasRbacAccess = u.role_id ? rbacRoleIds.has(u.role_id as string) : false
@@ -163,27 +181,32 @@ export async function POST(request: NextRequest, ctx: Ctx) {
   } else {
     const profileName = getModuleProfileName(key)
 
-    const { data: existing } = await supabase
-      .from('access_profiles').select('id').eq('name', profileName).maybeSingle()
-
-    apId = existing?.id ?? null
+    apId = await findOrCreateModuleAccessProfile(
+      supabase,
+      profileName,
+      `Acesso ao módulo ${config.label}`
+    )
 
     if (!apId) {
-      const { data: created } = await supabase
-        .from('access_profiles')
-        .insert({
-          name: profileName,
-          description: `Acesso ao módulo ${config.label}`,
-          is_admin: false,
-        })
-        .select('id').maybeSingle()
-      apId = created?.id ?? null
+      return NextResponse.json({ error: 'Erro ao criar perfil de acesso do módulo.' }, { status: 500 })
     }
 
-    if (apId) {
-      await upsertModulePermissions(supabase, apId, config.usuarioPageKeys)
-      await removeModuleLegacyAliases(supabase, apId, config.legacyAliases ?? [])
+    const permResult = await upsertModulePermissions(supabase, apId, config.usuarioPageKeys)
+    if (!permResult.ok) {
+      return NextResponse.json(
+        {
+          error: 'Erro ao gravar permissões do módulo.',
+          failedKeys: permResult.failedKeys,
+        },
+        { status: 500 }
+      )
     }
+
+    await removeModuleLegacyAliases(supabase, apId, config.legacyAliases ?? [])
+  }
+
+  if (!apId) {
+    return NextResponse.json({ error: 'Perfil de acesso não pôde ser definido.' }, { status: 500 })
   }
 
   const { data: currentProfile } = await supabase
