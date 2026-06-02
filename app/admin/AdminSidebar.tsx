@@ -151,12 +151,11 @@ export function AdminSidebar() {
 
   // Detecta o módulo ativo pelo match mais longo de basePaths
   const activeModule = useMemo(() => {
-    if (!pathname || pathname === '/admin') return null
+    if (!pathname) return null
 
     let bestMatch: { module: typeof visibleModules[0]; len: number } | null = null
 
     for (const mod of visibleModules) {
-      if (mod.id === 'dashboard') continue
       for (const bp of (mod.basePaths ?? [])) {
         if (
           (pathname === bp || pathname.startsWith(bp + '/')) &&
@@ -167,7 +166,8 @@ export function AdminSidebar() {
       }
     }
 
-    return bestMatch?.module ?? null
+    // Usa dashboard como fallback para que o sidebar sempre exiba a seção de sub-itens
+    return bestMatch?.module ?? visibleModules.find(m => m.id === 'dashboard') ?? null
   }, [visibleModules, pathname])
 
   // Encontrar o item ativo (o que tem o match mais longo com o pathname)
@@ -222,7 +222,7 @@ export function AdminSidebar() {
         </div>
 
         {/* Itens do módulo ativo */}
-        {activeModule && activeModule.id !== 'dashboard' ? (
+        {activeModule ? (
           <>
             <div className="mx-4 border-t border-white/5 my-2 shrink-0" />
             <div className="px-4 pb-2 shrink-0">

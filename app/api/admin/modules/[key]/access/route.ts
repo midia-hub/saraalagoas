@@ -247,41 +247,54 @@ export async function POST(request: NextRequest, ctx: Ctx) {
 // ─── DELETE: revoga acesso ────────────────────────────────────────────────────
 
 export async function DELETE(request: NextRequest, ctx: Ctx) {
-  const access = await requireAccess(request, { pageKey: 'usuarios', action: 'edit' })
-  if (!access.ok) return access.response
+  try {
+    const access = await requireAccess(request, { pageKey: 'usuarios', action: 'edit' })
+    if (!access.ok) return access.response
 
-  const { key } = await ctx.params
-  const config = getModuleAccessConfig(key)
-  if (!config) return NextResponse.json({ error: 'Módulo não encontrado' }, { status: 404 })
+    const { key } = await ctx.params
+    const config = getModuleAccessConfig(key)
+    if (!config) return NextResponse.json({ error: 'Módulo não encontrado' }, { status: 404 })
 
-  const body = await request.json().catch(() => ({}))
-  const { user_id } = body as { user_id?: string }
-  if (!user_id) return NextResponse.json({ error: 'user_id é obrigatório' }, { status: 400 })
+    const body = await request.json().catch(() => ({}))
+    const { user_id } = body as { user_id?: string }
+    if (!user_id) return NextResponse.json({ error: 'user_id é obrigatório' }, { status: 400 })
 
-  const supabase = createSupabaseAdminClient(request)
+    const supabase = createSupabaseAdminClient(request)
 
-  const { data: userProfile } = await supabase
-    .from('profiles').select('id, access_profile_id').eq('id', user_id).maybeSingle()
+    const { data: userProfile } = await supabase
+      .from('profiles').select('id, access_profile_id').eq('id', user_id).maybeSingle()
 
-  if (userProfile?.access_profile_id) {
-    const profileName = getModuleProfileName(key)
-    const { data: ap } = await supabase
-      .from('access_profiles').select('id, name').eq('id', userProfile.access_profile_id).maybeSingle()
+    if (userProfile?.access_profile_id) {
+      const profileName = getModuleProfileName(key)
+      const { data: ap } = await supabase
+        .from('access_profiles').select('id, name').eq('id', userProfile.access_profile_id).maybeSingle()
 
-    if (ap?.name === profileName) {
-      await removeModulePermissions(supabase, userProfile.access_profile_id, config)
+      if (ap?.name === profileName) {
+        await removeModulePermissions(supabase, userProfile.access_profile_id, config)
+      }
     }
+
+    const { error, status: dbStatus } = await supabase
+      .from('profiles')
+      .update({ access_profile_id: null })
+      .eq('id', user_id)
+      .select('id')
+      .maybeSingle()
+
+    if (error) {
+      console.error('[module-access DELETE] profiles update error:', error)
+      return NextResponse.json({
+        error: 'Erro ao revogar acesso',
+        detail: error.message,
+        code: error.code,
+        dbStatus,
+      }, { status: 500 })
+    }
+
+    return NextResponse.json({ ok: true })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Erro interno'
+    console.error('[module-access DELETE] exception:', message)
+    return NextResponse.json({ error: 'Erro ao revogar acesso', detail: message }, { status: 500 })
   }
-
-  const { error } = await supabase.from('profiles').update({
-    access_profile_id: null,
-    updated_at: new Date().toISOString(),
-  }).eq('id', user_id)
-
-  if (error) {
-    console.error('[module-access DELETE]', error)
-    return NextResponse.json({ error: 'Erro ao revogar acesso' }, { status: 500 })
-  }
-
-  return NextResponse.json({ ok: true })
 }
