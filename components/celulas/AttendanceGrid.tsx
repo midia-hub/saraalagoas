@@ -12,7 +12,7 @@ interface AttendanceGridProps {
   onAddVisitor?: (visitor: { full_name: string; phone?: string }) => void
   onAddPerson?: (personId: string) => void
   onRemoveMember?: (personId: string, cellPersonId?: string) => Promise<void>
-  coreMembers?: { id: string; full_name: string; role: 'leader' | 'co-leader' }[]
+  coreMembers?: { id: string; full_name: string; role: 'leader' | 'co-leader' | 'lt' }[]
   visitors?: string[] // IDs de visitantes adicionados
 }
 
@@ -216,11 +216,11 @@ export function AttendanceGrid({ members, dates, attendances, onToggle, onAddVis
                     {/* CORE MEMBER BADGES */}
                     {coreMember && (
                       <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded inline-flex items-center gap-1 ${
-                        coreMember.role === 'leader' 
-                          ? 'bg-emerald-600 text-white' 
-                          : 'bg-blue-600 text-white'
+                        coreMember.role === 'leader'    ? 'bg-emerald-600 text-white' :
+                        coreMember.role === 'co-leader' ? 'bg-blue-600 text-white' :
+                                                          'bg-violet-600 text-white'
                       }`}>
-                        {coreMember.role === 'leader' ? 'Líder' : 'Co-líder'}
+                        {coreMember.role === 'leader' ? 'Líder' : coreMember.role === 'co-leader' ? 'Co-líder' : 'LT'}
                       </span>
                     )}
 

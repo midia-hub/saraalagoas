@@ -11,6 +11,7 @@ import { PageAccessGuard } from '@/app/admin/PageAccessGuard'
 import { CustomSelect } from '@/components/ui/CustomSelect'
 import { adminFetchJson } from '@/lib/admin-client'
 import { AdminPageHeader } from '@/app/admin/AdminPageHeader'
+import { ModuleAccessLink } from '@/components/admin/ModuleAccessLink'
 
 const DashboardChartsLazy = dynamic(
   () => import('./_components/ConsolidacaoDashboardCharts').then((m) => ({ default: m.ConsolidacaoDashboardCharts })),
@@ -219,6 +220,7 @@ export default function ListaConvertidosPage() {
             icon={ClipboardList}
             title="Convertidos"
             subtitle="Lista de convertidos e dashboard de consolidação."
+            actions={<ModuleAccessLink href="/admin/consolidacao/acesso" />}
           />
 
             {/* Tabs */}

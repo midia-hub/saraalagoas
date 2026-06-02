@@ -9,6 +9,7 @@ import { useRBAC } from '@/lib/hooks/useRBAC'
 import { useAdminAccess } from '@/lib/admin-access-context'
 import { adminFetchJson } from '@/lib/admin-client'
 import { Loader2 } from 'lucide-react'
+import { ModuleAccessLink } from '@/components/admin/ModuleAccessLink'
 
 export default function EstruturadeLiderancaPage() {
     const router = useRouter()
@@ -93,6 +94,8 @@ export default function EstruturadeLiderancaPage() {
                         <p className="text-slate-500">Visualize a árvore de discipulado e acompanhamento.</p>
                     </div>
 
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <ModuleAccessLink href="/admin/lideranca/acesso" />
                     {isAdmin && (
                         <div className="w-full md:w-96">
                             <CreatableCombobox
@@ -116,6 +119,7 @@ export default function EstruturadeLiderancaPage() {
                             />
                         </div>
                     )}
+                    </div>
                 </div>
 
                 <div className="bg-white rounded-xl border border-slate-200 p-6 min-h-[400px]">

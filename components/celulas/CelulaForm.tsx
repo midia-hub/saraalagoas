@@ -85,6 +85,7 @@ export function CelulaForm({ initial, onSubmit, loading = false }: CelulaFormPro
     frequency: initial?.frequency || 'weekly',
     leader_person_id: initial?.leader_person_id || '',
     co_leader_person_id: initial?.co_leader_person_id || '',
+    lt_person_id: initial?.lt_person_id || '',
     cep: initial?.cep || '',
     street: initial?.street || '',
     address_number: initial?.address_number || '',
@@ -103,6 +104,7 @@ export function CelulaForm({ initial, onSubmit, loading = false }: CelulaFormPro
   const [mapZoom, setMapZoom] = useState(16)
   const [leaderLabel, setLeaderLabel] = useState(initial?.leader?.full_name || '')
   const [coLeaderLabel, setCoLeaderLabel] = useState(initial?.co_leader?.full_name || '')
+  const [ltLabel, setLtLabel] = useState(initial?.lt?.full_name || '')
 
   const mapCenter = useMemo(() => {
     const lat = parseFloat(form.latitude)
@@ -299,7 +301,7 @@ export function CelulaForm({ initial, onSubmit, loading = false }: CelulaFormPro
 
       <div className="bg-white rounded-xl border border-slate-200 p-6">
         <h2 className="text-lg font-semibold text-slate-800 mb-4">Liderança</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label className={labelClass}>Líder *</label>
             <CreatableCombobox
@@ -330,6 +332,22 @@ export function CelulaForm({ initial, onSubmit, loading = false }: CelulaFormPro
                 if (label) setCoLeaderLabel(label)
               }}
               placeholder="Buscar co-líder..."
+            />
+          </div>
+          <div>
+            <label className={labelClass}>LT <span className="text-slate-400 font-normal">(Líder em Treinamento)</span></label>
+            <CreatableCombobox
+              fetchItems={async (q) => {
+                const data = await adminFetchJson<{ items: any[] }>(`/api/admin/consolidacao/lookups/people?q=${encodeURIComponent(q)}`)
+                return { items: data.items.map(p => ({ id: p.id, label: p.full_name })) }
+              }}
+              selectedId={form.lt_person_id}
+              selectedLabel={ltLabel}
+              onChange={(id, _, label) => {
+                update('lt_person_id', id || '')
+                if (label) setLtLabel(label)
+              }}
+              placeholder="Buscar LT..."
             />
           </div>
         </div>

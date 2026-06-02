@@ -32,6 +32,7 @@ interface CelulasDashboardProps {
   cells: any[]
   eliteCellIds: Set<string>
   realizations: any[]
+  selectedMonth?: string
 }
 
 const RANK_MEDALS = ['🥇', '🥈', '🥉', '4°', '5°']
@@ -99,9 +100,9 @@ function RankingRow({ name, value, index, barWidth, barColor }: RankingRowProps)
   )
 }
 
-export function CelulasDashboard({ stats, cells, eliteCellIds, realizations }: CelulasDashboardProps) {
+export function CelulasDashboard({ stats, cells, eliteCellIds, realizations, selectedMonth }: CelulasDashboardProps) {
   const [showEliteOnly, setShowEliteOnly] = React.useState(false)
-  const currentMonth = new Date().toISOString().slice(0, 7) + '-01'
+  const currentMonth = selectedMonth ?? (new Date().toISOString().slice(0, 7) + '-01')
 
   const filteredCells = showEliteOnly ? cells.filter((c) => eliteCellIds.has(c.id)) : cells
 
@@ -148,7 +149,7 @@ export function CelulasDashboard({ stats, cells, eliteCellIds, realizations }: C
   const confirmedPct = Math.round((pdConf / pdTotal) * 100)
   const pendingPct = 100 - confirmedPct
 
-  const currentMonthLabel = new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
+  const currentMonthLabel = new Date(currentMonth + 'T12:00:00').toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
 
   return (
     <div className="space-y-8">

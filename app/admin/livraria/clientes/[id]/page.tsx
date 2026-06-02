@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
-import { ArrowLeft, ShoppingBag, CreditCard, DollarSign, FileText } from 'lucide-react'
+import { ArrowLeft, ShoppingBag, CreditCard, DollarSign, FileText, UserCheck, UserMinus, Send, Loader2, X, Mail } from 'lucide-react'
 import { PageAccessGuard } from '@/app/admin/PageAccessGuard'
 import { Spinner } from '@/components/ui/Spinner'
 import { Toast } from '@/components/Toast'
@@ -56,6 +56,14 @@ const TABS = [
   { key: 'registrar', label: 'Registrar pagamento', icon: DollarSign },
 ] as const
 
+type CustomerUserLink = {
+  linked: boolean
+  user: { id: string; email: string | null; full_name: string | null } | null
+  email: string | null
+}
+
+type RoleOption = { id: string; name: string; is_active: boolean }
+
 export default function ClienteDetailPage() {
   const params = useParams()
   const id = (params?.id as string) ?? ''
@@ -68,6 +76,14 @@ export default function ClienteDetailPage() {
   const [paymentsLoading, setPaymentsLoading] = useState(false)
   const [paymentSubmitLoading, setPaymentSubmitLoading] = useState(false)
   const [toast, setToast] = useState<{ type: 'ok' | 'err'; message: string } | null>(null)
+  const [userLink, setUserLink] = useState<CustomerUserLink | null>(null)
+  const [userLinkModalOpen, setUserLinkModalOpen] = useState(false)
+  const [inviteEmail, setInviteEmail] = useState('')
+  const [inviteProfile, setInviteProfile] = useState('')
+  const [roles, setRoles] = useState<RoleOption[]>([])
+  const [loadingRoles, setLoadingRoles] = useState(false)
+  const [inviteSending, setInviteSending] = useState(false)
+  const [inviteMessage, setInviteMessage] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
 
   const loadCustomer = useCallback(async () => {
     if (!id) return
@@ -86,6 +102,57 @@ export default function ClienteDetailPage() {
   useEffect(() => {
     loadCustomer()
   }, [loadCustomer])
+
+  useEffect(() => {
+    if (!id) return
+    adminFetchJson<CustomerUserLink>(`/api/admin/livraria/clientes/${id}/user-link`)
+      .then(setUserLink)
+      .catch(() => setUserLink({ linked: false, user: null, email: null }))
+  }, [id])
+
+  useEffect(() => {
+    if (!userLinkModalOpen) return
+    setLoadingRoles(true)
+    adminFetchJson<{ roles?: RoleOption[] }>('/api/admin/roles')
+      .then((d) => setRoles((d.roles ?? []).filter((r) => r.is_active !== false)))
+      .catch(() => setRoles([]))
+      .finally(() => setLoadingRoles(false))
+  }, [userLinkModalOpen])
+
+  function openUserLinkModal() {
+    setInviteEmail(customer?.email ?? '')
+    setInviteProfile('')
+    setInviteMessage(null)
+    setUserLinkModalOpen(true)
+  }
+
+  async function handleUserLinkInvite(e: React.FormEvent) {
+    e.preventDefault()
+    const email = inviteEmail.trim()
+    if (!email) {
+      setInviteMessage({ type: 'err', text: 'Informe o e-mail.' })
+      return
+    }
+    setInviteSending(true)
+    setInviteMessage(null)
+    try {
+      const result = await adminFetchJson<{ message?: string }>(`/api/admin/livraria/clientes/${id}/user-link`, {
+        method: 'POST',
+        body: JSON.stringify({ email, profile: inviteProfile }),
+      })
+      setInviteMessage({ type: 'ok', text: result?.message || 'Convite enviado com sucesso.' })
+      const updated = await adminFetchJson<CustomerUserLink>(`/api/admin/livraria/clientes/${id}/user-link`)
+      setUserLink(updated)
+      setTimeout(() => {
+        setUserLinkModalOpen(false)
+        setInviteMessage(null)
+      }, 2000)
+    } catch (err) {
+      setInviteMessage({ type: 'err', text: err instanceof Error ? err.message : 'Erro ao enviar convite.' })
+    } finally {
+      setInviteSending(false)
+    }
+  }
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -187,7 +254,7 @@ export default function ClienteDetailPage() {
               {customer.phone && customer.email && ' · '}
               {customer.email && customer.email}
             </p>
-            <div className="mt-2">
+            <div className="mt-2 flex flex-wrap items-center gap-2">
               {customer.can_buy_on_credit ? (
                 <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-800">
                   Fiado habilitado
@@ -196,6 +263,24 @@ export default function ClienteDetailPage() {
                 <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-600">
                   Somente à vista
                 </span>
+              )}
+              {userLink !== null && (
+                userLink.linked ? (
+                  <span className="inline-flex items-center gap-1 text-xs text-emerald-600 font-medium">
+                    <UserCheck size={13} />
+                    Usuário vinculado
+                    {userLink.user?.email && <span className="text-slate-400 font-normal">({userLink.user.email})</span>}
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={openUserLinkModal}
+                    className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded border border-slate-200 text-amber-700 hover:bg-amber-50 transition-colors"
+                  >
+                    <UserMinus size={12} />
+                    Sem usuário — Vincular
+                  </button>
+                )
               )}
             </div>
           </div>
@@ -337,6 +422,106 @@ export default function ClienteDetailPage() {
 
         {toast && (
           <Toast visible message={toast.message} type={toast.type} onClose={() => setToast(null)} />
+        )}
+
+        {userLinkModalOpen && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+            onClick={() => !inviteSending && setUserLinkModalOpen(false)}
+          >
+            <div
+              className="bg-white rounded-2xl shadow-lg max-w-md w-full p-6"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+                  <Mail size={20} className="text-blue-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-base font-bold text-slate-800">Vincular usuário</h3>
+                  <p className="text-sm text-slate-500 truncate">{customer.name}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setUserLinkModalOpen(false)}
+                  className="p-1 text-slate-400 hover:text-slate-600"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <form onSubmit={handleUserLinkInvite} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">E-mail</label>
+                  {customer.email ? (
+                    <>
+                      <div className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-slate-50 text-sm text-slate-700">
+                        {customer.email}
+                      </div>
+                      <p className="text-xs text-slate-500 mt-1">
+                        O convite será enviado para o e-mail do cadastro.
+                      </p>
+                    </>
+                  ) : (
+                    <input
+                      type="email"
+                      value={inviteEmail}
+                      onChange={(e) => setInviteEmail(e.target.value)}
+                      placeholder="email@exemplo.com"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:border-[#c62737] outline-none"
+                    />
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Perfil de acesso (opcional)</label>
+                  {loadingRoles ? (
+                    <p className="text-xs text-slate-400">Carregando perfis...</p>
+                  ) : (
+                    <select
+                      value={inviteProfile}
+                      onChange={(e) => setInviteProfile(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:border-[#c62737] outline-none"
+                    >
+                      <option value="">Sem perfil definido</option>
+                      {roles.map((r) => (
+                        <option key={r.id} value={r.name}>{r.name}</option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+
+                {inviteMessage && (
+                  <div
+                    className={`p-3 rounded-lg text-sm font-medium ${
+                      inviteMessage.type === 'ok' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'
+                    }`}
+                  >
+                    {inviteMessage.text}
+                  </div>
+                )}
+
+                <div className="flex gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setUserLinkModalOpen(false)}
+                    disabled={inviteSending}
+                    className="flex-1 px-4 py-2 text-sm text-slate-700 border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={inviteSending}
+                    className="flex-1 px-4 py-2 text-sm bg-[#c62737] text-white rounded-lg hover:bg-[#a01f2d] disabled:opacity-50 flex items-center justify-center gap-2 transition-colors"
+                  >
+                    {inviteSending && <Loader2 size={14} className="animate-spin" />}
+                    {inviteSending ? 'Enviando...' : 'Enviar convite'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
         )}
       </div>
     </PageAccessGuard>

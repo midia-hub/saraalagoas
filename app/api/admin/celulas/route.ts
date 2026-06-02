@@ -15,20 +15,35 @@ export async function GET(request: NextRequest) {
   const status = searchParams.get('status')
 
   const supabase = createSupabaseAdminClient(request)
-  let query = supabase
-    .from('cells')
-    .select(`
-      *,
-      church:churches(id, name),
-      leader:people!leader_person_id(id, full_name),
-      co_leader:people!co_leader_person_id(id, full_name)
-    `)
-    .order('name', { ascending: true })
 
-  if (churchId) query = query.eq('church_id', churchId)
-  if (status) query = query.eq('status', status)
+  const buildQuery = (withLt: boolean) => {
+    let q = supabase
+      .from('cells')
+      .select(withLt ? `
+        *,
+        church:churches(id, name),
+        leader:people!leader_person_id(id, full_name),
+        co_leader:people!co_leader_person_id(id, full_name),
+        lt:people!lt_person_id(id, full_name)
+      ` : `
+        *,
+        church:churches(id, name),
+        leader:people!leader_person_id(id, full_name),
+        co_leader:people!co_leader_person_id(id, full_name)
+      `)
+      .order('name', { ascending: true })
+    if (churchId) q = q.eq('church_id', churchId)
+    if (status)   q = q.eq('status', status)
+    return q
+  }
 
-  const { data, error } = await query
+  let { data, error } = await buildQuery(true)
+
+  // Fallback: se lt_person_id ainda não existe no banco (migration pendente)
+  if (error && error.message?.includes('lt_person_id')) {
+    ;({ data, error } = await buildQuery(false))
+  }
+
   if (error) {
     console.error('Erro ao buscar células:', error)
     return NextResponse.json({ error: 'Erro ao buscar células.' }, { status: 500 })
@@ -52,7 +67,7 @@ export async function POST(request: NextRequest) {
     // Filtrar apenas campos permitidos
     const allowedFields = [
       'church_id', 'name', 'day_of_week', 'time_of_day', 'frequency',
-      'leader_person_id', 'co_leader_person_id', 'cep', 'street',
+      'leader_person_id', 'co_leader_person_id', 'lt_person_id', 'cep', 'street',
       'address_number', 'neighborhood', 'city', 'state', 'latitude', 'longitude', 'status'
     ]
 

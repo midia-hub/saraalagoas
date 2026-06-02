@@ -27,7 +27,7 @@ export default function AdminLayout({
   const pathname = usePathname()
   const isLoginPage = pathname?.includes('/admin/login')
   const isCompletarCadastroPage = pathname?.includes('/admin/completar-cadastro')
-  const isModuleSelectorPage = pathname?.startsWith('/admin/selecionar')
+  const isModuleSelectorPage = false
   const isPublicAdminPage = isLoginPage || isCompletarCadastroPage
   const loadingRef = useRef(false)
   const [loading, setLoading] = useState(true)
