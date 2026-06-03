@@ -13,6 +13,8 @@ const PERM_ROW = {
 export type UpsertPermissionsResult = {
   ok: boolean
   failedKeys: string[]
+  firstError?: string
+  firstErrorCode?: string
 }
 
 /** Garante todas as page_keys do módulo no access_profile. */
@@ -22,6 +24,8 @@ export async function upsertModulePermissions(
   pageKeys: string[]
 ): Promise<UpsertPermissionsResult> {
   const failedKeys: string[] = []
+  let firstError: string | undefined
+  let firstErrorCode: string | undefined
 
   for (const pageKey of pageKeys) {
     const { data: perm } = await supabase
@@ -37,8 +41,9 @@ export async function upsertModulePermissions(
         .update(PERM_ROW)
         .eq('id', perm.id)
       if (error) {
-        console.error(`[module-access] update perm ${pageKey}:`, error.message)
+        console.error(`[module-access] update perm ${pageKey}:`, error.message, error.code)
         failedKeys.push(pageKey)
+        if (!firstError) { firstError = error.message; firstErrorCode = error.code }
       }
     } else {
       const { error } = await supabase.from('access_profile_permissions').insert({
@@ -47,13 +52,14 @@ export async function upsertModulePermissions(
         ...PERM_ROW,
       })
       if (error) {
-        console.error(`[module-access] insert perm ${pageKey}:`, error.message)
+        console.error(`[module-access] insert perm ${pageKey}:`, error.message, error.code)
         failedKeys.push(pageKey)
+        if (!firstError) { firstError = error.message; firstErrorCode = error.code }
       }
     }
   }
 
-  return { ok: failedKeys.length === 0, failedKeys }
+  return { ok: failedKeys.length === 0, failedKeys, firstError, firstErrorCode }
 }
 
 /** Remove page_keys legadas/erradas após conceder as corretas. */

@@ -197,6 +197,8 @@ export async function POST(request: NextRequest, ctx: Ctx) {
         {
           error: 'Erro ao gravar permissões do módulo.',
           failedKeys: permResult.failedKeys,
+          detail: permResult.firstError,
+          code: permResult.firstErrorCode,
         },
         { status: 500 }
       )
@@ -274,27 +276,19 @@ export async function DELETE(request: NextRequest, ctx: Ctx) {
       }
     }
 
-    const { error, status: dbStatus } = await supabase
+    const { error } = await supabase
       .from('profiles')
       .update({ access_profile_id: null })
       .eq('id', user_id)
-      .select('id')
-      .maybeSingle()
 
     if (error) {
-      console.error('[module-access DELETE] profiles update error:', error)
-      return NextResponse.json({
-        error: 'Erro ao revogar acesso',
-        detail: error.message,
-        code: error.code,
-        dbStatus,
-      }, { status: 500 })
+      console.error('[module-access DELETE]', error)
+      return NextResponse.json({ error: 'Erro ao revogar acesso' }, { status: 500 })
     }
 
     return NextResponse.json({ ok: true })
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Erro interno'
-    console.error('[module-access DELETE] exception:', message)
-    return NextResponse.json({ error: 'Erro ao revogar acesso', detail: message }, { status: 500 })
+    console.error('[module-access DELETE] exception:', err)
+    return NextResponse.json({ error: 'Erro ao revogar acesso' }, { status: 500 })
   }
 }
