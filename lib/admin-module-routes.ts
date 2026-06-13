@@ -3,6 +3,8 @@ export interface AdminModuleRoute {
   subdomain: string
   mainHref: string
   basePaths: string[]
+  /** Se definido, todo request ao subdomínio é reescrito com este prefixo de caminho */
+  pathPrefix?: string
 }
 
 export const ROOT_DOMAIN =
@@ -90,6 +92,18 @@ export const adminModuleRoutes = [
       '/admin/midia/ia-config',
       '/admin/consolidacao/cadastros/api-disparos',
     ],
+  },
+  // -------------------------------------------------------------------
+  // Bolão Arena da Copa — sistema isolado em jogo.saraalagoas.com
+  // pathPrefix garante que /acompanhamento e /admin sejam reescritos
+  // para /bolao/acompanhamento e /bolao/admin respectivamente
+  // -------------------------------------------------------------------
+  {
+    id: 'bolao',
+    subdomain: 'jogo',
+    mainHref: '/bolao',
+    basePaths: ['/bolao'],
+    pathPrefix: '/bolao',
   },
 ] as const satisfies readonly AdminModuleRoute[]
 

@@ -78,6 +78,21 @@ export function middleware(request: NextRequest) {
       return applySecurityHeaders(NextResponse.next())
     }
 
+    // Subdomínios com pathPrefix têm auth própria — reescreve antes de qualquer checagem
+    // (ex: jogo.saraalagoas.com → /bolao/*, sem passar pelo guard de /admin)
+    if (moduleRoute?.pathPrefix) {
+      const prefix = moduleRoute.pathPrefix
+      const url = request.nextUrl.clone()
+      if (normalizedPath === '/') {
+        url.pathname = moduleRoute.mainHref
+      } else if (!normalizedPath.startsWith(prefix)) {
+        url.pathname = `${prefix}${normalizedPath}`
+      } else {
+        return applySecurityHeaders(NextResponse.next())
+      }
+      return applySecurityHeaders(NextResponse.rewrite(url))
+    }
+
     const isAdminPage = effectivePath.startsWith('/admin')
     const isAdminApi = effectivePath.startsWith('/api/admin')
     const isLoginPage = effectivePath === '/admin/login'
