@@ -91,8 +91,12 @@ export default async function RootLayout({
           </Suspense>
           {children}
         </SiteConfigProvider>
-        <SpeedInsights />
-        <Analytics />
+        {process.env.NODE_ENV === 'production' ? (
+          <>
+            <SpeedInsights debug={false} />
+            <Analytics debug={false} />
+          </>
+        ) : null}
       </body>
     </html>
   )

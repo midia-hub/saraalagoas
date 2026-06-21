@@ -280,6 +280,10 @@ export default function FotosPublicaPage() {
     setDownloading(photo.driveFileId)
     try {
       const res = await fetch(photo.downloadUrl)
+      if (!res.ok || !/^image\//i.test(res.headers.get('content-type') || '')) {
+        window.open(photo.downloadUrl, '_blank')
+        return
+      }
       const blob = await res.blob()
       const url  = URL.createObjectURL(blob)
       const a    = document.createElement('a')
@@ -299,6 +303,11 @@ export default function FotosPublicaPage() {
     for (const photo of photos) {
       try {
         const res = await fetch(photo.downloadUrl)
+        if (!res.ok || !/^image\//i.test(res.headers.get('content-type') || '')) {
+          window.open(photo.downloadUrl, '_blank')
+          await new Promise(r => setTimeout(r, 400))
+          continue
+        }
         const blob = await res.blob()
         const url = URL.createObjectURL(blob)
         const a = document.createElement('a')

@@ -38,6 +38,24 @@ type Room = {
 
 type Step = 'sala' | 'horario' | 'dados' | 'sucesso'
 
+type UpcomingReservation = {
+  id: string
+  start_datetime: string
+  end_datetime: string
+  reason: string | null
+  room?: { name?: string } | null
+}
+
+const DATE_DISPLAY = new Intl.DateTimeFormat('pt-BR', {
+  timeZone: 'America/Sao_Paulo',
+  dateStyle: 'short',
+})
+const TIME_DISPLAY = new Intl.DateTimeFormat('pt-BR', {
+  timeZone: 'America/Sao_Paulo',
+  hour: '2-digit',
+  minute: '2-digit',
+})
+
 const DAY_NAMES = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
 const DAY_NAMES_FULL = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado']
 
@@ -429,6 +447,8 @@ export default function ReservarSalaPage() {
   const [rooms, setRooms] = useState<Room[]>([])
   const [loadingRooms, setLoadingRooms] = useState(true)
   const [roomsError, setRoomsError] = useState('')
+  const [upcoming, setUpcoming] = useState<UpcomingReservation[]>([])
+  const [loadingUpcoming, setLoadingUpcoming] = useState(true)
 
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null)
   const [date, setDate] = useState('')
@@ -487,6 +507,20 @@ export default function ReservarSalaPage() {
       .catch(() => {
         setRoomsError('Não foi possível carregar as salas. Tente novamente.')
         setLoadingRooms(false)
+      })
+  }, [])
+
+  // Fetch upcoming approved reservations
+  useEffect(() => {
+    fetch('/api/public/reservas/upcoming')
+      .then(r => r.json())
+      .then(d => {
+        setUpcoming(d.items ?? [])
+        setLoadingUpcoming(false)
+      })
+      .catch(() => {
+        setUpcoming([])
+        setLoadingUpcoming(false)
       })
   }, [])
 
@@ -617,6 +651,49 @@ export default function ReservarSalaPage() {
               </p>
             </div>
             <StepsHeader current={step} />
+          </div>
+        )}
+
+        {step !== 'sucesso' && (
+          <div className="mb-6 rounded-2xl border border-slate-200 bg-white shadow-sm p-5">
+            <div className="flex items-center gap-2 mb-3">
+              <Calendar size={18} className="text-[#c62737]" />
+              <h2 className="font-semibold text-slate-800 text-sm">Próximas reservas aprovadas</h2>
+            </div>
+
+            {loadingUpcoming && (
+              <div className="flex items-center gap-2 text-sm text-slate-400 py-2">
+                <Loader2 size={15} className="animate-spin" />
+                Carregando agenda…
+              </div>
+            )}
+
+            {!loadingUpcoming && upcoming.length === 0 && (
+              <p className="text-sm text-slate-400 py-1">Nenhuma reserva aprovada nos próximos dias.</p>
+            )}
+
+            {!loadingUpcoming && upcoming.length > 0 && (
+              <ol className="relative border-l-2 border-slate-100 pl-5 space-y-3">
+                {upcoming.map((reservation) => {
+                  const start = new Date(reservation.start_datetime)
+                  const end = new Date(reservation.end_datetime)
+                  return (
+                    <li key={reservation.id} className="relative">
+                      <span className="absolute -left-[21px] top-1 flex items-center justify-center w-4 h-4 rounded-full bg-[#c62737]" />
+                      <p className="text-sm font-medium text-slate-800">
+                        {reservation.room?.name ?? 'Sala'}
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        {DATE_DISPLAY.format(start)} · {TIME_DISPLAY.format(start)} – {TIME_DISPLAY.format(end)}
+                      </p>
+                      {reservation.reason && (
+                        <p className="text-xs text-slate-400 mt-0.5 line-clamp-1">{reservation.reason}</p>
+                      )}
+                    </li>
+                  )
+                })}
+              </ol>
+            )}
           </div>
         )}
 

@@ -153,16 +153,6 @@ export async function GET(request: NextRequest) {
       }
     } catch { /* continua */ }
 
-    // 3ª tentativa: thumbnail_link do banco em alta resolução
-    try {
-      const dbFull = await getDbThumbnailBuffer(fileId, 1024)
-      if (dbFull) {
-        return new Response(new Uint8Array(dbFull.buffer), {
-          headers: { 'Content-Type': dbFull.contentType, 'Cache-Control': 'public, max-age=86400, stale-while-revalidate=604800' },
-        })
-      }
-    } catch { /* continua */ }
-
     return NextResponse.json({ error: 'Imagem não encontrada.' }, { status: 404 })
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)

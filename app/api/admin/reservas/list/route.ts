@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
       .select(
         'id, room_id, requester_person_id, requester_name, requester_phone, team_id, start_datetime, end_datetime, people_count, reason, status, approved_by, approved_at, cancelled_reason, created_at, room:room_id(id, name), team:team_id(id, name)'
       )
-      .order('start_datetime', { ascending: true })
+      .order('created_at', { ascending: false })
 
     if (roomId) query = query.eq('room_id', roomId)
     if (status) query = query.eq('status', status)
