@@ -21,6 +21,8 @@ import {
   Loader2,
   FileText,
   X,
+  Users,
+  ChevronRight,
 } from 'lucide-react'
 
 type ReservationItem = {
@@ -30,9 +32,12 @@ type ReservationItem = {
   requester_phone: string | null
   start_datetime: string
   end_datetime: string
+  people_count: number | null
+  reason: string | null
   status: 'pending' | 'approved' | 'rejected' | 'cancelled'
   cancelled_reason: string | null
   room?: { id: string; name: string } | null
+  team?: { id: string; name: string } | null
 }
 
 type StatsPayload = {
@@ -83,10 +88,15 @@ export default function ReservationsAdminClient() {
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
 
-  // Modal de justificativa
+  // Modal desktop (rejeitar/cancelar)
   const [modalAction, setModalAction] = useState<{ id: string; action: 'reject' | 'cancel' } | null>(null)
   const [modalReason, setModalReason] = useState('')
   const [modalLoading, setModalLoading] = useState(false)
+
+  // Bottom sheet mobile
+  const [detailSheet, setDetailSheet] = useState<ReservationItem | null>(null)
+  const [sheetReason, setSheetReason] = useState('')
+  const [sheetLoading, setSheetLoading] = useState(false)
 
   const reservationBeingModalized = useMemo(() => {
     if (!modalAction) return null
@@ -128,13 +138,10 @@ export default function ReservationsAdminClient() {
     }
   }, [queryString])
 
-  useEffect(() => {
-    loadRooms()
-  }, [])
+  useEffect(() => { loadRooms() }, [])
+  useEffect(() => { loadList() }, [loadList])
 
-  useEffect(() => {
-    loadList()
-  }, [loadList])
+  // ── Ações desktop ──────────────────────────────────────────────────────────
 
   async function runAction(id: string, action: 'approve' | 'reject' | 'cancel') {
     if (action === 'approve') {
@@ -152,8 +159,6 @@ export default function ReservationsAdminClient() {
       }
       return
     }
-
-    // Para rejeitar ou cancelar, abrir modal
     setModalAction({ id, action })
     setModalReason('')
   }
@@ -175,11 +180,36 @@ export default function ReservationsAdminClient() {
     }
   }
 
+  // ── Ações mobile (bottom sheet) ────────────────────────────────────────────
+
+  function openSheet(r: ReservationItem) {
+    setDetailSheet(r)
+    setSheetReason('')
+  }
+
+  async function runSheetAction(action: 'approve' | 'reject' | 'cancel') {
+    if (!detailSheet) return
+    setSheetLoading(true)
+    try {
+      const body = action !== 'approve' && sheetReason.trim() ? { reason: sheetReason.trim() } : {}
+      await adminFetchJson(`/api/admin/reservas/reservations/${detailSheet.id}/${action}`, {
+        method: 'POST',
+        body: JSON.stringify(body),
+      })
+      setDetailSheet(null)
+      await loadList()
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : 'Falha na ação')
+    } finally {
+      setSheetLoading(false)
+    }
+  }
+
   return (
     <div className="space-y-6">
 
       {/* ── CARDS DE RESUMO ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
         <StatCard
           label="Pendentes"
           value={stats?.pending_count ?? 0}
@@ -200,7 +230,7 @@ export default function ReservationsAdminClient() {
           colorClass="text-violet-600 bg-violet-50 border-violet-100"
         />
         <StatCard
-          label="Próximas reservas"
+          label="Próximas"
           value={stats?.upcoming?.length ?? 0}
           icon={<CalendarDays size={22} />}
           colorClass="text-blue-600 bg-blue-50 border-blue-100"
@@ -245,7 +275,7 @@ export default function ReservationsAdminClient() {
             <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
           </button>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-2 xl:grid-cols-4 gap-3">
           <div className="flex flex-col gap-1">
             <label className="text-xs text-slate-500">Sala</label>
             <select
@@ -253,7 +283,7 @@ export default function ReservationsAdminClient() {
               value={roomFilter}
               onChange={(e) => setRoomFilter(e.target.value)}
             >
-              <option value="">Todas as salas</option>
+              <option value="">Todas</option>
               {rooms.map((room) => (
                 <option key={room.id} value={room.id}>{room.name}</option>
               ))}
@@ -266,7 +296,7 @@ export default function ReservationsAdminClient() {
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
             >
-              <option value="">Todos os status</option>
+              <option value="">Todos</option>
               <option value="pending">Pendente</option>
               <option value="approved">Aprovada</option>
               <option value="rejected">Rejeitada</option>
@@ -301,14 +331,84 @@ export default function ReservationsAdminClient() {
         </div>
       )}
 
-      {/* ── TABELA ── */}
-      <div className="rounded-2xl border bg-white shadow-sm overflow-hidden">
-        <div className="flex items-center gap-2 px-5 py-4 border-b bg-slate-50">
-          <BarChart3 size={18} className="text-slate-500" />
-          <span className="font-semibold text-slate-700 text-sm">
-            {loading ? 'Carregando…' : `${items.length} reserva${items.length !== 1 ? 's' : ''} encontrada${items.length !== 1 ? 's' : ''}`}
-          </span>
-        </div>
+      {/* ── HEADER DA LISTA ── */}
+      <div className="flex items-center gap-2 px-1">
+        <BarChart3 size={16} className="text-slate-400" />
+        <span className="text-sm font-semibold text-slate-600">
+          {loading ? 'Carregando…' : `${items.length} reserva${items.length !== 1 ? 's' : ''} encontrada${items.length !== 1 ? 's' : ''}`}
+        </span>
+      </div>
+
+      {/* ── CARDS MOBILE ── */}
+      <div className="block sm:hidden space-y-3">
+        {items.map((r) => {
+          const sc = STATUS_CONFIG[r.status]
+          const isPending = r.status === 'pending'
+          return (
+            <button
+              key={r.id}
+              type="button"
+              onClick={() => openSheet(r)}
+              className={`w-full text-left rounded-2xl border bg-white shadow-sm p-4 transition-all active:scale-[0.99] active:bg-slate-50 ${
+                isPending ? 'border-amber-200' : 'border-slate-200'
+              }`}
+            >
+              <div className="flex items-start justify-between gap-2 mb-3">
+                <div className="flex items-center gap-2 font-semibold text-slate-800 text-sm min-w-0">
+                  <Building2 size={14} className="text-slate-400 shrink-0" />
+                  <span className="truncate">{r.room?.name ?? r.room_id}</span>
+                </div>
+                <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold shrink-0 ${sc.className}`}>
+                  {sc.icon} {sc.label}
+                </span>
+              </div>
+
+              <div className="space-y-1 mb-3">
+                <div className="flex items-center gap-1.5 text-sm text-slate-700">
+                  <User size={13} className="text-slate-400 shrink-0" />
+                  <span className="font-medium truncate">{r.requester_name}</span>
+                </div>
+                {r.requester_phone && (
+                  <div className="flex items-center gap-1.5 text-xs text-slate-500">
+                    <Phone size={12} className="text-slate-400 shrink-0" />
+                    {r.requester_phone}
+                  </div>
+                )}
+                <div className="flex items-center gap-1.5 text-xs text-slate-500">
+                  <CalendarDays size={12} className="text-slate-400 shrink-0" />
+                  {DATE_FORMATTER.format(new Date(r.start_datetime))} &nbsp;·&nbsp;
+                  {TIME_FORMATTER.format(new Date(r.start_datetime))} — {TIME_FORMATTER.format(new Date(r.end_datetime))}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {r.people_count != null && (
+                    <span className="inline-flex items-center gap-1 text-xs text-slate-500 bg-slate-100 rounded-full px-2.5 py-0.5">
+                      <Users size={11} /> {r.people_count} {r.people_count === 1 ? 'pessoa' : 'pessoas'}
+                    </span>
+                  )}
+                  {r.team && (
+                    <span className="inline-flex text-xs text-slate-500 bg-slate-100 rounded-full px-2.5 py-0.5 truncate max-w-[120px]">
+                      {r.team.name}
+                    </span>
+                  )}
+                </div>
+                <ChevronRight size={16} className="text-slate-300 shrink-0" />
+              </div>
+            </button>
+          )
+        })}
+        {items.length === 0 && !loading && (
+          <div className="py-12 text-center text-slate-400">
+            <CalendarDays size={36} className="mx-auto mb-2 opacity-30" />
+            <p className="text-sm">Nenhuma reserva encontrada.</p>
+          </div>
+        )}
+      </div>
+
+      {/* ── TABELA DESKTOP ── */}
+      <div className="hidden sm:block rounded-2xl border bg-white shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -411,18 +511,16 @@ export default function ReservationsAdminClient() {
         </div>
       </div>
 
-      {/* ── MODAL DE CARREGAMENTO (APROVAÇÃO) ── */}
+      {/* ── MODAL APROVAÇÃO DESKTOP ── */}
       <AnimatePresence>
         {actionLoadingId && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            {/* Backdrop */}
+          <div className="hidden sm:flex fixed inset-0 z-50 items-center justify-center p-4">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
             />
-            {/* Content */}
             <motion.div
               initial={{ scale: 0.95, opacity: 0, y: 10 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
@@ -443,11 +541,10 @@ export default function ReservationsAdminClient() {
         )}
       </AnimatePresence>
 
-      {/* ── MODAL DE JUSTIFICATIVA (REJEIÇÃO / CANCELAMENTO) ── */}
+      {/* ── MODAL JUSTIFICATIVA DESKTOP ── */}
       <AnimatePresence>
         {modalAction && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            {/* Backdrop */}
+          <div className="hidden sm:flex fixed inset-0 z-50 items-center justify-center p-4">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -455,7 +552,6 @@ export default function ReservationsAdminClient() {
               className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
               onClick={() => !modalLoading && setModalAction(null)}
             />
-            {/* Content */}
             <motion.div
               initial={{ scale: 0.95, opacity: 0, y: 10 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
@@ -463,7 +559,6 @@ export default function ReservationsAdminClient() {
               className="relative w-full max-w-md overflow-hidden bg-white rounded-2xl shadow-2xl border border-slate-200"
             >
               <div className="p-6">
-                {/* Header */}
                 <div className="flex items-start justify-between mb-4">
                   <div className={`p-3 rounded-xl ${modalAction.action === 'reject' ? 'bg-amber-100' : 'bg-slate-100'}`}>
                     {modalAction.action === 'reject' ? (
@@ -481,19 +576,17 @@ export default function ReservationsAdminClient() {
                     </button>
                   )}
                 </div>
-
                 <div className="mb-6">
                   <h3 className="text-xl font-bold text-slate-900">
                     {modalAction.action === 'reject' ? 'Rejeitar solicitação' : 'Cancelar reserva'}
                   </h3>
                   {reservationBeingModalized && (
                     <p className="text-sm text-slate-500 mt-1">
-                      Reserva para <strong className="text-slate-700">{reservationBeingModalized.room?.name}</strong> de <strong className="text-slate-700">{reservationBeingModalized.requester_name}</strong>.
+                      Reserva para <strong className="text-slate-700">{reservationBeingModalized.room?.name}</strong> de{' '}
+                      <strong className="text-slate-700">{reservationBeingModalized.requester_name}</strong>.
                     </p>
                   )}
                 </div>
-
-                {/* Input */}
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
@@ -507,11 +600,8 @@ export default function ReservationsAdminClient() {
                       className="w-full h-32 p-3 text-sm bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all resize-none placeholder:text-slate-300"
                       disabled={modalLoading}
                     />
-                    <p className="text-[10px] text-slate-400">
-                      * Essa mensagem será arquivada no log da reserva.
-                    </p>
+                    <p className="text-[10px] text-slate-400">* Essa mensagem será arquivada no log da reserva.</p>
                   </div>
-
                   <div className="flex gap-2 pt-2">
                     <button
                       type="button"
@@ -529,18 +619,167 @@ export default function ReservationsAdminClient() {
                         ${modalAction.action === 'reject' ? 'bg-[#c62737] hover:bg-[#a01f2d]' : 'bg-slate-800 hover:bg-slate-900'}`}
                     >
                       {modalLoading ? (
-                        <>
-                          <Loader2 size={16} className="animate-spin" /> Processando...
-                        </>
+                        <><Loader2 size={16} className="animate-spin" /> Processando...</>
                       ) : (
-                        <>
-                          Confirmar {modalAction.action === 'reject' ? 'rejeição' : 'cancelamento'}
-                        </>
+                        <>Confirmar {modalAction.action === 'reject' ? 'rejeição' : 'cancelamento'}</>
                       )}
                     </button>
                   </div>
                 </div>
               </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ── BOTTOM SHEET MOBILE ── */}
+      <AnimatePresence>
+        {detailSheet && (
+          <div className="sm:hidden fixed inset-0 z-50 flex flex-col justify-end">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
+              onClick={() => !sheetLoading && setDetailSheet(null)}
+            />
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+              className="relative bg-white rounded-t-2xl max-h-[92vh] flex flex-col"
+            >
+              {/* Header fixo */}
+              <div className="px-5 pt-4 pb-3 border-b border-slate-100 shrink-0">
+                <div className="w-9 h-1 bg-slate-200 rounded-full mx-auto mb-4" />
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h3 className="text-base font-bold text-slate-900 flex items-center gap-2 truncate">
+                      <Building2 size={16} className="text-slate-400 shrink-0" />
+                      {detailSheet.room?.name ?? detailSheet.room_id}
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-0.5 ml-6">Detalhes da solicitação</p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${STATUS_CONFIG[detailSheet.status].className}`}>
+                      {STATUS_CONFIG[detailSheet.status].icon} {STATUS_CONFIG[detailSheet.status].label}
+                    </span>
+                    {!sheetLoading && (
+                      <button
+                        onClick={() => setDetailSheet(null)}
+                        className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400"
+                      >
+                        <X size={18} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Conteúdo rolável */}
+              <div className="overflow-y-auto flex-1 px-5 py-4 space-y-4">
+
+                {/* Grid de dados */}
+                <div className="grid grid-cols-2 gap-x-4 gap-y-3 bg-slate-50 rounded-xl p-4">
+                  <InfoCell label="Solicitante" value={detailSheet.requester_name} />
+                  {detailSheet.requester_phone
+                    ? <InfoCell label="Telefone" value={detailSheet.requester_phone} />
+                    : <div />
+                  }
+                  <InfoCell
+                    label="Data"
+                    value={DATE_FORMATTER.format(new Date(detailSheet.start_datetime))}
+                  />
+                  <InfoCell
+                    label="Horário"
+                    value={`${TIME_FORMATTER.format(new Date(detailSheet.start_datetime))} — ${TIME_FORMATTER.format(new Date(detailSheet.end_datetime))}`}
+                  />
+                  {detailSheet.people_count != null && (
+                    <InfoCell label="Pessoas" value={`${detailSheet.people_count} ${detailSheet.people_count === 1 ? 'pessoa' : 'pessoas'}`} />
+                  )}
+                  {detailSheet.team && (
+                    <InfoCell label="Ministério" value={detailSheet.team.name} />
+                  )}
+                </div>
+
+                {/* Motivo da solicitação */}
+                {detailSheet.reason && (
+                  <div className="bg-blue-50 border border-blue-100 rounded-xl p-3.5">
+                    <p className="text-xs font-semibold text-blue-700 mb-1 flex items-center gap-1.5">
+                      <FileText size={12} /> Motivo da solicitação
+                    </p>
+                    <p className="text-sm text-blue-800">{detailSheet.reason}</p>
+                  </div>
+                )}
+
+                {/* Justificativa registrada (rejeição/cancelamento já feito) */}
+                {detailSheet.cancelled_reason && (
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5">
+                    <p className="text-xs font-semibold text-slate-500 mb-1">Justificativa registrada</p>
+                    <p className="text-sm text-slate-700 italic">{detailSheet.cancelled_reason}</p>
+                  </div>
+                )}
+
+                {/* Campo de justificativa (para rejeitar/cancelar) */}
+                {(detailSheet.status === 'pending' || detailSheet.status === 'approved') && (
+                  <div>
+                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1.5 mb-2">
+                      <FileText size={12} /> Justificativa (para rejeição/cancelamento)
+                    </label>
+                    <textarea
+                      value={sheetReason}
+                      onChange={(e) => setSheetReason(e.target.value)}
+                      placeholder="Ex.: Sala reservada para manutenção..."
+                      className="w-full h-24 p-3 text-sm bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all resize-none placeholder:text-slate-300"
+                      disabled={sheetLoading}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Botões fixos no rodapé */}
+              {(detailSheet.status === 'pending' || detailSheet.status === 'approved') && (
+                <div className="px-5 pb-6 pt-3 border-t border-slate-100 shrink-0 space-y-2">
+                  {detailSheet.status === 'pending' && (
+                    <button
+                      type="button"
+                      disabled={sheetLoading}
+                      onClick={() => runSheetAction('approve')}
+                      className="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-60 transition-colors"
+                    >
+                      {sheetLoading
+                        ? <Loader2 size={16} className="animate-spin" />
+                        : <CheckCircle2 size={16} />}
+                      Aprovar reserva
+                    </button>
+                  )}
+                  {detailSheet.status === 'pending' && (
+                    <button
+                      type="button"
+                      disabled={sheetLoading}
+                      onClick={() => runSheetAction('reject')}
+                      className="w-full py-3.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-60 transition-colors"
+                    >
+                      {sheetLoading
+                        ? <Loader2 size={16} className="animate-spin" />
+                        : <XCircle size={16} />}
+                      Rejeitar
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    disabled={sheetLoading}
+                    onClick={() => runSheetAction('cancel')}
+                    className="w-full py-3 rounded-xl border border-slate-200 bg-white text-slate-600 font-medium text-sm flex items-center justify-center gap-2 disabled:opacity-60 transition-colors"
+                  >
+                    {sheetLoading
+                      ? <Loader2 size={16} className="animate-spin" />
+                      : <Ban size={16} />}
+                    Cancelar reserva
+                  </button>
+                </div>
+              )}
             </motion.div>
           </div>
         )}
@@ -563,13 +802,22 @@ function StatCard({
   colorClass: string
 }) {
   return (
-    <div className="rounded-2xl border bg-white shadow-sm p-5 flex items-start gap-4">
-      <div className={`rounded-xl border p-2.5 ${colorClass}`}>{icon}</div>
+    <div className="rounded-2xl border bg-white shadow-sm p-4 sm:p-5 flex items-start gap-3 sm:gap-4">
+      <div className={`rounded-xl border p-2 sm:p-2.5 shrink-0 ${colorClass}`}>{icon}</div>
       <div className="min-w-0">
-        <p className="text-xs font-medium text-slate-500 mb-0.5">{label}</p>
-        <p className="text-2xl font-bold text-slate-800 leading-tight truncate">{value}</p>
+        <p className="text-xs font-medium text-slate-500 mb-0.5 leading-tight">{label}</p>
+        <p className="text-xl sm:text-2xl font-bold text-slate-800 leading-tight truncate">{value}</p>
         {sub && <p className="text-xs text-slate-400 mt-0.5">{sub}</p>}
       </div>
+    </div>
+  )
+}
+
+function InfoCell({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">{label}</p>
+      <p className="text-sm font-semibold text-slate-800 leading-tight">{value}</p>
     </div>
   )
 }

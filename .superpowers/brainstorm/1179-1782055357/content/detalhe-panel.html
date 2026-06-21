@@ -1,0 +1,146 @@
+<h2>Painel de detalhes antes de agir</h2>
+<p class="subtitle">Tocar em qualquer card abre este painel. Ele mostra tudo da reserva + campo de justificativa + botões de ação.</p>
+
+<div class="section">
+  <h3>Fluxo completo no mobile</h3>
+
+  <div class="split" style="gap:24px; align-items:flex-start;">
+
+    <!-- TELA 1: Lista de cards -->
+    <div class="mockup" style="flex:1;">
+      <div class="mockup-header">① Lista de reservas</div>
+      <div class="mockup-body" style="padding:0; background:#f1f5f9;">
+
+        <!-- card pendente (destacado, toque abre detalhe) -->
+        <div style="margin:10px; background:#fff; border-radius:12px; border:1.5px solid #fde68a; box-shadow:0 1px 6px rgba(0,0,0,0.06); padding:12px; cursor:pointer;">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
+            <div style="font-size:13px; font-weight:700; color:#1e293b;">🏛 Sala Principal</div>
+            <span style="background:#fef3c7; color:#92400e; border:1px solid #fde68a; padding:2px 9px; border-radius:99px; font-size:10px; font-weight:700;">⏱ Pendente</span>
+          </div>
+          <div style="font-size:11px; color:#475569; margin-bottom:3px;">👤 João Silva &nbsp;·&nbsp; 📞 (82) 99999-0001</div>
+          <div style="font-size:11px; color:#64748b; margin-bottom:10px;">📅 23/06/2026 &nbsp;&nbsp; 🕐 14:00 — 16:00</div>
+          <div style="background:#f8fafc; border-radius:8px; padding:6px 10px; font-size:10px; color:#64748b; border:1px solid #e2e8f0; margin-bottom:10px;">
+            👥 4 pessoas &nbsp;·&nbsp; 🏷 Ministério de Jovens
+          </div>
+          <div style="text-align:center; font-size:11px; color:#3b82f6; font-weight:600;">Toque para ver detalhes →</div>
+        </div>
+
+        <!-- card aprovado -->
+        <div style="margin:10px; background:#fff; border-radius:12px; border:1px solid #e2e8f0; padding:12px; opacity:0.7;">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;">
+            <div style="font-size:13px; font-weight:700; color:#1e293b;">🏛 Auditório</div>
+            <span style="background:#d1fae5; color:#065f46; border:1px solid #a7f3d0; padding:2px 9px; border-radius:99px; font-size:10px; font-weight:700;">✓ Aprovada</span>
+          </div>
+          <div style="font-size:11px; color:#64748b;">📅 25/06 &nbsp;&nbsp; 🕐 09:00 — 11:00</div>
+        </div>
+
+        <!-- card rejeitado -->
+        <div style="margin:10px; background:#fff; border-radius:12px; border:1px solid #e2e8f0; padding:12px; opacity:0.5;">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;">
+            <div style="font-size:13px; font-weight:700; color:#1e293b;">🏛 Sala 3</div>
+            <span style="background:#fee2e2; color:#991b1b; border:1px solid #fca5a5; padding:2px 9px; border-radius:99px; font-size:10px; font-weight:700;">✕ Rejeitada</span>
+          </div>
+          <div style="font-size:11px; color:#64748b;">📅 20/06 &nbsp;&nbsp; 🕐 19:00 — 21:00</div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- SETA -->
+    <div style="font-size:28px; margin-top:80px; color:#94a3b8; flex-shrink:0;">→</div>
+
+    <!-- TELA 2: Painel de detalhe (bottom sheet) -->
+    <div class="mockup" style="flex:1;">
+      <div class="mockup-header">② Painel de detalhes</div>
+      <div class="mockup-body" style="padding:0; background:#0f172a80; position:relative; min-height:420px;">
+
+        <!-- fundo escurecido (lista atrás) -->
+        <div style="padding:10px; opacity:0.3;">
+          <div style="background:#fff; border-radius:10px; padding:10px; margin-bottom:8px; height:70px;"></div>
+          <div style="background:#fff; border-radius:10px; padding:10px; height:50px;"></div>
+        </div>
+
+        <!-- bottom sheet -->
+        <div style="position:absolute; bottom:0; left:0; right:0; background:#fff; border-radius:18px 18px 0 0; padding:16px; box-shadow:0 -8px 32px rgba(0,0,0,0.2);">
+
+          <!-- handle -->
+          <div style="width:36px; height:4px; background:#cbd5e1; border-radius:99px; margin:0 auto 14px;"></div>
+
+          <!-- cabeçalho do sheet -->
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <div>
+              <div style="font-size:15px; font-weight:800; color:#1e293b;">🏛 Sala Principal</div>
+              <div style="font-size:11px; color:#64748b;">Solicitação pendente de aprovação</div>
+            </div>
+            <span style="background:#fef3c7; color:#92400e; border:1px solid #fde68a; padding:3px 10px; border-radius:99px; font-size:10px; font-weight:700;">⏱ Pendente</span>
+          </div>
+
+          <!-- dados da reserva em grid 2 col -->
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; background:#f8fafc; border-radius:10px; padding:10px; margin-bottom:10px; font-size:11px;">
+            <div><div style="color:#94a3b8; font-size:10px; text-transform:uppercase; margin-bottom:2px;">Solicitante</div><div style="font-weight:600; color:#1e293b;">João Silva</div></div>
+            <div><div style="color:#94a3b8; font-size:10px; text-transform:uppercase; margin-bottom:2px;">Telefone</div><div style="font-weight:600; color:#1e293b;">(82) 99999-0001</div></div>
+            <div><div style="color:#94a3b8; font-size:10px; text-transform:uppercase; margin-bottom:2px;">Data</div><div style="font-weight:600; color:#1e293b;">23/06/2026</div></div>
+            <div><div style="color:#94a3b8; font-size:10px; text-transform:uppercase; margin-bottom:2px;">Horário</div><div style="font-weight:600; color:#1e293b;">14:00 — 16:00</div></div>
+            <div><div style="color:#94a3b8; font-size:10px; text-transform:uppercase; margin-bottom:2px;">Pessoas</div><div style="font-weight:600; color:#1e293b;">4 pessoas</div></div>
+            <div><div style="color:#94a3b8; font-size:10px; text-transform:uppercase; margin-bottom:2px;">Ministério</div><div style="font-weight:600; color:#1e293b;">Jovens</div></div>
+          </div>
+
+          <!-- motivo da solicitação -->
+          <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:8px 10px; margin-bottom:10px; font-size:11px; color:#1e40af;">
+            <span style="font-weight:700;">📝 Motivo:</span> Reunião de planejamento semestral do ministério.
+          </div>
+
+          <!-- campo justificativa (só para rejeitar/cancelar) -->
+          <div style="margin-bottom:10px;">
+            <label style="font-size:10px; font-weight:700; text-transform:uppercase; color:#64748b; display:block; margin-bottom:4px;">Justificativa (para rejeição/cancelamento)</label>
+            <div style="border:1px solid #e2e8f0; border-radius:8px; background:#f8fafc; padding:8px; font-size:11px; color:#94a3b8; min-height:44px;">Ex.: Sala reservada para manutenção...</div>
+          </div>
+
+          <!-- botões de ação -->
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:4px;">
+            <button style="background:#059669; color:#fff; border:none; border-radius:10px; padding:12px; font-size:13px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;">
+              ✓ Aprovar
+            </button>
+            <button style="background:#dc2626; color:#fff; border:none; border-radius:10px; padding:12px; font-size:13px; font-weight:700; cursor:pointer;">
+              ✕ Rejeitar
+            </button>
+          </div>
+          <button style="width:100%; background:#fff; color:#64748b; border:1px solid #e2e8f0; border-radius:10px; padding:10px; font-size:12px; font-weight:600; cursor:pointer;">
+            Cancelar reserva
+          </button>
+
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="section">
+  <h3>O que muda no fluxo</h3>
+  <div class="options" data-multiselect>
+    <div class="option" data-choice="detalhe" onclick="toggleSelect(this)" style="cursor:default; pointer-events:none;">
+      <div class="letter" style="background:#3b82f6; color:#fff;">✓</div>
+      <div class="content">
+        <h3>Antes de qualquer ação</h3>
+        <p>Tocar no card (ou num botão "Ver") abre o painel. <strong>Nenhuma ação acontece sem passar por ele.</strong> Aprovar direto no card some — tudo passa pelo painel.</p>
+      </div>
+    </div>
+    <div class="option" data-choice="campo" onclick="toggleSelect(this)" style="cursor:default; pointer-events:none;">
+      <div class="letter" style="background:#3b82f6; color:#fff;">✓</div>
+      <div class="content">
+        <h3>Campo de justificativa sempre visível</h3>
+        <p>Não abre mais um segundo modal para justificativa. O campo já está no painel, preenchimento antes de clicar Rejeitar ou Cancelar.</p>
+      </div>
+    </div>
+    <div class="option" data-choice="dados" onclick="toggleSelect(this)" style="cursor:default; pointer-events:none;">
+      <div class="letter" style="background:#3b82f6; color:#fff;">✓</div>
+      <div class="content">
+        <h3>Dados extras exibidos</h3>
+        <p>O painel mostra <strong>pessoas_count</strong>, <strong>reason</strong> (motivo da solicitação) e <strong>team</strong> (ministério) — campos que a tabela atual nem exibe.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<p class="subtitle">Isso te parece certo? Ou quer ajustar algum campo / botão no painel?</p>

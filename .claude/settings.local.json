@@ -47,7 +47,9 @@
       "Bash(Select-Object Name, PSIsContainer)",
       "Bash(Format-Table -AutoSize)",
       "Bash(supabase --version)",
-      "Bash(npx supabase *)"
+      "Bash(npx supabase *)",
+      "PowerShell(vercel *)",
+      "Bash(C:midia_igreja.claudeskillsbrainstormingscriptsstart-server.sh *)"
     ]
   }
 }
