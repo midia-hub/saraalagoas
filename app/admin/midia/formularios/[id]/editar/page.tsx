@@ -25,7 +25,7 @@ import type {
   CampoFormulario, ConfigFormulario, Formulario, TipoCampo,
 } from '@/lib/formularios'
 import {
-  TIPO_CAMPO_META, defaultConfig, newCampo,
+  TIPO_CAMPO_META, defaultConfig, generateSlug, newCampo,
 } from '@/lib/formularios'
 
 // ─── Icon map ─────────────────────────────────────────────────────────────────
@@ -538,9 +538,18 @@ export default function FormularioEditorPage() {
       .then(({ formulario }) => {
         setTitulo(formulario.titulo)
         setDescricao(formulario.descricao ?? '')
-        setSlug(formulario.slug)
+        // garante que slug nunca fique vazio — gera a partir do título se necessário
+        const resolvedSlug = formulario.slug || generateSlug(formulario.titulo) || formulario.id
+        setSlug(resolvedSlug)
         setCampos(formulario.schema?.campos ?? [])
         setConfig(formulario.config ?? defaultConfig())
+        // persiste o slug no banco caso estivesse vazio
+        if (!formulario.slug) {
+          adminFetchJson(`/api/admin/midia/formularios/${formulario.id}`, {
+            method: 'PUT',
+            body: JSON.stringify({ slug: resolvedSlug }),
+          }).catch(() => {})
+        }
       })
       .catch(() => router.push('/admin/midia/formularios'))
       .finally(() => setLoading(false))
@@ -664,15 +673,22 @@ export default function FormularioEditorPage() {
             <span className="hidden sm:inline">Config.</span>
           </button>
 
-          <a
-            href={`/f/${slug}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-600 transition-colors"
-          >
-            <Eye size={13} />
-            <span className="hidden sm:inline">Pré-visualizar</span>
-          </a>
+          {slug ? (
+            <a
+              href={`/f/${slug}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-600 transition-colors"
+            >
+              <Eye size={13} />
+              <span className="hidden sm:inline">Pré-visualizar</span>
+            </a>
+          ) : (
+            <span className="flex items-center gap-1.5 rounded-lg border border-slate-100 bg-slate-50 px-3 py-1.5 text-xs text-slate-300 cursor-not-allowed">
+              <Eye size={13} />
+              <span className="hidden sm:inline">Pré-visualizar</span>
+            </span>
+          )}
         </div>
 
         {/* ── Main layout ─────────────────────────────────────────────────────── */}
