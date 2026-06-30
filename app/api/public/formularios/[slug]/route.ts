@@ -4,6 +4,12 @@ import type { Formulario } from '@/lib/formularios'
 
 type Params = { params: Promise<{ slug: string }> }
 
+function getClientIp(request: NextRequest): string | null {
+  const forwarded = request.headers.get('x-forwarded-for')
+  if (forwarded) return forwarded.split(',')[0].trim()
+  return request.headers.get('x-real-ip')
+}
+
 export async function GET(request: NextRequest, { params }: Params) {
   const { slug } = await params
   const db = createSupabaseAdminClient()
@@ -48,7 +54,7 @@ export async function POST(request: NextRequest, { params }: Params) {
 
   const { data: formData, error: formError } = await db
     .from('formularios')
-    .select('id, ativo, config')
+    .select('id, ativo, config, schema')
     .eq('slug', slug)
     .maybeSingle()
 
@@ -57,6 +63,7 @@ export async function POST(request: NextRequest, { params }: Params) {
   if (!formData.ativo) return NextResponse.json({ error: 'Formulário fechado.' }, { status: 410 })
 
   const config = formData.config as Formulario['config']
+  const schema = formData.schema as Formulario['schema']
 
   if (config.data_encerramento && new Date(config.data_encerramento) < new Date()) {
     return NextResponse.json({ error: 'Prazo encerrado.' }, { status: 410 })
@@ -75,10 +82,49 @@ export async function POST(request: NextRequest, { params }: Params) {
 
   const body = (await request.json().catch(() => ({}))) as { dados?: Record<string, unknown> }
   const dados = body.dados ?? {}
+  const ip = getClientIp(request)
+
+  // Check per-IP limit
+  if (config.unico_por_ip && ip) {
+    const { data: ipDup } = await db
+      .from('formulario_respostas')
+      .select('id')
+      .eq('formulario_id', formData.id)
+      .eq('ip', ip)
+      .limit(1)
+    if (ipDup && ipDup.length > 0) {
+      return NextResponse.json(
+        { error: 'duplicate_ip', message: 'Sua resposta já foi registrada anteriormente.' },
+        { status: 409 }
+      )
+    }
+  }
+
+  // Check per-email limit
+  if (config.unico_por_email) {
+    const emailCampo = schema.campos.find((c) => c.tipo === 'email')
+    if (emailCampo) {
+      const emailValue = dados[emailCampo.id]
+      if (emailValue && typeof emailValue === 'string' && emailValue.trim()) {
+        const { data: emailDup } = await db
+          .from('formulario_respostas')
+          .select('id')
+          .eq('formulario_id', formData.id)
+          .filter(`dados->>${emailCampo.id}`, 'eq', emailValue.trim())
+          .limit(1)
+        if (emailDup && emailDup.length > 0) {
+          return NextResponse.json(
+            { error: 'duplicate_email', message: 'Este e-mail já foi utilizado para responder este formulário.' },
+            { status: 409 }
+          )
+        }
+      }
+    }
+  }
 
   const { data: resposta, error: insertError } = await db
     .from('formulario_respostas')
-    .insert({ formulario_id: formData.id, dados })
+    .insert({ formulario_id: formData.id, dados, ip: ip ?? null })
     .select('id')
     .single()
 

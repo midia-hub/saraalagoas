@@ -76,14 +76,13 @@ function FieldInput({
       return (
         <div className="space-y-2">
           {(campo.opcoes ?? []).map((op, i) => (
-            <label key={i} className="flex items-center gap-3 cursor-pointer group">
-              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+            <label key={i} onClick={() => onChange(op)} className="flex items-start gap-3 cursor-pointer group">
+              <div className={`mt-0.5 w-5 h-5 shrink-0 rounded-full border-2 flex items-center justify-center transition-all ${
                 value === op ? 'border-orange-500 bg-orange-500' : 'border-slate-300 group-hover:border-orange-400'
               }`}>
                 {value === op && <div className="w-2 h-2 rounded-full bg-white" />}
               </div>
-              <input type="radio" className="hidden" checked={value === op} readOnly />
-              <span className="text-sm text-slate-700" onClick={() => onChange(op)}>{op}</span>
+              <span className="text-sm text-slate-700 leading-relaxed">{op}</span>
             </label>
           ))}
         </div>
@@ -95,8 +94,8 @@ function FieldInput({
           {(campo.opcoes ?? []).map((op, i) => {
             const checked = vals.includes(op)
             return (
-              <label key={i} className="flex items-center gap-3 cursor-pointer group" onClick={() => onChange(checked ? vals.filter((v) => v !== op) : [...vals, op])}>
-                <div className={`w-5 h-5 rounded flex items-center justify-center border-2 transition-all ${
+              <label key={i} onClick={() => onChange(checked ? vals.filter((v) => v !== op) : [...vals, op])} className="flex items-start gap-3 cursor-pointer group">
+                <div className={`mt-0.5 w-5 h-5 shrink-0 rounded flex items-center justify-center border-2 transition-all ${
                   checked ? 'border-orange-500 bg-orange-500' : 'border-slate-300 group-hover:border-orange-400'
                 }`}>
                   {checked && (
@@ -105,7 +104,7 @@ function FieldInput({
                     </svg>
                   )}
                 </div>
-                <span className="text-sm text-slate-700">{op}</span>
+                <span className="text-sm text-slate-700 leading-relaxed">{op}</span>
               </label>
             )
           })}
@@ -253,10 +252,16 @@ export default function PublicFormPage() {
   function validate(secaoCampos: CampoFormulario[]): boolean {
     const newErrors: Record<string, string> = {}
     for (const campo of secaoCampos) {
-      if (campo.tipo === 'secao' || !isCampoVisible(campo, respostas) || !campo.obrigatorio) continue
+      if (campo.tipo === 'secao' || !isCampoVisible(campo, respostas)) continue
       const val = respostas[campo.id]
       const empty = val == null || val === '' || (Array.isArray(val) && val.length === 0)
-      if (empty) newErrors[campo.id] = 'Este campo é obrigatório.'
+      if (campo.obrigatorio && empty) {
+        newErrors[campo.id] = 'Este campo é obrigatório.'
+      } else if (campo.tipo === 'email' && !empty) {
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(val))) {
+          newErrors[campo.id] = 'Informe um e-mail válido.'
+        }
+      }
     }
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
@@ -279,7 +284,14 @@ export default function PublicFormPage() {
         body: JSON.stringify({ dados: respostas }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Erro ao enviar.')
+      if (!res.ok) {
+        const msg =
+          data.error === 'duplicate_email' ? 'Este e-mail já foi utilizado para responder este formulário.' :
+          data.error === 'duplicate_ip'    ? 'Sua resposta já foi registrada anteriormente.' :
+          data.message ?? data.error ?? 'Erro ao enviar.'
+        setErrors((prev) => ({ ...prev, _form: msg }))
+        return
+      }
       setSuccessMsg(data.mensagem ?? 'Obrigado pela sua resposta!')
       setState('submitted')
     } catch (err) {

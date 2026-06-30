@@ -38,6 +38,8 @@ export interface ConfigFormulario {
   limite_respostas: number | null
   data_encerramento: string | null
   mensagem_sucesso: string
+  unico_por_email: boolean
+  unico_por_ip: boolean
 }
 
 export interface Formulario {
@@ -79,6 +81,8 @@ export function defaultConfig(): ConfigFormulario {
     limite_respostas: null,
     data_encerramento: null,
     mensagem_sucesso: 'Obrigado pela sua resposta!',
+    unico_por_email: false,
+    unico_por_ip: false,
   }
 }
 
