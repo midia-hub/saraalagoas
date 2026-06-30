@@ -519,6 +519,7 @@ export default function FormularioEditorPage() {
   const [campos, setCampos] = useState<CampoFormulario[]>([])
   const [titulo, setTitulo] = useState('')
   const [descricao, setDescricao] = useState('')
+  const [slug, setSlug] = useState('')
   const [config, setConfig] = useState<ConfigFormulario>(defaultConfig())
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [showConfig, setShowConfig] = useState(false)
@@ -537,6 +538,7 @@ export default function FormularioEditorPage() {
       .then(({ formulario }) => {
         setTitulo(formulario.titulo)
         setDescricao(formulario.descricao ?? '')
+        setSlug(formulario.slug)
         setCampos(formulario.schema?.campos ?? [])
         setConfig(formulario.config ?? defaultConfig())
       })
@@ -663,7 +665,7 @@ export default function FormularioEditorPage() {
           </button>
 
           <a
-            href={`/f/${id}`}
+            href={`/f/${slug}`}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-600 transition-colors"
