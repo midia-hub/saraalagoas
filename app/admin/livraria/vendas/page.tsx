@@ -16,6 +16,8 @@ import { BarcodeScannerModal } from '@/components/admin/bookstore/BarcodeScanner
 import { FinalizeSaleModal } from '@/components/admin/bookstore/FinalizeSaleModal'
 import { MercadoPagoCheckoutModal } from '@/components/admin/bookstore/MercadoPagoCheckoutModal'
 import { MercadoPagoOrderModal } from '@/components/admin/bookstore/MercadoPagoOrderModal'
+import { InstallPwaButton } from '@/components/admin/bookstore/InstallPwaButton'
+import { useIsStandalone } from '@/lib/use-is-standalone'
 
 export default function PdvPage() {
   const [products, setProducts] = useState<PdvProduct[]>([])
@@ -52,6 +54,7 @@ export default function PdvPage() {
   } | null>(null)
   const [enabledPaymentMethods, setEnabledPaymentMethods] = useState<string[] | undefined>(undefined)
   const tokenRef = useRef<string | null>(null)
+  const isStandalone = useIsStandalone()
 
   const loadProducts = useCallback(async () => {
     setLoading(true)
@@ -347,13 +350,16 @@ export default function PdvPage() {
         <div className="flex-1 min-w-0 flex flex-col p-3 md:p-4 lg:w-[65%]">
           {/* Barra de busca */}
           <div className="flex items-center gap-2 mb-3">
-            <Link
-              href="/admin/livraria/produtos"
-              className="flex-shrink-0 p-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600 transition-colors"
-              aria-label="Voltar"
-            >
-              <ArrowLeft size={20} />
-            </Link>
+            {!isStandalone && (
+              <Link
+                href="/admin/livraria/produtos"
+                className="flex-shrink-0 p-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600 transition-colors"
+                aria-label="Voltar"
+              >
+                <ArrowLeft size={20} />
+              </Link>
+            )}
+            <InstallPwaButton />
             <div className="flex-1 relative">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
               <input
