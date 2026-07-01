@@ -14,6 +14,7 @@ import {
   isModuleNavActive,
 } from '@/lib/admin-menu-access'
 import { menuModules } from './menu-config'
+import { useIsStandalone } from '@/lib/use-is-standalone'
 import {
   Home,
   LogOut,
@@ -40,6 +41,7 @@ export function AdminSidebar() {
   const pathname = usePathname()
   const router = useRouter()
   const access = useAdminAccess()
+  const isStandalone = useIsStandalone()
   const [openMobile, setOpenMobile] = useState(false)
   const [width, setWidth] = useState(DEFAULT_WIDTH)
   const [resizing, setResizing] = useState(false)
@@ -51,6 +53,11 @@ export function AdminSidebar() {
   useEffect(() => {
     setWidth(getStoredWidth())
   }, [])
+
+  // Rodando como PWA instalado (ex.: PDV da Livraria): inicia recolhido para poupar espaço.
+  useEffect(() => {
+    if (isStandalone) setCollapsed(true)
+  }, [isStandalone])
 
   useEffect(() => {
     const unsubscribe = subscribeLoadingOverlayState((state) => {
@@ -181,45 +188,47 @@ export function AdminSidebar() {
   const renderNavItems = (isMobile = false) => {
     return (
       <nav className="flex-1 min-h-0 flex flex-col overflow-hidden">
-        {/* Módulos liberados — sempre visíveis */}
-        <div className="px-4 pt-4 pb-2 shrink-0 space-y-1 overflow-y-auto custom-scrollbar max-h-[42vh]">
-          <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-500 px-3 mb-2">
-            Módulos disponíveis
-          </p>
-          {hubModules.length === 0 ? (
-            <p className="px-3 text-xs text-slate-500">Nenhum módulo liberado.</p>
-          ) : (
-            hubModules.map((mod) => {
-              const href = getModuleRootHref(mod)
-              const isActiveModule = isModuleNavActive(pathname, mod)
-              return (
-                <Link
-                  key={mod.id}
-                  href={href}
-                  onClick={handleMenuClick(href, isMobile)}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group ${
-                    isActiveModule
-                      ? 'bg-white/10 text-white border border-white/10'
-                      : 'text-slate-400 hover:text-white hover:bg-white/5'
-                  }`}
-                >
-                  <div
-                    className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform"
-                    style={{ background: mod.color ? `${mod.color}22` : 'rgba(255,255,255,0.05)' }}
+        {/* Módulos liberados — sempre visíveis, exceto no PDV instalado (fica só na Livraria) */}
+        {!isStandalone && (
+          <div className="px-4 pt-4 pb-2 shrink-0 space-y-1 overflow-y-auto custom-scrollbar max-h-[42vh]">
+            <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-500 px-3 mb-2">
+              Módulos disponíveis
+            </p>
+            {hubModules.length === 0 ? (
+              <p className="px-3 text-xs text-slate-500">Nenhum módulo liberado.</p>
+            ) : (
+              hubModules.map((mod) => {
+                const href = getModuleRootHref(mod)
+                const isActiveModule = isModuleNavActive(pathname, mod)
+                return (
+                  <Link
+                    key={mod.id}
+                    href={href}
+                    onClick={handleMenuClick(href, isMobile)}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group ${
+                      isActiveModule
+                        ? 'bg-white/10 text-white border border-white/10'
+                        : 'text-slate-400 hover:text-white hover:bg-white/5'
+                    }`}
                   >
-                    <mod.icon size={15} style={{ color: mod.color ?? '#94a3b8' }} />
-                  </div>
-                  <span className="flex-1 truncate">{mod.title}</span>
-                  {isActiveModule ? (
-                    <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
-                  ) : (
-                    <ChevronRight size={13} className="opacity-0 group-hover:opacity-60 transition-opacity shrink-0" />
-                  )}
-                </Link>
-              )
-            })
-          )}
-        </div>
+                    <div
+                      className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform"
+                      style={{ background: mod.color ? `${mod.color}22` : 'rgba(255,255,255,0.05)' }}
+                    >
+                      <mod.icon size={15} style={{ color: mod.color ?? '#94a3b8' }} />
+                    </div>
+                    <span className="flex-1 truncate">{mod.title}</span>
+                    {isActiveModule ? (
+                      <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
+                    ) : (
+                      <ChevronRight size={13} className="opacity-0 group-hover:opacity-60 transition-opacity shrink-0" />
+                    )}
+                  </Link>
+                )
+              })
+            )}
+          </div>
+        )}
 
         {/* Itens do módulo ativo */}
         {activeModule ? (
@@ -436,15 +445,37 @@ export function AdminSidebar() {
           </>
         ) : (
           <div className="flex flex-col items-center py-6 w-full h-full bg-slate-900">
-            <div className="w-10 h-10 rounded-xl bg-red-600 flex items-center justify-center mb-10 shadow-lg shadow-red-600/20">
+            <div className="w-10 h-10 rounded-xl bg-red-600 flex items-center justify-center mb-6 shadow-lg shadow-red-600/20 shrink-0">
               <span className="text-white font-black text-xl">S</span>
             </div>
             <button
               onClick={() => setCollapsed(false)}
-              className="p-3 rounded-xl text-slate-400 hover:bg-white/5 hover:text-white transition-all"
+              className="p-3 rounded-xl text-slate-400 hover:bg-white/5 hover:text-white transition-all shrink-0 mb-4"
             >
               <PanelLeft size={24} />
             </button>
+            {activeModule ? (
+              <div className="flex-1 min-h-0 w-full flex flex-col items-center gap-1.5 overflow-y-auto custom-scrollbar px-2">
+                {activeModule.items.map(({ href, label, icon: Icon }) => {
+                  const isActive = href === activeItemHref
+                  return (
+                    <Link
+                      key={href}
+                      href={href}
+                      title={label}
+                      onClick={handleMenuClick(href)}
+                      className={`w-11 h-11 shrink-0 rounded-xl flex items-center justify-center transition-all duration-200 ${
+                        isActive
+                          ? 'bg-red-600 text-white shadow-lg shadow-red-600/20'
+                          : 'text-slate-400 hover:text-slate-100 hover:bg-white/5'
+                      }`}
+                    >
+                      {Icon && <Icon size={19} />}
+                    </Link>
+                  )
+                })}
+              </div>
+            ) : null}
             <div className="mt-auto space-y-4 pb-6">
               <button
                 onClick={handleSignOut}
